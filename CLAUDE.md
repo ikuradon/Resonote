@@ -1,0 +1,82 @@
+# Resonote
+
+Spotify iFrame API + Nostr プロトコルを使った音楽コメント同期システム。
+NIP-73 (External Content IDs) + NIP-22 (Comments, kind:1111) + NIP-25 (Reactions, kind:7) を活用。
+
+## Commands
+
+```bash
+pnpm run dev          # dev server (http://localhost:5173)
+pnpm run build        # production build → build/
+pnpm run preview      # preview production build
+pnpm run check        # svelte-kit sync + svelte-check
+pnpm run lint         # ESLint
+pnpm run format:check # Prettier format check
+pnpm run test         # unit tests (vitest)
+```
+
+## Pre-commit Validation
+
+**MUST** run all four checks before every commit/amend:
+
+```bash
+pnpm format:check && pnpm lint && pnpm check && pnpm test
+```
+
+This matches the CI pipeline order. Do not skip `pnpm lint` — `pnpm check` (svelte-check) only covers types, not ESLint rules like `no-unused-vars`, `no-undef`, or `svelte/require-each-key`.
+
+## Tech Stack
+
+- **Framework**: SvelteKit (SPA mode, Svelte 5 runes)
+- **Adapter**: @sveltejs/adapter-static (`fallback: '200.html'`)
+- **Styling**: Tailwind CSS v4 (`@tailwindcss/vite` plugin)
+- **Nostr**: rx-nostr + @rx-nostr/crypto (verifier/signer)
+- **Auth**: @konemono/nostr-login (`init()` + `nlAuth` DOM event)
+- **NIP utils**: nostr-tools (nip19 subpath only)
+- **Package manager**: pnpm
+
+## Code Style
+
+- Indent: 2 spaces
+- Single quotes in TS/JS unless interpolating
+- `const` over `let`, no `var`
+- Svelte 5 runes (`$state`, `$derived`, `$effect`, `$props`)
+- File extensions in imports: `.js` (even for `.ts` files, per SvelteKit convention)
+- `.svelte.ts` suffix for files using Svelte runes outside components
+
+## Architecture
+
+### ContentProvider Pattern
+
+`src/lib/content/types.ts` defines `ContentProvider` interface and `ContentId` type.
+Each platform (Spotify, future YouTube/Apple Music) implements this interface.
+Nostr tags are generated via `toNostrTag()` returning NIP-73 `["I", ...]` tags.
+
+### Nostr Layer
+
+- `src/lib/nostr/client.ts`: Singleton `getRxNostr()` with `@rx-nostr/crypto` verifier
+- `src/lib/nostr/events.ts`: Event builders for kind:1111 (comment) and kind:7 (reaction)
+- Signing: `nip07Signer()` from rx-nostr (delegates to `window.nostr`)
+
+### Subscription Pattern
+
+Comments use rx-nostr's dual-request pattern:
+
+- **Backward**: Fetch past events, call `over()` on completion
+- **Forward**: Real-time subscription for new events
+- Merged with `uniq()` + `timeline()` operators
+
+### State Management
+
+Svelte 5 `$state` runes in `.svelte.ts` files (no Svelte stores):
+
+- `auth.svelte.ts`: Login state via nostr-login `nlAuth` events
+- `comments.svelte.ts`: Per-content comment subscription
+- `player.svelte.ts`: Playback state
+
+## Key Decisions
+
+- SPA mode (`ssr = false`, `prerender = false`) — Nostr requires client-side WebSocket
+- `fallback: '200.html'` enables client-side routing for direct URL access
+- `noBanner: true` in nostr-login init — manual login UI via `launch()`
+- rx-nostr verifier is mandatory; using `@rx-nostr/crypto`'s `verifier`
