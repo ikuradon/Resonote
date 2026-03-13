@@ -47,10 +47,10 @@
     "wrangler": "^4.72.0"
   },
   "dependencies": {
-    "@emoji-mart/data": "^1.2.1",
+    "@ikuradon/emoji-kitchen-mart-data": "*",
     "@konemono/nostr-login": "^1.15.1",
     "@rx-nostr/crypto": "^0.0.0",
-    "emoji-kitchen-mart": "^6.0.5",
+    "@ikuradon/emoji-kitchen-mart": "*",
     "idb": "^8.0.3",
     "nostr-tools": "^2.23.3",
     "rx-nostr": "^3.6.2",

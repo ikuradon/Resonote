@@ -9,8 +9,8 @@ let cached: Promise<{ data: unknown; Picker: unknown }> | undefined;
 export function preloadEmojiMart(): void {
   if (cached) return;
   cached = Promise.all([
-    import('@emoji-mart/data').then((m) => m.default),
-    import('emoji-kitchen-mart')
+    import('@ikuradon/emoji-kitchen-mart-data').then((m) => m.default),
+    import('@ikuradon/emoji-kitchen-mart')
   ]).then(
     ([data, mod]) => ({ data, Picker: mod.Picker }),
     (err) => {
