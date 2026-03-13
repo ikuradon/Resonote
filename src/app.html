@@ -9,9 +9,10 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Playfair+Display:wght@400;600;700&display=swap"
       rel="stylesheet"
     />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     %sveltekit.head%
   </head>
-  <body data-sveltekit-preload-data="hover">
+  <body data-sveltekit-preload-data="hover" style="margin: 0; background: #06060a">
     <div style="display: contents">%sveltekit.body%</div>
     <script>
       const observer = new MutationObserver(() => {
@@ -42,6 +43,33 @@
         transition: opacity 0.3s ease;
       "
     >
+      <svg
+        width="40"
+        height="40"
+        viewBox="0 0 64 64"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <defs>
+          <mask id="splash-cutout">
+            <rect width="64" height="64" fill="white" />
+            <ellipse cx="27" cy="31" rx="8.5" ry="6" transform="rotate(-20 27 31)" fill="black" />
+            <rect x="34" y="11" width="3.5" height="21" rx="1.75" fill="black" />
+            <path
+              d="M35.75 11.5C39 11 47.5 13.5 47.5 22"
+              stroke="black"
+              stroke-width="3.5"
+              fill="none"
+              stroke-linecap="round"
+            />
+          </mask>
+        </defs>
+        <path
+          d="M14 4h36c5.5 0 10 4.5 10 10v20c0 5.5-4.5 10-10 10H22L8 56l6-12c-5.5 0-10-4.5-10-10V14C4 8.5 8.5 4 14 4z"
+          fill="#c9a256"
+          mask="url(#splash-cutout)"
+        />
+      </svg>
       <span style="font-weight: 600">Resonote</span>
       <span
         style="
