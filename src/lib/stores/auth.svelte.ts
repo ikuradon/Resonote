@@ -31,17 +31,25 @@ async function onLogin(pubkey: string) {
 async function onLogout() {
   log.info('Logout');
   state.pubkey = null;
-  const [{ resetToDefaultRelays }, { clearFollows }, { clearCustomEmojis }] = await Promise.all([
-    import('../nostr/user-relays.js'),
-    import('./follows.svelte.js'),
-    import('./emoji-sets.svelte.js')
-  ]);
+  const [{ resetToDefaultRelays }, { clearFollows }, { clearCustomEmojis }, { clearProfiles }] =
+    await Promise.all([
+      import('../nostr/user-relays.js'),
+      import('./follows.svelte.js'),
+      import('./emoji-sets.svelte.js'),
+      import('./profile.svelte.js')
+    ]);
   await resetToDefaultRelays();
   clearFollows();
   clearCustomEmojis();
+  clearProfiles();
   const { refreshRelayList } = await import('./relays.svelte.js');
   const { DEFAULT_RELAYS } = await import('../nostr/relays.js');
   refreshRelayList(DEFAULT_RELAYS);
+
+  // Clear the events DB
+  const { getEventsDB } = await import('../nostr/event-db.js');
+  const db = await getEventsDB();
+  await db.clearAll();
 }
 
 export function getAuth() {

@@ -24,17 +24,49 @@ export async function fetchProfile(pubkey: string): Promise<void> {
   return fetchProfiles([pubkey]);
 }
 
+function parseProfileContent(content: string): Profile {
+  const meta = JSON.parse(content) as Record<string, unknown>;
+  return {
+    name: typeof meta.name === 'string' ? truncate(meta.name) : undefined,
+    displayName: typeof meta.display_name === 'string' ? truncate(meta.display_name) : undefined,
+    picture: typeof meta.picture === 'string' ? meta.picture : undefined
+  };
+}
+
 /**
  * Fetch profiles for multiple pubkeys, chunked to avoid relay filter limits.
  * Skips pubkeys that are already fetched or in-flight.
+ * Falls back to DB cache before making relay requests.
  */
 export async function fetchProfiles(pubkeys: string[]): Promise<void> {
-  const toFetch = pubkeys.filter((pk) => !profiles.has(pk) && !pending.has(pk));
+  let toFetch = pubkeys.filter((pk) => !profiles.has(pk) && !pending.has(pk));
   if (toFetch.length === 0) return;
 
   for (const pk of toFetch) pending.add(pk);
 
   try {
+    // DB fallback: restore cached kind:0 profiles
+    const { getEventsDB } = await import('../nostr/event-db.js');
+    const eventsDB = await getEventsDB();
+    const cached = await eventsDB.getManyByPubkeysAndKind(toFetch, 0);
+
+    for (const event of cached) {
+      try {
+        const profile = parseProfileContent(event.content);
+        profiles.set(event.pubkey, profile);
+      } catch {
+        log.warn('Malformed cached profile JSON', { pubkey: shortHex(event.pubkey) });
+      }
+    }
+
+    // Filter out pubkeys we got from DB
+    toFetch = toFetch.filter((pk) => !profiles.has(pk));
+    if (toFetch.length === 0) {
+      profiles = new Map(profiles);
+      for (const pk of pubkeys) pending.delete(pk);
+      return;
+    }
+
     const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
       import('rx-nostr'),
       import('../nostr/client.js')
@@ -50,14 +82,9 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
       const sub = rxNostr.use(req).subscribe({
         next: (packet) => {
           try {
-            const meta = JSON.parse(packet.event.content) as Record<string, unknown>;
-            const profile: Profile = {
-              name: typeof meta.name === 'string' ? truncate(meta.name) : undefined,
-              displayName:
-                typeof meta.display_name === 'string' ? truncate(meta.display_name) : undefined,
-              picture: typeof meta.picture === 'string' ? meta.picture : undefined
-            };
+            const profile = parseProfileContent(packet.event.content);
             profiles.set(packet.event.pubkey, profile);
+            eventsDB.put(packet.event);
           } catch {
             log.warn('Malformed profile JSON', { pubkey: shortHex(packet.event.pubkey) });
           }
@@ -94,4 +121,10 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
     log.error('Profile fetch failed', { error: err });
     for (const pk of toFetch) pending.delete(pk);
   }
+}
+
+/** Clear in-memory profile cache (called on logout). DB cleared separately. */
+export function clearProfiles(): void {
+  profiles = new Map();
+  pending.clear();
 }

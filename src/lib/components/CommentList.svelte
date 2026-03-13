@@ -6,7 +6,12 @@
   import { untrack } from 'svelte';
   import { getPlayer } from '../stores/player.svelte.js';
   import { getAuth } from '../stores/auth.svelte.js';
-  import { getFollows, matchesFilter, type FollowFilter } from '../stores/follows.svelte.js';
+  import {
+    getFollows,
+    matchesFilter,
+    refreshFollows,
+    type FollowFilter
+  } from '../stores/follows.svelte.js';
   import type { ContentId, ContentProvider } from '../content/types.js';
   import { createLogger, shortHex } from '../utils/logger.js';
   import { parseEmojiContent } from '../utils/emoji.js';
@@ -286,7 +291,22 @@
       {/each}
     </div>
     {#if follows.loading}
-      <span class="text-text-muted">Loading...</span>
+      <span class="text-text-muted"
+        >Building WoT... <span class="font-mono">{follows.discoveredCount}</span> users</span
+      >
+    {:else if follows.cachedAt}
+      <span class="text-text-muted">
+        <span class="font-mono">{follows.wot.size}</span> users
+        <span class="mx-1">|</span>
+        {new Date(follows.cachedAt).toLocaleDateString()}
+      </span>
+      <button
+        type="button"
+        onclick={() => auth.pubkey && refreshFollows(auth.pubkey)}
+        class="rounded-md bg-surface-2 px-2 py-0.5 text-xs text-text-muted transition-colors hover:bg-surface-3 hover:text-text-secondary"
+      >
+        Update
+      </button>
     {/if}
   {/if}
 </div>

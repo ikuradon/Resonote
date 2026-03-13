@@ -18,7 +18,7 @@ export async function getRxNostr(): Promise<RxNostr> {
       import('@rx-nostr/crypto'),
       import('./relays.js')
     ]);
-    rxNostr = createRxNostr({ verifier });
+    rxNostr = createRxNostr({ verifier, eoseTimeout: 10_000 });
     rxNostr.setDefaultRelays(DEFAULT_RELAYS);
     log.info('RxNostr initialized', { relays: DEFAULT_RELAYS });
     return rxNostr;

@@ -127,84 +127,171 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     });
   }
 
+  function buildCommentFromEvent(event: {
+    id: string;
+    pubkey: string;
+    content: string;
+    created_at: number;
+    tags: string[][];
+  }): Comment {
+    const posTag = event.tags.find((t: string[]) => t[0] === 'position');
+    const emojiTags = event.tags.filter((t: string[]) => isEmojiTag(t));
+    return {
+      id: event.id,
+      pubkey: event.pubkey,
+      content: event.content,
+      createdAt: event.created_at,
+      positionMs: posTag ? parsePosition(posTag[1]) : null,
+      emojiTags
+    };
+  }
+
+  function buildReactionFromEvent(event: {
+    id: string;
+    pubkey: string;
+    content: string;
+    tags: string[][];
+  }): Reaction | null {
+    const eTag = event.tags.find((t: string[]) => t[0] === 'e');
+    if (!eTag) return null;
+    const emojiTag = event.tags.find((t: string[]) => isEmojiTag(t));
+    return {
+      id: event.id,
+      pubkey: event.pubkey,
+      content: event.content,
+      targetEventId: eTag[1],
+      emojiUrl: emojiTag ? emojiTag[2] : undefined
+    };
+  }
+
   async function subscribe() {
     log.info('Subscribing to comments', {
       contentId: `${contentId.platform}:${contentId.type}:${contentId.id}`
     });
 
-    const [{ merge }, rxNostrMod, { getRxNostr }] = await Promise.all([
+    const [{ merge }, rxNostrMod, { getRxNostr }, { getEventsDB }] = await Promise.all([
       import('rxjs'),
       import('rx-nostr'),
-      import('../nostr/client.js')
+      import('../nostr/client.js'),
+      import('../nostr/event-db.js')
     ]);
 
     const { createRxBackwardReq, createRxForwardReq, uniq } = rxNostrMod;
     const rxNostr = await getRxNostr();
+    const eventsDB = await getEventsDB();
     const iTag = provider.toNostrTag(contentId);
+    const tagQuery = `I:${iTag[1]}`;
+
+    // --- Restore from DB (single pass) ---
+    const cachedEvents = await eventsDB.getByTagValue(tagQuery);
+    const cachedComments: typeof cachedEvents = [];
+    const cachedReactions: typeof cachedEvents = [];
+    let maxCreatedAt: number | null = null;
+
+    for (const event of cachedEvents) {
+      if (maxCreatedAt === null || event.created_at > maxCreatedAt) {
+        maxCreatedAt = event.created_at;
+      }
+      switch (event.kind) {
+        case 5: {
+          const eTags = event.tags.filter((t) => t[0] === 'e').map((t) => t[1]);
+          for (const id of eTags) deletedIds.add(id);
+          break;
+        }
+        case 1111:
+          cachedComments.push(event);
+          break;
+        case 7:
+          cachedReactions.push(event);
+          break;
+      }
+    }
+
+    if (deletedIds.size > 0) {
+      deletedIds = new Set(deletedIds);
+    }
+
+    // Batch-restore comments
+    const newComments: Comment[] = [];
+    for (const event of cachedComments) {
+      if (!commentIds.has(event.id)) {
+        commentIds.add(event.id);
+        newComments.push(buildCommentFromEvent(event));
+      }
+    }
+    if (newComments.length > 0) {
+      commentsRaw = [...commentsRaw, ...newComments];
+    }
+
+    // Restore reactions
+    for (const event of cachedReactions) {
+      const reaction = buildReactionFromEvent(event);
+      if (reaction) addReaction(reaction);
+    }
+
+    prevDeletedSize = deletedIds.size;
+
+    log.info('Restored from DB', {
+      comments: commentIds.size,
+      reactions: reactionIds.size,
+      deletions: deletedIds.size,
+      maxCreatedAt
+    });
 
     // --- Comments (kind:1111) ---
     const commentBackward = createRxBackwardReq();
     const commentForward = createRxForwardReq();
-    const commentFilter = { kinds: [1111], '#I': [iTag[1]] };
+    const commentFilter = maxCreatedAt
+      ? { kinds: [1111], '#I': [iTag[1]], since: maxCreatedAt }
+      : { kinds: [1111], '#I': [iTag[1]] };
 
     const commentSub = merge(
       rxNostr.use(commentBackward).pipe(uniq()),
       rxNostr.use(commentForward).pipe(uniq())
     ).subscribe((packet) => {
       if (commentIds.has(packet.event.id)) return;
+      eventsDB.put(packet.event);
       commentIds.add(packet.event.id);
-      const posTag = packet.event.tags.find((t: string[]) => t[0] === 'position');
-      const emojiTags = packet.event.tags.filter((t: string[]) => isEmojiTag(t));
-      const comment: Comment = {
-        id: packet.event.id,
-        pubkey: packet.event.pubkey,
-        content: packet.event.content,
-        createdAt: packet.event.created_at,
-        positionMs: posTag ? parsePosition(posTag[1]) : null,
-        emojiTags
-      };
-      commentsRaw = [...commentsRaw, comment];
-      log.debug('Comment received', { id: shortHex(comment.id) });
+      commentsRaw = [...commentsRaw, buildCommentFromEvent(packet.event)];
+      log.debug('Comment received', { id: shortHex(packet.event.id) });
     });
 
     commentBackward.emit(commentFilter);
     commentBackward.over();
-    commentForward.emit(commentFilter);
+    commentForward.emit({ kinds: [1111], '#I': [iTag[1]] });
 
     // --- Reactions (kind:7) ---
     const reactionBackward = createRxBackwardReq();
     const reactionForward = createRxForwardReq();
-    const reactionFilter = { kinds: [7], '#I': [iTag[1]] };
+    const reactionFilter = maxCreatedAt
+      ? { kinds: [7], '#I': [iTag[1]], since: maxCreatedAt }
+      : { kinds: [7], '#I': [iTag[1]] };
 
     const reactionSub = merge(
       rxNostr.use(reactionBackward).pipe(uniq()),
       rxNostr.use(reactionForward).pipe(uniq())
     ).subscribe((packet) => {
-      const eTag = packet.event.tags.find((t: string[]) => t[0] === 'e');
-      if (!eTag) return;
-      const emojiTag = packet.event.tags.find((t: string[]) => isEmojiTag(t));
-      addReaction({
-        id: packet.event.id,
-        pubkey: packet.event.pubkey,
-        content: packet.event.content,
-        targetEventId: eTag[1],
-        emojiUrl: emojiTag ? emojiTag[2] : undefined
-      });
+      eventsDB.put(packet.event);
+      const reaction = buildReactionFromEvent(packet.event);
+      if (reaction) addReaction(reaction);
     });
 
     reactionBackward.emit(reactionFilter);
     reactionBackward.over();
-    reactionForward.emit(reactionFilter);
+    reactionForward.emit({ kinds: [7], '#I': [iTag[1]] });
 
     // --- Deletions (kind:5) ---
     const deletionBackward = createRxBackwardReq();
     const deletionForward = createRxForwardReq();
-    const deletionFilter = { kinds: [5], '#I': [iTag[1]] };
+    const deletionFilter = maxCreatedAt
+      ? { kinds: [5], '#I': [iTag[1]], since: maxCreatedAt }
+      : { kinds: [5], '#I': [iTag[1]] };
 
     const deletionSub = merge(
       rxNostr.use(deletionBackward).pipe(uniq()),
       rxNostr.use(deletionForward).pipe(uniq())
     ).subscribe((packet) => {
+      eventsDB.put(packet.event);
       const eTags = packet.event.tags
         .filter((t: string[]) => t[0] === 'e')
         .map((t: string[]) => t[1]);
@@ -222,7 +309,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
 
     deletionBackward.emit(deletionFilter);
     deletionBackward.over();
-    deletionForward.emit(deletionFilter);
+    deletionForward.emit({ kinds: [5], '#I': [iTag[1]] });
 
     subscriptions = [commentSub, reactionSub, deletionSub];
   }
