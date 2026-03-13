@@ -180,13 +180,13 @@ export async function loadFollows(pubkey: string): Promise<void> {
     const follows = extractFollows(kind3);
     state.follows = follows;
 
-    // Restore 2-hop WoT from DB
-    const followArray = [...follows];
-    const hopEvents = await eventsDB.getManyByPubkeysAndKind(followArray, 3);
+    // Restore 2-hop WoT from DB (single index scan + JS filter)
+    const allKind3 = await eventsDB.getAllByKind(3);
     if (gen !== generation) return;
 
     const allWot = new Set([...follows, pubkey]);
-    for (const event of hopEvents) {
+    for (const event of allKind3) {
+      if (!follows.has(event.pubkey)) continue;
       for (const tag of event.tags) {
         if (tag[0] === 'p' && tag[1]) allWot.add(tag[1]);
       }

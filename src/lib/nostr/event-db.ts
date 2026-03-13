@@ -169,6 +169,13 @@ export class EventsDB {
     return result ? toNostrEvent(result) : null;
   }
 
+  /** Get all events of a given kind. Useful when most events match (e.g., kind:3 for WoT). */
+  async getAllByKind(kind: number): Promise<NostrEvent[]> {
+    const range = IDBKeyRange.bound([kind, -Infinity], [kind, Infinity]);
+    const results = await this.db.getAllFromIndex(STORE_NAME, 'kind_created', range);
+    return results.map(toNostrEvent);
+  }
+
   /** Query events by tag value (e.g., "I:spotify:track:xxx"). Optionally filter by kind. */
   async getByTagValue(tagQuery: string, kind?: number): Promise<NostrEvent[]> {
     const results = await this.db.getAllFromIndex(STORE_NAME, 'tag_values', tagQuery);

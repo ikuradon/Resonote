@@ -244,6 +244,23 @@ describe('EventsDB', () => {
     });
   });
 
+  describe('getAllByKind', () => {
+    it('should return all events of a given kind', async () => {
+      await eventsDB.put(makeEvent({ id: 'e1', pubkey: 'pk-1', kind: 3, created_at: 100 }));
+      await eventsDB.put(makeEvent({ id: 'e2', pubkey: 'pk-2', kind: 3, created_at: 200 }));
+      await eventsDB.put(makeEvent({ id: 'e3', pubkey: 'pk-1', kind: 1, created_at: 300 }));
+
+      const results = await eventsDB.getAllByKind(3);
+      expect(results).toHaveLength(2);
+      expect(results.map((r) => r.pubkey).sort()).toEqual(['pk-1', 'pk-2']);
+    });
+
+    it('should return empty array for nonexistent kind', async () => {
+      const results = await eventsDB.getAllByKind(9999);
+      expect(results).toHaveLength(0);
+    });
+  });
+
   describe('getMaxCreatedAt', () => {
     it('should return max created_at for a kind', async () => {
       await eventsDB.put(makeEvent({ id: 'e1', kind: 1111, created_at: 100 }));
