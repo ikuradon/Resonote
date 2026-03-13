@@ -5,8 +5,7 @@
   import { getPlayer } from '../stores/player.svelte.js';
   import type { ContentId, ContentProvider } from '../content/types.js';
   import { createLogger } from '../utils/logger.js';
-  import { extractShortcode } from '../utils/emoji.js';
-  import EmojiPickerPopover, { allocatePopoverId } from './EmojiPickerPopover.svelte';
+  import NoteInput from './NoteInput.svelte';
 
   const log = createLogger('CommentForm');
 
@@ -19,7 +18,6 @@
 
   const auth = getAuth();
   const player = getPlayer();
-  const pickerId = allocatePopoverId();
   let content = $state('');
   let sending = $state(false);
   let emojiTags = $state<string[][]>([]);
@@ -29,19 +27,6 @@
    *  Auto-falls back to false when no position is available. */
   let attachPosition = $state(true);
   let effectiveAttach = $derived(attachPosition && hasPosition);
-
-  let textareaEl = $state<HTMLTextAreaElement | null>(null);
-
-  function insertEmoji(reaction: string, emojiUrl?: string) {
-    content += reaction;
-    if (emojiUrl) {
-      const shortcode = extractShortcode(reaction);
-      if (!emojiTags.some((t) => t[1] === shortcode)) {
-        emojiTags = [...emojiTags, ['emoji', shortcode, emojiUrl]];
-      }
-    }
-    textareaEl?.focus();
-  }
 
   async function submit() {
     const trimmed = content.trim();
@@ -61,13 +46,6 @@
       log.error('Failed to send comment', err);
     } finally {
       sending = false;
-    }
-  }
-
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      submit();
     }
   }
 </script>
@@ -106,17 +84,14 @@
       </button>
     </div>
 
-    <div class="flex items-center gap-3">
-      <textarea
-        bind:this={textareaEl}
-        bind:value={content}
-        onkeydown={handleKeydown}
-        placeholder={effectiveAttach ? 'この瞬間にコメント...' : '全体への感想を書く...'}
-        disabled={sending}
-        rows="1"
-        class="flex-1 resize-none rounded-xl border border-border bg-surface-1 px-4 py-2.5 text-sm text-text-primary placeholder-text-muted transition-all duration-200 focus:border-accent focus:ring-1 focus:ring-accent/30 focus:outline-none disabled:opacity-40"
-      ></textarea>
-      <EmojiPickerPopover id={pickerId} onSelect={insertEmoji} />
+    <NoteInput
+      bind:content
+      bind:emojiTags
+      disabled={sending}
+      placeholder={effectiveAttach ? 'この瞬間にコメント...' : '全体への感想を書く...'}
+      rows={1}
+      onsubmit={submit}
+    >
       <button
         type="submit"
         disabled={sending || !content.trim()}
@@ -124,7 +99,7 @@
       >
         {sending ? '...' : 'Send'}
       </button>
-    </div>
+    </NoteInput>
   </form>
 {:else}
   <div class="rounded-xl border border-dashed border-border py-4 text-center">

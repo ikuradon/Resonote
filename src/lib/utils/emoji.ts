@@ -21,6 +21,15 @@ export function extractShortcode(s: string): string {
 }
 
 /**
+ * Add an emoji tag to the list if not already present (checked by shortcode).
+ * Returns a new array if added, or the original if already present.
+ */
+export function addEmojiTag(emojiTags: string[][], shortcode: string, url: string): string[][] {
+  if (emojiTags.some((t) => t[1] === shortcode)) return emojiTags;
+  return [...emojiTags, ['emoji', shortcode, url]];
+}
+
+/**
  * Parse content string replacing :shortcode: references with emoji segments.
  * Builds a mapping from emoji tags (["emoji", shortcode, url]) and splits
  * the content into text and emoji segments.

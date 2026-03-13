@@ -5,7 +5,8 @@ import {
   buildReaction,
   buildDeletion,
   formatPosition,
-  parsePosition
+  parsePosition,
+  extractHashtags
 } from './events.js';
 import { SpotifyProvider } from '../content/spotify.js';
 import type { ContentId, ContentProvider } from '../content/types.js';
@@ -139,6 +140,39 @@ describe('parsePosition', () => {
   });
 });
 
+describe('extractHashtags', () => {
+  it('should extract a single hashtag', () => {
+    expect(extractHashtags('hello #world')).toEqual(['world']);
+  });
+
+  it('should extract multiple hashtags and deduplicate', () => {
+    expect(extractHashtags('#foo #bar #Foo')).toEqual(['foo', 'bar']);
+  });
+
+  it('should extract Japanese hashtags', () => {
+    expect(extractHashtags('#音楽 #ロック')).toEqual(['音楽', 'ロック']);
+  });
+
+  it('should ignore # in the middle of a word', () => {
+    expect(extractHashtags('c#sharp')).toEqual([]);
+  });
+
+  it('should return empty array for no hashtags', () => {
+    expect(extractHashtags('no hashtags here')).toEqual([]);
+  });
+
+  it('should handle hashtag at start of string', () => {
+    expect(extractHashtags('#first word')).toEqual(['first']);
+  });
+});
+
+describe('buildComment with hashtags', () => {
+  it('should include t tags for hashtags in content', () => {
+    const event = buildComment('#NowPlaying great song', trackId, provider);
+    expect(event.tags).toContainEqual(['t', 'nowplaying']);
+  });
+});
+
 describe('buildShare', () => {
   it('should build a kind:1 event with content as-is', () => {
     const text = 'Check this out!\nhttps://open.spotify.com/track/abc123';
@@ -152,9 +186,22 @@ describe('buildShare', () => {
 
   it('should include I tag for episodes', () => {
     const event = buildShare('great episode', episodeId, provider);
-    expect(event.tags).toEqual([
-      ['I', 'spotify:episode:ep456', 'https://open.spotify.com/episode/ep456']
+    expect(event.tags).toContainEqual([
+      'I',
+      'spotify:episode:ep456',
+      'https://open.spotify.com/episode/ep456'
     ]);
+  });
+
+  it('should include emoji tags when provided', () => {
+    const emojiTags = [['emoji', 'fire', 'https://example.com/fire.png']];
+    const event = buildShare(':fire: awesome', trackId, provider, emojiTags);
+    expect(event.tags).toContainEqual(['emoji', 'fire', 'https://example.com/fire.png']);
+  });
+
+  it('should include t tags for hashtags', () => {
+    const event = buildShare('#Music check this out', trackId, provider);
+    expect(event.tags).toContainEqual(['t', 'music']);
   });
 });
 

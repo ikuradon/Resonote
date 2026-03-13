@@ -4,6 +4,7 @@
   import { getAuth } from '../stores/auth.svelte.js';
   import type { ContentId, ContentProvider } from '../content/types.js';
   import { createLogger } from '../utils/logger.js';
+  import NoteInput from './NoteInput.svelte';
 
   const log = createLogger('ShareButton');
 
@@ -17,6 +18,7 @@
   const auth = getAuth();
   let open = $state(false);
   let content = $state('');
+  let emojiTags = $state<string[][]>([]);
   let sending = $state(false);
 
   function defaultContent(): string {
@@ -27,13 +29,9 @@
 
   function toggle() {
     open = !open;
-    if (open) content = defaultContent();
-  }
-
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      share();
+    if (open) {
+      content = defaultContent();
+      emojiTags = [];
     }
   }
 
@@ -43,12 +41,14 @@
 
     sending = true;
     try {
-      const params = buildShare(trimmed, contentId, provider);
+      const tags = emojiTags.length > 0 ? emojiTags : undefined;
+      const params = buildShare(trimmed, contentId, provider, tags);
       log.info('Sharing as kind:1', { contentLength: trimmed.length });
       await castSigned(params);
       log.info('Shared successfully');
       open = false;
       content = '';
+      emojiTags = [];
     } catch (err) {
       log.error('Failed to share', err);
     } finally {
@@ -78,13 +78,14 @@
         class="absolute right-0 top-full z-10 mt-2 w-80 rounded-xl border border-border bg-surface-0 p-4 shadow-lg"
       >
         <p class="mb-2 text-xs font-medium text-text-secondary">Share as kind:1 note</p>
-        <textarea
-          bind:value={content}
-          onkeydown={handleKeydown}
+        <NoteInput
+          bind:content
+          bind:emojiTags
           disabled={sending}
-          rows="5"
-          class="w-full resize-none rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary placeholder-text-muted transition-all duration-200 focus:border-accent focus:ring-1 focus:ring-accent/30 focus:outline-none disabled:opacity-40"
-        ></textarea>
+          placeholder=""
+          rows={5}
+          onsubmit={share}
+        />
         <div class="mt-2 flex justify-end gap-2">
           <button
             type="button"

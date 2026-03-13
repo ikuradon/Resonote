@@ -31,6 +31,7 @@
 <script lang="ts">
   import EmojiPicker from './EmojiPicker.svelte';
   import { onMount } from 'svelte';
+  import type { Action } from 'svelte/action';
 
   interface Props {
     id: string;
@@ -80,6 +81,16 @@
     popoverStyle = `left:${left}px;top:${top}px`;
   }
 
+  /** Move the element to document.body to escape ancestor transforms/filters. */
+  const portal: Action = (node) => {
+    document.body.appendChild(node);
+    return {
+      destroy() {
+        node.remove();
+      }
+    };
+  };
+
   onMount(() => {
     ensureGlobalListener();
     return () => {
@@ -106,7 +117,7 @@
 </button>
 
 {#if isOpen}
-  <div bind:this={popoverEl} class="fixed z-50" style={popoverStyle}>
+  <div bind:this={popoverEl} class="fixed z-50" style={popoverStyle} use:portal>
     <EmojiPicker onSelect={handleSelect} />
   </div>
 {/if}

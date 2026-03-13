@@ -28,10 +28,41 @@ export function parsePosition(str: string): number | null {
   return null;
 }
 
+const HASHTAG_RE = /(?:^|(?<=\s))#([a-zA-Z0-9_\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]+)/g;
+
+/**
+ * Extract unique hashtags from content.
+ * Matches `#tag` at word boundaries; supports ASCII alphanumerics, underscores,
+ * and Japanese characters (hiragana, katakana, CJK unified ideographs).
+ * Returns lowercase tags, deduplicated.
+ */
+export function extractHashtags(content: string): string[] {
+  const tags = new Set<string>();
+  let m: RegExpExecArray | null;
+  HASHTAG_RE.lastIndex = 0;
+  while ((m = HASHTAG_RE.exec(content)) !== null) {
+    tags.add(m[1].toLowerCase());
+  }
+  return [...tags];
+}
+
+/**
+ * Append emoji tags and hashtag tags extracted from content to a tags array.
+ */
+function appendContentTags(tags: string[][], content: string, emojiTags?: string[][]): void {
+  if (emojiTags) {
+    tags.push(...emojiTags);
+  }
+  for (const t of extractHashtags(content)) {
+    tags.push(['t', t]);
+  }
+}
+
 /**
  * Build a kind:1111 comment event (NIP-22).
  * Tags: ["I", "<platform-uri>", "<hint-url>"], ["k", "1111"]
  * Optionally includes ["position", "<seconds>"] when positionMs is provided.
+ * Automatically appends ["t", tag] for any #hashtags found in content.
  */
 export function buildComment(
   content: string,
@@ -47,11 +78,7 @@ export function buildComment(
     tags.push(['position', String(Math.floor(positionMs / 1000))]);
   }
 
-  if (emojiTags) {
-    for (const tag of emojiTags) {
-      tags.push(tag);
-    }
-  }
+  appendContentTags(tags, content, emojiTags);
 
   return {
     kind: 1111,
@@ -79,13 +106,18 @@ export function buildDeletion(targetEventIds: string[]): EventParameters {
 export function buildShare(
   content: string,
   contentId: ContentId,
-  provider: ContentProvider
+  provider: ContentProvider,
+  emojiTags?: string[][]
 ): EventParameters {
   const iTag = provider.toNostrTag(contentId);
+  const tags: string[][] = [iTag];
+
+  appendContentTags(tags, content, emojiTags);
+
   return {
     kind: 1,
     content,
-    tags: [iTag]
+    tags
   };
 }
 
