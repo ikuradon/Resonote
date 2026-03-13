@@ -7,7 +7,9 @@
     <h1 class="font-display text-5xl font-bold tracking-wide text-text-primary">
       Reso<span class="text-accent">note</span>
     </h1>
-    <p class="mt-4 text-base text-text-secondary">Share your thoughts on music via Nostr</p>
+    <p class="mt-4 text-base text-text-secondary">
+      Share your thoughts on what you're listening to
+    </p>
     <div
       class="mx-auto mt-6 h-px w-16 bg-gradient-to-r from-transparent via-accent to-transparent"
     ></div>
