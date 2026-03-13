@@ -45,15 +45,14 @@
   let player: YT.Player | undefined;
   let pollTimer: ReturnType<typeof setInterval> | undefined;
 
+  function syncPlayback(p: YT.Player) {
+    const isPaused = p.getPlayerState() !== YT.PlayerState.PLAYING;
+    updatePlayback(p.getCurrentTime() * 1000, p.getDuration() * 1000, isPaused);
+  }
+
   function startPolling(p: YT.Player) {
     stopPolling();
-    pollTimer = setInterval(() => {
-      const state = p.getPlayerState();
-      const isPaused = state !== YT.PlayerState.PLAYING;
-      const position = p.getCurrentTime() * 1000;
-      const duration = p.getDuration() * 1000;
-      updatePlayback(position, duration, isPaused);
-    }, POLL_INTERVAL_MS);
+    pollTimer = setInterval(() => syncPlayback(p), POLL_INTERVAL_MS);
   }
 
   function stopPolling() {
@@ -83,10 +82,12 @@
             resolve(p);
           },
           onStateChange: (event) => {
-            const isPaused = event.data !== YT.PlayerState.PLAYING;
-            const position = p.getCurrentTime() * 1000;
-            const duration = p.getDuration() * 1000;
-            updatePlayback(position, duration, isPaused);
+            if (event.data === YT.PlayerState.PLAYING) {
+              startPolling(p);
+            } else {
+              stopPolling();
+            }
+            syncPlayback(p);
           }
         }
       });
@@ -108,6 +109,13 @@
     const videoId = contentId.id;
 
     window.addEventListener('resonote:seek', handleSeek);
+
+    if (player) {
+      player.loadVideoById(videoId);
+      return () => {
+        window.removeEventListener('resonote:seek', handleSeek);
+      };
+    }
 
     let cancelled = false;
 

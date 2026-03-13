@@ -108,6 +108,7 @@ declare namespace YT {
     pauseVideo(): void;
     stopVideo(): void;
     seekTo(seconds: number, allowSeekAhead: boolean): void;
+    loadVideoById(videoId: string): void;
     getCurrentTime(): number;
     getDuration(): number;
     getPlayerState(): number;
