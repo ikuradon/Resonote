@@ -4,9 +4,21 @@
 
   let open = $state(false);
   let relays = $derived(getRelays());
+  let containerEl: HTMLDivElement | undefined;
 
   onMount(() => {
     initRelayStatus();
+  });
+
+  $effect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (!containerEl?.contains(e.target as Node)) {
+        open = false;
+      }
+    };
+    document.addEventListener('click', handler, true);
+    return () => document.removeEventListener('click', handler, true);
   });
 
   function stateColor(state: ConnectionState): string {
@@ -57,7 +69,7 @@
   }
 </script>
 
-<div class="relative">
+<div class="relative" bind:this={containerEl}>
   <button
     onclick={() => (open = !open)}
     class="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-text-secondary"
@@ -100,8 +112,3 @@
     </div>
   {/if}
 </div>
-
-{#if open}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 z-40" onclick={() => (open = false)} onkeydown={() => {}}></div>
-{/if}
