@@ -14,10 +14,8 @@ describe('Content integration', () => {
       const provider = getProvider(contentId!.platform);
       expect(provider).toBeDefined();
 
-      const tag = provider!.toNostrTag(contentId!);
-      // tag[0] is the tag name, tag[1] is the filter value used in #I filter
-      expect(tag[0]).toBe('I');
-      expect(tag[1]).toBe('spotify:track:4C6zDr6e86HYqLxPAhO8jA');
+      const [value] = provider!.toNostrTag(contentId!);
+      expect(value).toBe('spotify:track:4C6zDr6e86HYqLxPAhO8jA');
     });
 
     it('album URL produces consistent #I filter value', () => {
@@ -26,10 +24,9 @@ describe('Content integration', () => {
       expect(contentId).not.toBeNull();
 
       const provider = getProvider(contentId!.platform);
-      const tag = provider!.toNostrTag(contentId!);
+      const [value] = provider!.toNostrTag(contentId!);
 
-      expect(tag[0]).toBe('I');
-      expect(tag[1]).toBe('spotify:album:1DFixLWuPkv3KT3TnV35m3');
+      expect(value).toBe('spotify:album:1DFixLWuPkv3KT3TnV35m3');
     });
 
     it('episode URL produces consistent #I filter value', () => {
@@ -38,10 +35,9 @@ describe('Content integration', () => {
       expect(contentId).not.toBeNull();
 
       const provider = getProvider(contentId!.platform);
-      const tag = provider!.toNostrTag(contentId!);
+      const [value] = provider!.toNostrTag(contentId!);
 
-      expect(tag[0]).toBe('I');
-      expect(tag[1]).toBe('spotify:episode:4C6zDr6e86HYqLxPAhO8jA');
+      expect(value).toBe('spotify:episode:4C6zDr6e86HYqLxPAhO8jA');
     });
 
     it('show URL produces consistent #I filter value', () => {
@@ -50,10 +46,9 @@ describe('Content integration', () => {
       expect(contentId).not.toBeNull();
 
       const provider = getProvider(contentId!.platform);
-      const tag = provider!.toNostrTag(contentId!);
+      const [value] = provider!.toNostrTag(contentId!);
 
-      expect(tag[0]).toBe('I');
-      expect(tag[1]).toBe('spotify:show:0yTcypvuUHOiR1kJa7ihvW');
+      expect(value).toBe('spotify:show:0yTcypvuUHOiR1kJa7ihvW');
     });
 
     it('URI produces same #I filter value as equivalent URL', () => {
@@ -67,10 +62,10 @@ describe('Content integration', () => {
       expect(idFromUrl).not.toBeNull();
 
       const provider = getProvider('spotify')!;
-      const tagFromUri = provider.toNostrTag(idFromUri!);
-      const tagFromUrl = provider.toNostrTag(idFromUrl!);
+      const [valueFromUri] = provider.toNostrTag(idFromUri!);
+      const [valueFromUrl] = provider.toNostrTag(idFromUrl!);
 
-      expect(tagFromUri[1]).toBe(tagFromUrl[1]);
+      expect(valueFromUri).toBe(valueFromUrl);
     });
 
     it('URL with query params produces same #I filter value as clean URL', () => {
@@ -84,7 +79,7 @@ describe('Content integration', () => {
       expect(idClean).not.toBeNull();
 
       const provider = getProvider('spotify')!;
-      expect(provider.toNostrTag(idWithParams!)[1]).toBe(provider.toNostrTag(idClean!)[1]);
+      expect(provider.toNostrTag(idWithParams!)[0]).toBe(provider.toNostrTag(idClean!)[0]);
     });
   });
 
@@ -207,8 +202,7 @@ describe('Content integration', () => {
   describe('toNostrTag ↔ parseUrl roundtrip', () => {
     it('track: hint URL from toNostrTag is parsed back to same ContentId', () => {
       const original = { platform: 'spotify', type: 'track', id: '4C6zDr6e86HYqLxPAhO8jA' };
-      const tag = spotify.toNostrTag(original);
-      const hintUrl = tag[2];
+      const [, hintUrl] = spotify.toNostrTag(original);
 
       const parsed = spotify.parseUrl(hintUrl);
       expect(parsed).toEqual(original);
@@ -216,8 +210,7 @@ describe('Content integration', () => {
 
     it('album: hint URL from toNostrTag is parsed back to same ContentId', () => {
       const original = { platform: 'spotify', type: 'album', id: '1DFixLWuPkv3KT3TnV35m3' };
-      const tag = spotify.toNostrTag(original);
-      const hintUrl = tag[2];
+      const [, hintUrl] = spotify.toNostrTag(original);
 
       const parsed = spotify.parseUrl(hintUrl);
       expect(parsed).toEqual(original);
@@ -225,8 +218,7 @@ describe('Content integration', () => {
 
     it('episode: hint URL from toNostrTag is parsed back to same ContentId', () => {
       const original = { platform: 'spotify', type: 'episode', id: '4C6zDr6e86HYqLxPAhO8jA' };
-      const tag = spotify.toNostrTag(original);
-      const hintUrl = tag[2];
+      const [, hintUrl] = spotify.toNostrTag(original);
 
       const parsed = spotify.parseUrl(hintUrl);
       expect(parsed).toEqual(original);
@@ -234,8 +226,7 @@ describe('Content integration', () => {
 
     it('show: hint URL from toNostrTag is parsed back to same ContentId', () => {
       const original = { platform: 'spotify', type: 'show', id: '0yTcypvuUHOiR1kJa7ihvW' };
-      const tag = spotify.toNostrTag(original);
-      const hintUrl = tag[2];
+      const [, hintUrl] = spotify.toNostrTag(original);
 
       const parsed = spotify.parseUrl(hintUrl);
       expect(parsed).toEqual(original);
@@ -244,17 +235,15 @@ describe('Content integration', () => {
     it('via registry: hint URL round-trips through parseContentUrl', () => {
       const original = { platform: 'spotify', type: 'track', id: '4C6zDr6e86HYqLxPAhO8jA' };
       const provider = getProvider(original.platform)!;
-      const tag = provider.toNostrTag(original);
-      const hintUrl = tag[2];
+      const [, hintUrl] = provider.toNostrTag(original);
 
       const parsed = parseContentUrl(hintUrl);
       expect(parsed).toEqual(original);
     });
 
-    it('URI from toNostrTag tag[1] is also parsed back to same ContentId', () => {
+    it('URI value from toNostrTag is also parsed back to same ContentId', () => {
       const original = { platform: 'spotify', type: 'track', id: '4C6zDr6e86HYqLxPAhO8jA' };
-      const tag = spotify.toNostrTag(original);
-      const uri = tag[1];
+      const [uri] = spotify.toNostrTag(original);
 
       const parsed = spotify.parseUrl(uri);
       expect(parsed).toEqual(original);

@@ -7,7 +7,8 @@ export interface ContentId {
 export interface ContentProvider {
   readonly platform: string;
   parseUrl(url: string): ContentId | null;
-  toNostrTag(contentId: ContentId): [tag: string, value: string, hint: string];
+  toNostrTag(contentId: ContentId): [value: string, hint: string];
+  contentKind(contentId: ContentId): string;
   embedUrl(contentId: ContentId): string;
   openUrl(contentId: ContentId): string;
 }

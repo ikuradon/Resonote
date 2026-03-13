@@ -2,6 +2,14 @@ import type { EventParameters } from 'nostr-typedef';
 import type { ContentId, ContentProvider } from '../content/types.js';
 import { isShortcode, extractShortcode } from '../utils/emoji.js';
 
+export const COMMENT_KIND = 1111;
+const COMMENT_KIND_STR = String(COMMENT_KIND);
+
+function resolveContentInfo(provider: ContentProvider, contentId: ContentId) {
+  const [value, hint] = provider.toNostrTag(contentId);
+  return { value, hint, kind: provider.contentKind(contentId) };
+}
+
 /**
  * Format milliseconds as mm:ss string.
  */
@@ -66,10 +74,9 @@ export interface CommentOptions {
 
 /**
  * Build a kind:1111 comment event (NIP-22).
- * Tags: ["I", "<platform-uri>", "<hint-url>"], ["k", "1111"]
- * Optionally includes ["position", "<seconds>"] when positionMs is provided.
- * When parentEvent is provided, adds ["e", parentId] and ["p", parentPubkey] for replies.
- * Automatically appends ["t", tag] for any #hashtags found in content.
+ * Root scope: ["I", value, hint] + ["K", kind] (external content)
+ * Top-level: parent scope = root scope → ["i", value, hint] + ["k", kind]
+ * Reply: parent scope = comment event → ["e", id, "", pubkey] + ["k", "1111"] + ["p", pubkey]
  */
 export function buildComment(
   content: string,
@@ -78,11 +85,21 @@ export function buildComment(
   options?: CommentOptions
 ): EventParameters {
   const { positionMs, emojiTags, parentEvent } = options ?? {};
-  const iTag = provider.toNostrTag(contentId);
-  const tags: string[][] = [iTag, ['k', '1111']];
+  const { value, hint, kind } = resolveContentInfo(provider, contentId);
+
+  const tags: string[][] = [
+    ['I', value, hint],
+    ['K', kind]
+  ];
 
   if (parentEvent) {
-    tags.push(['e', parentEvent.id], ['p', parentEvent.pubkey]);
+    tags.push(
+      ['e', parentEvent.id, '', parentEvent.pubkey],
+      ['k', COMMENT_KIND_STR],
+      ['p', parentEvent.pubkey]
+    );
+  } else {
+    tags.push(['i', value, hint], ['k', kind]);
   }
 
   if (positionMs !== undefined && positionMs > 0) {
@@ -92,7 +109,7 @@ export function buildComment(
   appendContentTags(tags, content, emojiTags);
 
   return {
-    kind: 1111,
+    kind: COMMENT_KIND,
     content,
     tags
   };
@@ -101,18 +118,21 @@ export function buildComment(
 /**
  * Build a kind:5 deletion event (NIP-09).
  */
-export function buildDeletion(targetEventIds: string[]): EventParameters {
+export function buildDeletion(targetEventIds: string[], targetKind?: number): EventParameters {
+  const tags: string[][] = targetEventIds.map((id) => ['e', id]);
+  if (targetKind !== undefined) {
+    tags.push(['k', String(targetKind)]);
+  }
   return {
     kind: 5,
     content: '',
-    tags: targetEventIds.map((id) => ['e', id])
+    tags
   };
 }
 
 /**
  * Build a kind:1 note for sharing content on Nostr.
- * Includes NIP-73 ["I", ...] tag to reference external content.
- * Content is passed as-is (caller composes the full text including URLs).
+ * Includes NIP-73 ["i", value, hint] + ["k", kind] tags to reference external content.
  */
 export function buildShare(
   content: string,
@@ -120,8 +140,11 @@ export function buildShare(
   provider: ContentProvider,
   emojiTags?: string[][]
 ): EventParameters {
-  const iTag = provider.toNostrTag(contentId);
-  const tags: string[][] = [iTag];
+  const { value, hint, kind } = resolveContentInfo(provider, contentId);
+  const tags: string[][] = [
+    ['i', value, hint],
+    ['k', kind]
+  ];
 
   appendContentTags(tags, content, emojiTags);
 
@@ -144,8 +167,13 @@ export function buildReaction(
   reaction = '+',
   emojiUrl?: string
 ): EventParameters {
-  const iTag = provider.toNostrTag(contentId);
-  const tags: string[][] = [['e', targetEventId], ['p', targetPubkey], iTag];
+  const [idValue, idHint] = provider.toNostrTag(contentId);
+  const tags: string[][] = [
+    ['e', targetEventId],
+    ['p', targetPubkey],
+    ['k', COMMENT_KIND_STR],
+    ['I', idValue, idHint]
+  ];
 
   if (emojiUrl && isShortcode(reaction)) {
     tags.push(['emoji', extractShortcode(reaction), emojiUrl]);

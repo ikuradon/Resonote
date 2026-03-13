@@ -183,8 +183,8 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     const { createRxBackwardReq, createRxForwardReq, uniq } = rxNostrMod;
     const rxNostr = await getRxNostr();
     const eventsDB = await getEventsDB();
-    const iTag = provider.toNostrTag(contentId);
-    const tagQuery = `I:${iTag[1]}`;
+    const [idValue] = provider.toNostrTag(contentId);
+    const tagQuery = `I:${idValue}`;
 
     // --- Restore from DB (single pass) ---
     const cachedEvents = await eventsDB.getByTagValue(tagQuery);
@@ -246,8 +246,8 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     const commentBackward = createRxBackwardReq();
     const commentForward = createRxForwardReq();
     const commentFilter = maxCreatedAt
-      ? { kinds: [1111], '#I': [iTag[1]], since: maxCreatedAt }
-      : { kinds: [1111], '#I': [iTag[1]] };
+      ? { kinds: [1111], '#I': [idValue], since: maxCreatedAt }
+      : { kinds: [1111], '#I': [idValue] };
 
     const commentSub = merge(
       rxNostr.use(commentBackward).pipe(uniq()),
@@ -262,14 +262,14 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
 
     commentBackward.emit(commentFilter);
     commentBackward.over();
-    commentForward.emit({ kinds: [1111], '#I': [iTag[1]] });
+    commentForward.emit({ kinds: [1111], '#I': [idValue] });
 
     // --- Reactions (kind:7) ---
     const reactionBackward = createRxBackwardReq();
     const reactionForward = createRxForwardReq();
     const reactionFilter = maxCreatedAt
-      ? { kinds: [7], '#I': [iTag[1]], since: maxCreatedAt }
-      : { kinds: [7], '#I': [iTag[1]] };
+      ? { kinds: [7], '#I': [idValue], since: maxCreatedAt }
+      : { kinds: [7], '#I': [idValue] };
 
     const reactionSub = merge(
       rxNostr.use(reactionBackward).pipe(uniq()),
@@ -282,14 +282,14 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
 
     reactionBackward.emit(reactionFilter);
     reactionBackward.over();
-    reactionForward.emit({ kinds: [7], '#I': [iTag[1]] });
+    reactionForward.emit({ kinds: [7], '#I': [idValue] });
 
     // --- Deletions (kind:5) ---
     const deletionBackward = createRxBackwardReq();
     const deletionForward = createRxForwardReq();
     const deletionFilter = maxCreatedAt
-      ? { kinds: [5], '#I': [iTag[1]], since: maxCreatedAt }
-      : { kinds: [5], '#I': [iTag[1]] };
+      ? { kinds: [5], '#I': [idValue], since: maxCreatedAt }
+      : { kinds: [5], '#I': [idValue] };
 
     const deletionSub = merge(
       rxNostr.use(deletionBackward).pipe(uniq()),
@@ -313,7 +313,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
 
     deletionBackward.emit(deletionFilter);
     deletionBackward.over();
-    deletionForward.emit({ kinds: [5], '#I': [iTag[1]] });
+    deletionForward.emit({ kinds: [5], '#I': [idValue] });
 
     subscriptions = [commentSub, reactionSub, deletionSub];
   }

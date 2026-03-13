@@ -20,12 +20,15 @@ export class SpotifyProvider implements ContentProvider {
     return null;
   }
 
-  toNostrTag(contentId: ContentId): [string, string, string] {
+  toNostrTag(contentId: ContentId): [string, string] {
     return [
-      'I',
       `spotify:${contentId.type}:${contentId.id}`,
       `https://open.spotify.com/${contentId.type}/${contentId.id}`
     ];
+  }
+
+  contentKind(contentId: ContentId): string {
+    return `spotify:${contentId.type}`;
   }
 
   embedUrl(contentId: ContentId): string {

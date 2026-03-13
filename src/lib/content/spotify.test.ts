@@ -133,23 +133,39 @@ describe('SpotifyProvider', () => {
   });
 
   describe('toNostrTag', () => {
-    it('should generate correct NIP-73 tag for a track', () => {
+    it('should return [value, hint] for a track', () => {
       const tag = provider.toNostrTag({ platform: 'spotify', type: 'track', id: 'abc123' });
-      expect(tag).toEqual(['I', 'spotify:track:abc123', 'https://open.spotify.com/track/abc123']);
+      expect(tag).toEqual(['spotify:track:abc123', 'https://open.spotify.com/track/abc123']);
     });
 
-    it('should generate correct NIP-73 tag for an episode', () => {
+    it('should return [value, hint] for an episode', () => {
       const tag = provider.toNostrTag({ platform: 'spotify', type: 'episode', id: 'xyz789' });
-      expect(tag).toEqual([
-        'I',
-        'spotify:episode:xyz789',
-        'https://open.spotify.com/episode/xyz789'
-      ]);
+      expect(tag).toEqual(['spotify:episode:xyz789', 'https://open.spotify.com/episode/xyz789']);
     });
 
-    it('should generate correct NIP-73 tag for a show', () => {
+    it('should return [value, hint] for a show', () => {
       const tag = provider.toNostrTag({ platform: 'spotify', type: 'show', id: 'show1' });
-      expect(tag).toEqual(['I', 'spotify:show:show1', 'https://open.spotify.com/show/show1']);
+      expect(tag).toEqual(['spotify:show:show1', 'https://open.spotify.com/show/show1']);
+    });
+  });
+
+  describe('contentKind', () => {
+    it('should return "spotify:track" for a track', () => {
+      expect(provider.contentKind({ platform: 'spotify', type: 'track', id: 'abc123' })).toBe(
+        'spotify:track'
+      );
+    });
+
+    it('should return "spotify:episode" for an episode', () => {
+      expect(provider.contentKind({ platform: 'spotify', type: 'episode', id: 'xyz789' })).toBe(
+        'spotify:episode'
+      );
+    });
+
+    it('should return "spotify:show" for a show', () => {
+      expect(provider.contentKind({ platform: 'spotify', type: 'show', id: 'show1' })).toBe(
+        'spotify:show'
+      );
     });
   });
 

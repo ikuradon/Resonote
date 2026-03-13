@@ -1,6 +1,12 @@
 <script lang="ts">
   import { emptyStats, type Comment, type ReactionStats } from '../stores/comments.svelte.js';
-  import { formatPosition, buildComment, buildReaction, buildDeletion } from '../nostr/events.js';
+  import {
+    formatPosition,
+    buildComment,
+    buildReaction,
+    buildDeletion,
+    COMMENT_KIND
+  } from '../nostr/events.js';
   import { castSigned } from '../nostr/client.js';
   import { getProfile, getDisplayName, fetchProfiles } from '../stores/profile.svelte.js';
   import { untrack } from 'svelte';
@@ -156,7 +162,7 @@
     if (!auth.loggedIn || auth.pubkey !== comment.pubkey || acting) return;
     acting = comment.id;
     try {
-      const params = buildDeletion([comment.id]);
+      const params = buildDeletion([comment.id], COMMENT_KIND);
       await castSigned(params);
       log.info('Comment deleted', { commentId: shortHex(comment.id) });
     } catch (err) {

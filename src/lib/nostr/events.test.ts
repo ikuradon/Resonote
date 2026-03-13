@@ -6,7 +6,8 @@ import {
   buildDeletion,
   formatPosition,
   parsePosition,
-  extractHashtags
+  extractHashtags,
+  COMMENT_KIND
 } from './events.js';
 import { SpotifyProvider } from '../content/spotify.js';
 import type { ContentId, ContentProvider } from '../content/types.js';
@@ -17,13 +18,15 @@ const trackId: ContentId = { platform: 'spotify', type: 'track', id: 'abc123' };
 const episodeId: ContentId = { platform: 'spotify', type: 'episode', id: 'ep456' };
 
 describe('buildComment', () => {
-  it('should build a kind:1111 event with correct tags', () => {
+  it('should build a kind:1111 top-level event with correct tags', () => {
     const event = buildComment('Great track!', trackId, provider);
     expect(event.kind).toBe(1111);
     expect(event.content).toBe('Great track!');
     expect(event.tags).toEqual([
       ['I', 'spotify:track:abc123', 'https://open.spotify.com/track/abc123'],
-      ['k', '1111']
+      ['K', 'spotify:track'],
+      ['i', 'spotify:track:abc123', 'https://open.spotify.com/track/abc123'],
+      ['k', 'spotify:track']
     ]);
   });
 
@@ -35,6 +38,7 @@ describe('buildComment', () => {
       'spotify:episode:ep456',
       'https://open.spotify.com/episode/ep456'
     ]);
+    expect(event.tags![1]).toEqual(['K', 'spotify:episode']);
   });
 
   it('should preserve empty content', () => {
@@ -54,9 +58,20 @@ describe('buildComment', () => {
     expect(event.content).toBe(content);
   });
 
-  it('should always include k tag with value 1111', () => {
+  it('should include I, K, i, k tags for top-level comment', () => {
     const event = buildComment('test', trackId, provider);
-    expect(event.tags).toContainEqual(['k', '1111']);
+    expect(event.tags).toContainEqual([
+      'I',
+      'spotify:track:abc123',
+      'https://open.spotify.com/track/abc123'
+    ]);
+    expect(event.tags).toContainEqual(['K', 'spotify:track']);
+    expect(event.tags).toContainEqual([
+      'i',
+      'spotify:track:abc123',
+      'https://open.spotify.com/track/abc123'
+    ]);
+    expect(event.tags).toContainEqual(['k', 'spotify:track']);
   });
 
   it('should include position tag in seconds when positionMs is provided', () => {
@@ -174,21 +189,30 @@ describe('buildComment with hashtags', () => {
 });
 
 describe('buildComment with parentEvent (replies)', () => {
-  it('should include e and p tags for replies', () => {
+  it('should include e (4 elements), k=1111, and p tags for replies', () => {
     const parentEvent = { id: 'parent123', pubkey: 'author456' };
     const event = buildComment('nice!', trackId, provider, { parentEvent });
     expect(event.kind).toBe(1111);
-    expect(event.tags).toContainEqual(['e', 'parent123']);
+    expect(event.tags).toContainEqual(['e', 'parent123', '', 'author456']);
+    expect(event.tags).toContainEqual(['k', '1111']);
     expect(event.tags).toContainEqual(['p', 'author456']);
   });
 
-  it('should place e and p tags after I and k tags', () => {
+  it('should place tags in correct order: I, K, e, k, p', () => {
     const parentEvent = { id: 'parent123', pubkey: 'author456' };
     const event = buildComment('reply', trackId, provider, { parentEvent });
     expect(event.tags![0][0]).toBe('I');
-    expect(event.tags![1]).toEqual(['k', '1111']);
-    expect(event.tags![2]).toEqual(['e', 'parent123']);
-    expect(event.tags![3]).toEqual(['p', 'author456']);
+    expect(event.tags![1]).toEqual(['K', 'spotify:track']);
+    expect(event.tags![2]).toEqual(['e', 'parent123', '', 'author456']);
+    expect(event.tags![3]).toEqual(['k', '1111']);
+    expect(event.tags![4]).toEqual(['p', 'author456']);
+  });
+
+  it('should not include i/k parent tags as top-level for replies', () => {
+    const parentEvent = { id: 'parent123', pubkey: 'author456' };
+    const event = buildComment('reply', trackId, provider, { parentEvent });
+    const iTags = event.tags!.filter((t) => t[0] === 'i');
+    expect(iTags).toHaveLength(0);
   });
 
   it('should not include e or p tags without parentEvent', () => {
@@ -205,30 +229,32 @@ describe('buildComment with parentEvent (replies)', () => {
       positionMs: 30000,
       parentEvent
     });
-    expect(event.tags).toContainEqual(['e', 'parent123']);
+    expect(event.tags).toContainEqual(['e', 'parent123', '', 'author456']);
     expect(event.tags).toContainEqual(['p', 'author456']);
     expect(event.tags).toContainEqual(['position', '30']);
   });
 });
 
 describe('buildShare', () => {
-  it('should build a kind:1 event with content as-is', () => {
+  it('should build a kind:1 event with i and k tags', () => {
     const text = 'Check this out!\nhttps://open.spotify.com/track/abc123';
     const event = buildShare(text, trackId, provider);
     expect(event.kind).toBe(1);
     expect(event.content).toBe(text);
     expect(event.tags).toEqual([
-      ['I', 'spotify:track:abc123', 'https://open.spotify.com/track/abc123']
+      ['i', 'spotify:track:abc123', 'https://open.spotify.com/track/abc123'],
+      ['k', 'spotify:track']
     ]);
   });
 
-  it('should include I tag for episodes', () => {
+  it('should include i tag for episodes', () => {
     const event = buildShare('great episode', episodeId, provider);
     expect(event.tags).toContainEqual([
-      'I',
+      'i',
       'spotify:episode:ep456',
       'https://open.spotify.com/episode/ep456'
     ]);
+    expect(event.tags).toContainEqual(['k', 'spotify:episode']);
   });
 
   it('should include emoji tags when provided', () => {
@@ -254,6 +280,7 @@ describe('buildReaction', () => {
     expect(event.tags).toEqual([
       ['e', 'event123abc'],
       ['p', 'pubkey456def'],
+      ['k', '1111'],
       ['I', 'spotify:track:abc123', 'https://open.spotify.com/track/abc123']
     ]);
   });
@@ -268,15 +295,16 @@ describe('buildReaction', () => {
     expect(event.content).toBe('-');
   });
 
-  it('should include correct e and p tags', () => {
+  it('should include correct e, p, and k tags', () => {
     const event = buildReaction(targetEventId, targetPubkey, trackId, provider);
     expect(event.tags![0]).toEqual(['e', targetEventId]);
     expect(event.tags![1]).toEqual(['p', targetPubkey]);
+    expect(event.tags![2]).toEqual(['k', '1111']);
   });
 
   it('should include I tag matching the content', () => {
     const event = buildReaction(targetEventId, targetPubkey, episodeId, provider);
-    expect(event.tags![2]).toEqual([
+    expect(event.tags![3]).toEqual([
       'I',
       'spotify:episode:ep456',
       'https://open.spotify.com/episode/ep456'
@@ -317,24 +345,35 @@ describe('buildReaction', () => {
 });
 
 describe('buildDeletion', () => {
-  it('should build a kind:5 event with e tags', () => {
-    const event = buildDeletion(['event1', 'event2']);
+  it('should build a kind:5 event with e tags and k tag', () => {
+    const event = buildDeletion(['event1', 'event2'], COMMENT_KIND);
     expect(event.kind).toBe(5);
     expect(event.content).toBe('');
     expect(event.tags).toEqual([
       ['e', 'event1'],
-      ['e', 'event2']
+      ['e', 'event2'],
+      ['k', '1111']
     ]);
   });
 
-  it('should handle a single event id', () => {
-    const event = buildDeletion(['event1']);
-    expect(event.tags).toEqual([['e', 'event1']]);
+  it('should handle a single event id with k tag', () => {
+    const event = buildDeletion(['event1'], COMMENT_KIND);
+    expect(event.tags).toEqual([
+      ['e', 'event1'],
+      ['k', '1111']
+    ]);
   });
 
   it('should handle empty array', () => {
     const event = buildDeletion([]);
     expect(event.kind).toBe(5);
     expect(event.tags).toEqual([]);
+  });
+
+  it('should omit k tag when targetKind is not provided', () => {
+    const event = buildDeletion(['event1']);
+    expect(event.tags).toEqual([['e', 'event1']]);
+    const kTag = event.tags!.find((t) => t[0] === 'k');
+    expect(kTag).toBeUndefined();
   });
 });
