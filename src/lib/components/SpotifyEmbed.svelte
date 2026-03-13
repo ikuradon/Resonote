@@ -61,6 +61,7 @@
     if (controller && detail.positionMs >= 0) {
       log.debug('Seeking to position', { positionMs: detail.positionMs });
       controller.seek(detail.positionMs / 1000);
+      controller.resume();
     }
   }
 
