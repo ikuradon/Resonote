@@ -16,25 +16,29 @@ function loadNostrLogin() {
 async function onLogin(pubkey: string) {
   log.info('Login', { pubkey: shortHex(pubkey) });
   state.pubkey = pubkey;
-  const [{ applyUserRelays }, { loadFollows }] = await Promise.all([
+  const [{ applyUserRelays }, { loadFollows }, { loadCustomEmojis }] = await Promise.all([
     import('../nostr/user-relays.js'),
-    import('./follows.svelte.js')
+    import('./follows.svelte.js'),
+    import('./emoji-sets.svelte.js')
   ]);
   const relayUrls = await applyUserRelays(pubkey);
   const { refreshRelayList } = await import('./relays.svelte.js');
   refreshRelayList(relayUrls);
   loadFollows(pubkey).catch((err) => log.error('Failed to load follows', err));
+  loadCustomEmojis(pubkey).catch((err) => log.error('Failed to load custom emojis', err));
 }
 
 async function onLogout() {
   log.info('Logout');
   state.pubkey = null;
-  const [{ resetToDefaultRelays }, { clearFollows }] = await Promise.all([
+  const [{ resetToDefaultRelays }, { clearFollows }, { clearCustomEmojis }] = await Promise.all([
     import('../nostr/user-relays.js'),
-    import('./follows.svelte.js')
+    import('./follows.svelte.js'),
+    import('./emoji-sets.svelte.js')
   ]);
   await resetToDefaultRelays();
   clearFollows();
+  clearCustomEmojis();
   const { refreshRelayList } = await import('./relays.svelte.js');
   const { DEFAULT_RELAYS } = await import('../nostr/relays.js');
   refreshRelayList(DEFAULT_RELAYS);

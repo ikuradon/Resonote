@@ -27,6 +27,44 @@ export async function getRxNostr(): Promise<RxNostr> {
   return initPromise;
 }
 
+/**
+ * Sign and send an event to default relays via NIP-07 signer.
+ * Resolves when a threshold percentage of relays accept the event.
+ */
+export async function castSigned(
+  params: import('nostr-typedef').EventParameters,
+  options?: { successThreshold?: number }
+): Promise<void> {
+  const threshold = options?.successThreshold ?? 0.5;
+  const [{ nip07Signer }, instance] = await Promise.all([import('rx-nostr'), getRxNostr()]);
+  const relayCount = Object.keys(instance.getDefaultRelays()).length;
+  const needed = Math.max(1, Math.ceil(relayCount * threshold));
+
+  return new Promise<void>((resolve, reject) => {
+    let okCount = 0;
+    let resolved = false;
+
+    instance.send(params, { signer: nip07Signer() }).subscribe({
+      next: (packet) => {
+        if (packet.ok) okCount++;
+        if (!resolved && okCount >= needed) {
+          resolved = true;
+          resolve();
+        }
+      },
+      error: (err) => {
+        if (!resolved) reject(err);
+      },
+      complete: () => {
+        if (!resolved) {
+          if (okCount > 0) resolve();
+          else reject(new Error('All relays rejected the event'));
+        }
+      }
+    });
+  });
+}
+
 export function disposeRxNostr(): void {
   log.info('Disposing RxNostr');
   rxNostr?.dispose();

@@ -3,6 +3,7 @@
   import SpotifyEmbed from '$lib/components/SpotifyEmbed.svelte';
   import CommentList from '$lib/components/CommentList.svelte';
   import CommentForm from '$lib/components/CommentForm.svelte';
+  import ShareButton from '$lib/components/ShareButton.svelte';
   import { getProvider } from '$lib/content/registry.js';
   import { createCommentsStore } from '$lib/stores/comments.svelte.js';
   import type { ContentId } from '$lib/content/types.js';
@@ -54,12 +55,13 @@
         <div class="flex items-center gap-3">
           <h2 class="font-display text-lg font-semibold text-text-primary">Comments</h2>
           <div class="h-px flex-1 bg-border-subtle"></div>
+          <ShareButton {contentId} {provider} />
         </div>
         <CommentForm {contentId} {provider} />
         {#if store}
           <CommentList
             comments={store.comments}
-            reactions={store.reactions}
+            reactionIndex={store.reactionIndex}
             {contentId}
             {provider}
           />

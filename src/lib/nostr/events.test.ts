@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildComment,
+  buildShare,
   buildReaction,
   buildDeletion,
   formatPosition,
@@ -57,9 +58,14 @@ describe('buildComment', () => {
     expect(event.tags).toContainEqual(['k', '1111']);
   });
 
-  it('should include position tag when positionMs is provided', () => {
+  it('should include position tag in seconds when positionMs is provided', () => {
     const event = buildComment('At this moment!', trackId, provider, 65000);
-    expect(event.tags).toContainEqual(['position', '1:05']);
+    expect(event.tags).toContainEqual(['position', '65']);
+  });
+
+  it('should floor position to whole seconds', () => {
+    const event = buildComment('partial', trackId, provider, 65999);
+    expect(event.tags).toContainEqual(['position', '65']);
   });
 
   it('should not include position tag when positionMs is 0', () => {
@@ -72,6 +78,18 @@ describe('buildComment', () => {
     const event = buildComment('no position', trackId, provider);
     const posTag = event.tags!.find((t) => t[0] === 'position');
     expect(posTag).toBeUndefined();
+  });
+
+  it('should include emoji tags when provided', () => {
+    const emojiTags = [['emoji', 'sushi', 'https://example.com/sushi.png']];
+    const event = buildComment('love :sushi:', trackId, provider, undefined, emojiTags);
+    expect(event.tags).toContainEqual(['emoji', 'sushi', 'https://example.com/sushi.png']);
+  });
+
+  it('should not include emoji tags when not provided', () => {
+    const event = buildComment('hello', trackId, provider);
+    const emojiTag = event.tags!.find((t) => t[0] === 'emoji');
+    expect(emojiTag).toBeUndefined();
   });
 });
 
@@ -95,23 +113,48 @@ describe('formatPosition', () => {
 });
 
 describe('parsePosition', () => {
-  it('should parse 1:05 to 65000', () => {
+  it('should parse seconds string to milliseconds', () => {
+    expect(parsePosition('65')).toBe(65000);
+  });
+
+  it('should parse 0 to 0', () => {
+    expect(parsePosition('0')).toBe(0);
+  });
+
+  it('should parse large seconds value', () => {
+    expect(parsePosition('3661')).toBe(3661000);
+  });
+
+  it('should parse legacy mm:ss format', () => {
     expect(parsePosition('1:05')).toBe(65000);
-  });
-
-  it('should parse 0:00 to 0', () => {
     expect(parsePosition('0:00')).toBe(0);
-  });
-
-  it('should parse 61:01 to 3661000', () => {
     expect(parsePosition('61:01')).toBe(3661000);
   });
 
   it('should return null for invalid format', () => {
     expect(parsePosition('abc')).toBeNull();
-    expect(parsePosition('1:5')).toBeNull();
     expect(parsePosition('')).toBeNull();
+    expect(parsePosition('1:5')).toBeNull();
     expect(parsePosition('1:005')).toBeNull();
+  });
+});
+
+describe('buildShare', () => {
+  it('should build a kind:1 event with content as-is', () => {
+    const text = 'Check this out!\nhttps://open.spotify.com/track/abc123';
+    const event = buildShare(text, trackId, provider);
+    expect(event.kind).toBe(1);
+    expect(event.content).toBe(text);
+    expect(event.tags).toEqual([
+      ['I', 'spotify:track:abc123', 'https://open.spotify.com/track/abc123']
+    ]);
+  });
+
+  it('should include I tag for episodes', () => {
+    const event = buildShare('great episode', episodeId, provider);
+    expect(event.tags).toEqual([
+      ['I', 'spotify:episode:ep456', 'https://open.spotify.com/episode/ep456']
+    ]);
   });
 });
 
@@ -153,6 +196,38 @@ describe('buildReaction', () => {
       'spotify:episode:ep456',
       'https://open.spotify.com/episode/ep456'
     ]);
+  });
+
+  it('should add emoji tag for custom emoji reaction with :shortcode: format', () => {
+    const event = buildReaction(
+      targetEventId,
+      targetPubkey,
+      trackId,
+      provider,
+      ':sushi:',
+      'https://example.com/sushi.png'
+    );
+    expect(event.content).toBe(':sushi:');
+    expect(event.tags).toContainEqual(['emoji', 'sushi', 'https://example.com/sushi.png']);
+  });
+
+  it('should not add emoji tag when emojiUrl is undefined', () => {
+    const event = buildReaction(targetEventId, targetPubkey, trackId, provider, ':sushi:');
+    const emojiTag = event.tags!.find((t) => t[0] === 'emoji');
+    expect(emojiTag).toBeUndefined();
+  });
+
+  it('should not add emoji tag when content is not :shortcode: format', () => {
+    const event = buildReaction(
+      targetEventId,
+      targetPubkey,
+      trackId,
+      provider,
+      '🔥',
+      'https://example.com/fire.png'
+    );
+    const emojiTag = event.tags!.find((t) => t[0] === 'emoji');
+    expect(emojiTag).toBeUndefined();
   });
 });
 

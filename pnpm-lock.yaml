@@ -8,12 +8,18 @@ importers:
 
   .:
     dependencies:
+      '@emoji-mart/data':
+        specifier: ^1.2.1
+        version: 1.2.1
       '@konemono/nostr-login':
         specifier: ^1.15.1
         version: 1.15.1(typescript@5.9.3)
       '@rx-nostr/crypto':
         specifier: ^0.0.0
         version: 0.0.0(rx-nostr@3.6.2)
+      emoji-kitchen-mart:
+        specifier: ^6.0.5
+        version: 6.0.5
       nostr-tools:
         specifier: ^2.23.3
         version: 2.23.3(typescript@5.9.3)
@@ -166,6 +172,9 @@ packages:
 
   '@emnapi/runtime@1.9.0':
     resolution: {integrity: sha512-QN75eB0IH2ywSpRpNddCRfQIhmJYBCJ1x5Lb3IscKAL8bMnVAKnRg8dCoXbHzVLLH7P38N2Z3mtulB7W0J0FKw==}
+
+  '@emoji-mart/data@1.2.1':
+    resolution: {integrity: sha512-no2pQMWiBy6gpBEiqGeU77/bFejDqUTRY7KX+0+iur13op3bqUsXdnwoZs6Xb1zbv0gAj5VvS1PWoUUckSr5Dw==}
 
   '@esbuild/aix-ppc64@0.27.3':
     resolution: {integrity: sha512-9fJMTNFTWZMh5qwrBItuziu834eOCUcEqymSH7pY+zoMVEZg3gcPuBNxH1EvfVYe9h0x/Ptw8KBzv7qxb7l8dg==}
@@ -1266,6 +1275,9 @@ packages:
   devalue@5.6.4:
     resolution: {integrity: sha512-Gp6rDldRsFh/7XuouDbxMH3Mx8GMCcgzIb1pDTvNyn8pZGQ22u+Wa+lGV9dQCltFQ7uVw0MhRyb8XDskNFOReA==}
 
+  emoji-kitchen-mart@6.0.5:
+    resolution: {integrity: sha512-pA3PLp0sXwNRhW8TIRlSY0NFRJXbPYZz+BbrVoyLF2okXWdjxhO7p7AtcQnMDY7jPZCY/MfwkkfFdPEZfNy01Q==}
+
   enhanced-resolve@5.20.0:
     resolution: {integrity: sha512-/ce7+jQ1PQ6rVXwe+jKEg5hW5ciicHwIQUagZkp6IufBoY3YDgdTTY1azVs0qoRgVmvsNB+rbjLJxDAeHHtwsQ==}
     engines: {node: '>=10.13.0'}
@@ -2085,6 +2097,8 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
+  '@emoji-mart/data@1.2.1': {}
+
   '@esbuild/aix-ppc64@0.27.3':
     optional: true
 
@@ -2898,6 +2912,8 @@ snapshots:
   detect-libc@2.1.2: {}
 
   devalue@5.6.4: {}
+
+  emoji-kitchen-mart@6.0.5: {}
 
   enhanced-resolve@5.20.0:
     dependencies:

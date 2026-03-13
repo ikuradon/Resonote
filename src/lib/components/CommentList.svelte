@@ -1,23 +1,27 @@
 <script lang="ts">
-  import type { Comment, Reaction } from '../stores/comments.svelte.js';
+  import { emptyStats, type Comment, type ReactionStats } from '../stores/comments.svelte.js';
   import { formatPosition, buildReaction, buildDeletion } from '../nostr/events.js';
-  import { getProfile, getDisplayName, fetchProfile } from '../stores/profile.svelte.js';
+  import { castSigned } from '../nostr/client.js';
+  import { getProfile, getDisplayName, fetchProfiles } from '../stores/profile.svelte.js';
+  import { untrack } from 'svelte';
   import { getPlayer } from '../stores/player.svelte.js';
   import { getAuth } from '../stores/auth.svelte.js';
   import { getFollows, matchesFilter, type FollowFilter } from '../stores/follows.svelte.js';
   import type { ContentId, ContentProvider } from '../content/types.js';
   import { createLogger, shortHex } from '../utils/logger.js';
+  import { parseEmojiContent } from '../utils/emoji.js';
+  import EmojiPickerPopover, { allocatePopoverId } from './EmojiPickerPopover.svelte';
 
   const log = createLogger('CommentList');
 
   interface Props {
     comments: Comment[];
-    reactions: Reaction[];
+    reactionIndex: Map<string, ReactionStats>;
     contentId: ContentId;
     provider: ContentProvider;
   }
 
-  let { comments, reactions, contentId, provider }: Props = $props();
+  let { comments, reactionIndex, contentId, provider }: Props = $props();
 
   const player = getPlayer();
   const auth = getAuth();
@@ -31,6 +35,11 @@
   const HIGHLIGHT_THRESHOLD_MS = 5_000;
   /** Minimum number of comments to show when nearby filter yields few results */
   const MIN_NEARBY_COUNT = 3;
+
+  // --- Pagination ---
+  const PAGE_SIZE = 30;
+  let timedLimit = $state(PAGE_SIZE);
+  let generalLimit = $state(PAGE_SIZE);
 
   // --- Filtered comments ---
   let filteredComments = $derived(
@@ -64,16 +73,23 @@
       .sort((a, b) => a.positionMs! - b.positionMs!);
   });
 
+  let paginatedTimedComments = $derived(nearbyTimedComments.slice(0, timedLimit));
+  let remainingTimed = $derived(Math.max(0, nearbyTimedComments.length - timedLimit));
+
   let generalComments = $derived(
     filteredComments.filter((c) => c.positionMs === null).sort((a, b) => b.createdAt - a.createdAt)
   );
 
-  function reactionsFor(eventId: string): { likes: number; myReaction: boolean } {
-    const filtered = reactions.filter((r) => r.targetEventId === eventId);
-    return {
-      likes: filtered.filter((r) => r.content === '+' || r.content === '').length,
-      myReaction: auth.pubkey ? filtered.some((r) => r.pubkey === auth.pubkey) : false
-    };
+  let paginatedGeneralComments = $derived(generalComments.slice(0, generalLimit));
+  let remainingGeneral = $derived(Math.max(0, generalComments.length - generalLimit));
+
+  function statsFor(eventId: string): ReactionStats {
+    return reactionIndex.get(eventId) ?? emptyStats();
+  }
+
+  function myReactionFor(eventId: string): boolean {
+    if (!auth.pubkey) return false;
+    return statsFor(eventId).reactors.has(auth.pubkey);
   }
 
   function isNearCurrentPosition(positionMs: number): boolean {
@@ -81,15 +97,9 @@
     return Math.abs(player.position - positionMs) < HIGHLIGHT_THRESHOLD_MS;
   }
 
-  const fetchedPubkeys = new Set<string>();
-
   $effect(() => {
-    for (const c of comments) {
-      if (!fetchedPubkeys.has(c.pubkey)) {
-        fetchedPubkeys.add(c.pubkey);
-        fetchProfile(c.pubkey);
-      }
-    }
+    const pubkeys = [...new Set(comments.map((c) => c.pubkey))];
+    untrack(() => fetchProfiles(pubkeys));
   });
 
   function formatTime(timestamp: number): string {
@@ -102,17 +112,29 @@
 
   let acting = $state<string | null>(null);
 
-  async function sendReaction(comment: Comment) {
+  const popoverIds = new Map<string, string>();
+  function getPopoverId(commentId: string): string {
+    let pid = popoverIds.get(commentId);
+    if (!pid) {
+      pid = allocatePopoverId();
+      popoverIds.set(commentId, pid);
+    }
+    return pid;
+  }
+
+  async function sendReaction(comment: Comment, reaction = '+', emojiUrl?: string) {
     if (!auth.loggedIn || acting) return;
     acting = comment.id;
     try {
-      const [{ nip07Signer }, { getRxNostr }] = await Promise.all([
-        import('rx-nostr'),
-        import('../nostr/client.js')
-      ]);
-      const rxNostr = await getRxNostr();
-      const params = buildReaction(comment.id, comment.pubkey, contentId, provider);
-      await rxNostr.cast(params, { signer: nip07Signer() });
+      const params = buildReaction(
+        comment.id,
+        comment.pubkey,
+        contentId,
+        provider,
+        reaction,
+        emojiUrl
+      );
+      await castSigned(params);
       log.info('Reaction sent', { targetId: shortHex(comment.id) });
     } catch (err) {
       log.error('Failed to send reaction', err);
@@ -125,13 +147,8 @@
     if (!auth.loggedIn || auth.pubkey !== comment.pubkey || acting) return;
     acting = comment.id;
     try {
-      const [{ nip07Signer }, { getRxNostr }] = await Promise.all([
-        import('rx-nostr'),
-        import('../nostr/client.js')
-      ]);
-      const rxNostr = await getRxNostr();
       const params = buildDeletion([comment.id]);
-      await rxNostr.cast(params, { signer: nip07Signer() });
+      await castSigned(params);
       log.info('Comment deleted', { commentId: shortHex(comment.id) });
     } catch (err) {
       log.error('Failed to delete comment', err);
@@ -151,8 +168,10 @@
   {@const picture = getProfile(comment.pubkey)?.picture}
   {@const nearCurrent =
     showPosition && comment.positionMs !== null && isNearCurrentPosition(comment.positionMs)}
-  {@const { likes, myReaction } = reactionsFor(comment.id)}
+  {@const stats = statsFor(comment.id)}
+  {@const myReaction = myReactionFor(comment.id)}
   {@const isOwn = auth.pubkey === comment.pubkey}
+  {@const segments = parseEmojiContent(comment.content, comment.emojiTags)}
   <div
     class="animate-slide-up rounded-xl border p-4 transition-all duration-300 {nearCurrent
       ? 'border-accent/50 bg-accent/5 shadow-[0_0_12px_rgba(var(--color-accent-rgb,29,185,84),0.1)]'
@@ -185,7 +204,14 @@
       <span class="text-xs text-text-muted">{formatTime(comment.createdAt)}</span>
     </div>
     <p class="text-sm leading-relaxed text-text-primary whitespace-pre-wrap break-words">
-      {comment.content}
+      {#each segments as seg, segIdx (segIdx)}
+        {#if seg.type === 'text'}{seg.value}{:else}<img
+            src={seg.url}
+            alt=":{seg.shortcode}:"
+            class="inline h-5 w-5"
+            loading="lazy"
+          />{/if}
+      {/each}
     </p>
     <div class="mt-2 flex items-center gap-3">
       {#if auth.loggedIn}
@@ -198,16 +224,34 @@
           title={myReaction ? 'Liked' : 'Like'}
         >
           +
-          {#if likes > 0}
-            <span class="font-mono">{likes}</span>
+          {#if stats.likes > 0}
+            <span class="font-mono">{stats.likes}</span>
           {/if}
         </button>
-      {:else if likes > 0}
+      {:else if stats.likes > 0}
         <span class="inline-flex items-center gap-1 text-xs text-text-muted">
           +
-          <span class="font-mono">{likes}</span>
+          <span class="font-mono">{stats.likes}</span>
         </span>
       {/if}
+      {#if auth.loggedIn}
+        <EmojiPickerPopover
+          id={getPopoverId(comment.id)}
+          onSelect={(reaction, emojiUrl) => sendReaction(comment, reaction, emojiUrl)}
+        />
+      {/if}
+      {#each stats.emojis as emoji (emoji.content)}
+        <span class="inline-flex items-center gap-1 text-xs text-text-muted">
+          {#if emoji.url}
+            <img src={emoji.url} alt={emoji.content} class="h-4 w-4" loading="lazy" />
+          {:else}
+            {emoji.content}
+          {/if}
+          {#if emoji.count > 1}
+            <span class="font-mono">{emoji.count}</span>
+          {/if}
+        </span>
+      {/each}
       {#if isOwn}
         <button
           type="button"
@@ -292,9 +336,18 @@
             </div>
           {/if}
         </div>
-        {#each nearbyTimedComments as comment, i (comment.id)}
+        {#each paginatedTimedComments as comment, i (comment.id)}
           {@render commentCard(comment, i, true)}
         {/each}
+        {#if remainingTimed > 0}
+          <button
+            type="button"
+            onclick={() => (timedLimit += PAGE_SIZE)}
+            class="w-full rounded-lg bg-surface-2 py-2 text-xs font-medium text-text-muted transition-colors hover:bg-surface-3 hover:text-text-secondary"
+          >
+            Load more ({remainingTimed} remaining)
+          </button>
+        {/if}
       </section>
     {/if}
 
@@ -309,9 +362,18 @@
           >
           <div class="h-px flex-1 bg-border-subtle"></div>
         </div>
-        {#each generalComments as comment, i (comment.id)}
+        {#each paginatedGeneralComments as comment, i (comment.id)}
           {@render commentCard(comment, i, false)}
         {/each}
+        {#if remainingGeneral > 0}
+          <button
+            type="button"
+            onclick={() => (generalLimit += PAGE_SIZE)}
+            class="w-full rounded-lg bg-surface-2 py-2 text-xs font-medium text-text-muted transition-colors hover:bg-surface-3 hover:text-text-secondary"
+          >
+            Load more ({remainingGeneral} remaining)
+          </button>
+        {/if}
       </section>
     {/if}
   {/if}

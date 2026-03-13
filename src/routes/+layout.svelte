@@ -4,12 +4,14 @@
   import LoginButton from '$lib/components/LoginButton.svelte';
   import RelayStatus from '$lib/components/RelayStatus.svelte';
   import { initAuth } from '$lib/stores/auth.svelte.js';
+  import { preloadEmojiMart } from '$lib/stores/emoji-mart-preload.svelte.js';
   import '../app.css';
 
   let { children }: { children: Snippet } = $props();
 
   onMount(() => {
     initAuth();
+    preloadEmojiMart();
   });
 </script>
 
