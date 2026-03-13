@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { parseContentUrl, getProvider } from './registry.js';
 import { SpotifyProvider } from './spotify.js';
+import { YouTubeProvider } from './youtube.js';
 
 const spotify = new SpotifyProvider();
+const youtube = new YouTubeProvider();
 
 describe('Content integration', () => {
   describe('URL → ContentId → Nostr tag → #I filter value consistency', () => {
@@ -81,6 +83,35 @@ describe('Content integration', () => {
       const provider = getProvider('spotify')!;
       expect(provider.toNostrTag(idWithParams!)[0]).toBe(provider.toNostrTag(idClean!)[0]);
     });
+
+    it('YouTube watch URL produces consistent #I filter value', () => {
+      const url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+      const contentId = parseContentUrl(url);
+      expect(contentId).not.toBeNull();
+
+      const provider = getProvider(contentId!.platform);
+      expect(provider).toBeDefined();
+
+      const [value] = provider!.toNostrTag(contentId!);
+      expect(value).toBe('youtube:video:dQw4w9WgXcQ');
+    });
+
+    it('youtu.be URL produces same #I filter value as watch URL', () => {
+      const shortUrl = 'https://youtu.be/dQw4w9WgXcQ';
+      const watchUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+
+      const idFromShort = parseContentUrl(shortUrl);
+      const idFromWatch = parseContentUrl(watchUrl);
+
+      expect(idFromShort).not.toBeNull();
+      expect(idFromWatch).not.toBeNull();
+
+      const provider = getProvider('youtube')!;
+      const [valueFromShort] = provider.toNostrTag(idFromShort!);
+      const [valueFromWatch] = provider.toNostrTag(idFromWatch!);
+
+      expect(valueFromShort).toBe(valueFromWatch);
+    });
   });
 
   describe('URL → embedUrl', () => {
@@ -145,6 +176,14 @@ describe('Content integration', () => {
         'https://open.spotify.com/embed/track/4C6zDr6e86HYqLxPAhO8jA'
       );
     });
+
+    it('YouTube watch URL generates correct embed URL', () => {
+      const contentId = parseContentUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+      expect(contentId).not.toBeNull();
+
+      const provider = getProvider(contentId!.platform)!;
+      expect(provider.embedUrl(contentId!)).toBe('https://www.youtube.com/embed/dQw4w9WgXcQ');
+    });
   });
 
   describe('URL → route path', () => {
@@ -197,6 +236,14 @@ describe('Content integration', () => {
       const path = `/${contentId!.platform}/${contentId!.type}/${contentId!.id}`;
       expect(path).toBe('/spotify/track/4C6zDr6e86HYqLxPAhO8jA');
     });
+
+    it('YouTube watch URL produces correct route path', () => {
+      const contentId = parseContentUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+      expect(contentId).not.toBeNull();
+
+      const path = `/${contentId!.platform}/${contentId!.type}/${contentId!.id}`;
+      expect(path).toBe('/youtube/video/dQw4w9WgXcQ');
+    });
   });
 
   describe('toNostrTag ↔ parseUrl roundtrip', () => {
@@ -246,6 +293,14 @@ describe('Content integration', () => {
       const [uri] = spotify.toNostrTag(original);
 
       const parsed = spotify.parseUrl(uri);
+      expect(parsed).toEqual(original);
+    });
+
+    it('YouTube video: hint URL from toNostrTag is parsed back to same ContentId', () => {
+      const original = { platform: 'youtube', type: 'video', id: 'dQw4w9WgXcQ' };
+      const [, hintUrl] = youtube.toNostrTag(original);
+
+      const parsed = youtube.parseUrl(hintUrl);
       expect(parsed).toEqual(original);
     });
   });
