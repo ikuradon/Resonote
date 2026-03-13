@@ -1,10 +1,10 @@
 # Resonote
 
-Spotify の再生位置に同期したコメントを Nostr プロトコルで共有する音楽コメントシステム。
+Spotify / YouTube の再生位置に同期したコメントを Nostr プロトコルで共有する音楽コメントシステム。
 
 ## 特徴
 
-- **再生位置同期コメント** — Spotify IFrame API から再生位置を取得し、コメントにタイムスタンプを紐づけ
+- **再生位置同期コメント** — Spotify / YouTube から再生位置を取得し、コメントにタイムスタンプを紐づけ
 - **全体コメント** — 再生位置に依存しない感想・レビューも投稿可能
 - **リアクション** — コメントへの「+」リアクション (NIP-25 kind:7)
 - **投稿削除** — 自分のコメントを削除 (NIP-09 kind:5)
@@ -58,12 +58,12 @@ pnpm run dev
 ### ContentProvider パターン
 
 `src/lib/content/types.ts` で `ContentProvider` インターフェースを定義。
-各プラットフォーム (Spotify、将来的に YouTube/Apple Music) がこのインターフェースを実装。
+各プラットフォーム (Spotify、YouTube) がこのインターフェースを実装。
 `toNostrTag()` で NIP-73 `["I", ...]` タグを生成。
 
 ### 再生位置同期
 
-1. Spotify IFrame API の `playback_update` イベントで再生位置を取得
+1. Spotify IFrame API / YouTube IFrame Player API で再生位置を取得
 2. コメント投稿時に `["position", "mm:ss"]` タグを付与
 3. コメント表示時に再生位置付近 (±5秒) のコメントをハイライト
 4. タイムスタンプクリックでその位置にシーク
