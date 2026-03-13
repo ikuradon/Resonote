@@ -1,6 +1,6 @@
 <script lang="ts">
   import { emptyStats, type Comment, type ReactionStats } from '../stores/comments.svelte.js';
-  import { formatPosition, buildReaction, buildDeletion } from '../nostr/events.js';
+  import { formatPosition, buildComment, buildReaction, buildDeletion } from '../nostr/events.js';
   import { castSigned } from '../nostr/client.js';
   import { getProfile, getDisplayName, fetchProfiles } from '../stores/profile.svelte.js';
   import { untrack } from 'svelte';
@@ -16,6 +16,7 @@
   import { createLogger, shortHex } from '../utils/logger.js';
   import { parseEmojiContent } from '../utils/emoji.js';
   import EmojiPickerPopover, { allocatePopoverId } from './EmojiPickerPopover.svelte';
+  import NoteInput from './NoteInput.svelte';
 
   const log = createLogger('CommentList');
 
@@ -51,8 +52,11 @@
     comments.filter((c) => matchesFilter(c.pubkey, followFilter, auth.pubkey))
   );
 
+  /** Top-level comments only (exclude replies) */
+  let topLevelComments = $derived(filteredComments.filter((c) => c.replyTo === null));
+
   let timedComments = $derived(
-    filteredComments
+    topLevelComments
       .filter((c) => c.positionMs !== null)
       .sort((a, b) => a.positionMs! - b.positionMs!)
   );
@@ -82,7 +86,7 @@
   let remainingTimed = $derived(Math.max(0, nearbyTimedComments.length - timedLimit));
 
   let generalComments = $derived(
-    filteredComments.filter((c) => c.positionMs === null).sort((a, b) => b.createdAt - a.createdAt)
+    topLevelComments.filter((c) => c.positionMs === null).sort((a, b) => b.createdAt - a.createdAt)
   );
 
   let paginatedGeneralComments = $derived(generalComments.slice(0, generalLimit));
@@ -162,6 +166,66 @@
     }
   }
 
+  // --- Reply state ---
+  let replyTarget = $state<Comment | null>(null);
+  let replyContent = $state('');
+  let replyEmojiTags = $state<string[][]>([]);
+  let replySending = $state(false);
+
+  function startReply(comment: Comment) {
+    replyTarget = comment;
+    replyContent = '';
+    replyEmojiTags = [];
+  }
+
+  function cancelReply() {
+    replyTarget = null;
+    replyContent = '';
+    replyEmojiTags = [];
+  }
+
+  async function submitReply() {
+    if (!replyTarget || !auth.loggedIn) return;
+    const trimmed = replyContent.trim();
+    if (!trimmed) return;
+
+    replySending = true;
+    try {
+      const tags = replyEmojiTags.length > 0 ? replyEmojiTags : undefined;
+      const params = buildComment(trimmed, contentId, provider, {
+        emojiTags: tags,
+        parentEvent: { id: replyTarget.id, pubkey: replyTarget.pubkey }
+      });
+      log.info('Sending reply', { parentId: shortHex(replyTarget.id) });
+      await castSigned(params);
+      log.info('Reply sent successfully');
+      cancelReply();
+    } catch (err) {
+      log.error('Failed to send reply', err);
+    } finally {
+      replySending = false;
+    }
+  }
+
+  /** Pre-computed reply index: parent comment ID → sorted replies */
+  let replyMap = $derived.by(() => {
+    const map = new Map<string, Comment[]>();
+    for (const c of filteredComments) {
+      if (c.replyTo !== null) {
+        let arr = map.get(c.replyTo);
+        if (!arr) {
+          arr = [];
+          map.set(c.replyTo, arr);
+        }
+        arr.push(c);
+      }
+    }
+    for (const arr of map.values()) {
+      arr.sort((a, b) => a.createdAt - b.createdAt);
+    }
+    return map;
+  });
+
   const filterOptions: { value: FollowFilter; label: string; title?: string }[] = [
     { value: 'all', label: 'All' },
     { value: 'follows', label: 'Follows' },
@@ -169,27 +233,40 @@
   ];
 </script>
 
-{#snippet commentCard(comment: Comment, i: number, showPosition: boolean)}
+{#snippet commentCard(comment: Comment, i: number, showPosition: boolean, replyToComment?: Comment)}
+  {@const compact = replyToComment !== undefined}
   {@const picture = getProfile(comment.pubkey)?.picture}
   {@const nearCurrent =
-    showPosition && comment.positionMs !== null && isNearCurrentPosition(comment.positionMs)}
+    !compact &&
+    showPosition &&
+    comment.positionMs !== null &&
+    isNearCurrentPosition(comment.positionMs)}
   {@const stats = statsFor(comment.id)}
   {@const myReaction = myReactionFor(comment.id)}
   {@const isOwn = auth.pubkey === comment.pubkey}
   {@const segments = parseEmojiContent(comment.content, comment.emojiTags)}
+  {@const avatarSize = compact ? 'h-5 w-5' : 'h-6 w-6'}
   <div
-    class="animate-slide-up rounded-xl border p-4 transition-all duration-300 {nearCurrent
+    class="{compact
+      ? 'rounded-lg border border-border-subtle bg-surface-1/50 p-3'
+      : 'animate-slide-up rounded-xl border p-4 transition-all duration-300'} {nearCurrent
       ? 'border-accent/50 bg-accent/5 shadow-[0_0_12px_rgba(var(--color-accent-rgb,29,185,84),0.1)]'
-      : 'border-border-subtle bg-surface-1 hover:border-border'}"
-    style="animation-delay: {Math.min(i * 0.05, 0.5)}s"
+      : compact
+        ? ''
+        : 'border-border-subtle bg-surface-1 hover:border-border'}"
+    style={compact ? '' : `animation-delay: ${Math.min(i * 0.05, 0.5)}s`}
   >
-    <div class="mb-2 flex items-center justify-between">
+    <div class="{compact ? 'mb-1.5' : 'mb-2'} flex items-center justify-between">
       <div class="flex items-center gap-2">
         {#if picture}
-          <img src={picture} alt="" class="h-6 w-6 rounded-full object-cover ring-1 ring-border" />
+          <img
+            src={picture}
+            alt=""
+            class="{avatarSize} rounded-full object-cover ring-1 ring-border"
+          />
         {:else}
           <div
-            class="flex h-6 w-6 items-center justify-center rounded-full bg-surface-3 text-xs text-text-muted"
+            class="flex {avatarSize} items-center justify-center rounded-full bg-surface-3 text-xs text-text-muted"
           >
             ?
           </div>
@@ -218,7 +295,7 @@
           />{/if}
       {/each}
     </p>
-    <div class="mt-2 flex items-center gap-3">
+    <div class="{compact ? 'mt-1.5' : 'mt-2'} flex items-center gap-3">
       {#if auth.loggedIn}
         <button
           type="button"
@@ -257,6 +334,16 @@
           {/if}
         </span>
       {/each}
+      {#if auth.loggedIn}
+        <button
+          type="button"
+          onclick={() => startReply(replyToComment ?? comment)}
+          class="rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-accent"
+          title="Reply"
+        >
+          Reply
+        </button>
+      {/if}
       {#if isOwn}
         <button
           type="button"
@@ -269,6 +356,54 @@
         </button>
       {/if}
     </div>
+
+    {#if !compact}
+      <!-- Inline reply form -->
+      {#if replyTarget?.id === comment.id}
+        <div class="mt-3 border-t border-border-subtle pt-3">
+          <form
+            onsubmit={(e) => {
+              e.preventDefault();
+              submitReply();
+            }}
+          >
+            <NoteInput
+              bind:content={replyContent}
+              bind:emojiTags={replyEmojiTags}
+              disabled={replySending}
+              placeholder="返信を書く..."
+              rows={1}
+              onsubmit={submitReply}
+            >
+              <button
+                type="submit"
+                disabled={replySending || !replyContent.trim()}
+                class="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-surface-0 transition-all duration-200 hover:bg-accent-hover disabled:opacity-30"
+              >
+                {replySending ? '...' : 'Reply'}
+              </button>
+              <button
+                type="button"
+                onclick={cancelReply}
+                class="rounded-lg px-3 py-1.5 text-xs text-text-muted transition-colors hover:text-text-secondary"
+              >
+                Cancel
+              </button>
+            </NoteInput>
+          </form>
+        </div>
+      {/if}
+
+      <!-- Replies thread -->
+      {@const replies = replyMap.get(comment.id)}
+      {#if replies && replies.length > 0}
+        <div class="mt-3 space-y-2 border-l-2 border-border-subtle pl-4">
+          {#each replies as reply (reply.id)}
+            {@render commentCard(reply, 0, false, comment)}
+          {/each}
+        </div>
+      {/if}
+    {/if}
   </div>
 {/snippet}
 

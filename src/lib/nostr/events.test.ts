@@ -60,17 +60,17 @@ describe('buildComment', () => {
   });
 
   it('should include position tag in seconds when positionMs is provided', () => {
-    const event = buildComment('At this moment!', trackId, provider, 65000);
+    const event = buildComment('At this moment!', trackId, provider, { positionMs: 65000 });
     expect(event.tags).toContainEqual(['position', '65']);
   });
 
   it('should floor position to whole seconds', () => {
-    const event = buildComment('partial', trackId, provider, 65999);
+    const event = buildComment('partial', trackId, provider, { positionMs: 65999 });
     expect(event.tags).toContainEqual(['position', '65']);
   });
 
   it('should not include position tag when positionMs is 0', () => {
-    const event = buildComment('no position', trackId, provider, 0);
+    const event = buildComment('no position', trackId, provider, { positionMs: 0 });
     const posTag = event.tags!.find((t) => t[0] === 'position');
     expect(posTag).toBeUndefined();
   });
@@ -83,7 +83,7 @@ describe('buildComment', () => {
 
   it('should include emoji tags when provided', () => {
     const emojiTags = [['emoji', 'sushi', 'https://example.com/sushi.png']];
-    const event = buildComment('love :sushi:', trackId, provider, undefined, emojiTags);
+    const event = buildComment('love :sushi:', trackId, provider, { emojiTags });
     expect(event.tags).toContainEqual(['emoji', 'sushi', 'https://example.com/sushi.png']);
   });
 
@@ -170,6 +170,44 @@ describe('buildComment with hashtags', () => {
   it('should include t tags for hashtags in content', () => {
     const event = buildComment('#NowPlaying great song', trackId, provider);
     expect(event.tags).toContainEqual(['t', 'nowplaying']);
+  });
+});
+
+describe('buildComment with parentEvent (replies)', () => {
+  it('should include e and p tags for replies', () => {
+    const parentEvent = { id: 'parent123', pubkey: 'author456' };
+    const event = buildComment('nice!', trackId, provider, { parentEvent });
+    expect(event.kind).toBe(1111);
+    expect(event.tags).toContainEqual(['e', 'parent123']);
+    expect(event.tags).toContainEqual(['p', 'author456']);
+  });
+
+  it('should place e and p tags after I and k tags', () => {
+    const parentEvent = { id: 'parent123', pubkey: 'author456' };
+    const event = buildComment('reply', trackId, provider, { parentEvent });
+    expect(event.tags![0][0]).toBe('I');
+    expect(event.tags![1]).toEqual(['k', '1111']);
+    expect(event.tags![2]).toEqual(['e', 'parent123']);
+    expect(event.tags![3]).toEqual(['p', 'author456']);
+  });
+
+  it('should not include e or p tags without parentEvent', () => {
+    const event = buildComment('top-level', trackId, provider);
+    const eTag = event.tags!.find((t) => t[0] === 'e');
+    const pTag = event.tags!.find((t) => t[0] === 'p');
+    expect(eTag).toBeUndefined();
+    expect(pTag).toBeUndefined();
+  });
+
+  it('should include both position and parent tags when both provided', () => {
+    const parentEvent = { id: 'parent123', pubkey: 'author456' };
+    const event = buildComment('timed reply', trackId, provider, {
+      positionMs: 30000,
+      parentEvent
+    });
+    expect(event.tags).toContainEqual(['e', 'parent123']);
+    expect(event.tags).toContainEqual(['p', 'author456']);
+    expect(event.tags).toContainEqual(['position', '30']);
   });
 });
 

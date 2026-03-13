@@ -36,7 +36,10 @@
     try {
       const posMs = effectiveAttach ? player.position : undefined;
       const tags = emojiTags.length > 0 ? emojiTags : undefined;
-      const params = buildComment(trimmed, contentId, provider, posMs, tags);
+      const params = buildComment(trimmed, contentId, provider, {
+        positionMs: posMs,
+        emojiTags: tags
+      });
       log.info('Sending comment', { positionMs: posMs, contentLength: trimmed.length });
       await castSigned(params);
       log.info('Comment sent successfully');

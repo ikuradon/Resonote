@@ -13,6 +13,8 @@ export interface Comment {
   /** Playback position in milliseconds when comment was posted, or null */
   positionMs: number | null;
   emojiTags: string[][];
+  /** Parent comment ID if this is a reply, or null for top-level comments */
+  replyTo: string | null;
 }
 
 export interface Reaction {
@@ -136,13 +138,15 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
   }): Comment {
     const posTag = event.tags.find((t: string[]) => t[0] === 'position');
     const emojiTags = event.tags.filter((t: string[]) => isEmojiTag(t));
+    const eTag = event.tags.find((t: string[]) => t[0] === 'e');
     return {
       id: event.id,
       pubkey: event.pubkey,
       content: event.content,
       createdAt: event.created_at,
       positionMs: posTag ? parsePosition(posTag[1]) : null,
-      emojiTags
+      emojiTags,
+      replyTo: eTag ? eTag[1] : null
     };
   }
 

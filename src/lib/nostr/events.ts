@@ -58,21 +58,32 @@ function appendContentTags(tags: string[][], content: string, emojiTags?: string
   }
 }
 
+export interface CommentOptions {
+  positionMs?: number;
+  emojiTags?: string[][];
+  parentEvent?: { id: string; pubkey: string };
+}
+
 /**
  * Build a kind:1111 comment event (NIP-22).
  * Tags: ["I", "<platform-uri>", "<hint-url>"], ["k", "1111"]
  * Optionally includes ["position", "<seconds>"] when positionMs is provided.
+ * When parentEvent is provided, adds ["e", parentId] and ["p", parentPubkey] for replies.
  * Automatically appends ["t", tag] for any #hashtags found in content.
  */
 export function buildComment(
   content: string,
   contentId: ContentId,
   provider: ContentProvider,
-  positionMs?: number,
-  emojiTags?: string[][]
+  options?: CommentOptions
 ): EventParameters {
+  const { positionMs, emojiTags, parentEvent } = options ?? {};
   const iTag = provider.toNostrTag(contentId);
   const tags: string[][] = [iTag, ['k', '1111']];
+
+  if (parentEvent) {
+    tags.push(['e', parentEvent.id], ['p', parentEvent.pubkey]);
+  }
 
   if (positionMs !== undefined && positionMs > 0) {
     tags.push(['position', String(Math.floor(positionMs / 1000))]);
