@@ -23,7 +23,7 @@
   ></div>
 
   <header class="glass sticky top-0 z-40 border-b border-border-subtle">
-    <div class="mx-auto flex max-w-3xl items-center justify-between px-5 py-4">
+    <div class="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
       <a
         href="/"
         class="font-display text-xl font-semibold tracking-wide text-accent transition-colors hover:text-accent-hover"
@@ -37,7 +37,7 @@
     </div>
   </header>
 
-  <main class="relative mx-auto max-w-3xl px-5 py-10">
+  <main class="relative mx-auto max-w-7xl px-5 py-6 lg:py-8">
     {@render children()}
   </main>
 </div>

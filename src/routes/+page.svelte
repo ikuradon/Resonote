@@ -2,7 +2,7 @@
   import TrackInput from '$lib/components/TrackInput.svelte';
 </script>
 
-<div class="flex flex-col items-center gap-12 pt-20 pb-16">
+<div class="mx-auto flex max-w-3xl flex-col items-center gap-12 pt-20 pb-16">
   <div class="animate-fade-in text-center">
     <h1 class="font-display text-5xl font-bold tracking-wide text-text-primary">
       Reso<span class="text-accent">note</span>

@@ -33,12 +33,11 @@
 </script>
 
 {#if isValid && provider}
-  <div class="space-y-8">
-    {#if platform === 'spotify'}
-      <SpotifyEmbed {contentId} />
-    {/if}
-
-    {#if isCollection}
+  {#if isCollection}
+    <div class="mx-auto max-w-3xl space-y-8">
+      {#if platform === 'spotify'}
+        <SpotifyEmbed {contentId} />
+      {/if}
       <div class="animate-slide-up stagger-2 space-y-3 text-center">
         <a
           href={provider.openUrl(contentId)}
@@ -50,25 +49,42 @@
         </a>
         <p class="text-sm text-text-muted">Paste an episode URL to view comments</p>
       </div>
-    {:else}
-      <section class="animate-slide-up stagger-2 space-y-5">
-        <div class="flex items-center gap-3">
-          <h2 class="font-display text-lg font-semibold text-text-primary">Comments</h2>
-          <div class="h-px flex-1 bg-border-subtle"></div>
-          <ShareButton {contentId} {provider} />
+    </div>
+  {:else}
+    <!-- Two-column layout: Player left, Comments right (desktop) -->
+    <div class="flex flex-col lg:flex-row lg:gap-8">
+      <!-- Player column — sticky on desktop -->
+      <div class="lg:w-[55%] xl:w-[58%] lg:flex-shrink-0">
+        <div
+          class="lg:sticky lg:top-[var(--header-height)] lg:max-h-[calc(100vh-var(--header-height)-2rem)] lg:overflow-y-auto lg:scrollbar-hide"
+        >
+          {#if platform === 'spotify'}
+            <SpotifyEmbed {contentId} />
+          {/if}
         </div>
-        <CommentForm {contentId} {provider} />
-        {#if store}
-          <CommentList
-            comments={store.comments}
-            reactionIndex={store.reactionIndex}
-            {contentId}
-            {provider}
-          />
-        {/if}
-      </section>
-    {/if}
-  </div>
+      </div>
+
+      <!-- Comments column — scrollable -->
+      <div class="mt-6 min-w-0 flex-1 lg:mt-0">
+        <section class="animate-slide-up stagger-2 space-y-5">
+          <div class="flex items-center gap-3">
+            <h2 class="font-display text-lg font-semibold text-text-primary">Comments</h2>
+            <div class="h-px flex-1 bg-border-subtle"></div>
+            <ShareButton {contentId} {provider} />
+          </div>
+          <CommentForm {contentId} {provider} />
+          {#if store}
+            <CommentList
+              comments={store.comments}
+              reactionIndex={store.reactionIndex}
+              {contentId}
+              {provider}
+            />
+          {/if}
+        </section>
+      </div>
+    </div>
+  {/if}
 {:else}
   <div class="flex flex-col items-center gap-6 pt-20">
     <p class="font-display text-lg text-text-secondary">Unsupported content</p>
