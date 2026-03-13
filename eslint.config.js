@@ -18,7 +18,8 @@ export default ts.config(
         SpotifyIFrameAPI: 'readonly',
         SpotifyEmbedController: 'readonly',
         SpotifyEmbedOptions: 'readonly',
-        SpotifyPlaybackState: 'readonly'
+        SpotifyPlaybackState: 'readonly',
+        YT: 'readonly'
       }
     }
   },
