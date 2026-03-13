@@ -27,7 +27,7 @@
     <input
       type="text"
       bind:value={url}
-      placeholder="Paste a Spotify URL..."
+      placeholder="Paste a Spotify or YouTube URL..."
       class="flex-1 rounded-xl border border-border bg-surface-1 px-4 py-3 text-sm text-text-primary placeholder-text-muted transition-all duration-200 focus:border-accent focus:ring-1 focus:ring-accent/30 focus:outline-none"
     />
     <button
