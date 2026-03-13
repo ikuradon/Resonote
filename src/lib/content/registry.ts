@@ -1,7 +1,8 @@
 import type { ContentId, ContentProvider } from './types.js';
 import { spotify } from './spotify.js';
+import { youtube } from './youtube.js';
 
-const providers: ContentProvider[] = [spotify];
+const providers: ContentProvider[] = [spotify, youtube];
 
 const byPlatform = new Map<string, ContentProvider>(providers.map((p) => [p.platform, p]));
 

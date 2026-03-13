@@ -22,6 +22,7 @@ interface Window {
   };
 
   onSpotifyIframeApiReady?: (api: SpotifyIFrameAPI) => void;
+  onYouTubeIframeAPIReady?: () => void;
 }
 
 interface SpotifyIFrameAPI {
@@ -58,4 +59,59 @@ interface SpotifyEmbedController {
   togglePlay(): void;
   loadUri(uri: string): void;
   destroy(): void;
+}
+
+declare namespace YT {
+  const PlayerState: {
+    UNSTARTED: -1;
+    ENDED: 0;
+    PLAYING: 1;
+    PAUSED: 2;
+    BUFFERING: 3;
+    CUED: 5;
+  };
+
+  interface PlayerOptions {
+    width?: string | number;
+    height?: string | number;
+    videoId?: string;
+    playerVars?: {
+      enablejsapi?: 1;
+      origin?: string;
+      autoplay?: 0 | 1;
+      rel?: 0 | 1;
+    };
+    events?: {
+      onReady?: (event: PlayerEvent) => void;
+      onStateChange?: (event: OnStateChangeEvent) => void;
+      onError?: (event: OnErrorEvent) => void;
+    };
+  }
+
+  interface PlayerEvent {
+    target: Player;
+  }
+
+  interface OnStateChangeEvent {
+    target: Player;
+    data: number;
+  }
+
+  interface OnErrorEvent {
+    target: Player;
+    data: number;
+  }
+
+  class Player {
+    constructor(element: HTMLElement | string, options: PlayerOptions);
+    playVideo(): void;
+    pauseVideo(): void;
+    stopVideo(): void;
+    seekTo(seconds: number, allowSeekAhead: boolean): void;
+    loadVideoById(videoId: string): void;
+    getCurrentTime(): number;
+    getDuration(): number;
+    getPlayerState(): number;
+    destroy(): void;
+  }
 }
