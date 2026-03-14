@@ -110,10 +110,22 @@
   bind:this={triggerEl}
   type="button"
   onclick={toggle}
-  class="rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-text-secondary"
+  class="rounded-lg p-1.5 text-text-muted transition-colors hover:text-text-secondary"
   title="Emoji"
 >
-  {isOpen ? '✕' : '😀'}
+  {#if isOpen}
+    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  {:else}
+    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+      <line x1="9" y1="9" x2="9.01" y2="9" />
+      <line x1="15" y1="9" x2="15.01" y2="9" />
+    </svg>
+  {/if}
 </button>
 
 {#if isOpen}

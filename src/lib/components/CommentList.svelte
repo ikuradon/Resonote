@@ -23,6 +23,7 @@
   import { parseEmojiContent } from '../utils/emoji.js';
   import EmojiPickerPopover, { allocatePopoverId } from './EmojiPickerPopover.svelte';
   import NoteInput from './NoteInput.svelte';
+  import ConfirmDialog from './ConfirmDialog.svelte';
 
   const log = createLogger('CommentList');
 
@@ -126,6 +127,7 @@
   }
 
   let acting = $state<string | null>(null);
+  let deleteTarget = $state<Comment | null>(null);
 
   const popoverIds = new Map<string, string>();
   function getPopoverId(commentId: string): string {
@@ -158,9 +160,15 @@
     }
   }
 
-  async function deleteComment(comment: Comment) {
-    if (!auth.loggedIn || auth.pubkey !== comment.pubkey || acting) return;
+  function requestDelete(comment: Comment) {
+    deleteTarget = comment;
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget || !auth.loggedIn || auth.pubkey !== deleteTarget.pubkey || acting) return;
+    const comment = deleteTarget;
     acting = comment.id;
+    deleteTarget = null;
     try {
       const params = buildDeletion([comment.id], contentId, provider, COMMENT_KIND);
       await castSigned(params);
@@ -239,6 +247,20 @@
   ];
 </script>
 
+{#snippet heartIcon(filled: boolean)}
+  <svg
+    class="h-4 w-4"
+    viewBox="0 0 24 24"
+    fill={filled ? 'currentColor' : 'none'}
+    stroke="currentColor"
+    stroke-width="2"
+  >
+    <path
+      d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+    />
+  </svg>
+{/snippet}
+
 {#snippet commentCard(comment: Comment, i: number, showPosition: boolean, replyToComment?: Comment)}
   {@const compact = replyToComment !== undefined}
   {@const picture = getProfile(comment.pubkey)?.picture}
@@ -301,25 +323,25 @@
           />{/if}
       {/each}
     </p>
-    <div class="{compact ? 'mt-1.5' : 'mt-2'} flex items-center gap-3">
+    <div class="{compact ? 'mt-1.5' : 'mt-2'} flex items-center gap-1">
       {#if auth.loggedIn}
         <button
           type="button"
           disabled={acting === comment.id || myReaction}
           onclick={() => sendReaction(comment)}
-          class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors
+          class="inline-flex items-center gap-1 rounded-lg p-1.5 transition-colors
             {myReaction ? 'text-accent' : 'text-text-muted hover:text-accent'}"
           title={myReaction ? 'Liked' : 'Like'}
         >
-          +
+          {@render heartIcon(myReaction)}
           {#if stats.likes > 0}
-            <span class="font-mono">{stats.likes}</span>
+            <span class="text-xs font-mono">{stats.likes}</span>
           {/if}
         </button>
       {:else if stats.likes > 0}
-        <span class="inline-flex items-center gap-1 text-xs text-text-muted">
-          +
-          <span class="font-mono">{stats.likes}</span>
+        <span class="inline-flex items-center gap-1 p-1.5 text-text-muted">
+          {@render heartIcon(false)}
+          <span class="text-xs font-mono">{stats.likes}</span>
         </span>
       {/if}
       {#if auth.loggedIn}
@@ -344,21 +366,53 @@
         <button
           type="button"
           onclick={() => startReply(replyToComment ?? comment)}
-          class="rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-accent"
+          class="rounded-lg p-1.5 text-text-muted transition-colors hover:text-accent"
           title="Reply"
         >
-          Reply
+          <svg
+            class="h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="9 17 4 12 9 7" />
+            <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+          </svg>
         </button>
       {/if}
       {#if isOwn}
         <button
           type="button"
           disabled={acting === comment.id}
-          onclick={() => deleteComment(comment)}
-          class="ml-auto rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-red-400"
+          onclick={() => requestDelete(comment)}
+          class="ml-auto rounded-lg p-1.5 text-text-muted transition-colors hover:text-red-400"
           title="Delete"
         >
-          {acting === comment.id ? '...' : 'Delete'}
+          {#if acting === comment.id}
+            <svg
+              class="h-4 w-4 animate-spin"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+          {:else}
+            <svg
+              class="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="3 6 5 6 21 6" />
+              <path
+                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+              />
+            </svg>
+          {/if}
         </button>
       {/if}
     </div>
@@ -384,14 +438,28 @@
               <button
                 type="submit"
                 disabled={replySending || !replyContent.trim()}
-                class="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-surface-0 transition-all duration-200 hover:bg-accent-hover disabled:opacity-30"
+                class="inline-flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-surface-0 transition-all duration-200 hover:bg-accent-hover disabled:opacity-30"
               >
-                {replySending ? '...' : 'Reply'}
+                {#if replySending}
+                  <svg
+                    class="h-3.5 w-3.5 animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                  Sending
+                {:else}
+                  Reply
+                {/if}
               </button>
               <button
                 type="button"
                 onclick={cancelReply}
-                class="rounded-lg px-3 py-1.5 text-xs text-text-muted transition-colors hover:text-text-secondary"
+                disabled={replySending}
+                class="rounded-lg px-3 py-1.5 text-xs text-text-muted transition-colors hover:text-text-secondary disabled:opacity-30"
               >
                 Cancel
               </button>
@@ -539,3 +607,13 @@
     {/if}
   {/if}
 </div>
+
+<ConfirmDialog
+  open={deleteTarget !== null}
+  title="コメントを削除"
+  message="このコメントを削除しますか？この操作は取り消せません。"
+  confirmLabel="削除"
+  cancelLabel="キャンセル"
+  onConfirm={confirmDelete}
+  onCancel={() => (deleteTarget = null)}
+/>

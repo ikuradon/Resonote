@@ -64,12 +64,12 @@
     <div class="flex items-center gap-2 text-xs">
       <button
         type="button"
-        disabled={!hasPosition}
+        disabled={sending || !hasPosition}
         onclick={() => (attachPosition = true)}
         class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-medium transition-all duration-200
           {effectiveAttach
           ? 'bg-accent/15 text-accent ring-1 ring-accent/30'
-          : hasPosition
+          : hasPosition && !sending
             ? 'bg-surface-3 text-text-muted hover:text-text-secondary'
             : 'cursor-not-allowed bg-surface-3 text-text-muted/40'}"
       >
@@ -78,10 +78,11 @@
       </button>
       <button
         type="button"
+        disabled={sending}
         onclick={() => (attachPosition = false)}
         class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-medium transition-all duration-200 {!effectiveAttach
           ? 'bg-accent/15 text-accent ring-1 ring-accent/30'
-          : 'bg-surface-3 text-text-muted hover:text-text-secondary'}"
+          : 'bg-surface-3 text-text-muted hover:text-text-secondary'} disabled:cursor-not-allowed disabled:opacity-40"
       >
         全体コメント
       </button>
@@ -98,9 +99,32 @@
       <button
         type="submit"
         disabled={sending || !content.trim()}
-        class="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-surface-0 transition-all duration-200 hover:bg-accent-hover disabled:opacity-30"
+        class="inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-surface-0 transition-all duration-200 hover:bg-accent-hover disabled:opacity-30"
       >
-        {sending ? '...' : 'Send'}
+        {#if sending}
+          <svg
+            class="h-4 w-4 animate-spin"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+          Sending
+        {:else}
+          <svg
+            class="h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
+          Send
+        {/if}
       </button>
     </NoteInput>
   </form>

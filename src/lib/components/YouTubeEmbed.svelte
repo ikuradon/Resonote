@@ -44,6 +44,7 @@
   let containerEl: HTMLDivElement | undefined = $state();
   let player: YT.Player | undefined;
   let pollTimer: ReturnType<typeof setInterval> | undefined;
+  let ready = $state(false);
 
   function syncPlayback(p: YT.Player) {
     const isPaused = p.getPlayerState() !== YT.PlayerState.PLAYING;
@@ -125,6 +126,7 @@
         return;
       }
       player = p;
+      ready = true;
     });
 
     return () => {
@@ -133,13 +135,34 @@
       stopPolling();
       player?.destroy();
       player = undefined;
+      ready = false;
     };
   });
 </script>
 
 <div
   data-testid="youtube-embed"
-  class="animate-fade-in aspect-video w-full overflow-hidden rounded-2xl border border-border-subtle shadow-[0_4px_24px_rgba(0,0,0,0.4)]"
+  class="animate-fade-in relative aspect-video w-full overflow-hidden rounded-2xl border border-border-subtle shadow-[0_4px_24px_rgba(0,0,0,0.4)]"
 >
-  <div bind:this={containerEl}></div>
+  <div bind:this={containerEl} class="h-full"></div>
+  {#if !ready}
+    <div class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-surface-1">
+      <div class="flex items-center gap-3">
+        <svg class="h-8 w-8 text-youtube" viewBox="0 0 24 24" fill="currentColor">
+          <path
+            d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"
+          />
+        </svg>
+        <span class="text-sm font-medium text-text-muted">Loading...</span>
+      </div>
+      <div class="w-48">
+        <div class="h-1 overflow-hidden rounded-full bg-surface-3">
+          <div
+            class="animate-shimmer h-full w-1/3 rounded-full bg-gradient-to-r from-transparent via-youtube/40 to-transparent"
+            style="background-size: 400px 100%;"
+          ></div>
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>

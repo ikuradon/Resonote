@@ -62,7 +62,7 @@
     <button
       type="button"
       onclick={toggle}
-      class="inline-flex items-center gap-1.5 rounded-xl bg-surface-2 px-4 py-2 text-sm font-medium text-text-secondary transition-all duration-200 hover:bg-surface-3 hover:text-text-primary"
+      class="inline-flex items-center gap-1.5 rounded-lg bg-surface-2 px-3 py-2 text-sm font-medium text-text-secondary transition-all duration-200 hover:bg-surface-3 hover:text-text-primary"
       title="Share as Nostr note"
     >
       <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -99,9 +99,22 @@
             type="button"
             onclick={share}
             disabled={sending || !content.trim()}
-            class="rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-surface-0 transition-all duration-200 hover:bg-accent-hover disabled:opacity-30"
+            class="inline-flex items-center gap-1 rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-surface-0 transition-all duration-200 hover:bg-accent-hover disabled:opacity-30"
           >
-            {sending ? '...' : 'Post'}
+            {#if sending}
+              <svg
+                class="h-3.5 w-3.5 animate-spin"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+              Sending
+            {:else}
+              Post
+            {/if}
           </button>
         </div>
       </div>

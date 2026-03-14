@@ -12,7 +12,11 @@ pnpm run preview      # preview production build
 pnpm run check        # svelte-kit sync + svelte-check
 pnpm run lint         # ESLint
 pnpm run format:check # Prettier format check
+pnpm run format       # Prettier auto-format
 pnpm run test         # unit tests (vitest)
+pnpm run test:coverage # unit tests with coverage
+pnpm run test:e2e     # E2E tests (Playwright)
+pnpm run lint:fix     # ESLint auto-fix
 ```
 
 ## Pre-commit Validation
@@ -56,6 +60,9 @@ Nostr tags are generated via `toNostrTag()` returning NIP-73 `["I", ...]` tags.
 
 - `src/lib/nostr/client.ts`: Singleton `getRxNostr()` with `@rx-nostr/crypto` verifier
 - `src/lib/nostr/events.ts`: Event builders for kind:1111 (comment) and kind:7 (reaction)
+- `src/lib/nostr/event-db.ts`: IndexedDB-based event cache (`idb` wrapper)
+- `src/lib/nostr/relays.ts`: Default relay list
+- `src/lib/nostr/user-relays.ts`: Per-user relay discovery
 - Signing: `nip07Signer()` from rx-nostr (delegates to `window.nostr`)
 
 ### Subscription Pattern
@@ -68,11 +75,21 @@ Comments use rx-nostr's dual-request pattern:
 
 ### State Management
 
-Svelte 5 `$state` runes in `.svelte.ts` files (no Svelte stores):
+Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
 
 - `auth.svelte.ts`: Login state via nostr-login `nlAuth` events
 - `comments.svelte.ts`: Per-content comment subscription
 - `player.svelte.ts`: Playback state
+- `profile.svelte.ts`: User profile (kind:0) cache
+- `follows.svelte.ts`: Follow list (kind:3) state
+- `relays.svelte.ts`: Relay connection status
+- `emoji-sets.svelte.ts`: Custom emoji set management
+
+## Deployment
+
+- **Hosting**: Cloudflare Pages (wrangler CLI)
+- **CI**: GitHub Actions (`ci.yml`) — format → lint → check → test → e2e → deploy
+- **Deploy trigger**: Push to `main` branch only
 
 ## Key Decisions
 
