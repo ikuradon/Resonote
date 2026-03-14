@@ -206,6 +206,17 @@ export class EventsDB {
     return null;
   }
 
+  /** Delete events by their IDs. Silently ignores non-existent IDs. */
+  async deleteByIds(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const tx = this.db.transaction(STORE_NAME, 'readwrite');
+    for (const id of ids) {
+      tx.store.delete(id);
+    }
+    await tx.done;
+    log.info('Deleted events from DB', { count: ids.length });
+  }
+
   /** Clear all events from the database. */
   async clearAll(): Promise<void> {
     await this.db.clear(STORE_NAME);

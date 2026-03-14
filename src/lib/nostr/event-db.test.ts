@@ -285,6 +285,38 @@ describe('EventsDB', () => {
     });
   });
 
+  describe('deleteByIds', () => {
+    it('should delete events by their ids', async () => {
+      await eventsDB.put(makeEvent({ id: 'e1', kind: 1111 }));
+      await eventsDB.put(makeEvent({ id: 'e2', kind: 1111 }));
+      await eventsDB.put(makeEvent({ id: 'e3', kind: 1111 }));
+
+      await eventsDB.deleteByIds(['e1', 'e3']);
+
+      const all = await eventsDB.getAllByKind(1111);
+      expect(all).toHaveLength(1);
+      expect(all[0].id).toBe('e2');
+    });
+
+    it('should silently ignore non-existent ids', async () => {
+      await eventsDB.put(makeEvent({ id: 'e1', kind: 1111 }));
+
+      await eventsDB.deleteByIds(['e1', 'nonexistent']);
+
+      const all = await eventsDB.getAllByKind(1111);
+      expect(all).toHaveLength(0);
+    });
+
+    it('should handle empty array', async () => {
+      await eventsDB.put(makeEvent({ id: 'e1', kind: 1111 }));
+
+      await eventsDB.deleteByIds([]);
+
+      const all = await eventsDB.getAllByKind(1111);
+      expect(all).toHaveLength(1);
+    });
+  });
+
   describe('clearAll', () => {
     it('should remove all events', async () => {
       await eventsDB.put(makeEvent({ id: 'e1' }));
