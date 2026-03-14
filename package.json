@@ -43,7 +43,7 @@
     "nostr-typedef": "^0.13.0",
     "prettier": "^3.8.1",
     "prettier-plugin-svelte": "^3.5.1",
-    "svelte": "^5.51.0",
+    "svelte": "^5.53.12",
     "svelte-check": "^4.4.2",
     "tailwindcss": "^4.2.1",
     "typescript": "^5.9.3",
