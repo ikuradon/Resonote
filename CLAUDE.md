@@ -17,6 +17,8 @@ pnpm run test         # unit tests (vitest)
 pnpm run test:coverage # unit tests with coverage
 pnpm run test:e2e     # E2E tests (Playwright)
 pnpm run lint:fix     # ESLint auto-fix
+pnpm run build:ext:chrome  # build extension for Chrome → dist-extension/
+pnpm run build:ext:firefox # build extension for Firefox → dist-extension/
 ```
 
 ## Pre-commit Validation
@@ -32,7 +34,7 @@ This matches the CI pipeline order. Do not skip `pnpm lint` — `pnpm check` (sv
 ## Tech Stack
 
 - **Framework**: SvelteKit (SPA mode, Svelte 5 runes)
-- **Adapter**: @sveltejs/adapter-static (`fallback: '200.html'`)
+- **Adapter**: @sveltejs/adapter-static (`fallback: 'index.html'`)
 - **Styling**: Tailwind CSS v4 (`@tailwindcss/vite` plugin)
 - **Nostr**: rx-nostr + @rx-nostr/crypto (verifier/signer)
 - **Auth**: @konemono/nostr-login (`init()` + `nlAuth` DOM event)
@@ -50,11 +52,18 @@ This matches the CI pipeline order. Do not skip `pnpm lint` — `pnpm check` (sv
 
 ## Architecture
 
+### Directory Structure
+
+- `src/lib/` — Shared code ($lib alias): ContentProviders, Nostr layer, stores, components
+- `src/web/` — SvelteKit entry points (routes, app.html, app.css)
+- `src/extension/` — Browser extension (Chrome/Firefox Manifest V3)
+
 ### ContentProvider Pattern
 
 `src/lib/content/types.ts` defines `ContentProvider` interface and `ContentId` type.
-Each platform (Spotify, future YouTube/Apple Music) implements this interface.
+Each platform implements this interface. Extension-only providers set `requiresExtension: true`.
 Nostr tags are generated via `toNostrTag()` returning NIP-73 `["I", ...]` tags.
+Supported: Spotify, YouTube, Netflix, Prime Video, Disney+, Apple Music, SoundCloud, Fountain.fm, AbemaTV, TVer, U-NEXT
 
 ### Nostr Layer
 
@@ -84,6 +93,7 @@ Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
 - `follows.svelte.ts`: Follow list (kind:3) state
 - `relays.svelte.ts`: Relay connection status
 - `emoji-sets.svelte.ts`: Custom emoji set management
+- `extension.svelte.ts`: Browser extension mode state + postMessage listener
 
 ## Deployment
 
@@ -94,6 +104,7 @@ Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
 ## Key Decisions
 
 - SPA mode (`ssr = false`, `prerender = false`) — Nostr requires client-side WebSocket
-- `fallback: '200.html'` enables client-side routing for direct URL access
+- `fallback: 'index.html'` enables client-side routing for direct URL access
+- `kit.files.routes = 'src/web/routes'`, `kit.files.appTemplate = 'src/web/app.html'` — Web/Extension directory separation
 - `noBanner: true` in nostr-login init — manual login UI via `launch()`
 - rx-nostr verifier is mandatory; using `@rx-nostr/crypto`'s `verifier`
