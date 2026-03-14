@@ -17,7 +17,7 @@ test.describe('Content page (track)', () => {
 
   test('should display login prompt when not logged in', async ({ page }) => {
     await page.goto(trackUrl);
-    await expect(page.locator('text=Login to post comments')).toBeVisible();
+    await expect(page.locator('[data-testid="comment-login-prompt"]')).toBeVisible();
   });
 
   test('should not display comment form when not logged in', async ({ page }) => {
@@ -66,7 +66,7 @@ test.describe('Content page (show / collection)', () => {
 
   test('should display "View all episodes on Spotify" link', async ({ page }) => {
     await page.goto(showUrl);
-    const link = page.locator('a:has-text("View all episodes on Spotify")');
+    const link = page.locator('[data-testid="show-episodes-link"]');
     await expect(link).toBeVisible();
     await expect(link).toHaveAttribute(
       'href',
@@ -77,7 +77,7 @@ test.describe('Content page (show / collection)', () => {
 
   test('should display episode URL guidance text', async ({ page }) => {
     await page.goto(showUrl);
-    await expect(page.locator('text=Paste an episode URL to view comments')).toBeVisible();
+    await expect(page.locator('[data-testid="show-paste-hint"]')).toBeVisible();
   });
 
   test('should NOT display Comments heading for show', async ({ page }) => {
@@ -87,7 +87,7 @@ test.describe('Content page (show / collection)', () => {
 
   test('should NOT display comment form or login prompt for show', async ({ page }) => {
     await page.goto(showUrl);
-    await expect(page.locator('text=Login to post comments')).toHaveCount(0);
+    await expect(page.locator('[data-testid="comment-login-prompt"]')).toHaveCount(0);
     await expect(page.locator('input[placeholder="Write a comment..."]')).toHaveCount(0);
   });
 });
@@ -107,7 +107,7 @@ test.describe('Content page (YouTube)', () => {
 
   test('should display login prompt when not logged in on YouTube', async ({ page }) => {
     await page.goto(youtubeUrl);
-    await expect(page.locator('text=Login to post comments')).toBeVisible();
+    await expect(page.locator('[data-testid="comment-login-prompt"]')).toBeVisible();
   });
 });
 

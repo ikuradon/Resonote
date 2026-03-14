@@ -77,11 +77,12 @@ jobs:
         run: pnpm test:coverage
 
       - name: Upload coverage
-        if: always()
+        if: success()
         uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: coverage/
+          retention-days: 7
 
   e2e:
     name: E2E Test
@@ -124,6 +125,7 @@ jobs:
         with:
           name: playwright-report
           path: playwright-report/
+          retention-days: 7
 
   build-extension:
     name: Build Extension
@@ -151,6 +153,7 @@ jobs:
         with:
           name: extension-${{ matrix.browser }}
           path: dist-extension/
+          retention-days: 7
 
   deploy-staging:
     name: Deploy to Staging
@@ -237,6 +240,10 @@ jobs:
         with:
           name: extension-${{ matrix.browser }}
           path: dist-extension/
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
 
       - name: Zip extension
         run: cd dist-extension && zip -r ../extension-${{ matrix.browser }}.zip .

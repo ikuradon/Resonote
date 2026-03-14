@@ -72,7 +72,7 @@ export async function initAuth(): Promise<void> {
   log.info('Initializing nostr-login...');
 
   document.addEventListener('nlAuth', (e: Event) => {
-    const detail = (e as CustomEvent).detail;
+    const detail = (e as CustomEvent<{ type: string }>).detail;
     log.debug('nlAuth event', { type: detail.type });
     if (detail.type === 'login' || detail.type === 'signup') {
       window.nostr

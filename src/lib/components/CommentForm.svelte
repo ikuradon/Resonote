@@ -148,7 +148,10 @@
     </NoteInput>
   </form>
 {:else}
-  <div class="rounded-xl border border-dashed border-border py-4 text-center">
+  <div
+    data-testid="comment-login-prompt"
+    class="rounded-xl border border-dashed border-border py-4 text-center"
+  >
     <p class="text-sm text-text-muted">{t('comment.login_prompt')}</p>
   </div>
 {/if}

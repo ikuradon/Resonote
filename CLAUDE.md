@@ -1,6 +1,6 @@
 # Resonote
 
-Spotify iFrame API + Nostr プロトコルを使った音楽コメント同期システム。
+Nostr プロトコルを使ったメディアコメント同期システム（Spotify, YouTube, Netflix 等 11 プラットフォーム対応）。
 NIP-73 (External Content IDs) + NIP-22 (Comments, kind:1111) + NIP-25 (Reactions, kind:7) を活用。
 
 ## Commands

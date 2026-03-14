@@ -42,7 +42,7 @@ test.describe('Resilience', () => {
     // Immediately go back and navigate to something else
     await page.locator('header a[href="/"]').click();
     await page
-      .locator('input[placeholder="Paste a Spotify or YouTube URL..."]')
+      .locator('[data-testid="track-url-input"]')
       .fill('https://open.spotify.com/episode/4C6zDr6e86HYqLxPAhO8jA');
     await page.locator('[data-testid="track-submit-button"]').click();
     await expect(page).toHaveURL('/spotify/episode/4C6zDr6e86HYqLxPAhO8jA');

@@ -66,7 +66,7 @@ export function matchesFilter(
 }
 
 /** Extract follows Set from a kind:3 event's p tags. */
-function extractFollows(event: { tags: string[][] }): Set<string> {
+export function extractFollows(event: { tags: string[][] }): Set<string> {
   const pubkeys = new Set<string>();
   for (const tag of event.tags) {
     if (tag[0] === 'p' && tag[1]) pubkeys.add(tag[1]);

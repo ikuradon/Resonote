@@ -27,14 +27,14 @@ test.describe('Responsive layout', () => {
     await page.goto('/spotify/track/4C6zDr6e86HYqLxPAhO8jA');
     await expect(page.locator(embedLocator)).toBeVisible();
     await expect(page.locator('h2:has-text("Comments")')).toBeVisible();
-    await expect(page.locator('text=Login to post comments')).toBeVisible();
+    await expect(page.locator('[data-testid="comment-login-prompt"]')).toBeVisible();
   });
 
   test('should display show page correctly on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto('/spotify/show/0yTcypvuUHOiR1kJa7ihvW');
     await expect(page.locator('[data-testid="show-episodes-link"]')).toBeVisible();
-    await expect(page.locator('text=Paste an episode URL to view comments')).toBeVisible();
+    await expect(page.locator('[data-testid="show-paste-hint"]')).toBeVisible();
   });
 
   test('should display correctly on tablet viewport', async ({ page }) => {

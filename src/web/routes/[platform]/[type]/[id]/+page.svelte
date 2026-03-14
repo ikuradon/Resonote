@@ -59,18 +59,18 @@
             {t('content.requires_extension')}
           </p>
           <div class="flex gap-3">
-            <a
-              href="#"
+            <button
+              type="button"
               class="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-surface-0 transition-colors hover:bg-accent-hover"
             >
               {t('content.install_chrome')}
-            </a>
-            <a
-              href="#"
+            </button>
+            <button
+              type="button"
               class="rounded-xl border border-accent px-5 py-2.5 text-sm font-semibold text-accent transition-colors hover:bg-accent-muted"
             >
               {t('content.install_firefox')}
-            </a>
+            </button>
           </div>
         </div>
       {/if}
@@ -100,7 +100,9 @@
         >
           {t('show.episodes', { name: provider.displayName })}
         </a>
-        <p class="text-sm text-text-muted">{t('show.paste_episode')}</p>
+        <p data-testid="show-paste-hint" class="text-sm text-text-muted">
+          {t('show.paste_episode')}
+        </p>
       </div>
     </div>
   {:else}
@@ -125,18 +127,18 @@
                 {t('content.requires_extension')}
               </p>
               <div class="flex gap-3">
-                <a
-                  href="#"
+                <button
+                  type="button"
                   class="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-surface-0 transition-colors hover:bg-accent-hover"
                 >
                   {t('content.install_chrome')}
-                </a>
-                <a
-                  href="#"
+                </button>
+                <button
+                  type="button"
                   class="rounded-xl border border-accent px-5 py-2.5 text-sm font-semibold text-accent transition-colors hover:bg-accent-muted"
                 >
                   {t('content.install_firefox')}
-                </a>
+                </button>
               </div>
             </div>
           {/if}

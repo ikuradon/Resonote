@@ -116,8 +116,9 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
       const setCategories = (
         await Promise.all(
           setRefs.map(async (ref) => {
-            const [, refPubkey, dTag] = ref.split(':');
-            const cached = await eventsDB.getByReplaceKey(refPubkey, 30030, dTag);
+            const parts = ref.split(':');
+            if (parts.length < 3 || !parts[1] || !parts[2]) return null;
+            const cached = await eventsDB.getByReplaceKey(parts[1], 30030, parts[2]);
             return cached ? buildCategoryFromEvent(cached) : null;
           })
         )
@@ -193,10 +194,13 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
 
       for (let i = 0; i < setRefs.length; i += BATCH_SIZE) {
         const batch = setRefs.slice(i, i + BATCH_SIZE);
-        const filters = batch.map((ref) => {
-          const [, refPubkey, dTag] = ref.split(':');
-          return { kinds: [30030 as number], authors: [refPubkey], '#d': [dTag] };
-        });
+        const filters = batch
+          .map((ref) => {
+            const parts = ref.split(':');
+            if (parts.length < 3 || !parts[1] || !parts[2]) return null;
+            return { kinds: [30030 as number], authors: [parts[1]], '#d': [parts[2]] };
+          })
+          .filter((f): f is NonNullable<typeof f> => f !== null);
 
         batchPromises.push(
           new Promise<EmojiCategory[]>((resolve) => {

@@ -42,7 +42,7 @@ function isLikeReaction(content: string): boolean {
 }
 
 /** Apply a single reaction to a stats object (mutates in place). */
-function applyReaction(stats: ReactionStats, r: Reaction): void {
+export function applyReaction(stats: ReactionStats, r: Reaction): void {
   stats.reactors.add(r.pubkey);
   if (isLikeReaction(r.content)) {
     stats.likes++;
@@ -58,7 +58,7 @@ function applyReaction(stats: ReactionStats, r: Reaction): void {
   }
 }
 
-function buildReactionIndex(
+export function buildReactionIndex(
   reactions: Reaction[],
   deletedIds: Set<string>
 ): Map<string, ReactionStats> {
