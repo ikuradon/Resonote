@@ -1,7 +1,29 @@
 import type { ContentId, ContentProvider } from './types.js';
 import { spotify } from './spotify.js';
+import { youtube } from './youtube.js';
+import { netflix } from './netflix.js';
+import { primeVideo } from './prime-video.js';
+import { disneyPlus } from './disney-plus.js';
+import { appleMusic } from './apple-music.js';
+import { soundcloud } from './soundcloud.js';
+import { fountainFm } from './fountain-fm.js';
+import { abema } from './abema.js';
+import { tver } from './tver.js';
+import { uNext } from './u-next.js';
 
-const providers: ContentProvider[] = [spotify];
+const providers: ContentProvider[] = [
+  spotify,
+  youtube,
+  netflix,
+  primeVideo,
+  disneyPlus,
+  appleMusic,
+  soundcloud,
+  fountainFm,
+  abema,
+  tver,
+  uNext
+];
 
 const byPlatform = new Map<string, ContentProvider>(providers.map((p) => [p.platform, p]));
 

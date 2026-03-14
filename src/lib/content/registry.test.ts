@@ -9,8 +9,14 @@ describe('registry', () => {
       expect(provider!.platform).toBe('spotify');
     });
 
+    it('should return the YouTube provider', () => {
+      const provider = getProvider('youtube');
+      expect(provider).toBeDefined();
+      expect(provider!.platform).toBe('youtube');
+    });
+
     it('should return undefined for unknown platform', () => {
-      expect(getProvider('youtube')).toBeUndefined();
+      expect(getProvider('unknown-platform')).toBeUndefined();
     });
 
     it('should return undefined for empty string', () => {
@@ -49,8 +55,13 @@ describe('registry', () => {
       expect(parseContentUrl('')).toBeNull();
     });
 
+    it('should parse a YouTube URL', () => {
+      const result = parseContentUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+      expect(result).toEqual({ platform: 'youtube', type: 'video', id: 'dQw4w9WgXcQ' });
+    });
+
     it('should return null for a non-supported URL', () => {
-      expect(parseContentUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBeNull();
+      expect(parseContentUrl('https://www.example.com/page')).toBeNull();
     });
 
     it('should return null for random text', () => {
