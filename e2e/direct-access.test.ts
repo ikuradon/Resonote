@@ -32,9 +32,8 @@ test.describe('Direct URL access (SPA fallback)', () => {
 
   test('should handle unknown routes gracefully (SPA fallback)', async ({ page }) => {
     await page.goto('/completely/unknown/route');
-    // SPA fallback serves 200.html, so the app should load
-    // It should either show the home page or an error state, but not crash
-    await expect(page.locator('h1')).toBeVisible();
+    // SPA fallback serves index.html, so the app shell should load without crashing
+    await expect(page.locator('header a[href="/"]')).toBeVisible();
   });
 });
 
