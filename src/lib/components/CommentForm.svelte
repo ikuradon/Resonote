@@ -29,6 +29,8 @@
   /** true = attach current playback position, false = general comment.
    *  Auto-falls back to false when no position is available. */
   let attachPosition = $state(true);
+  let cwEnabled = $state(false);
+  let cwReason = $state('');
   let effectiveAttach = $derived(attachPosition && hasPosition);
 
   async function submit() {
@@ -41,7 +43,8 @@
       const tags = emojiTags.length > 0 ? emojiTags : undefined;
       const params = buildComment(trimmed, contentId, provider, {
         positionMs: posMs,
-        emojiTags: tags
+        emojiTags: tags,
+        contentWarning: cwEnabled ? cwReason : undefined
       });
       log.info('Sending comment', { positionMs: posMs, contentLength: trimmed.length });
       // Transition: airplane flies (400ms) → fade to spinner
@@ -52,6 +55,8 @@
       log.info('Comment sent successfully');
       content = '';
       emojiTags = [];
+      cwEnabled = false;
+      cwReason = '';
     } catch (err) {
       log.error('Failed to send comment', err);
     } finally {
@@ -94,6 +99,38 @@
       >
         全体コメント
       </button>
+    </div>
+
+    <div class="flex items-center gap-2 text-xs">
+      <button
+        type="button"
+        disabled={busy}
+        onclick={() => (cwEnabled = !cwEnabled)}
+        class="inline-flex items-center gap-1 rounded-full px-3 py-1 font-medium transition-all duration-200
+          {cwEnabled
+          ? 'bg-yellow-500/15 text-yellow-600 ring-1 ring-yellow-500/30 dark:text-yellow-400'
+          : 'bg-surface-3 text-text-muted hover:text-text-secondary'} disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <svg
+          class="h-3.5 w-3.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M12 9v4m0 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+        </svg>
+        CW
+      </button>
+      {#if cwEnabled}
+        <input
+          type="text"
+          bind:value={cwReason}
+          disabled={busy}
+          placeholder="理由（任意）"
+          class="flex-1 rounded-lg border border-border bg-surface-1 px-2 py-1 text-xs text-text-primary placeholder:text-text-muted/50 focus:border-accent focus:outline-none disabled:opacity-40"
+        />
+      {/if}
     </div>
 
     <NoteInput

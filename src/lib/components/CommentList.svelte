@@ -180,6 +180,19 @@
     }
   }
 
+  // --- CW reveal state ---
+  let revealedCW = $state(new Set<string>());
+
+  function revealCW(id: string) {
+    revealedCW = new Set([...revealedCW, id]);
+  }
+
+  function hideCW(id: string) {
+    const next = new Set(revealedCW);
+    next.delete(id);
+    revealedCW = next;
+  }
+
   // --- Reply state ---
   let replyTarget = $state<Comment | null>(null);
   let replyContent = $state('');
@@ -313,16 +326,51 @@
       </div>
       <span class="text-xs text-text-muted">{formatTime(comment.createdAt)}</span>
     </div>
-    <p class="text-sm leading-relaxed text-text-primary whitespace-pre-wrap break-words">
-      {#each segments as seg, segIdx (segIdx)}
-        {#if seg.type === 'text'}{seg.value}{:else}<img
-            src={seg.url}
-            alt=":{seg.shortcode}:"
-            class="inline h-5 w-5"
-            loading="lazy"
-          />{/if}
-      {/each}
-    </p>
+    {#if comment.contentWarning !== null && !revealedCW.has(comment.id)}
+      <div
+        class="flex items-center gap-2 rounded-lg bg-surface-2 px-3 py-2 text-sm text-text-muted"
+      >
+        <svg
+          class="h-4 w-4 shrink-0"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M12 9v4m0 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+        </svg>
+        <span class="flex-1">
+          Content Warning{#if comment.contentWarning}: {comment.contentWarning}{/if}
+        </span>
+        <button
+          type="button"
+          onclick={() => revealCW(comment.id)}
+          class="rounded px-2 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/10"
+        >
+          Show
+        </button>
+      </div>
+    {:else}
+      <p class="text-sm leading-relaxed text-text-primary whitespace-pre-wrap break-words">
+        {#each segments as seg, segIdx (segIdx)}
+          {#if seg.type === 'text'}{seg.value}{:else}<img
+              src={seg.url}
+              alt=":{seg.shortcode}:"
+              class="inline h-5 w-5"
+              loading="lazy"
+            />{/if}
+        {/each}
+      </p>
+      {#if comment.contentWarning !== null}
+        <button
+          type="button"
+          onclick={() => hideCW(comment.id)}
+          class="mt-1 text-xs text-text-muted transition-colors hover:text-text-secondary"
+        >
+          Hide
+        </button>
+      {/if}
+    {/if}
     <div class="{compact ? 'mt-1.5' : 'mt-2'} flex items-center gap-1">
       {#if auth.loggedIn}
         <button

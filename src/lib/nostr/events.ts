@@ -70,6 +70,7 @@ export interface CommentOptions {
   positionMs?: number;
   emojiTags?: string[][];
   parentEvent?: { id: string; pubkey: string };
+  contentWarning?: string;
 }
 
 /**
@@ -107,6 +108,10 @@ export function buildComment(
   }
 
   appendContentTags(tags, content, emojiTags);
+
+  if (options?.contentWarning !== undefined) {
+    tags.push(['content-warning', options.contentWarning]);
+  }
 
   return {
     kind: COMMENT_KIND,

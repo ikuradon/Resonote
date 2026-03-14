@@ -15,6 +15,8 @@ export interface Comment {
   emojiTags: string[][];
   /** Parent comment ID if this is a reply, or null for top-level comments */
   replyTo: string | null;
+  /** Content warning reason (NIP-36). Empty string = CW without reason. null = no CW. */
+  contentWarning: string | null;
 }
 
 export interface Reaction {
@@ -147,6 +149,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     const posTag = event.tags.find((t: string[]) => t[0] === 'position');
     const emojiTags = event.tags.filter((t: string[]) => isEmojiTag(t));
     const eTag = event.tags.find((t: string[]) => t[0] === 'e');
+    const cwTag = event.tags.find((t: string[]) => t[0] === 'content-warning');
     return {
       id: event.id,
       pubkey: event.pubkey,
@@ -154,7 +157,8 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       createdAt: event.created_at,
       positionMs: posTag ? parsePosition(posTag[1]) : null,
       emojiTags,
-      replyTo: eTag ? eTag[1] : null
+      replyTo: eTag ? eTag[1] : null,
+      contentWarning: cwTag ? (cwTag[1] ?? '') : null
     };
   }
 

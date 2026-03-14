@@ -108,6 +108,25 @@ describe('buildComment', () => {
     const emojiTag = event.tags!.find((t) => t[0] === 'emoji');
     expect(emojiTag).toBeUndefined();
   });
+
+  it('should include content-warning tag with reason', () => {
+    const event = buildComment('spoiler text', trackId, provider, {
+      contentWarning: 'ネタバレ'
+    });
+    expect(event.tags).toContainEqual(['content-warning', 'ネタバレ']);
+  });
+
+  it('should include content-warning tag with empty reason', () => {
+    const event = buildComment('sensitive', trackId, provider, {
+      contentWarning: ''
+    });
+    expect(event.tags).toContainEqual(['content-warning', '']);
+  });
+
+  it('should not include content-warning tag when not specified', () => {
+    const event = buildComment('normal comment', trackId, provider);
+    expect(event.tags!.find((t) => t[0] === 'content-warning')).toBeUndefined();
+  });
 });
 
 describe('formatPosition', () => {
