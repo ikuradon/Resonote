@@ -117,9 +117,17 @@ export function buildComment(
 
 /**
  * Build a kind:5 deletion event (NIP-09).
+ * Includes #I tag for content-based discovery.
  */
-export function buildDeletion(targetEventIds: string[], targetKind?: number): EventParameters {
+export function buildDeletion(
+  targetEventIds: string[],
+  contentId: ContentId,
+  provider: ContentProvider,
+  targetKind?: number
+): EventParameters {
+  const [value, hint] = provider.toNostrTag(contentId);
   const tags: string[][] = targetEventIds.map((id) => ['e', id]);
+  tags.push(['I', value, hint]);
   if (targetKind !== undefined) {
     tags.push(['k', String(targetKind)]);
   }

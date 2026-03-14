@@ -345,35 +345,51 @@ describe('buildReaction', () => {
 });
 
 describe('buildDeletion', () => {
-  it('should build a kind:5 event with e tags and k tag', () => {
-    const event = buildDeletion(['event1', 'event2'], COMMENT_KIND);
+  it('should build a kind:5 event with e tags, k tag, and I tag', () => {
+    const event = buildDeletion(['event1', 'event2'], trackId, provider, COMMENT_KIND);
     expect(event.kind).toBe(5);
     expect(event.content).toBe('');
     expect(event.tags).toEqual([
       ['e', 'event1'],
       ['e', 'event2'],
+      ['I', 'spotify:track:abc123', 'https://open.spotify.com/track/abc123'],
       ['k', '1111']
     ]);
   });
 
-  it('should handle a single event id with k tag', () => {
-    const event = buildDeletion(['event1'], COMMENT_KIND);
+  it('should handle a single event id', () => {
+    const event = buildDeletion(['event1'], trackId, provider, COMMENT_KIND);
     expect(event.tags).toEqual([
       ['e', 'event1'],
+      ['I', 'spotify:track:abc123', 'https://open.spotify.com/track/abc123'],
       ['k', '1111']
     ]);
   });
 
-  it('should handle empty array', () => {
-    const event = buildDeletion([]);
+  it('should handle empty event ids array', () => {
+    const event = buildDeletion([], trackId, provider);
     expect(event.kind).toBe(5);
-    expect(event.tags).toEqual([]);
+    expect(event.tags).toEqual([
+      ['I', 'spotify:track:abc123', 'https://open.spotify.com/track/abc123']
+    ]);
   });
 
   it('should omit k tag when targetKind is not provided', () => {
-    const event = buildDeletion(['event1']);
-    expect(event.tags).toEqual([['e', 'event1']]);
+    const event = buildDeletion(['event1'], trackId, provider);
+    expect(event.tags).toEqual([
+      ['e', 'event1'],
+      ['I', 'spotify:track:abc123', 'https://open.spotify.com/track/abc123']
+    ]);
     const kTag = event.tags!.find((t) => t[0] === 'k');
     expect(kTag).toBeUndefined();
+  });
+
+  it('should work with episode content', () => {
+    const event = buildDeletion(['event1'], episodeId, provider, COMMENT_KIND);
+    expect(event.tags).toContainEqual([
+      'I',
+      'spotify:episode:ep456',
+      'https://open.spotify.com/episode/ep456'
+    ]);
   });
 });

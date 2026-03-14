@@ -162,7 +162,7 @@
     if (!auth.loggedIn || auth.pubkey !== comment.pubkey || acting) return;
     acting = comment.id;
     try {
-      const params = buildDeletion([comment.id], COMMENT_KIND);
+      const params = buildDeletion([comment.id], contentId, provider, COMMENT_KIND);
       await castSigned(params);
       log.info('Comment deleted', { commentId: shortHex(comment.id) });
     } catch (err) {
