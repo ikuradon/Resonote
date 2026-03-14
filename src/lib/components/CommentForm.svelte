@@ -6,6 +6,7 @@
   import type { ContentId, ContentProvider } from '../content/types.js';
   import { createLogger } from '../utils/logger.js';
   import NoteInput from './NoteInput.svelte';
+  import SendButton from './SendButton.svelte';
 
   const log = createLogger('CommentForm');
 
@@ -20,7 +21,9 @@
   const player = getPlayer();
   let content = $state('');
   let sending = $state(false);
+  let flying = $state(false);
   let emojiTags = $state<string[][]>([]);
+  let busy = $derived(sending || flying);
   let hasPosition = $derived(player.position > 0);
   let positionLabel = $derived(hasPosition ? formatPosition(player.position) : null);
   /** true = attach current playback position, false = general comment.
@@ -32,7 +35,7 @@
     const trimmed = content.trim();
     if (!trimmed || !auth.loggedIn) return;
 
-    sending = true;
+    flying = true;
     try {
       const posMs = effectiveAttach ? player.position : undefined;
       const tags = emojiTags.length > 0 ? emojiTags : undefined;
@@ -41,6 +44,10 @@
         emojiTags: tags
       });
       log.info('Sending comment', { positionMs: posMs, contentLength: trimmed.length });
+      // Transition: airplane flies (400ms) → fade to spinner
+      await new Promise((r) => setTimeout(r, 400));
+      sending = true;
+      flying = false;
       await castSigned(params);
       log.info('Comment sent successfully');
       content = '';
@@ -49,6 +56,7 @@
       log.error('Failed to send comment', err);
     } finally {
       sending = false;
+      flying = false;
     }
   }
 </script>
@@ -64,12 +72,12 @@
     <div class="flex items-center gap-2 text-xs">
       <button
         type="button"
-        disabled={sending || !hasPosition}
+        disabled={busy || !hasPosition}
         onclick={() => (attachPosition = true)}
         class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-medium transition-all duration-200
           {effectiveAttach
           ? 'bg-accent/15 text-accent ring-1 ring-accent/30'
-          : hasPosition && !sending
+          : hasPosition && !busy
             ? 'bg-surface-3 text-text-muted hover:text-text-secondary'
             : 'cursor-not-allowed bg-surface-3 text-text-muted/40'}"
       >
@@ -78,7 +86,7 @@
       </button>
       <button
         type="button"
-        disabled={sending}
+        disabled={busy}
         onclick={() => (attachPosition = false)}
         class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-medium transition-all duration-200 {!effectiveAttach
           ? 'bg-accent/15 text-accent ring-1 ring-accent/30'
@@ -91,41 +99,12 @@
     <NoteInput
       bind:content
       bind:emojiTags
-      disabled={sending}
+      disabled={busy}
       placeholder={effectiveAttach ? 'この瞬間にコメント...' : '全体への感想を書く...'}
       rows={1}
       onsubmit={submit}
     >
-      <button
-        type="submit"
-        disabled={sending || !content.trim()}
-        class="inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-surface-0 transition-all duration-200 hover:bg-accent-hover disabled:opacity-30"
-      >
-        {#if sending}
-          <svg
-            class="h-4 w-4 animate-spin"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-          </svg>
-          Sending
-        {:else}
-          <svg
-            class="h-4 w-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <line x1="22" y1="2" x2="11" y2="13" />
-            <polygon points="22 2 15 22 11 13 2 9 22 2" />
-          </svg>
-          Send
-        {/if}
-      </button>
+      <SendButton {sending} {flying} disabled={!content.trim()} />
     </NoteInput>
   </form>
 {:else}
