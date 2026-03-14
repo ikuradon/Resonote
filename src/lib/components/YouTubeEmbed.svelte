@@ -121,14 +121,16 @@
 
     let cancelled = false;
 
-    initPlayer(containerEl, videoId).then((p) => {
-      if (cancelled) {
-        p.destroy();
-        return;
-      }
-      player = p;
-      ready = true;
-    });
+    initPlayer(containerEl, videoId)
+      .then((p) => {
+        if (cancelled) {
+          p.destroy();
+          return;
+        }
+        player = p;
+        ready = true;
+      })
+      .catch((err) => log.error('Failed to initialize YouTube player', err));
 
     return () => {
       cancelled = true;
