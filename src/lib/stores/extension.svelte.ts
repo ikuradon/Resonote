@@ -2,6 +2,9 @@ import { updatePlayback } from './player.svelte.js';
 import { goto } from '$app/navigation';
 import type { ContentId } from '$lib/content/types.js';
 
+const EXT_ATTR = 'data-resonote-ext';
+const ACTION_ATTR = 'data-resonote-action';
+
 let extensionMode = $state(false);
 
 let sidePanelOrigin: string | null = null;
@@ -15,7 +18,7 @@ export function isExtensionMode(): boolean {
 }
 
 export function detectExtension(): boolean {
-  return document.documentElement.hasAttribute('data-resonote-ext');
+  return document.documentElement.hasAttribute(EXT_ATTR);
 }
 
 export function initExtensionListener(): void {
@@ -48,7 +51,7 @@ export function sendSeekRequest(position: number): void {
 
 export function requestOpenContent(contentId: ContentId, siteUrl: string): void {
   document.documentElement.setAttribute(
-    'data-resonote-action',
+    ACTION_ATTR,
     JSON.stringify({
       type: 'resonote:open-content',
       contentId,

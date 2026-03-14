@@ -23,11 +23,18 @@ function handleTimeUpdate(): void {
   const duration = (currentElement.duration || 0) * 1000;
   const isPaused = currentElement.paused;
 
-  if (position === lastPosition && duration === lastDuration && isPaused === lastPaused) {
+  const roundedPosition = Math.round(position);
+  const roundedDuration = Math.round(duration);
+
+  if (
+    roundedPosition === lastPosition &&
+    roundedDuration === lastDuration &&
+    isPaused === lastPaused
+  ) {
     return;
   }
-  lastPosition = position;
-  lastDuration = duration;
+  lastPosition = roundedPosition;
+  lastDuration = roundedDuration;
   lastPaused = isPaused;
 
   const msg: PlaybackStateMessage = {
@@ -84,12 +91,7 @@ function detect(): void {
 
 chrome.runtime.onMessage.addListener((message) => {
   if (message.type === 'resonote:seek' && currentElement && currentAdapter) {
-    const seekFn = currentAdapter.seek?.bind(currentAdapter);
-    if (seekFn) {
-      seekFn(currentElement, message.position);
-    } else {
-      currentElement.currentTime = message.position / 1000;
-    }
+    currentAdapter.seek?.(currentElement, message.position);
   }
 });
 
@@ -100,6 +102,7 @@ const observer = new MutationObserver(() => {
     if (detected) {
       chrome.runtime.sendMessage({ type: 'resonote:site-lost' } satisfies SiteLostMessage);
       detected = false;
+      currentAdapter = null;
     }
   }
   // Debounce media element search
