@@ -61,7 +61,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender) => {
 
     case 'resonote:seek': {
       if (activeTabId) {
-        chrome.tabs.sendMessage(activeTabId, message);
+        chrome.tabs.sendMessage(activeTabId, message).catch(() => {});
       }
       break;
     }

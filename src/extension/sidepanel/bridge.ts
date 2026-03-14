@@ -56,9 +56,11 @@ window.addEventListener('message', (event) => {
   if (event.origin !== RESONOTE_ORIGIN) return;
 
   if (event.data?.type === 'resonote:seek-request') {
-    chrome.runtime.sendMessage({
-      type: 'resonote:seek',
-      position: event.data.position
-    });
+    chrome.runtime
+      .sendMessage({
+        type: 'resonote:seek',
+        position: event.data.position
+      })
+      .catch(() => {});
   }
 });
