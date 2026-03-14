@@ -1,4 +1,5 @@
 import { openSidePanel } from './shared/compat.js';
+import { SIDEPANEL_PORT_NAME } from './shared/constants.js';
 import type { ContentId } from '../lib/content/types.js';
 import type { ExtensionMessage } from './shared/messages.js';
 
@@ -12,7 +13,7 @@ let activeTabId: number | null = null;
 let sidePanelPort: chrome.runtime.Port | null = null;
 
 chrome.runtime.onConnect.addListener((port) => {
-  if (port.name === 'resonote-sidepanel') {
+  if (port.name === SIDEPANEL_PORT_NAME) {
     sidePanelPort = port;
     port.onDisconnect.addListener(() => {
       sidePanelPort = null;
@@ -89,6 +90,19 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
       contentId: state.contentId,
       siteUrl: state.siteUrl
     });
+  } else {
+    activeTabId = null;
+  }
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.url && tabStates.has(tabId)) {
+    // Tab navigated — remove stale state
+    tabStates.delete(tabId);
+    if (tabId === activeTabId) {
+      activeTabId = null;
+      forwardToSidePanel({ type: 'resonote:site-lost' });
+    }
   }
 });
 

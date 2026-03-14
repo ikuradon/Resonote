@@ -1,5 +1,6 @@
 import { updatePlayback } from './player.svelte.js';
 import { goto } from '$app/navigation';
+import type { ContentId } from '$lib/content/types.js';
 
 let extensionMode = $state(false);
 
@@ -43,4 +44,15 @@ export function initExtensionListener(): void {
 export function sendSeekRequest(position: number): void {
   if (!extensionMode || !sidePanelOrigin) return;
   window.parent.postMessage({ type: 'resonote:seek-request', position }, sidePanelOrigin);
+}
+
+export function requestOpenContent(contentId: ContentId, siteUrl: string): void {
+  document.documentElement.setAttribute(
+    'data-resonote-action',
+    JSON.stringify({
+      type: 'resonote:open-content',
+      contentId,
+      siteUrl
+    })
+  );
 }

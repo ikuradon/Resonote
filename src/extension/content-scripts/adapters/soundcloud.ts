@@ -1,16 +1,8 @@
-import type { SiteAdapter } from './types.js';
+import { GenericAudioAdapter } from './generic-audio.js';
 
-export class SoundCloudAdapter implements SiteAdapter {
+export class SoundCloudAdapter extends GenericAudioAdapter {
   readonly matchPatterns = ['*://*.soundcloud.com/*'];
   readonly platform = 'soundcloud';
-
-  findMediaElement(): HTMLAudioElement | null {
-    return document.querySelector<HTMLAudioElement>('audio');
-  }
-
-  seek(element: HTMLAudioElement, positionMs: number): void {
-    element.currentTime = positionMs / 1000;
-  }
 }
 
 export const soundcloudAdapter = new SoundCloudAdapter();

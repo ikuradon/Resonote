@@ -5,7 +5,11 @@
   import CommentForm from '$lib/components/CommentForm.svelte';
   import { getProvider } from '$lib/content/registry.js';
   import { createCommentsStore } from '$lib/stores/comments.svelte.js';
-  import { isExtensionMode, detectExtension } from '$lib/stores/extension.svelte.js';
+  import {
+    isExtensionMode,
+    detectExtension,
+    requestOpenContent
+  } from '$lib/stores/extension.svelte.js';
   import type { ContentId } from '$lib/content/types.js';
 
   let platform = $derived(page.params.platform ?? '');
@@ -71,14 +75,7 @@
       <button
         onclick={() => {
           if (provider) {
-            document.documentElement.setAttribute(
-              'data-resonote-action',
-              JSON.stringify({
-                type: 'resonote:open-content',
-                contentId,
-                siteUrl: provider.openUrl(contentId)
-              })
-            );
+            requestOpenContent(contentId, provider.openUrl(contentId));
           }
         }}
         class="flex w-full items-center justify-center gap-3 rounded-2xl border border-border bg-surface-1 p-8 text-center transition-colors hover:bg-surface-2"

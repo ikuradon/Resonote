@@ -41,6 +41,7 @@ export default ts.config(
   {
     ignores: [
       'build/',
+      'dist-extension/',
       '.svelte-kit/',
       'node_modules/',
       'test-results/',

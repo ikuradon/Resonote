@@ -1,10 +1,11 @@
-const RESONOTE_ORIGIN = 'https://resonote.pages.dev';
+import { SIDEPANEL_PORT_NAME, RESONOTE_ORIGIN } from '../shared/constants.js';
+
 const frame = document.getElementById('resonote-frame') as HTMLIFrameElement;
 const loading = document.getElementById('loading') as HTMLDivElement;
 
 let currentPath = '/';
 
-const port = chrome.runtime.connect({ name: 'resonote-sidepanel' });
+const port = chrome.runtime.connect({ name: SIDEPANEL_PORT_NAME });
 
 function navigateToContent(path: string): void {
   currentPath = path;

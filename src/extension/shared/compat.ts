@@ -8,7 +8,3 @@ export async function openSidePanel(tabId: number): Promise<void> {
     await browser.action.setBadgeBackgroundColor({ color: '#c9a256', tabId });
   }
 }
-
-export function isFirefox(): boolean {
-  return typeof browser !== 'undefined' && typeof chrome.sidePanel === 'undefined';
-}
