@@ -105,9 +105,36 @@ jobs:
           name: playwright-report
           path: playwright-report/
 
+  build-extension:
+    name: Build Extension
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        browser: [chrome, firefox]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build extension (${{ matrix.browser }})
+        run: pnpm build:ext:${{ matrix.browser }}
+
+      - name: Upload extension artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: extension-${{ matrix.browser }}
+          path: dist-extension/
+
   deploy:
     name: Deploy to Cloudflare Pages
-    needs: [lint-and-check, test, e2e]
+    needs: [lint-and-check, test, e2e, build-extension]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
