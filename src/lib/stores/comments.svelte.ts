@@ -91,6 +91,14 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
   let subscriptions: { unsubscribe: () => void }[] = [];
 
   let prevDeletedSize = 0;
+  let destroyed = false;
+
+  // NIP-09 pubkey verification: maps event ID → pubkey
+  const eventPubkeys = new Map<string, string>();
+
+  // Reconciliation cleanup handles
+  let reconcileSub: { unsubscribe: () => void } | undefined;
+  let reconcileTimeout: ReturnType<typeof setTimeout> | undefined;
 
   function rebuildReactionIndex() {
     reactionIndex = buildReactionIndex(reactionsRaw, deletedIds);
@@ -186,21 +194,22 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     const [idValue] = provider.toNostrTag(contentId);
     const tagQuery = `I:${idValue}`;
 
-    // --- Restore from DB (single pass) ---
+    // --- Restore from DB (two-pass for NIP-09 pubkey verification) ---
     const cachedEvents = await eventsDB.getByTagValue(tagQuery);
+    const cachedDeletions: typeof cachedEvents = [];
     const cachedComments: typeof cachedEvents = [];
     const cachedReactions: typeof cachedEvents = [];
     let maxCreatedAt: number | null = null;
 
+    // Pass 1: categorize events and track maxCreatedAt
     for (const event of cachedEvents) {
       if (maxCreatedAt === null || event.created_at > maxCreatedAt) {
         maxCreatedAt = event.created_at;
       }
       switch (event.kind) {
-        case 5: {
-          for (const id of extractDeletionTargets(event)) deletedIds.add(id);
+        case 5:
+          cachedDeletions.push(event);
           break;
-        }
         case 1111:
           cachedComments.push(event);
           break;
@@ -208,10 +217,6 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
           cachedReactions.push(event);
           break;
       }
-    }
-
-    if (deletedIds.size > 0) {
-      deletedIds = new Set(deletedIds);
     }
 
     // Batch-restore comments
@@ -232,6 +237,25 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       if (reaction) addReaction(reaction);
     }
 
+    // Build event ID → pubkey mapping for NIP-09 author verification
+    for (const c of commentsRaw) eventPubkeys.set(c.id, c.pubkey);
+    for (const r of reactionsRaw) eventPubkeys.set(r.id, r.pubkey);
+
+    // Pass 2: process deletions with pubkey verification (NIP-09)
+    for (const event of cachedDeletions) {
+      for (const id of extractDeletionTargets(event)) {
+        const originalPubkey = eventPubkeys.get(id);
+        // Accept if author matches or if original event is unknown
+        if (!originalPubkey || originalPubkey === event.pubkey) {
+          deletedIds.add(id);
+        }
+      }
+    }
+
+    if (deletedIds.size > 0) {
+      deletedIds = new Set(deletedIds);
+    }
+
     prevDeletedSize = deletedIds.size;
 
     log.info('Restored from DB', {
@@ -241,7 +265,16 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       maxCreatedAt
     });
 
-    // --- Reconcile offline deletions via #e query ---
+    // --- Purge deleted events from DB (from cached deletions) ---
+    if (deletedIds.size > 0) {
+      const idsToPurge = [...deletedIds].filter((id) => commentIds.has(id) || reactionIds.has(id));
+      if (idsToPurge.length > 0) {
+        eventsDB.deleteByIds(idsToPurge);
+        log.info('Purged deleted events from DB', { count: idsToPurge.length });
+      }
+    }
+
+    // --- Reconcile offline deletions via #e query (non-blocking) ---
     // Discovers kind:5 events published while SPA was offline.
     // Uses #e filter (not #I) because external clients' kind:5 may lack #I tags.
     const cachedIds = [...commentIds, ...reactionIds];
@@ -250,13 +283,16 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       const reconcileBackward = createRxBackwardReq();
       const newDeletions = new Set<string>();
 
-      const reconcileSub = rxNostr
+      reconcileSub = rxNostr
         .use(reconcileBackward)
         .pipe(uniq())
         .subscribe((packet) => {
           eventsDB.put(packet.event);
           for (const id of extractDeletionTargets(packet.event)) {
-            newDeletions.add(id);
+            const originalPubkey = eventPubkeys.get(id);
+            if (!originalPubkey || originalPubkey === packet.event.pubkey) {
+              newDeletions.add(id);
+            }
           }
         });
 
@@ -266,34 +302,28 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       }
       reconcileBackward.over();
 
-      // rx-nostr backward reqs do NOT complete the RxJS subscription on EOSE.
-      // We use a fixed timeout to collect responses. This always waits the
-      // full duration, which is acceptable for a startup-only operation.
-      await new Promise<void>((resolve) => {
-        setTimeout(() => {
-          reconcileSub.unsubscribe();
-          resolve();
-        }, 5000);
-      });
+      reconcileTimeout = setTimeout(() => {
+        reconcileSub?.unsubscribe();
+        reconcileSub = undefined;
+        reconcileTimeout = undefined;
+        if (destroyed || newDeletions.size === 0) return;
 
-      if (newDeletions.size > 0) {
         const next = new Set(deletedIds);
         for (const id of newDeletions) next.add(id);
         deletedIds = next;
         prevDeletedSize = deletedIds.size;
         rebuildReactionIndex();
         log.info('Offline deletions reconciled', { newDeletions: newDeletions.size });
-      }
-    }
 
-    // --- Purge deleted events from DB ---
-    if (deletedIds.size > 0) {
-      const idsToPurge = [...deletedIds].filter((id) => commentIds.has(id) || reactionIds.has(id));
-      if (idsToPurge.length > 0) {
-        // Fire-and-forget: DB cleanup should not block UI
-        eventsDB.deleteByIds(idsToPurge);
-        log.info('Purged deleted events from DB', { count: idsToPurge.length });
-      }
+        // Purge deleted events from DB
+        const idsToPurge = [...newDeletions].filter(
+          (id) => commentIds.has(id) || reactionIds.has(id)
+        );
+        if (idsToPurge.length > 0) {
+          eventsDB.deleteByIds(idsToPurge);
+          log.info('Purged deleted events from DB', { count: idsToPurge.length });
+        }
+      }, 5000);
     }
 
     // --- Comments (kind:1111) ---
@@ -310,6 +340,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       if (commentIds.has(packet.event.id)) return;
       eventsDB.put(packet.event);
       commentIds.add(packet.event.id);
+      eventPubkeys.set(packet.event.id, packet.event.pubkey);
       commentsRaw = [...commentsRaw, buildCommentFromEvent(packet.event)];
       log.debug('Comment received', { id: shortHex(packet.event.id) });
     });
@@ -331,7 +362,10 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     ).subscribe((packet) => {
       eventsDB.put(packet.event);
       const reaction = buildReactionFromEvent(packet.event);
-      if (reaction) addReaction(reaction);
+      if (reaction) {
+        addReaction(reaction);
+        eventPubkeys.set(packet.event.id, packet.event.pubkey);
+      }
     });
 
     reactionBackward.emit(reactionFilter);
@@ -352,16 +386,23 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       eventsDB.put(packet.event);
       const eTags = extractDeletionTargets(packet.event);
       if (eTags.length > 0) {
-        const next = new Set(deletedIds);
-        for (const id of eTags) next.add(id);
-        deletedIds = next;
-        if (deletedIds.size !== prevDeletedSize) {
-          prevDeletedSize = deletedIds.size;
-          rebuildReactionIndex();
+        const verified = eTags.filter((id) => {
+          const originalPubkey = eventPubkeys.get(id);
+          return !originalPubkey || originalPubkey === packet.event.pubkey;
+        });
+        if (verified.length > 0) {
+          const next = new Set(deletedIds);
+          for (const id of verified) next.add(id);
+          deletedIds = next;
+          if (deletedIds.size !== prevDeletedSize) {
+            prevDeletedSize = deletedIds.size;
+            rebuildReactionIndex();
+          }
+          // Fire-and-forget, only delete known cached events
+          const toPurge = verified.filter((id) => commentIds.has(id) || reactionIds.has(id));
+          if (toPurge.length > 0) eventsDB.deleteByIds(toPurge);
+          log.debug('Deletion event received', { deletedIds: verified.map(shortHex) });
         }
-        // Fire-and-forget: DB cleanup should not block subscription processing
-        eventsDB.deleteByIds(eTags);
-        log.debug('Deletion event received', { deletedIds: eTags.map(shortHex) });
       }
     });
 
@@ -374,8 +415,17 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
 
   function destroy() {
     log.info('Destroying comment subscriptions');
+    destroyed = true;
     for (const sub of subscriptions) sub.unsubscribe();
     subscriptions = [];
+    if (reconcileSub) {
+      reconcileSub.unsubscribe();
+      reconcileSub = undefined;
+    }
+    if (reconcileTimeout) {
+      clearTimeout(reconcileTimeout);
+      reconcileTimeout = undefined;
+    }
     commentsRaw = [];
     commentIds = new Set();
     reactionsRaw = [];
@@ -383,6 +433,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     reactionIndex = new Map();
     deletedIds = new Set();
     prevDeletedSize = 0;
+    eventPubkeys.clear();
   }
 
   return {
