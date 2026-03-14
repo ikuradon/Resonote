@@ -214,7 +214,7 @@ export class EventsDB {
       tx.store.delete(id);
     }
     await tx.done;
-    log.info('Deleted events from DB', { count: ids.length });
+    log.debug('Deleted events from DB', { count: ids.length });
   }
 
   /** Clear all events from the database. */

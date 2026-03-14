@@ -139,6 +139,13 @@ export function buildDeletion(
 }
 
 /**
+ * Extract target event IDs from a deletion event's "e" tags.
+ */
+export function extractDeletionTargets(event: { tags: string[][] }): string[] {
+  return event.tags.filter((t) => t[0] === 'e').map((t) => t[1]);
+}
+
+/**
  * Build a kind:1 note for sharing content on Nostr.
  * Includes NIP-73 ["i", value, hint] + ["k", kind] tags to reference external content.
  */

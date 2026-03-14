@@ -1,11 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { extractDeletionTargets } from '../nostr/events.js';
 
-// processDeletion is not exported, so we test the logic inline
-describe('processDeletion logic', () => {
-  function processDeletion(event: { tags: string[][] }): string[] {
-    return event.tags.filter((t) => t[0] === 'e').map((t) => t[1]);
-  }
-
+describe('extractDeletionTargets', () => {
   it('should extract e tag values from deletion event', () => {
     const event = {
       tags: [
@@ -14,17 +10,17 @@ describe('processDeletion logic', () => {
         ['k', '1111']
       ]
     };
-    expect(processDeletion(event)).toEqual(['id1', 'id2']);
+    expect(extractDeletionTargets(event)).toEqual(['id1', 'id2']);
   });
 
   it('should return empty array when no e tags', () => {
     const event = { tags: [['k', '1111']] };
-    expect(processDeletion(event)).toEqual([]);
+    expect(extractDeletionTargets(event)).toEqual([]);
   });
 
   it('should return empty array for empty tags', () => {
     const event = { tags: [] };
-    expect(processDeletion(event)).toEqual([]);
+    expect(extractDeletionTargets(event)).toEqual([]);
   });
 
   it('should ignore non-e tags', () => {
@@ -35,6 +31,6 @@ describe('processDeletion logic', () => {
         ['I', 'value']
       ]
     };
-    expect(processDeletion(event)).toEqual(['id1']);
+    expect(extractDeletionTargets(event)).toEqual(['id1']);
   });
 });

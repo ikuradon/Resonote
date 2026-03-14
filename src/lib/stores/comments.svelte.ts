@@ -1,5 +1,5 @@
 import type { ContentId, ContentProvider } from '../content/types.js';
-import { parsePosition } from '../nostr/events.js';
+import { parsePosition, extractDeletionTargets } from '../nostr/events.js';
 import { isEmojiTag } from '../utils/emoji.js';
 import { createLogger, shortHex } from '../utils/logger.js';
 
@@ -94,10 +94,6 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
 
   function rebuildReactionIndex() {
     reactionIndex = buildReactionIndex(reactionsRaw, deletedIds);
-  }
-
-  function processDeletion(event: { tags: string[][] }): string[] {
-    return event.tags.filter((t) => t[0] === 'e').map((t) => t[1]);
   }
 
   function addReaction(reaction: Reaction) {
@@ -202,7 +198,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       }
       switch (event.kind) {
         case 5: {
-          for (const id of processDeletion(event)) deletedIds.add(id);
+          for (const id of extractDeletionTargets(event)) deletedIds.add(id);
           break;
         }
         case 1111:
@@ -259,7 +255,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
         .pipe(uniq())
         .subscribe((packet) => {
           eventsDB.put(packet.event);
-          for (const id of processDeletion(packet.event)) {
+          for (const id of extractDeletionTargets(packet.event)) {
             newDeletions.add(id);
           }
         });
@@ -354,7 +350,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       rxNostr.use(deletionForward).pipe(uniq())
     ).subscribe((packet) => {
       eventsDB.put(packet.event);
-      const eTags = processDeletion(packet.event);
+      const eTags = extractDeletionTargets(packet.event);
       if (eTags.length > 0) {
         const next = new Set(deletedIds);
         for (const id of eTags) next.add(id);
