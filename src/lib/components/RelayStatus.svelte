@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getRelays, initRelayStatus, type ConnectionState } from '../stores/relays.svelte.js';
+  import { t, type TranslationKey } from '../i18n/t.js';
 
   let open = $state(false);
   let relays = $derived(getRelays());
@@ -39,27 +40,20 @@
     }
   }
 
+  const stateKeys: Record<ConnectionState, TranslationKey> = {
+    connected: 'relay.state.connected',
+    connecting: 'relay.state.connecting',
+    retrying: 'relay.state.retrying',
+    'waiting-for-retrying': 'relay.state.waiting',
+    dormant: 'relay.state.dormant',
+    initialized: 'relay.state.ready',
+    error: 'relay.state.error',
+    rejected: 'relay.state.rejected',
+    terminated: 'relay.state.closed'
+  };
+
   function stateLabel(state: ConnectionState): string {
-    switch (state) {
-      case 'connected':
-        return 'Connected';
-      case 'connecting':
-        return 'Connecting';
-      case 'retrying':
-        return 'Retrying';
-      case 'waiting-for-retrying':
-        return 'Waiting';
-      case 'dormant':
-        return 'Dormant';
-      case 'initialized':
-        return 'Ready';
-      case 'error':
-        return 'Error';
-      case 'rejected':
-        return 'Rejected';
-      case 'terminated':
-        return 'Closed';
-    }
+    return t(stateKeys[state]);
   }
 
   let connectedCount = $derived(relays.filter((r) => r.state === 'connected').length);
@@ -73,7 +67,7 @@
   <button
     onclick={() => (open = !open)}
     class="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-text-secondary"
-    title="Relay status"
+    title={t('relay.title')}
   >
     <span class="relative flex h-2 w-2">
       {#if connectedCount > 0}
@@ -95,8 +89,10 @@
       class="absolute top-full right-0 z-50 mt-2 w-64 rounded-xl border border-border bg-surface-1 p-3 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
     >
       <div class="mb-2 flex items-center justify-between">
-        <span class="text-xs font-medium text-text-secondary">Relays</span>
-        <span class="text-xs text-text-muted">{connectedCount} connected</span>
+        <span class="text-xs font-medium text-text-secondary">{t('relay.heading')}</span>
+        <span class="text-xs text-text-muted"
+          >{t('relay.connected', { count: connectedCount })}</span
+        >
       </div>
       <div class="space-y-1.5">
         {#each relays as relay (relay.url)}

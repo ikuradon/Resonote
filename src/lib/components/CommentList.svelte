@@ -21,6 +21,7 @@
   import type { ContentId, ContentProvider } from '../content/types.js';
   import { createLogger, shortHex } from '../utils/logger.js';
   import { parseEmojiContent } from '../utils/emoji.js';
+  import { t, type TranslationKey } from '../i18n/t.js';
   import EmojiPickerPopover, { allocatePopoverId } from './EmojiPickerPopover.svelte';
   import NoteInput from './NoteInput.svelte';
   import ConfirmDialog from './ConfirmDialog.svelte';
@@ -253,10 +254,14 @@
     return map;
   });
 
-  const filterOptions: { value: FollowFilter; label: string; title?: string }[] = [
-    { value: 'all', label: 'All' },
-    { value: 'follows', label: 'Follows' },
-    { value: 'wot', label: 'WoT', title: 'Follows + follows of follows' }
+  const filterOptions: {
+    value: FollowFilter;
+    labelKey: TranslationKey;
+    titleKey?: TranslationKey;
+  }[] = [
+    { value: 'all', labelKey: 'filter.all' },
+    { value: 'follows', labelKey: 'filter.follows' },
+    { value: 'wot', labelKey: 'filter.wot', titleKey: 'filter.wot.description' }
   ];
 </script>
 
@@ -318,7 +323,7 @@
             type="button"
             onclick={() => handleSeek(comment.positionMs!)}
             class="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 font-mono text-xs text-accent transition-colors hover:bg-accent/20"
-            title="Seek to this position"
+            title={t('seek.title')}
           >
             {formatPosition(comment.positionMs)}
           </button>
@@ -340,14 +345,16 @@
           <path d="M12 9v4m0 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
         </svg>
         <span class="flex-1">
-          Content Warning{#if comment.contentWarning}: {comment.contentWarning}{/if}
+          {comment.contentWarning
+            ? t('cw.warning_with_reason', { reason: comment.contentWarning })
+            : t('cw.warning')}
         </span>
         <button
           type="button"
           onclick={() => revealCW(comment.id)}
           class="rounded px-2 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/10"
         >
-          Show
+          {t('cw.show')}
         </button>
       </div>
     {:else}
@@ -367,7 +374,7 @@
           onclick={() => hideCW(comment.id)}
           class="mt-1 text-xs text-text-muted transition-colors hover:text-text-secondary"
         >
-          Hide
+          {t('cw.hide')}
         </button>
       {/if}
     {/if}
@@ -379,7 +386,7 @@
           onclick={() => sendReaction(comment)}
           class="inline-flex items-center gap-1 rounded-lg p-1.5 transition-colors
             {myReaction ? 'text-accent' : 'text-text-muted hover:text-accent'}"
-          title={myReaction ? 'Liked' : 'Like'}
+          title={myReaction ? t('liked.title') : t('like.title')}
         >
           {@render heartIcon(myReaction)}
           {#if stats.likes > 0}
@@ -415,7 +422,7 @@
           type="button"
           onclick={() => startReply(replyToComment ?? comment)}
           class="rounded-lg p-1.5 text-text-muted transition-colors hover:text-accent"
-          title="Reply"
+          title={t('reply.title')}
         >
           <svg
             class="h-4 w-4"
@@ -435,7 +442,7 @@
           disabled={acting === comment.id}
           onclick={() => requestDelete(comment)}
           class="ml-auto rounded-lg p-1.5 text-text-muted transition-colors hover:text-red-400"
-          title="Delete"
+          title={t('delete.title')}
         >
           {#if acting === comment.id}
             <svg
@@ -479,7 +486,7 @@
               bind:content={replyContent}
               bind:emojiTags={replyEmojiTags}
               disabled={replySending}
-              placeholder="返信を書く..."
+              placeholder={t('comment.reply.placeholder')}
               rows={1}
               onsubmit={submitReply}
             >
@@ -498,9 +505,9 @@
                   >
                     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                   </svg>
-                  Sending
+                  {t('send.sending')}
                 {:else}
-                  Reply
+                  {t('send.reply')}
                 {/if}
               </button>
               <button
@@ -509,7 +516,7 @@
                 disabled={replySending}
                 class="rounded-lg px-3 py-1.5 text-xs text-text-muted transition-colors hover:text-text-secondary disabled:opacity-30"
               >
-                Cancel
+                {t('send.cancel')}
               </button>
             </NoteInput>
           </form>
@@ -537,23 +544,24 @@
         <button
           type="button"
           onclick={() => (followFilter = opt.value)}
-          title={opt.title}
+          title={opt.titleKey ? t(opt.titleKey) : undefined}
           class="rounded-md px-2.5 py-1 font-medium transition-all
             {followFilter === opt.value
             ? 'bg-surface-0 text-text-primary shadow-sm'
             : 'text-text-muted hover:text-text-secondary'}"
         >
-          {opt.label}
+          {t(opt.labelKey)}
         </button>
       {/each}
     </div>
     {#if follows.loading}
       <span class="text-text-muted"
-        >Building WoT... <span class="font-mono">{follows.discoveredCount}</span> users</span
+        >{t('wot.building')}
+        <span class="font-mono">{t('wot.users', { count: follows.discoveredCount })}</span></span
       >
     {:else if follows.cachedAt}
       <span class="text-text-muted">
-        <span class="font-mono">{follows.wot.size}</span> users
+        {t('wot.users', { count: follows.wot.size })}
         <span class="mx-1">|</span>
         {new Date(follows.cachedAt).toLocaleDateString()}
       </span>
@@ -562,7 +570,7 @@
         onclick={() => auth.pubkey && refreshFollows(auth.pubkey)}
         class="rounded-md bg-surface-2 px-2 py-0.5 text-xs text-text-muted transition-colors hover:bg-surface-3 hover:text-text-secondary"
       >
-        Update
+        {t('wot.update')}
       </button>
     {/if}
   {/if}
@@ -572,9 +580,9 @@
   {#if filteredComments.length === 0}
     <p class="py-8 text-center text-sm text-text-muted">
       {#if followFilter !== 'all'}
-        No comments from {followFilter === 'follows' ? 'follows' : 'your network'}
+        {followFilter === 'follows' ? t('comment.none.follows') : t('comment.none.wot')}
       {:else}
-        No comments yet
+        {t('comment.none')}
       {/if}
     </p>
   {:else}
@@ -582,7 +590,7 @@
       <section class="space-y-3">
         <div class="flex items-center gap-2">
           <span class="text-xs font-semibold tracking-wide text-text-secondary uppercase"
-            >Time Comments</span
+            >{t('comment.section.timed')}</span
           >
           <span class="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-mono text-accent"
             >{nearbyTimedComments.length}{#if !showAllTimed && nearbyTimedComments.length !== timedComments.length}/{timedComments.length}{/if}</span
@@ -598,7 +606,7 @@
                   ? 'bg-surface-0 text-text-primary shadow-sm'
                   : 'text-text-muted hover:text-text-secondary'}"
               >
-                Nearby
+                {t('comment.nearby')}
               </button>
               <button
                 type="button"
@@ -608,7 +616,7 @@
                   ? 'bg-surface-0 text-text-primary shadow-sm'
                   : 'text-text-muted hover:text-text-secondary'}"
               >
-                All
+                {t('comment.all')}
               </button>
             </div>
           {/if}
@@ -622,7 +630,7 @@
             onclick={() => (timedLimit += PAGE_SIZE)}
             class="w-full rounded-lg bg-surface-2 py-2 text-xs font-medium text-text-muted transition-colors hover:bg-surface-3 hover:text-text-secondary"
           >
-            Load more ({remainingTimed} remaining)
+            {t('comment.load_more', { count: remainingTimed })}
           </button>
         {/if}
       </section>
@@ -632,7 +640,7 @@
       <section class="space-y-3">
         <div class="flex items-center gap-2">
           <span class="text-xs font-semibold tracking-wide text-text-secondary uppercase"
-            >General</span
+            >{t('comment.section.general')}</span
           >
           <span class="rounded-full bg-surface-3 px-2 py-0.5 text-xs font-mono text-text-muted"
             >{generalComments.length}</span
@@ -648,7 +656,7 @@
             onclick={() => (generalLimit += PAGE_SIZE)}
             class="w-full rounded-lg bg-surface-2 py-2 text-xs font-medium text-text-muted transition-colors hover:bg-surface-3 hover:text-text-secondary"
           >
-            Load more ({remainingGeneral} remaining)
+            {t('comment.load_more', { count: remainingGeneral })}
           </button>
         {/if}
       </section>
@@ -658,10 +666,10 @@
 
 <ConfirmDialog
   open={deleteTarget !== null}
-  title="コメントを削除"
-  message="このコメントを削除しますか？この操作は取り消せません。"
-  confirmLabel="削除"
-  cancelLabel="キャンセル"
+  title={t('comment.delete.title')}
+  message={t('comment.delete.message')}
+  confirmLabel={t('comment.delete.confirm')}
+  cancelLabel={t('comment.delete.cancel')}
   onConfirm={confirmDelete}
   onCancel={() => (deleteTarget = null)}
 />

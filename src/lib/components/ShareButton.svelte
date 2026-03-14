@@ -2,6 +2,7 @@
   import { buildShare } from '../nostr/events.js';
   import { castSigned } from '../nostr/client.js';
   import { getAuth } from '../stores/auth.svelte.js';
+  import { t } from '../i18n/t.js';
   import type { ContentId, ContentProvider } from '../content/types.js';
   import { createLogger } from '../utils/logger.js';
   import NoteInput from './NoteInput.svelte';
@@ -63,21 +64,21 @@
       type="button"
       onclick={toggle}
       class="inline-flex items-center gap-1.5 rounded-lg bg-surface-2 px-3 py-2 text-sm font-medium text-text-secondary transition-all duration-200 hover:bg-surface-3 hover:text-text-primary"
-      title="Share as Nostr note"
+      title={t('share.title')}
     >
       <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
         <polyline points="16 6 12 2 8 6" />
         <line x1="12" y1="2" x2="12" y2="15" />
       </svg>
-      Share
+      {t('share.button')}
     </button>
 
     {#if open}
       <div
         class="absolute right-0 top-full z-10 mt-2 w-80 rounded-xl border border-border bg-surface-0 p-4 shadow-lg"
       >
-        <p class="mb-2 text-xs font-medium text-text-secondary">Share as kind:1 note</p>
+        <p class="mb-2 text-xs font-medium text-text-secondary">{t('share.description')}</p>
         <NoteInput
           bind:content
           bind:emojiTags
@@ -93,7 +94,7 @@
             disabled={sending}
             class="rounded-lg px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:text-text-secondary"
           >
-            Cancel
+            {t('share.cancel')}
           </button>
           <button
             type="button"
@@ -111,9 +112,9 @@
               >
                 <path d="M21 12a9 9 0 1 1-6.219-8.56" />
               </svg>
-              Sending
+              {t('share.sending')}
             {:else}
-              Post
+              {t('share.post')}
             {/if}
           </button>
         </div>

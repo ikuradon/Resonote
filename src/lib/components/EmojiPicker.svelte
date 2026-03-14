@@ -3,6 +3,7 @@
   import { getCustomEmojis, type EmojiCategory } from '../stores/emoji-sets.svelte.js';
   import { getEmojiMartModules } from '../stores/emoji-mart-preload.svelte.js';
   import { extractShortcode } from '../utils/emoji.js';
+  import { getLocale } from '../stores/locale.svelte.js';
 
   interface Props {
     onSelect: (reaction: string, emojiUrl?: string) => void;
@@ -40,7 +41,7 @@
         data,
         custom: custom.length > 0 ? custom : undefined,
         theme: 'dark',
-        locale: 'ja',
+        locale: getLocale(),
         previewPosition: 'none',
         skinTonePosition: 'search',
         onEmojiSelect: handleEmojiSelect

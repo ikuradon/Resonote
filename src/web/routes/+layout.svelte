@@ -6,9 +6,14 @@
   import { initAuth } from '$lib/stores/auth.svelte.js';
   import { preloadEmojiMart } from '$lib/stores/emoji-mart-preload.svelte.js';
   import { initExtensionListener, isExtensionMode } from '$lib/stores/extension.svelte.js';
+  import { getLocale, setLocale } from '$lib/stores/locale.svelte.js';
   import '../app.css';
 
   let { children }: { children: Snippet } = $props();
+
+  $effect(() => {
+    document.documentElement.lang = getLocale();
+  });
 
   onMount(() => {
     initAuth();
@@ -27,6 +32,12 @@
   {#if isExtensionMode()}
     <header class="glass sticky top-0 z-40 border-b border-border-subtle">
       <div class="mx-auto flex max-w-3xl items-center justify-end px-5 py-3">
+        <button
+          onclick={() => setLocale(getLocale() === 'en' ? 'ja' : 'en')}
+          class="rounded-lg px-2 py-1 text-xs font-medium text-text-muted transition-colors hover:text-text-secondary"
+        >
+          {getLocale() === 'en' ? 'JA' : 'EN'}
+        </button>
         <LoginButton />
       </div>
     </header>
@@ -74,6 +85,12 @@
         </a>
         <div class="flex items-center gap-3">
           <RelayStatus />
+          <button
+            onclick={() => setLocale(getLocale() === 'en' ? 'ja' : 'en')}
+            class="rounded-lg px-2 py-1 text-xs font-medium text-text-muted transition-colors hover:text-text-secondary"
+          >
+            {getLocale() === 'en' ? 'JA' : 'EN'}
+          </button>
           <LoginButton />
         </div>
       </div>

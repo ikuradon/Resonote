@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { t } from '../i18n/t.js';
+
   interface Props {
     open: boolean;
     title: string;
@@ -38,7 +40,7 @@
       type="button"
       class="absolute inset-0 bg-black/60 backdrop-blur-sm"
       onclick={onCancel}
-      aria-label="Close"
+      aria-label={t('dialog.close')}
       tabindex="-1"
     ></button>
 

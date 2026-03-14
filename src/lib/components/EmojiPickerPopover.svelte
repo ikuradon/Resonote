@@ -30,6 +30,7 @@
 
 <script lang="ts">
   import EmojiPicker from './EmojiPicker.svelte';
+  import { t } from '../i18n/t.js';
   import { onMount } from 'svelte';
   import type { Action } from 'svelte/action';
 
@@ -111,7 +112,7 @@
   type="button"
   onclick={toggle}
   class="rounded-lg p-1.5 text-text-muted transition-colors hover:text-text-secondary"
-  title="Emoji"
+  title={t('emoji.title')}
 >
   {#if isOpen}
     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

@@ -7,6 +7,7 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:4173',
     headless: true,
+    locale: 'en-US',
     screenshot: 'only-on-failure',
     trace: 'on-first-retry'
   },

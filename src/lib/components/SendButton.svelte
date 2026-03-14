@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { t } from '../i18n/t.js';
+
   interface Props {
     sending?: boolean;
     flying?: boolean;
@@ -43,7 +45,7 @@
       >
         <path d="M21 12a9 9 0 1 1-6.219-8.56" />
       </svg>
-      Sending
+      {t('send.sending')}
     {:else}
       <svg
         class="h-4 w-4 {flying ? 'btn-icon-fade-out' : ''}"
@@ -55,7 +57,7 @@
         <line x1="22" y1="2" x2="11" y2="13" />
         <polygon points="22 2 15 22 11 13 2 9 22 2" />
       </svg>
-      Send
+      {t('send.send')}
     {/if}
   </button>
 </div>

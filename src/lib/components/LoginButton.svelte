@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getAuth, loginNostr, logoutNostr } from '../stores/auth.svelte.js';
   import { getProfile, getDisplayName, fetchProfile } from '../stores/profile.svelte.js';
+  import { t } from '../i18n/t.js';
 
   const auth = getAuth();
 
@@ -39,7 +40,7 @@
         <polyline points="16 17 21 12 16 7" />
         <line x1="21" y1="12" x2="9" y2="12" />
       </svg>
-      Logout
+      {t('logout.button')}
     </button>
   </div>
 {:else}
@@ -48,6 +49,6 @@
     data-testid="login-button"
     class="rounded-lg bg-nostr px-4 py-1.5 text-sm font-medium text-white transition-all duration-200 hover:bg-nostr-hover hover:shadow-[0_0_16px_rgba(155,125,219,0.25)]"
   >
-    Login with Nostr
+    {t('login.button')}
   </button>
 {/if}

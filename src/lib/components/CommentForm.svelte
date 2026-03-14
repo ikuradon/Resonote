@@ -5,6 +5,7 @@
   import { getPlayer } from '../stores/player.svelte.js';
   import type { ContentId, ContentProvider } from '../content/types.js';
   import { createLogger } from '../utils/logger.js';
+  import { t } from '../i18n/t.js';
   import NoteInput from './NoteInput.svelte';
   import SendButton from './SendButton.svelte';
 
@@ -87,7 +88,7 @@
             : 'cursor-not-allowed bg-surface-3 text-text-muted/40'}"
       >
         <span class="font-mono">{positionLabel ?? '--:--'}</span>
-        <span>時間コメント</span>
+        <span>{t('comment.timed')}</span>
       </button>
       <button
         type="button"
@@ -97,7 +98,7 @@
           ? 'bg-accent/15 text-accent ring-1 ring-accent/30'
           : 'bg-surface-3 text-text-muted hover:text-text-secondary'} disabled:cursor-not-allowed disabled:opacity-40"
       >
-        全体コメント
+        {t('comment.general')}
       </button>
     </div>
 
@@ -120,14 +121,14 @@
         >
           <path d="M12 9v4m0 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
         </svg>
-        CW
+        {t('cw.label')}
       </button>
       {#if cwEnabled}
         <input
           type="text"
           bind:value={cwReason}
           disabled={busy}
-          placeholder="理由（任意）"
+          placeholder={t('cw.reason_placeholder')}
           class="flex-1 rounded-lg border border-border bg-surface-1 px-2 py-1 text-xs text-text-primary placeholder:text-text-muted/50 focus:border-accent focus:outline-none disabled:opacity-40"
         />
       {/if}
@@ -137,7 +138,9 @@
       bind:content
       bind:emojiTags
       disabled={busy}
-      placeholder={effectiveAttach ? 'この瞬間にコメント...' : '全体への感想を書く...'}
+      placeholder={effectiveAttach
+        ? t('comment.placeholder.timed')
+        : t('comment.placeholder.general')}
       rows={1}
       onsubmit={submit}
     >
@@ -146,6 +149,6 @@
   </form>
 {:else}
   <div class="rounded-xl border border-dashed border-border py-4 text-center">
-    <p class="text-sm text-text-muted">Login to post comments</p>
+    <p class="text-sm text-text-muted">{t('comment.login_prompt')}</p>
   </div>
 {/if}

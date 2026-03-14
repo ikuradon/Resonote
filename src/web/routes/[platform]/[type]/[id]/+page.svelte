@@ -13,6 +13,7 @@
     requestOpenContent
   } from '$lib/stores/extension.svelte.js';
   import type { ContentId } from '$lib/content/types.js';
+  import { t } from '$lib/i18n/t.js';
 
   let platform = $derived(page.params.platform ?? '');
   let contentType = $derived(page.params.type ?? '');
@@ -55,20 +56,20 @@
           class="flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface-1 p-8 text-center"
         >
           <p class="font-display text-lg text-text-primary">
-            This content requires the Resonote extension
+            {t('content.requires_extension')}
           </p>
           <div class="flex gap-3">
             <a
               href="#"
               class="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-surface-0 transition-colors hover:bg-accent-hover"
             >
-              Install for Chrome
+              {t('content.install_chrome')}
             </a>
             <a
               href="#"
               class="rounded-xl border border-accent px-5 py-2.5 text-sm font-semibold text-accent transition-colors hover:bg-accent-muted"
             >
-              Install for Firefox
+              {t('content.install_firefox')}
             </a>
           </div>
         </div>
@@ -84,8 +85,7 @@
           class="flex w-full items-center justify-center gap-3 rounded-2xl border border-border bg-surface-1 p-8 text-center transition-colors hover:bg-surface-2"
         >
           <span class="text-2xl">&#9654;</span>
-          <span class="font-display text-lg text-text-primary"
-            >Open and comment on this content</span
+          <span class="font-display text-lg text-text-primary">{t('content.open_and_comment')}</span
           >
         </button>
       {/if}
@@ -98,9 +98,9 @@
           data-testid="show-episodes-link"
           class="inline-block rounded-xl bg-accent px-6 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-accent-hover"
         >
-          View all episodes on {provider.displayName}
+          {t('show.episodes', { name: provider.displayName })}
         </a>
-        <p class="text-sm text-text-muted">Paste an episode URL to view comments</p>
+        <p class="text-sm text-text-muted">{t('show.paste_episode')}</p>
       </div>
     </div>
   {:else}
@@ -122,20 +122,20 @@
               class="flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface-1 p-8 text-center"
             >
               <p class="font-display text-lg text-text-primary">
-                This content requires the Resonote extension
+                {t('content.requires_extension')}
               </p>
               <div class="flex gap-3">
                 <a
                   href="#"
                   class="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-surface-0 transition-colors hover:bg-accent-hover"
                 >
-                  Install for Chrome
+                  {t('content.install_chrome')}
                 </a>
                 <a
                   href="#"
                   class="rounded-xl border border-accent px-5 py-2.5 text-sm font-semibold text-accent transition-colors hover:bg-accent-muted"
                 >
-                  Install for Firefox
+                  {t('content.install_firefox')}
                 </a>
               </div>
             </div>
@@ -152,7 +152,7 @@
             >
               <span class="text-2xl">&#9654;</span>
               <span class="font-display text-lg text-text-primary"
-                >Open and comment on this content</span
+                >{t('content.open_and_comment')}</span
               >
             </button>
           {/if}
@@ -163,7 +163,9 @@
       <div class="mt-6 min-w-0 flex-1 lg:mt-0">
         <section class="animate-slide-up stagger-2 space-y-5">
           <div class="flex items-center gap-3">
-            <h2 class="font-display text-lg font-semibold text-text-primary">Comments</h2>
+            <h2 class="font-display text-lg font-semibold text-text-primary">
+              {t('comment.heading')}
+            </h2>
             <div class="h-px flex-1 bg-border-subtle"></div>
             <ShareButton {contentId} {provider} />
           </div>
@@ -182,9 +184,9 @@
   {/if}
 {:else}
   <div class="flex flex-col items-center gap-6 pt-20">
-    <p class="font-display text-lg text-text-secondary">Unsupported content</p>
+    <p class="font-display text-lg text-text-secondary">{t('content.unsupported')}</p>
     <a href="/" class="text-sm text-accent transition-colors hover:text-accent-hover">
-      Back to home
+      {t('content.back_home')}
     </a>
   </div>
 {/if}
