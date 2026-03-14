@@ -269,7 +269,9 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     if (deletedIds.size > 0) {
       const idsToPurge = [...deletedIds].filter((id) => commentIds.has(id) || reactionIds.has(id));
       if (idsToPurge.length > 0) {
-        eventsDB.deleteByIds(idsToPurge);
+        eventsDB
+          .deleteByIds(idsToPurge)
+          .catch((err) => log.error('Failed to purge deleted events', err));
         log.info('Purged deleted events from DB', { count: idsToPurge.length });
       }
     }
@@ -320,7 +322,9 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
           (id) => commentIds.has(id) || reactionIds.has(id)
         );
         if (idsToPurge.length > 0) {
-          eventsDB.deleteByIds(idsToPurge);
+          eventsDB
+            .deleteByIds(idsToPurge)
+            .catch((err) => log.error('Failed to purge reconciled events', err));
           log.info('Purged deleted events from DB', { count: idsToPurge.length });
         }
       }, 5000);
@@ -330,7 +334,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     const commentBackward = createRxBackwardReq();
     const commentForward = createRxForwardReq();
     const commentFilter = maxCreatedAt
-      ? { kinds: [1111], '#I': [idValue], since: maxCreatedAt }
+      ? { kinds: [1111], '#I': [idValue], since: maxCreatedAt + 1 }
       : { kinds: [1111], '#I': [idValue] };
 
     const commentSub = merge(
@@ -353,7 +357,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     const reactionBackward = createRxBackwardReq();
     const reactionForward = createRxForwardReq();
     const reactionFilter = maxCreatedAt
-      ? { kinds: [7], '#I': [idValue], since: maxCreatedAt }
+      ? { kinds: [7], '#I': [idValue], since: maxCreatedAt + 1 }
       : { kinds: [7], '#I': [idValue] };
 
     const reactionSub = merge(
@@ -376,7 +380,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     const deletionBackward = createRxBackwardReq();
     const deletionForward = createRxForwardReq();
     const deletionFilter = maxCreatedAt
-      ? { kinds: [5], '#I': [idValue], since: maxCreatedAt }
+      ? { kinds: [5], '#I': [idValue], since: maxCreatedAt + 1 }
       : { kinds: [5], '#I': [idValue] };
 
     const deletionSub = merge(
@@ -400,7 +404,10 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
           }
           // Fire-and-forget, only delete known cached events
           const toPurge = verified.filter((id) => commentIds.has(id) || reactionIds.has(id));
-          if (toPurge.length > 0) eventsDB.deleteByIds(toPurge);
+          if (toPurge.length > 0)
+            eventsDB
+              .deleteByIds(toPurge)
+              .catch((err) => log.error('Failed to purge deletion targets', err));
           log.debug('Deletion event received', { deletedIds: verified.map(shortHex) });
         }
       }

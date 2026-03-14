@@ -90,7 +90,14 @@ function detect(): void {
 }
 
 chrome.runtime.onMessage.addListener((message) => {
-  if (message.type === 'resonote:seek' && currentElement && currentAdapter) {
+  if (
+    message.type === 'resonote:seek' &&
+    typeof message.position === 'number' &&
+    Number.isFinite(message.position) &&
+    message.position >= 0 &&
+    currentElement &&
+    currentAdapter
+  ) {
     currentAdapter.seek?.(currentElement, message.position);
   }
 });

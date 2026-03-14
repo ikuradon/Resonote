@@ -7,6 +7,7 @@ import {
   formatPosition,
   parsePosition,
   extractHashtags,
+  extractDeletionTargets,
   COMMENT_KIND
 } from './events.js';
 import { SpotifyProvider } from '../content/spotify.js';
@@ -391,5 +392,96 @@ describe('buildDeletion', () => {
       'spotify:episode:ep456',
       'https://open.spotify.com/episode/ep456'
     ]);
+  });
+});
+
+describe('buildComment edge cases', () => {
+  it('should not include position tag when positionMs is 0', () => {
+    const event = buildComment('test', trackId, provider, { positionMs: 0 });
+    expect(event.tags!.find((t) => t[0] === 'position')).toBeUndefined();
+  });
+
+  it('should not include position tag when positionMs is negative', () => {
+    const event = buildComment('test', trackId, provider, { positionMs: -1000 });
+    expect(event.tags!.find((t) => t[0] === 'position')).toBeUndefined();
+  });
+
+  it('should handle very large positionMs', () => {
+    const event = buildComment('test', trackId, provider, { positionMs: 86400000 });
+    expect(event.tags).toContainEqual(['position', '86400']);
+  });
+});
+
+describe('extractDeletionTargets', () => {
+  it('should extract event IDs from e tags', () => {
+    const event = {
+      tags: [
+        ['e', 'id1'],
+        ['e', 'id2'],
+        ['I', 'value']
+      ]
+    };
+    expect(extractDeletionTargets(event)).toEqual(['id1', 'id2']);
+  });
+
+  it('should return empty array when no e tags', () => {
+    const event = {
+      tags: [
+        ['I', 'value'],
+        ['k', '1111']
+      ]
+    };
+    expect(extractDeletionTargets(event)).toEqual([]);
+  });
+
+  it('should return empty array for empty tags', () => {
+    const event = { tags: [] };
+    expect(extractDeletionTargets(event)).toEqual([]);
+  });
+});
+
+describe('parsePosition', () => {
+  it('should parse seconds format', () => {
+    expect(parsePosition('65')).toBe(65000);
+  });
+
+  it('should parse legacy mm:ss format', () => {
+    expect(parsePosition('1:05')).toBe(65000);
+  });
+
+  it('should return null for invalid input', () => {
+    expect(parsePosition('abc')).toBeNull();
+    expect(parsePosition('')).toBeNull();
+    expect(parsePosition('1:5')).toBeNull();
+  });
+
+  it('should handle zero', () => {
+    expect(parsePosition('0')).toBe(0);
+  });
+
+  it('should handle large values', () => {
+    expect(parsePosition('86400')).toBe(86400000);
+  });
+});
+
+describe('extractHashtags', () => {
+  it('should extract hashtags from content', () => {
+    expect(extractHashtags('hello #world #music')).toEqual(['world', 'music']);
+  });
+
+  it('should deduplicate hashtags (case-insensitive)', () => {
+    expect(extractHashtags('#Music #music #MUSIC')).toEqual(['music']);
+  });
+
+  it('should support Japanese characters', () => {
+    expect(extractHashtags('#音楽 #テスト')).toEqual(['音楽', 'テスト']);
+  });
+
+  it('should return empty array when no hashtags', () => {
+    expect(extractHashtags('no hashtags here')).toEqual([]);
+  });
+
+  it('should ignore # in URLs', () => {
+    expect(extractHashtags('visit https://example.com#section')).toEqual([]);
   });
 });

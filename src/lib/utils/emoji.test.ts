@@ -91,3 +91,23 @@ describe('extractShortcode', () => {
     expect(extractShortcode('+')).toBe('+');
   });
 });
+
+describe('parseEmojiContent edge cases', () => {
+  it('should handle emoji tag with empty URL', () => {
+    const result = parseEmojiContent(':sushi:', [['emoji', 'sushi', '']]);
+    expect(result).toEqual([{ type: 'text', value: ':sushi:' }]);
+  });
+
+  it('should handle duplicate shortcodes in content', () => {
+    const result = parseEmojiContent(':a: and :a:', [['emoji', 'a', 'https://example.com/a.png']]);
+    const emojiParts = result.filter((p) => p.type === 'emoji');
+    expect(emojiParts).toHaveLength(2);
+  });
+
+  it('should handle content with only emoji shortcodes', () => {
+    const result = parseEmojiContent(':fire:', [['emoji', 'fire', 'https://example.com/fire.png']]);
+    expect(result).toEqual([
+      { type: 'emoji', shortcode: 'fire', url: 'https://example.com/fire.png' }
+    ]);
+  });
+});

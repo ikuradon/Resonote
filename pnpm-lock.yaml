@@ -13,10 +13,10 @@ importers:
   .:
     dependencies:
       '@ikuradon/emoji-kitchen-mart':
-        specifier: '*'
+        specifier: ^7.0.0
         version: 7.0.0
       '@ikuradon/emoji-kitchen-mart-data':
-        specifier: '*'
+        specifier: ^2.0.0
         version: 2.0.0
       '@konemono/nostr-login':
         specifier: ^1.15.1

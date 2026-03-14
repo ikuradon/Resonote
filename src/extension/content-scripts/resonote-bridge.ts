@@ -9,7 +9,9 @@ const observer = new MutationObserver((mutations) => {
       if (!raw) continue;
       try {
         const data = JSON.parse(raw);
-        chrome.runtime.sendMessage(data);
+        if (typeof data === 'object' && data !== null && typeof data.type === 'string') {
+          chrome.runtime.sendMessage(data);
+        }
       } catch {
         // Ignore malformed data
       }

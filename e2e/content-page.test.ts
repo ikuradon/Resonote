@@ -130,6 +130,6 @@ test.describe('Content page (invalid)', () => {
     await page.goto('/spotify/track/');
     // SvelteKit may handle this differently - the page should either show unsupported or 404
     // The important thing is it doesn't crash
-    await expect(page.locator('body')).toBeVisible();
+    await expect(page.locator('h1')).toBeVisible();
   });
 });

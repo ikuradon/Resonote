@@ -99,7 +99,7 @@ Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
 
 - **Hosting**: Cloudflare Pages (wrangler CLI)
 - **CI**: GitHub Actions (`ci.yml`) — format → lint → check → test → e2e → deploy
-- **Deploy trigger**: Push to `main` branch only
+- **Deploy trigger**: Push to `main` → staging, `v*` tag → production
 
 ## Key Decisions
 

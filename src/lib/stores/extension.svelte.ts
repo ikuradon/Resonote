@@ -34,12 +34,24 @@ export function initExtensionListener(): void {
       case 'resonote:extension-mode':
         extensionMode = true;
         break;
-      case 'resonote:update-playback':
-        updatePlayback(event.data.position, event.data.duration, event.data.isPaused);
+      case 'resonote:update-playback': {
+        const { position, duration, isPaused } = event.data;
+        if (
+          typeof position === 'number' &&
+          typeof duration === 'number' &&
+          typeof isPaused === 'boolean'
+        ) {
+          updatePlayback(position, duration, isPaused);
+        }
         break;
-      case 'resonote:navigate':
-        goto(event.data.path);
+      }
+      case 'resonote:navigate': {
+        const path = event.data.path;
+        if (typeof path === 'string' && path.startsWith('/')) {
+          goto(path);
+        }
         break;
+      }
     }
   });
 }

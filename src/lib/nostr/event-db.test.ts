@@ -259,6 +259,19 @@ describe('EventsDB', () => {
       const results = await eventsDB.getAllByKind(9999);
       expect(results).toHaveLength(0);
     });
+
+    it('should filter by kind correctly with mixed kinds', async () => {
+      const e1 = makeEvent({ id: 'k1', kind: 1111, created_at: 100 });
+      const e2 = makeEvent({ id: 'k2', kind: 1111, created_at: 200 });
+      const e3 = makeEvent({ id: 'k3', kind: 7, created_at: 300 });
+      await eventsDB.put(e1);
+      await eventsDB.put(e2);
+      await eventsDB.put(e3);
+
+      const results = await eventsDB.getAllByKind(1111);
+      expect(results).toHaveLength(2);
+      expect(results.map((r) => r.id).sort()).toEqual(['k1', 'k2']);
+    });
   });
 
   describe('getMaxCreatedAt', () => {
@@ -274,6 +287,15 @@ describe('EventsDB', () => {
     it('should return null for empty kind', async () => {
       const max = await eventsDB.getMaxCreatedAt(9999);
       expect(max).toBeNull();
+    });
+
+    it('should return max created_at among multiple events', async () => {
+      await eventsDB.put(makeEvent({ id: 'max1', kind: 1111, created_at: 100 }));
+      await eventsDB.put(makeEvent({ id: 'max2', kind: 1111, created_at: 500 }));
+      await eventsDB.put(makeEvent({ id: 'max3', kind: 1111, created_at: 300 }));
+
+      const max = await eventsDB.getMaxCreatedAt(1111);
+      expect(max).toBe(500);
     });
 
     it('should filter by pubkey when provided', async () => {

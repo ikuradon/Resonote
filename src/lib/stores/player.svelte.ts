@@ -42,11 +42,17 @@ export function setContent(contentId: ContentId): void {
 }
 
 export function updatePlayback(position: number, duration: number, isPaused: boolean): void {
-  if (state.position === position && state.duration === duration && state.isPaused === isPaused) {
+  const safePosition = Math.max(0, position);
+  const safeDuration = Math.max(0, duration);
+  if (
+    state.position === safePosition &&
+    state.duration === safeDuration &&
+    state.isPaused === isPaused
+  ) {
     return;
   }
-  state.position = position;
-  state.duration = duration;
+  state.position = safePosition;
+  state.duration = safeDuration;
   state.isPaused = isPaused;
 }
 

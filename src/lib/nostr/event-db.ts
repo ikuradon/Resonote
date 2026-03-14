@@ -171,7 +171,7 @@ export class EventsDB {
 
   /** Get all events of a given kind. Useful when most events match (e.g., kind:3 for WoT). */
   async getAllByKind(kind: number): Promise<NostrEvent[]> {
-    const range = IDBKeyRange.bound([kind, -Infinity], [kind, Infinity]);
+    const range = IDBKeyRange.bound([kind, 0], [kind, Number.MAX_SAFE_INTEGER]);
     const results = await this.db.getAllFromIndex(STORE_NAME, 'kind_created', range);
     return results.map(toNostrEvent);
   }
@@ -195,7 +195,7 @@ export class EventsDB {
     }
 
     // Use kind_created index with a cursor in reverse
-    const range = IDBKeyRange.bound([kind, -Infinity], [kind, Infinity]);
+    const range = IDBKeyRange.bound([kind, 0], [kind, Number.MAX_SAFE_INTEGER]);
     const tx = this.db.transaction(STORE_NAME, 'readonly');
     const index = tx.store.index('kind_created');
     const cursor = await index.openCursor(range, 'prev');

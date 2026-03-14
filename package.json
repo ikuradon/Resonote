@@ -19,7 +19,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "build:ext": "vite build --config vite.config.extension.ts && mkdir -p dist-extension/sidepanel && cp src/extension/sidepanel/panel.html dist-extension/sidepanel/",
+    "build:ext": "vite build --config vite.config.extension.ts && mkdir -p dist-extension/sidepanel dist-extension/icons && cp src/extension/sidepanel/panel.html dist-extension/sidepanel/ && cp src/extension/icons/* dist-extension/icons/",
     "build:ext:chrome": "pnpm build:ext && cp src/extension/manifest.chrome.json dist-extension/manifest.json",
     "build:ext:firefox": "pnpm build:ext && cp src/extension/manifest.firefox.json dist-extension/manifest.json"
   },
@@ -54,8 +54,8 @@
     "wrangler": "^4.73.0"
   },
   "dependencies": {
-    "@ikuradon/emoji-kitchen-mart": "*",
-    "@ikuradon/emoji-kitchen-mart-data": "*",
+    "@ikuradon/emoji-kitchen-mart": "^7.0.0",
+    "@ikuradon/emoji-kitchen-mart-data": "^2.0.0",
     "@konemono/nostr-login": "^1.15.1",
     "@rx-nostr/crypto": "^0.0.0",
     "idb": "^8.0.3",

@@ -152,7 +152,9 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
 
       const sub = rxNostr.use(req).subscribe({
         next: (packet) => {
-          eventsDB.put(packet.event);
+          eventsDB
+            .put(packet.event)
+            .catch((err) => log.error('Failed to cache emoji list event', err));
           for (const tag of packet.event.tags) {
             if (isEmojiTag(tag)) {
               emojis.push({ shortcode: tag[1], url: tag[2] });
@@ -203,7 +205,9 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
 
             const sub = rxNostr.use(req).subscribe({
               next: (packet) => {
-                eventsDB.put(packet.event);
+                eventsDB
+                  .put(packet.event)
+                  .catch((err) => log.error('Failed to cache emoji set event', err));
                 const cat = buildCategoryFromEvent(packet.event);
                 if (cat) categories.push(cat);
               },
