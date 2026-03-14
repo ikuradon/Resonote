@@ -19,6 +19,12 @@ test.describe('Direct URL access (SPA fallback)', () => {
     await expect(page.locator('a:has-text("View all episodes on Spotify")')).toBeVisible();
   });
 
+  test('should render YouTube video page on direct access', async ({ page }) => {
+    await page.goto('/youtube/video/dQw4w9WgXcQ');
+    await expect(page.locator('[data-testid="youtube-embed"]')).toBeVisible();
+    await expect(page.locator('h2:has-text("Comments")')).toBeVisible();
+  });
+
   test('should render home page on direct access', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('h1')).toHaveText('Resonote');
@@ -35,7 +41,7 @@ test.describe('Direct URL access (SPA fallback)', () => {
 test.describe('Client-side navigation', () => {
   test('should navigate from home to track and back', async ({ page }) => {
     await page.goto('/');
-    const input = page.locator('input[placeholder="Paste a Spotify URL..."]');
+    const input = page.locator('input[placeholder="Paste a Spotify or YouTube URL..."]');
     await input.fill('https://open.spotify.com/track/4C6zDr6e86HYqLxPAhO8jA');
     await page.locator('button:has-text("Go")').click();
     await expect(page).toHaveURL('/spotify/track/4C6zDr6e86HYqLxPAhO8jA');
@@ -50,7 +56,7 @@ test.describe('Client-side navigation', () => {
   test('should navigate between different content pages via home', async ({ page }) => {
     // Go to track
     await page.goto('/');
-    const input = page.locator('input[placeholder="Paste a Spotify URL..."]');
+    const input = page.locator('input[placeholder="Paste a Spotify or YouTube URL..."]');
     await input.fill('https://open.spotify.com/track/4C6zDr6e86HYqLxPAhO8jA');
     await page.locator('button:has-text("Go")').click();
     await expect(page).toHaveURL('/spotify/track/4C6zDr6e86HYqLxPAhO8jA');
@@ -61,7 +67,7 @@ test.describe('Client-side navigation', () => {
 
     // Go to show
     await page
-      .locator('input[placeholder="Paste a Spotify URL..."]')
+      .locator('input[placeholder="Paste a Spotify or YouTube URL..."]')
       .fill('https://open.spotify.com/show/0yTcypvuUHOiR1kJa7ihvW');
     await page.locator('button:has-text("Go")').click();
     await expect(page).toHaveURL('/spotify/show/0yTcypvuUHOiR1kJa7ihvW');
@@ -70,7 +76,7 @@ test.describe('Client-side navigation', () => {
 
   test('should handle browser back/forward navigation', async ({ page }) => {
     await page.goto('/');
-    const input = page.locator('input[placeholder="Paste a Spotify URL..."]');
+    const input = page.locator('input[placeholder="Paste a Spotify or YouTube URL..."]');
     await input.fill('https://open.spotify.com/track/4C6zDr6e86HYqLxPAhO8jA');
     await page.locator('button:has-text("Go")').click();
     await expect(page).toHaveURL('/spotify/track/4C6zDr6e86HYqLxPAhO8jA');

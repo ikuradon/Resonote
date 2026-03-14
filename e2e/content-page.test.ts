@@ -92,14 +92,33 @@ test.describe('Content page (show / collection)', () => {
   });
 });
 
+test.describe('Content page (YouTube)', () => {
+  const youtubeUrl = '/youtube/video/dQw4w9WgXcQ';
+
+  test('should display YouTube embed', async ({ page }) => {
+    await page.goto(youtubeUrl);
+    await expect(page.locator('[data-testid="youtube-embed"]')).toBeVisible();
+  });
+
+  test('should display Comments heading for YouTube', async ({ page }) => {
+    await page.goto(youtubeUrl);
+    await expect(page.locator('h2:has-text("Comments")')).toBeVisible();
+  });
+
+  test('should display login prompt when not logged in on YouTube', async ({ page }) => {
+    await page.goto(youtubeUrl);
+    await expect(page.locator('text=Login to post comments')).toBeVisible();
+  });
+});
+
 test.describe('Content page (invalid)', () => {
   test('should show unsupported content for unknown platform', async ({ page }) => {
-    await page.goto('/youtube/video/dQw4w9WgXcQ');
+    await page.goto('/unknown/type/abc123');
     await expect(page.locator('text=Unsupported content')).toBeVisible();
   });
 
   test('should show back to home link on unsupported content', async ({ page }) => {
-    await page.goto('/youtube/video/dQw4w9WgXcQ');
+    await page.goto('/unknown/type/abc123');
     const backLink = page.locator('a:has-text("Back to home")');
     await expect(backLink).toBeVisible();
     await backLink.click();

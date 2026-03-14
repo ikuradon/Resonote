@@ -4,7 +4,9 @@ test.describe('Home page', () => {
   test('should display the title and subtitle', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('h1')).toHaveText('Resonote');
-    await expect(page.locator('text=Share your thoughts on music via Nostr')).toBeVisible();
+    await expect(
+      page.locator("text=Share your thoughts on what you're listening to")
+    ).toBeVisible();
   });
 
   test('should display the header with logo link', async ({ page }) => {
@@ -15,7 +17,7 @@ test.describe('Home page', () => {
 
   test('should display the URL input and Go button', async ({ page }) => {
     await page.goto('/');
-    const input = page.locator('input[placeholder="Paste a Spotify URL..."]');
+    const input = page.locator('input[placeholder="Paste a Spotify or YouTube URL..."]');
     await expect(input).toBeVisible();
     const button = page.locator('button:has-text("Go")');
     await expect(button).toBeVisible();
@@ -29,7 +31,7 @@ test.describe('Home page', () => {
 
   test('should enable Go button when URL is entered', async ({ page }) => {
     await page.goto('/');
-    const input = page.locator('input[placeholder="Paste a Spotify URL..."]');
+    const input = page.locator('input[placeholder="Paste a Spotify or YouTube URL..."]');
     await input.fill('https://open.spotify.com/track/4C6zDr6e86HYqLxPAhO8jA');
     const button = page.locator('button:has-text("Go")');
     await expect(button).toBeEnabled();
