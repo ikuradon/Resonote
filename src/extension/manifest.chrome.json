@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "Resonote",
+  "version": "0.1.0",
+  "description": "Comment on music and video with Nostr",
+  "permissions": ["sidePanel", "activeTab", "storage"],
+  "side_panel": {
+    "default_path": "sidepanel/panel.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.netflix.com/*",
+        "*://*.amazon.co.jp/*",
+        "*://*.amazon.com/*",
+        "*://*.primevideo.com/*",
+        "*://*.disneyplus.com/*",
+        "*://*.youtube.com/*",
+        "*://music.apple.com/*",
+        "*://*.soundcloud.com/*",
+        "*://*.fountain.fm/*",
+        "*://abema.tv/*",
+        "*://video.unext.jp/*"
+      ],
+      "js": ["content-scripts/index.js"]
+    },
+    {
+      "matches": ["*://*.tver.jp/*"],
+      "js": ["content-scripts/index.js"],
+      "all_frames": true
+    },
+    {
+      "matches": ["*://resonote.pages.dev/*"],
+      "js": ["content-scripts/resonote-bridge.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

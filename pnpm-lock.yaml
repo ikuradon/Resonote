@@ -45,6 +45,9 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.2.1
         version: 4.2.1(vite@7.3.1(jiti@2.6.1)(lightningcss@1.31.1))
+      '@types/webextension-polyfill':
+        specifier: ^0.12.5
+        version: 0.12.5
       '@vitest/coverage-v8':
         specifier: ^4.1.0
         version: 4.1.0(vitest@4.1.0(vite@7.3.1(jiti@2.6.1)(lightningcss@1.31.1)))
@@ -90,6 +93,9 @@ importers:
       vitest:
         specifier: ^4.1.0
         version: 4.1.0(vite@7.3.1(jiti@2.6.1)(lightningcss@1.31.1))
+      webextension-polyfill:
+        specifier: ^0.12.0
+        version: 0.12.0
       wrangler:
         specifier: ^4.72.0
         version: 4.72.0
@@ -1075,6 +1081,9 @@ packages:
   '@types/trusted-types@2.0.7':
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
 
+  '@types/webextension-polyfill@0.12.5':
+    resolution: {integrity: sha512-uKSAv6LgcVdINmxXMKBuVIcg/2m5JZugoZO8x20g7j2bXJkPIl/lVGQcDlbV+aXAiTyXT2RA5U5mI4IGCDMQeg==}
+
   '@typescript-eslint/eslint-plugin@8.57.0':
     resolution: {integrity: sha512-qeu4rTHR3/IaFORbD16gmjq9+rEs9fGKdX0kF6BKSfi+gCuG3RCKLlSBYzn/bGsY9Tj7KE/DAQStbp8AHJGHEQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
@@ -1978,6 +1987,9 @@ packages:
       jsdom:
         optional: true
 
+  webextension-polyfill@0.12.0:
+    resolution: {integrity: sha512-97TBmpoWJEE+3nFBQ4VocyCdLKfw54rFaJ6EVQYLBCXqCIpLSZkwGgASpv4oPt9gdKCJ80RJlcmNzNn008Ag6Q==}
+
   which@2.0.2:
     resolution: {integrity: sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA==}
     engines: {node: '>= 8'}
@@ -2685,6 +2697,8 @@ snapshots:
   '@types/json-schema@7.0.15': {}
 
   '@types/trusted-types@2.0.7': {}
+
+  '@types/webextension-polyfill@0.12.5': {}
 
   '@typescript-eslint/eslint-plugin@8.57.0(@typescript-eslint/parser@8.57.0(eslint@10.0.3(jiti@2.6.1))(typescript@5.9.3))(eslint@10.0.3(jiti@2.6.1))(typescript@5.9.3)':
     dependencies:
@@ -3617,6 +3631,8 @@ snapshots:
       why-is-node-running: 2.3.0
     transitivePeerDependencies:
       - msw
+
+  webextension-polyfill@0.12.0: {}
 
   which@2.0.2:
     dependencies:
