@@ -96,6 +96,10 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     reactionIndex = buildReactionIndex(reactionsRaw, deletedIds);
   }
 
+  function processDeletion(event: { tags: string[][] }): string[] {
+    return event.tags.filter((t) => t[0] === 'e').map((t) => t[1]);
+  }
+
   function addReaction(reaction: Reaction) {
     if (reactionIds.has(reaction.id)) return;
     reactionIds.add(reaction.id);
@@ -198,8 +202,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       }
       switch (event.kind) {
         case 5: {
-          const eTags = event.tags.filter((t) => t[0] === 'e').map((t) => t[1]);
-          for (const id of eTags) deletedIds.add(id);
+          for (const id of processDeletion(event)) deletedIds.add(id);
           break;
         }
         case 1111:
@@ -241,6 +244,61 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       deletions: deletedIds.size,
       maxCreatedAt
     });
+
+    // --- Reconcile offline deletions via #e query ---
+    // Discovers kind:5 events published while SPA was offline.
+    // Uses #e filter (not #I) because external clients' kind:5 may lack #I tags.
+    const cachedIds = [...commentIds, ...reactionIds];
+    if (cachedIds.length > 0) {
+      const CHUNK_SIZE = 50;
+      const reconcileBackward = createRxBackwardReq();
+      const newDeletions = new Set<string>();
+
+      const reconcileSub = rxNostr
+        .use(reconcileBackward)
+        .pipe(uniq())
+        .subscribe((packet) => {
+          eventsDB.put(packet.event);
+          for (const id of processDeletion(packet.event)) {
+            newDeletions.add(id);
+          }
+        });
+
+      for (let i = 0; i < cachedIds.length; i += CHUNK_SIZE) {
+        const chunk = cachedIds.slice(i, i + CHUNK_SIZE);
+        reconcileBackward.emit({ kinds: [5], '#e': chunk });
+      }
+      reconcileBackward.over();
+
+      // rx-nostr backward reqs do NOT complete the RxJS subscription on EOSE.
+      // We use a fixed timeout to collect responses. This always waits the
+      // full duration, which is acceptable for a startup-only operation.
+      await new Promise<void>((resolve) => {
+        setTimeout(() => {
+          reconcileSub.unsubscribe();
+          resolve();
+        }, 5000);
+      });
+
+      if (newDeletions.size > 0) {
+        const next = new Set(deletedIds);
+        for (const id of newDeletions) next.add(id);
+        deletedIds = next;
+        prevDeletedSize = deletedIds.size;
+        rebuildReactionIndex();
+        log.info('Offline deletions reconciled', { newDeletions: newDeletions.size });
+      }
+    }
+
+    // --- Purge deleted events from DB ---
+    if (deletedIds.size > 0) {
+      const idsToPurge = [...deletedIds].filter((id) => commentIds.has(id) || reactionIds.has(id));
+      if (idsToPurge.length > 0) {
+        // Fire-and-forget: DB cleanup should not block UI
+        eventsDB.deleteByIds(idsToPurge);
+        log.info('Purged deleted events from DB', { count: idsToPurge.length });
+      }
+    }
 
     // --- Comments (kind:1111) ---
     const commentBackward = createRxBackwardReq();
@@ -296,9 +354,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       rxNostr.use(deletionForward).pipe(uniq())
     ).subscribe((packet) => {
       eventsDB.put(packet.event);
-      const eTags = packet.event.tags
-        .filter((t: string[]) => t[0] === 'e')
-        .map((t: string[]) => t[1]);
+      const eTags = processDeletion(packet.event);
       if (eTags.length > 0) {
         const next = new Set(deletedIds);
         for (const id of eTags) next.add(id);
@@ -307,6 +363,8 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
           prevDeletedSize = deletedIds.size;
           rebuildReactionIndex();
         }
+        // Fire-and-forget: DB cleanup should not block subscription processing
+        eventsDB.deleteByIds(eTags);
         log.debug('Deletion event received', { deletedIds: eTags.map(shortHex) });
       }
     });
