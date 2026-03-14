@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     branches: [main]
 
@@ -132,10 +133,46 @@ jobs:
           name: extension-${{ matrix.browser }}
           path: dist-extension/
 
-  deploy:
-    name: Deploy to Cloudflare Pages
+  deploy-staging:
+    name: Deploy to Staging
     needs: [lint-and-check, test, e2e, build-extension]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: true
+    environment: staging
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Deploy to staging
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy build --project-name=resonote --branch=staging
+          packageManager: pnpm
+
+  deploy-production:
+    name: Deploy to Production
+    needs: [lint-and-check, test, e2e, build-extension]
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -159,7 +196,7 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Deploy
+      - name: Deploy to production
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -167,3 +204,37 @@ jobs:
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           command: pages deploy build --project-name=resonote
           packageManager: pnpm
+
+  publish-extension:
+    name: Publish Extension
+    needs: [deploy-production]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        browser: [chrome, firefox]
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: extension-${{ matrix.browser }}
+          path: dist-extension/
+
+      - name: Zip extension
+        run: cd dist-extension && zip -r ../extension-${{ matrix.browser }}.zip .
+
+      - name: Upload to Chrome Web Store
+        if: matrix.browser == 'chrome'
+        uses: nicolo-ribaudo/chws-upload-action@v1
+        with:
+          extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
+          client-id: ${{ secrets.CHROME_CLIENT_ID }}
+          client-secret: ${{ secrets.CHROME_CLIENT_SECRET }}
+          refresh-token: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          zip-path: extension-chrome.zip
+
+      - name: Submit to Firefox Add-ons
+        if: matrix.browser == 'firefox'
+        run: npx web-ext sign --source-dir dist-extension/ --channel listed
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_API_KEY }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_API_SECRET }}
