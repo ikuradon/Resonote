@@ -19,7 +19,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "build:ext": "vite build --config vite.config.extension.ts",
+    "build:ext": "vite build --config vite.config.extension.ts && mkdir -p dist-extension/sidepanel && cp src/extension/sidepanel/panel.html dist-extension/sidepanel/",
     "build:ext:chrome": "pnpm build:ext && cp src/extension/manifest.chrome.json dist-extension/manifest.json",
     "build:ext:firefox": "pnpm build:ext && cp src/extension/manifest.firefox.json dist-extension/manifest.json"
   },
