@@ -30,3 +30,4 @@ vite.config.ts.timestamp-*
 
 # Superpowers
 .superpowers/
+docs/superpowers/
