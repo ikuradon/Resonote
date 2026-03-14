@@ -16,7 +16,7 @@ describe('registry', () => {
     });
 
     it('should return undefined for unknown platform', () => {
-      expect(getProvider('tidal')).toBeUndefined();
+      expect(getProvider('unknown-platform')).toBeUndefined();
     });
 
     it('should return undefined for empty string', () => {

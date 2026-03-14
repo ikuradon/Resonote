@@ -10,6 +10,10 @@ describe('YouTubeProvider', () => {
     });
   });
 
+  it('should not require extension', () => {
+    expect(provider.requiresExtension).toBe(false);
+  });
+
   describe('parseUrl', () => {
     it('should parse a standard watch URL', () => {
       const result = provider.parseUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ');

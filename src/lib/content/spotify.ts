@@ -5,6 +5,7 @@ const SPOTIFY_URI_RE = /^spotify:(track|album|episode|show):([a-zA-Z0-9]+)$/;
 
 export class SpotifyProvider implements ContentProvider {
   readonly platform = 'spotify';
+  readonly requiresExtension = false;
 
   parseUrl(url: string): ContentId | null {
     const urlMatch = url.match(SPOTIFY_URL_RE);

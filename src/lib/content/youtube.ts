@@ -17,6 +17,7 @@ const YOUTUBE_SHORTS_RE = /^https?:\/\/(?:www\.|m\.)?youtube\.com\/shorts\/([a-z
 
 export class YouTubeProvider implements ContentProvider {
   readonly platform = 'youtube';
+  readonly requiresExtension = false;
 
   parseUrl(url: string): ContentId | null {
     for (const re of [YOUTUBE_WATCH_RE, YOUTUBE_SHORT_RE, YOUTUBE_EMBED_RE, YOUTUBE_SHORTS_RE]) {
