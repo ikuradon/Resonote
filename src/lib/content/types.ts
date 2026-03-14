@@ -6,6 +6,7 @@ export interface ContentId {
 
 export interface ContentProvider {
   readonly platform: string;
+  readonly displayName: string;
   readonly requiresExtension: boolean;
   parseUrl(url: string): ContentId | null;
   toNostrTag(contentId: ContentId): [value: string, hint: string];

@@ -4,6 +4,7 @@ const APPLE_MUSIC_RE = /^https?:\/\/music\.apple\.com\/[a-z]{2}\/album\/[^/]+\/(
 
 export class AppleMusicProvider implements ContentProvider {
   readonly platform = 'apple-music';
+  readonly displayName = 'Apple Music';
   readonly requiresExtension = true;
 
   parseUrl(url: string): ContentId | null {

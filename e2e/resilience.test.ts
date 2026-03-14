@@ -5,9 +5,9 @@ const embedLocator = '[data-testid="spotify-embed"]';
 test.describe('Resilience', () => {
   test('should handle XSS-like input safely', async ({ page }) => {
     await page.goto('/');
-    const input = page.locator('input[placeholder="Paste a Spotify or YouTube URL..."]');
+    const input = page.locator('[data-testid="track-url-input"]');
     await input.fill('<script>alert("xss")</script>');
-    await page.locator('button:has-text("Go")').click();
+    await page.locator('[data-testid="track-submit-button"]').click();
     await expect(page.locator('text=Unsupported URL')).toBeVisible();
     // Verify no script execution - page should still be functional
     await expect(page.locator('h1')).toHaveText('Resonote');
@@ -15,10 +15,10 @@ test.describe('Resilience', () => {
 
   test('should handle very long URL input without crashing', async ({ page }) => {
     await page.goto('/');
-    const input = page.locator('input[placeholder="Paste a Spotify or YouTube URL..."]');
+    const input = page.locator('[data-testid="track-url-input"]');
     const longUrl = 'https://open.spotify.com/track/' + 'a'.repeat(1000);
     await input.fill(longUrl);
-    await page.locator('button:has-text("Go")').click();
+    await page.locator('[data-testid="track-submit-button"]').click();
     // Should navigate (the regex will match the long ID)
     await expect(page).toHaveURL(new RegExp('/spotify/track/a+'));
   });
@@ -34,17 +34,17 @@ test.describe('Resilience', () => {
 
   test('should handle rapid successive navigations', async ({ page }) => {
     await page.goto('/');
-    const input = page.locator('input[placeholder="Paste a Spotify or YouTube URL..."]');
+    const input = page.locator('[data-testid="track-url-input"]');
 
     // Navigate to track
     await input.fill('https://open.spotify.com/track/4C6zDr6e86HYqLxPAhO8jA');
-    await page.locator('button:has-text("Go")').click();
+    await page.locator('[data-testid="track-submit-button"]').click();
     // Immediately go back and navigate to something else
     await page.locator('header a[href="/"]').click();
     await page
       .locator('input[placeholder="Paste a Spotify or YouTube URL..."]')
       .fill('https://open.spotify.com/episode/4C6zDr6e86HYqLxPAhO8jA');
-    await page.locator('button:has-text("Go")').click();
+    await page.locator('[data-testid="track-submit-button"]').click();
     await expect(page).toHaveURL('/spotify/episode/4C6zDr6e86HYqLxPAhO8jA');
     await expect(page.locator(embedLocator)).toBeVisible();
   });

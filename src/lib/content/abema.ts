@@ -4,6 +4,7 @@ const ABEMA_RE = /^https?:\/\/abema\.tv\/video\/(episode|title)\/([a-zA-Z0-9_-]+
 
 export class AbemaProvider implements ContentProvider {
   readonly platform = 'abema';
+  readonly displayName = 'AbemaTV';
   readonly requiresExtension = true;
 
   parseUrl(url: string): ContentId | null {

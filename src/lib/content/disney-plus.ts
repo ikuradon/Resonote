@@ -4,6 +4,7 @@ const DISNEY_PLUS_RE = /^https?:\/\/(?:www\.)?disneyplus\.com\/(?:video|play)\/(
 
 export class DisneyPlusProvider implements ContentProvider {
   readonly platform = 'disneyplus';
+  readonly displayName = 'Disney+';
   readonly requiresExtension = true;
 
   parseUrl(url: string): ContentId | null {

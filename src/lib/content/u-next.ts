@@ -4,6 +4,7 @@ const UNEXT_RE = /^https?:\/\/video\.unext\.jp\/play\/([A-Z0-9]+)(?:\/([A-Z0-9]+
 
 export class UNextProvider implements ContentProvider {
   readonly platform = 'unext';
+  readonly displayName = 'U-NEXT';
   readonly requiresExtension = true;
 
   parseUrl(url: string): ContentId | null {

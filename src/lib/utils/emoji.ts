@@ -25,7 +25,7 @@ export function extractShortcode(s: string): string {
  * Returns a new array if added, or the original if already present.
  */
 export function addEmojiTag(emojiTags: string[][], shortcode: string, url: string): string[][] {
-  if (emojiTags.some((t) => t[1] === shortcode)) return emojiTags;
+  if (emojiTags.some((t) => t[0] === 'emoji' && t[1] === shortcode)) return emojiTags;
   return [...emojiTags, ['emoji', shortcode, url]];
 }
 

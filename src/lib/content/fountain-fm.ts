@@ -4,6 +4,7 @@ const FOUNTAIN_FM_RE = /^https?:\/\/(?:www\.)?fountain\.fm\/episode\/([a-zA-Z0-9
 
 export class FountainFmProvider implements ContentProvider {
   readonly platform = 'fountain';
+  readonly displayName = 'Fountain.fm';
   readonly requiresExtension = true;
 
   parseUrl(url: string): ContentId | null {

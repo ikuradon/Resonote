@@ -5,6 +5,7 @@ const PRIME_VIDEO_RE =
 
 export class PrimeVideoProvider implements ContentProvider {
   readonly platform = 'prime-video';
+  readonly displayName = 'Prime Video';
   readonly requiresExtension = true;
 
   parseUrl(url: string): ContentId | null {

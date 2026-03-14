@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { parseEmojiContent, isEmojiTag, isShortcode, extractShortcode } from './emoji.js';
+import {
+  parseEmojiContent,
+  isEmojiTag,
+  isShortcode,
+  extractShortcode,
+  addEmojiTag
+} from './emoji.js';
 
 describe('parseEmojiContent', () => {
   it('should return text segment when no emoji tags', () => {
@@ -89,6 +95,15 @@ describe('extractShortcode', () => {
   it('should return input if not in shortcode format', () => {
     expect(extractShortcode('sushi')).toBe('sushi');
     expect(extractShortcode('+')).toBe('+');
+  });
+});
+
+describe('addEmojiTag', () => {
+  it('should not match non-emoji tags with same shortcode', () => {
+    const tags = [['p', 'wave']];
+    const result = addEmojiTag(tags, 'wave', 'https://example.com/wave.png');
+    expect(result).toHaveLength(2);
+    expect(result[1]).toEqual(['emoji', 'wave', 'https://example.com/wave.png']);
   });
 });
 

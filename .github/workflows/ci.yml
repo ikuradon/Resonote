@@ -55,7 +55,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Audit dependencies
-        run: pnpm audit --prod || true
+        run: pnpm audit --prod
+        continue-on-error: true
 
   test:
     name: Unit Test + Coverage

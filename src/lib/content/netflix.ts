@@ -4,6 +4,7 @@ const NETFLIX_RE = /^https?:\/\/(?:www\.)?netflix\.com\/(?:watch|title)\/(\d+)/;
 
 export class NetflixProvider implements ContentProvider {
   readonly platform = 'netflix';
+  readonly displayName = 'Netflix';
   readonly requiresExtension = true;
 
   parseUrl(url: string): ContentId | null {

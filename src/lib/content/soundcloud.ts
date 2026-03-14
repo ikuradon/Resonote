@@ -5,6 +5,7 @@ const SOUNDCLOUD_RE =
 
 export class SoundCloudProvider implements ContentProvider {
   readonly platform = 'soundcloud';
+  readonly displayName = 'SoundCloud';
   readonly requiresExtension = true;
 
   parseUrl(url: string): ContentId | null {

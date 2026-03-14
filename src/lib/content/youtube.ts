@@ -17,6 +17,7 @@ const YOUTUBE_SHORTS_RE = /^https?:\/\/(?:www\.|m\.)?youtube\.com\/shorts\/([a-z
 
 export class YouTubeProvider implements ContentProvider {
   readonly platform = 'youtube';
+  readonly displayName = 'YouTube';
   readonly requiresExtension = false;
 
   parseUrl(url: string): ContentId | null {

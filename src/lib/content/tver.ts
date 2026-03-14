@@ -4,6 +4,7 @@ const TVER_RE = /^https?:\/\/(?:www\.)?tver\.jp\/(?:lp\/)?episodes\/([a-zA-Z0-9]
 
 export class TVerProvider implements ContentProvider {
   readonly platform = 'tver';
+  readonly displayName = 'TVer';
   readonly requiresExtension = true;
 
   parseUrl(url: string): ContentId | null {

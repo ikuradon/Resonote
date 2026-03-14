@@ -95,9 +95,10 @@
           href={provider.openUrl(contentId)}
           target="_blank"
           rel="noopener noreferrer"
-          class="inline-block rounded-xl bg-spotify px-6 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-spotify-hover hover:shadow-[0_0_20px_rgba(29,185,84,0.2)]"
+          data-testid="show-episodes-link"
+          class="inline-block rounded-xl bg-accent px-6 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-accent-hover"
         >
-          View all episodes on Spotify
+          View all episodes on {provider.displayName}
         </a>
         <p class="text-sm text-text-muted">Paste an episode URL to view comments</p>
       </div>

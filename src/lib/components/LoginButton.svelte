@@ -45,6 +45,7 @@
 {:else}
   <button
     onclick={loginNostr}
+    data-testid="login-button"
     class="rounded-lg bg-nostr px-4 py-1.5 text-sm font-medium text-white transition-all duration-200 hover:bg-nostr-hover hover:shadow-[0_0_16px_rgba(155,125,219,0.25)]"
   >
     Login with Nostr
