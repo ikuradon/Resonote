@@ -5,6 +5,7 @@
   import CommentForm from '$lib/components/CommentForm.svelte';
   import { getProvider } from '$lib/content/registry.js';
   import { createCommentsStore } from '$lib/stores/comments.svelte.js';
+  import { isExtensionMode, detectExtension } from '$lib/stores/extension.svelte.js';
   import type { ContentId } from '$lib/content/types.js';
 
   let platform = $derived(page.params.platform ?? '');
@@ -16,6 +17,11 @@
   let isValid = $derived(provider !== undefined && contentType !== '' && contentIdParam !== '');
 
   let isCollection = $derived(contentType === 'show');
+  let requiresExt = $derived(provider?.requiresExtension ?? false);
+  let extAvailable = $derived(detectExtension());
+  let showPlayer = $derived(!isExtensionMode() && !requiresExt);
+  let showInstallPrompt = $derived(!isExtensionMode() && requiresExt && !extAvailable);
+  let showPlayButton = $derived(!isExtensionMode() && requiresExt && extAvailable);
   let store: ReturnType<typeof createCommentsStore> | undefined = $state();
 
   $effect(() => {
@@ -33,8 +39,53 @@
 
 {#if isValid && provider}
   <div class="space-y-8">
-    {#if platform === 'spotify'}
+    {#if showPlayer && platform === 'spotify'}
       <SpotifyEmbed {contentId} />
+    {/if}
+
+    {#if showInstallPrompt}
+      <div
+        class="flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface-1 p-8 text-center"
+      >
+        <p class="font-display text-lg text-text-primary">
+          This content requires the Resonote extension
+        </p>
+        <div class="flex gap-3">
+          <a
+            href="#"
+            class="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-surface-0 transition-colors hover:bg-accent-hover"
+          >
+            Install for Chrome
+          </a>
+          <a
+            href="#"
+            class="rounded-xl border border-accent px-5 py-2.5 text-sm font-semibold text-accent transition-colors hover:bg-accent-muted"
+          >
+            Install for Firefox
+          </a>
+        </div>
+      </div>
+    {/if}
+
+    {#if showPlayButton}
+      <button
+        onclick={() => {
+          if (provider) {
+            document.documentElement.setAttribute(
+              'data-resonote-action',
+              JSON.stringify({
+                type: 'resonote:open-content',
+                contentId,
+                siteUrl: provider.openUrl(contentId)
+              })
+            );
+          }
+        }}
+        class="flex w-full items-center justify-center gap-3 rounded-2xl border border-border bg-surface-1 p-8 text-center transition-colors hover:bg-surface-2"
+      >
+        <span class="text-2xl">&#9654;</span>
+        <span class="font-display text-lg text-text-primary">Open and comment on this content</span>
+      </button>
     {/if}
 
     {#if isCollection}

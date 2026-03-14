@@ -31,6 +31,8 @@
     "@sveltejs/kit": "^2.50.2",
     "@sveltejs/vite-plugin-svelte": "^6.2.4",
     "@tailwindcss/vite": "^4.2.1",
+    "@types/chrome": "^0.1.37",
+    "@types/node": "^25.5.0",
     "@types/webextension-polyfill": "^0.12.5",
     "@vitest/coverage-v8": "^4.1.0",
     "eslint": "^10.0.3",

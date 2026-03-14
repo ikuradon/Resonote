@@ -1,4 +1,5 @@
 import type { ContentId } from '../content/types.js';
+import { isExtensionMode, sendSeekRequest } from './extension.svelte.js';
 
 interface PlayerState {
   contentId: ContentId | null;
@@ -47,4 +48,11 @@ export function updatePlayback(position: number, duration: number, isPaused: boo
   state.position = position;
   state.duration = duration;
   state.isPaused = isPaused;
+}
+
+export function requestSeek(position: number): void {
+  if (isExtensionMode()) {
+    sendSeekRequest(position);
+  }
+  window.dispatchEvent(new CustomEvent('resonote:seek', { detail: { position } }));
 }

@@ -1,7 +1,9 @@
+declare const browser: typeof chrome | undefined;
+
 export async function openSidePanel(tabId: number): Promise<void> {
   if (chrome.sidePanel?.open) {
     await chrome.sidePanel.open({ tabId });
-  } else if (typeof browser !== 'undefined' && browser.action) {
+  } else if (typeof browser !== 'undefined' && browser?.action) {
     await browser.action.setBadgeText({ text: 'ON', tabId });
     await browser.action.setBadgeBackgroundColor({ color: '#c9a256', tabId });
   }

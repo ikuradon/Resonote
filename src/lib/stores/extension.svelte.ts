@@ -1,0 +1,46 @@
+import { updatePlayback } from './player.svelte.js';
+import { goto } from '$app/navigation';
+
+let extensionMode = $state(false);
+
+let sidePanelOrigin: string | null = null;
+
+function isExtensionOrigin(origin: string): boolean {
+  return origin.startsWith('chrome-extension://') || origin.startsWith('moz-extension://');
+}
+
+export function isExtensionMode(): boolean {
+  return extensionMode;
+}
+
+export function detectExtension(): boolean {
+  return document.documentElement.hasAttribute('data-resonote-ext');
+}
+
+export function initExtensionListener(): void {
+  window.addEventListener('message', (event: MessageEvent) => {
+    if (!isExtensionOrigin(event.origin)) return;
+
+    if (!sidePanelOrigin) {
+      sidePanelOrigin = event.origin;
+    }
+    if (event.origin !== sidePanelOrigin) return;
+
+    switch (event.data?.type) {
+      case 'resonote:extension-mode':
+        extensionMode = true;
+        break;
+      case 'resonote:update-playback':
+        updatePlayback(event.data.position, event.data.duration, event.data.isPaused);
+        break;
+      case 'resonote:navigate':
+        goto(event.data.path);
+        break;
+    }
+  });
+}
+
+export function sendSeekRequest(position: number): void {
+  if (!extensionMode || !sidePanelOrigin) return;
+  window.parent.postMessage({ type: 'resonote:seek-request', position }, sidePanelOrigin);
+}
