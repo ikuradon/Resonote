@@ -5,11 +5,6 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  resolve: {
-    alias: {
-      '@lib': resolve(__dirname, 'src/lib')
-    }
-  },
   build: {
     outDir: 'dist-extension',
     emptyOutDir: true,

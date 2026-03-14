@@ -43,7 +43,7 @@ function handleTimeUpdate(): void {
     duration,
     isPaused
   };
-  chrome.runtime.sendMessage(msg);
+  chrome.runtime.sendMessage(msg).catch(() => {});
 }
 
 function attachToElement(adapter: SiteAdapter, element: HTMLVideoElement | HTMLAudioElement): void {
@@ -74,11 +74,13 @@ function detect(): void {
     const contentId = parseContentUrl(location.href);
     if (!contentId) return;
 
-    chrome.runtime.sendMessage({
-      type: 'resonote:site-detected',
-      contentId,
-      siteUrl: location.href
-    } satisfies SiteDetectedMessage);
+    chrome.runtime
+      .sendMessage({
+        type: 'resonote:site-detected',
+        contentId,
+        siteUrl: location.href
+      } satisfies SiteDetectedMessage)
+      .catch(() => {});
     detected = true;
   }
 
@@ -107,7 +109,9 @@ const observer = new MutationObserver(() => {
   if (currentElement && !document.contains(currentElement)) {
     detach();
     if (detected) {
-      chrome.runtime.sendMessage({ type: 'resonote:site-lost' } satisfies SiteLostMessage);
+      chrome.runtime
+        .sendMessage({ type: 'resonote:site-lost' } satisfies SiteLostMessage)
+        .catch(() => {});
       detected = false;
       currentAdapter = null;
     }

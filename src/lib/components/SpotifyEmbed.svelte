@@ -83,14 +83,16 @@
 
     let cancelled = false;
 
-    initController(containerEl, uri).then((ctrl) => {
-      if (cancelled) {
-        ctrl.destroy();
-        return;
-      }
-      controller = ctrl;
-      ready = true;
-    });
+    initController(containerEl, uri)
+      .then((ctrl) => {
+        if (cancelled) {
+          ctrl.destroy();
+          return;
+        }
+        controller = ctrl;
+        ready = true;
+      })
+      .catch((err) => log.error('Failed to initialize Spotify controller', err));
 
     return () => {
       cancelled = true;

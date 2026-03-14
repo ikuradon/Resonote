@@ -155,9 +155,9 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       pubkey: event.pubkey,
       content: event.content,
       createdAt: event.created_at,
-      positionMs: posTag ? parsePosition(posTag[1]) : null,
+      positionMs: posTag?.[1] ? parsePosition(posTag[1]) : null,
       emojiTags,
-      replyTo: eTag ? eTag[1] : null,
+      replyTo: eTag?.[1] ?? null,
       contentWarning: cwTag ? (cwTag[1] ?? '') : null
     };
   }
@@ -168,7 +168,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     content: string;
     tags: string[][];
   }): Reaction | null {
-    const eTag = event.tags.find((t: string[]) => t[0] === 'e');
+    const eTag = event.tags.find((t: string[]) => t[0] === 'e' && t[1]);
     if (!eTag) return null;
     const emojiTag = event.tags.find((t: string[]) => isEmojiTag(t));
     return {
