@@ -1,6 +1,8 @@
 import type { ContentId, ContentProvider } from './types.js';
 
-const SPOTIFY_URL_RE = /^https?:\/\/open\.spotify\.com\/(track|album|episode|show)\/([a-zA-Z0-9]+)/;
+// Supports intl-{locale} prefix: open.spotify.com/intl-ja/track/xxx
+const SPOTIFY_URL_RE =
+  /^https?:\/\/open\.spotify\.com\/(?:intl-[a-z]{2,3}(?:[-_][a-zA-Z]{2})?\/)?(track|album|episode|show)\/([a-zA-Z0-9]+)/;
 const SPOTIFY_URI_RE = /^spotify:(track|album|episode|show):([a-zA-Z0-9]+)$/;
 
 export class SpotifyProvider implements ContentProvider {

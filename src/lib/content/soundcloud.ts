@@ -1,7 +1,7 @@
 import type { ContentId, ContentProvider } from './types.js';
 
 const SOUNDCLOUD_RE =
-  /^https?:\/\/(?:www\.)?soundcloud\.com\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_-]+)\/?(?:\?.*)?$/;
+  /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_-]+)\/?(?:\?.*)?$/;
 
 export class SoundCloudProvider implements ContentProvider {
   readonly platform = 'soundcloud';

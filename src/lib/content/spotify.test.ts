@@ -130,6 +130,41 @@ describe('SpotifyProvider', () => {
     it('should return null for just the domain with trailing slash', () => {
       expect(provider.parseUrl('https://open.spotify.com/')).toBeNull();
     });
+
+    // --- Internationalized URL support ---
+
+    it('should parse an intl-ja track URL', () => {
+      const result = provider.parseUrl(
+        'https://open.spotify.com/intl-ja/track/5vL1di86qdTvKPBVB66whI'
+      );
+      expect(result).toEqual({
+        platform: 'spotify',
+        type: 'track',
+        id: '5vL1di86qdTvKPBVB66whI'
+      });
+    });
+
+    it('should parse an intl-de album URL', () => {
+      const result = provider.parseUrl(
+        'https://open.spotify.com/intl-de/album/1DFixLWuPkv3KT3TnV35m3'
+      );
+      expect(result).toEqual({
+        platform: 'spotify',
+        type: 'album',
+        id: '1DFixLWuPkv3KT3TnV35m3'
+      });
+    });
+
+    it('should parse an intl-pt_BR episode URL', () => {
+      const result = provider.parseUrl(
+        'https://open.spotify.com/intl-pt_BR/episode/4C6zDr6e86HYqLxPAhO8jA'
+      );
+      expect(result).toEqual({
+        platform: 'spotify',
+        type: 'episode',
+        id: '4C6zDr6e86HYqLxPAhO8jA'
+      });
+    });
   });
 
   describe('toNostrTag', () => {
