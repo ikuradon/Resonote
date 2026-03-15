@@ -23,7 +23,7 @@
   } from '$lib/stores/extension.svelte.js';
   import { getAuth } from '$lib/stores/auth.svelte.js';
   import { isBookmarked, addBookmark, removeBookmark } from '$lib/stores/bookmarks.svelte.js';
-  import { requestSeek } from '$lib/stores/player.svelte.js';
+  import { getPlayer, requestSeek } from '$lib/stores/player.svelte.js';
   import type { ContentId } from '$lib/content/types.js';
   import { t } from '$lib/i18n/t.js';
   import { resolveEpisode } from '$lib/content/episode-resolver.js';
@@ -46,6 +46,9 @@
   let showInstallPrompt = $derived(!isExtensionMode() && requiresExt && !extAvailable);
   let showPlayButton = $derived(!isExtensionMode() && requiresExt && extAvailable);
   const auth = getAuth();
+  const isDev = import.meta.env.DEV;
+  const player = isDev ? getPlayer() : undefined;
+  let devSeekSec = $state(0);
   let bookmarked = $derived(isBookmarked(contentId));
   let bookmarkBusy = $state(false);
 
@@ -321,6 +324,46 @@
               </button>
             {/if}
           </div>
+          {#if isDev && player}
+            <div
+              class="rounded-lg border border-dashed border-yellow-600/40 bg-yellow-950/20 px-3 py-2"
+            >
+              <div class="flex items-center gap-3">
+                <span class="text-xs font-semibold text-yellow-500">DEV</span>
+                <span class="font-mono text-xs text-text-muted">
+                  {Math.floor(player.position / 60000)}:{String(
+                    Math.floor((player.position / 1000) % 60)
+                  ).padStart(2, '0')}
+                  /
+                  {Math.floor(player.duration / 60000)}:{String(
+                    Math.floor((player.duration / 1000) % 60)
+                  ).padStart(2, '0')}
+                </span>
+                <span
+                  class="rounded px-1 py-0.5 text-xs {player.isPaused
+                    ? 'bg-zinc-700 text-zinc-400'
+                    : 'bg-green-900 text-green-400'}"
+                >
+                  {player.isPaused ? 'PAUSED' : 'PLAYING'}
+                </span>
+                <div class="ml-auto flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    bind:value={devSeekSec}
+                    min="0"
+                    placeholder="sec"
+                    class="w-16 rounded border border-yellow-600/30 bg-transparent px-1.5 py-0.5 text-xs text-text-primary"
+                  />
+                  <button
+                    onclick={() => requestSeek(devSeekSec * 1000)}
+                    class="rounded bg-yellow-600 px-2 py-0.5 text-xs font-semibold text-black hover:bg-yellow-500"
+                  >
+                    Seek
+                  </button>
+                </div>
+              </div>
+            </div>
+          {/if}
           <CommentForm {contentId} {provider} />
           {#if store}
             <CommentList
