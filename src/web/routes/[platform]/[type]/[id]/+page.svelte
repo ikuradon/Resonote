@@ -23,6 +23,10 @@
   import { requestSeek } from '$lib/stores/player.svelte.js';
   import type { ContentId } from '$lib/content/types.js';
   import { t } from '$lib/i18n/t.js';
+  import { resolveEpisodeEnclosure } from '$lib/content/episode-resolver.js';
+  import { fromBase64url } from '$lib/content/url-utils.js';
+  import { resolveByApi } from '$lib/content/podcast-resolver.js';
+  import { publishSignedEvent } from '$lib/nostr/publish-signed.js';
 
   let platform = $derived(page.params.platform ?? '');
   let contentType = $derived(page.params.type ?? '');
@@ -82,6 +86,44 @@
 
     return () => {
       s.destroy();
+    };
+  });
+
+  let resolvedEnclosureUrl = $state<string | undefined>();
+
+  $effect(() => {
+    resolvedEnclosureUrl = undefined;
+    if (platform === 'audio') {
+      resolvedEnclosureUrl = fromBase64url(contentIdParam);
+    } else if (platform === 'podcast' && contentType === 'episode') {
+      const parts = contentIdParam.split(':');
+      if (parts.length === 2) {
+        resolveEpisodeEnclosure(parts[0], parts[1]).then((url) => {
+          resolvedEnclosureUrl = url ?? undefined;
+        });
+      }
+    }
+  });
+
+  $effect(() => {
+    if (platform !== 'audio' || !store) return;
+    const audioUrl = fromBase64url(contentIdParam);
+    let cancelled = false;
+
+    resolveByApi(audioUrl).then((data) => {
+      if (cancelled) return;
+      if (data.episode?.guid) {
+        store?.addSubscription(`podcast:item:guid:${data.episode.guid}`);
+      }
+      if (data.signedEvents) {
+        for (const ev of data.signedEvents) {
+          publishSignedEvent(ev).catch(() => {});
+        }
+      }
+    });
+
+    return () => {
+      cancelled = true;
     };
   });
 </script>
@@ -158,7 +200,7 @@
           {#if platform === 'podcast' && contentType === 'feed'}
             <PodcastEpisodeList {contentId} />
           {:else if platform === 'audio' || (platform === 'podcast' && contentType === 'episode')}
-            <AudioEmbed {contentId} />
+            <AudioEmbed {contentId} enclosureUrl={resolvedEnclosureUrl} />
           {:else if showPlayer && platform === 'spotify'}
             <SpotifyEmbed {contentId} />
           {:else if showPlayer && platform === 'youtube'}
