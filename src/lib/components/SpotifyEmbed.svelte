@@ -1,10 +1,46 @@
+<script module lang="ts">
+  import { createLogger } from '../utils/logger.js';
+
+  const log = createLogger('SpotifyEmbed');
+
+  /** Module-level API cache — persists across SPA navigations */
+  let apiPromise: Promise<SpotifyIFrameAPI> | undefined;
+
+  function loadApi(): Promise<SpotifyIFrameAPI> {
+    if (apiPromise) return apiPromise;
+
+    // Check if already loaded (re-visit in SPA)
+    if (
+      typeof window !== 'undefined' &&
+      (window as unknown as Record<string, unknown>).SpotifyIframeApi
+    ) {
+      apiPromise = Promise.resolve(
+        (window as unknown as Record<string, SpotifyIFrameAPI>).SpotifyIframeApi
+      );
+      return apiPromise;
+    }
+
+    log.info('Loading Spotify IFrame API...');
+    apiPromise = new Promise((resolve) => {
+      window.onSpotifyIframeApiReady = (api) => {
+        (window as unknown as Record<string, SpotifyIFrameAPI>).SpotifyIframeApi = api;
+        resolve(api);
+      };
+
+      const script = document.createElement('script');
+      script.src = 'https://open.spotify.com/embed-podcast/iframe-api/v1';
+      script.async = true;
+      document.head.appendChild(script);
+    });
+
+    return apiPromise;
+  }
+</script>
+
 <script lang="ts">
   import type { ContentId } from '../content/types.js';
   import { updatePlayback } from '../stores/player.svelte.js';
   import { t } from '../i18n/t.js';
-  import { createLogger } from '../utils/logger.js';
-
-  const log = createLogger('SpotifyEmbed');
 
   interface Props {
     contentId: ContentId;
@@ -19,27 +55,6 @@
 
   function spotifyUri(id: ContentId): string {
     return `spotify:${id.type}:${id.id}`;
-  }
-
-  /** Cached API promise to avoid race conditions on concurrent calls */
-  let apiPromise: Promise<SpotifyIFrameAPI> | undefined;
-
-  function loadApi(): Promise<SpotifyIFrameAPI> {
-    if (apiPromise) return apiPromise;
-
-    log.info('Loading Spotify IFrame API...');
-    apiPromise = new Promise((resolve) => {
-      window.onSpotifyIframeApiReady = (api) => {
-        resolve(api);
-      };
-
-      const script = document.createElement('script');
-      script.src = 'https://open.spotify.com/embed-podcast/iframe-api/v1';
-      script.async = true;
-      document.head.appendChild(script);
-    });
-
-    return apiPromise;
   }
 
   async function initController(el: HTMLDivElement, uri: string) {
