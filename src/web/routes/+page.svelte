@@ -7,18 +7,35 @@
   const examples = [
     {
       icon: '🎵',
+      platform: 'Spotify',
       label: 'Rebuild EP416',
       url: 'https://open.spotify.com/episode/4hMFcs08VRa7S1xyeOgFkb'
     },
-    { icon: '▶️', label: 'Lofi Girl', url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk' },
-    { icon: '☁️', label: 'Flume - Say It', url: 'https://soundcloud.com/flaboratory/say-it' },
-    { icon: '🎬', label: 'Audi RS 5', url: 'https://vimeo.com/231857608' },
+    {
+      icon: '▶️',
+      platform: 'YouTube',
+      label: 'Lofi Girl',
+      url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk'
+    },
+    {
+      icon: '☁️',
+      platform: 'SoundCloud',
+      label: 'Flume - Say It',
+      url: 'https://soundcloud.com/flaboratory/say-it'
+    },
+    { icon: '🎬', platform: 'Vimeo', label: 'Audi RS 5', url: 'https://vimeo.com/231857608' },
     {
       icon: '🎧',
+      platform: 'Mixcloud',
       label: 'NTS Radio',
       url: 'https://www.mixcloud.com/NTSRadio/do-you-w-kenny-dope-170222/'
     },
-    { icon: '📻', label: 'Spreaker EP', url: 'https://www.spreaker.com/episode/59652612' }
+    {
+      icon: '📻',
+      platform: 'Spreaker',
+      label: 'Episode',
+      url: 'https://www.spreaker.com/episode/59652612'
+    }
   ];
 
   function handleExample(url: string) {
@@ -58,6 +75,8 @@
           class="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface-1 px-3.5 py-1.5 text-sm text-text-secondary transition-all duration-200 hover:border-accent/30 hover:bg-surface-2 hover:text-text-primary"
         >
           <span>{item.icon}</span>
+          <span class="font-medium">{item.platform}</span>
+          <span class="text-text-muted">·</span>
           <span>{item.label}</span>
         </button>
       {/each}
