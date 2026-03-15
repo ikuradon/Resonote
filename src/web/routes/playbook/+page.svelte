@@ -1,93 +1,17 @@
 <script lang="ts">
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
-  import SendButton from '$lib/components/SendButton.svelte';
-  import YouTubeEmbed from '$lib/components/YouTubeEmbed.svelte';
-  import SoundCloudEmbed from '$lib/components/SoundCloudEmbed.svelte';
-  import VimeoEmbed from '$lib/components/VimeoEmbed.svelte';
-  import NiconicoEmbed from '$lib/components/NiconicoEmbed.svelte';
-  import PodbeanEmbed from '$lib/components/PodbeanEmbed.svelte';
-  import { getPlayer, requestSeek } from '$lib/stores/player.svelte.js';
-  import type { ContentId } from '$lib/content/types.js';
 
   // --- Toggle states ---
-  let sendingOther = $state(false);
+  let sending = $state(false);
   let liked = $state(false);
   let confirmOpen = $state(false);
   let spotifyReady = $state(false);
   let youtubeReady = $state(false);
 
-  // Send button fly animation states (one set per independent demo)
-  let btnFlying = $state(false);
-  let btnSending = $state(false);
-  let formFlying = $state(false);
-  let formSending = $state(false);
-  let busyForm = $derived(formSending || formFlying);
-
   function simulateSend() {
-    sendingOther = true;
-    setTimeout(() => (sendingOther = false), 2000);
+    sending = true;
+    setTimeout(() => (sending = false), 2000);
   }
-
-  function createFlySimulator(setFlying: (v: boolean) => void, setSending: (v: boolean) => void) {
-    return () => {
-      setFlying(true);
-      setTimeout(() => {
-        setSending(true);
-        setFlying(false);
-        setTimeout(() => setSending(false), 1500);
-      }, 400);
-    };
-  }
-
-  const simulateFly = createFlySimulator(
-    (v) => (btnFlying = v),
-    (v) => (btnSending = v)
-  );
-  const simulateFlyForm = createFlySimulator(
-    (v) => (formFlying = v),
-    (v) => (formSending = v)
-  );
-
-  // --- Player Integration Test ---
-  const player = getPlayer();
-
-  let seekValues = $state<Record<string, number>>({});
-  let playerCache = $state<
-    Record<string, { position: number; duration: number; isPaused: boolean }>
-  >({});
-
-  // Cache player state per-platform when active
-  $effect(() => {
-    const p = player.contentId?.platform;
-    if (p) {
-      playerCache[p] = {
-        position: player.position,
-        duration: player.duration,
-        isPaused: player.isPaused
-      };
-    }
-  });
-
-  function formatTime(ms: number): string {
-    const totalSec = Math.floor(ms / 1000);
-    const m = Math.floor(totalSec / 60);
-    const s = totalSec % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  }
-
-  const testPlayers: { name: string; contentId: ContentId }[] = [
-    { name: 'YouTube', contentId: { platform: 'youtube', type: 'video', id: 'dQw4w9WgXcQ' } },
-    {
-      name: 'SoundCloud',
-      contentId: { platform: 'soundcloud', type: 'track', id: 'flume/say-it-feat-tove-lo' }
-    },
-    { name: 'Vimeo', contentId: { platform: 'vimeo', type: 'video', id: '231857608' } },
-    { name: 'Niconico', contentId: { platform: 'niconico', type: 'video', id: 'sm9' } },
-    {
-      name: 'Podbean',
-      contentId: { platform: 'podbean', type: 'episode', id: 'pb-ar8ve-1920b14' }
-    }
-  ];
 </script>
 
 <div class="mx-auto max-w-4xl space-y-12">
@@ -107,7 +31,37 @@
         Send Button
       </h3>
       <div class="flex flex-wrap items-center gap-4">
-        <SendButton type="button" sending={btnSending} flying={btnFlying} onclick={simulateFly} />
+        <button
+          type="button"
+          disabled={sending}
+          onclick={simulateSend}
+          class="inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-surface-0 transition-all duration-200 hover:bg-accent-hover disabled:opacity-30"
+        >
+          {#if sending}
+            <svg
+              class="h-4 w-4 animate-spin"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+            Sending
+          {:else}
+            <svg
+              class="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+            Send
+          {/if}
+        </button>
         <button
           type="button"
           disabled
@@ -127,9 +81,7 @@
         </button>
         <span class="text-xs text-text-muted">← disabled</span>
       </div>
-      <p class="mt-2 text-xs text-text-muted">
-        クリック → 紙飛行機射出 + disable → ローディングへフェード → 完了で復帰
-      </p>
+      <p class="mt-2 text-xs text-text-muted">クリックで2秒間送信中状態をシミュレーション</p>
     </div>
 
     <!-- Reply Button -->
@@ -141,10 +93,10 @@
         <button
           type="button"
           onclick={simulateSend}
-          disabled={sendingOther}
+          disabled={sending}
           class="inline-flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-surface-0 transition-all duration-200 hover:bg-accent-hover disabled:opacity-30"
         >
-          {#if sendingOther}
+          {#if sending}
             <svg
               class="h-3.5 w-3.5 animate-spin"
               viewBox="0 0 24 24"
@@ -161,7 +113,7 @@
         </button>
         <button
           type="button"
-          disabled={sendingOther}
+          disabled={sending}
           class="rounded-lg px-3 py-1.5 text-xs text-text-muted transition-colors hover:text-text-secondary disabled:opacity-30"
         >
           Cancel
@@ -195,10 +147,10 @@
         <button
           type="button"
           onclick={simulateSend}
-          disabled={sendingOther}
+          disabled={sending}
           class="inline-flex items-center gap-1 rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-surface-0 transition-all duration-200 hover:bg-accent-hover disabled:opacity-30"
         >
-          {#if sendingOther}
+          {#if sending}
             <svg
               class="h-3.5 w-3.5 animate-spin"
               viewBox="0 0 24 24"
@@ -575,9 +527,9 @@
         <div class="flex items-center gap-2 text-xs">
           <button
             type="button"
-            disabled={busyForm}
+            disabled={sending}
             class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-medium transition-all duration-200
-              {!busyForm
+              {!sending
               ? 'bg-accent/15 text-accent ring-1 ring-accent/30'
               : 'cursor-not-allowed bg-surface-3 text-text-muted/40'}"
           >
@@ -586,7 +538,7 @@
           </button>
           <button
             type="button"
-            disabled={busyForm}
+            disabled={sending}
             class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-medium transition-all duration-200 bg-surface-3 text-text-muted hover:text-text-secondary disabled:cursor-not-allowed disabled:opacity-40"
           >
             全体コメント
@@ -595,22 +547,46 @@
 
         <div class="flex items-center gap-3">
           <textarea
-            disabled={busyForm}
-            placeholder={busyForm ? '' : 'この瞬間にコメント...'}
+            disabled={sending}
+            placeholder={sending ? '' : 'この瞬間にコメント...'}
             rows="1"
             class="flex-1 resize-none rounded-xl border border-border bg-surface-1 px-4 py-2.5 text-sm text-text-primary placeholder-text-muted transition-all duration-200 focus:border-accent focus:ring-1 focus:ring-accent/30 focus:outline-none disabled:opacity-40"
           ></textarea>
-          <SendButton
+          <button
             type="button"
-            sending={formSending}
-            flying={formFlying}
-            onclick={simulateFlyForm}
-          />
+            onclick={simulateSend}
+            disabled={sending}
+            class="inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-surface-0 transition-all duration-200 hover:bg-accent-hover disabled:opacity-30"
+          >
+            {#if sending}
+              <svg
+                class="h-4 w-4 animate-spin"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+              Sending
+            {:else}
+              <svg
+                class="h-4 w-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
+              Send
+            {/if}
+          </button>
         </div>
       </div>
       <p class="mt-2 text-xs text-text-muted">
-        Sendクリックで紙飛行機射出 → ローディング:
-        textarea、位置切替ボタン、Sendボタンすべてが無効化
+        Sendクリックで送信中状態: textarea、位置切替ボタン、Sendボタンすべてが無効化
       </p>
     </div>
   </section>
@@ -660,65 +636,6 @@
         </div>
       </div>
     </div>
-  </section>
-
-  <!-- ========== Section: Player Integration Test ========== -->
-  <section class="space-y-4">
-    <h2 class="font-display text-lg font-semibold text-text-primary">Player Integration Test</h2>
-    <div class="h-px bg-border-subtle"></div>
-
-    {#each testPlayers as { name, contentId } (contentId.platform)}
-      {@const cached = playerCache[contentId.platform]}
-      <div class="rounded-xl border border-border-subtle bg-surface-1 p-5">
-        <div class="mb-3 flex items-center justify-between">
-          <h3 class="text-xs font-semibold tracking-wide text-text-secondary uppercase">{name}</h3>
-          <div class="flex items-center gap-2 font-mono text-xs text-text-muted">
-            <span>{formatTime(cached?.position ?? 0)} / {formatTime(cached?.duration ?? 0)}</span>
-            <span
-              class="rounded px-1.5 py-0.5 {cached?.isPaused !== false
-                ? 'bg-zinc-700 text-zinc-400'
-                : 'bg-green-900 text-green-400'}"
-            >
-              {cached?.isPaused !== false ? 'PAUSED' : 'PLAYING'}
-            </span>
-            {#if player.contentId?.platform === contentId.platform}
-              <span class="rounded bg-accent/20 px-1.5 py-0.5 text-accent">ACTIVE</span>
-            {/if}
-          </div>
-        </div>
-
-        {#if contentId.platform === 'youtube'}
-          <YouTubeEmbed {contentId} />
-        {:else if contentId.platform === 'soundcloud'}
-          <SoundCloudEmbed {contentId} />
-        {:else if contentId.platform === 'vimeo'}
-          <VimeoEmbed {contentId} />
-        {:else if contentId.platform === 'niconico'}
-          <NiconicoEmbed {contentId} />
-        {:else if contentId.platform === 'podbean'}
-          <PodbeanEmbed {contentId} />
-        {/if}
-
-        <div class="mt-3 flex items-center gap-2">
-          <input
-            type="number"
-            value={seekValues[contentId.platform] ?? 0}
-            oninput={(e) => {
-              seekValues[contentId.platform] = Number((e.target as HTMLInputElement).value);
-            }}
-            min="0"
-            placeholder="sec"
-            class="w-20 rounded-lg border border-border bg-surface-2 px-2 py-1 text-xs text-text-primary"
-          />
-          <button
-            onclick={() => requestSeek((seekValues[contentId.platform] ?? 0) * 1000)}
-            class="rounded-lg bg-accent px-3 py-1 text-xs font-semibold text-surface-0 hover:bg-accent-hover"
-          >
-            Seek
-          </button>
-        </div>
-      </div>
-    {/each}
   </section>
 
   <!-- ========== Section: Color Palette ========== -->
