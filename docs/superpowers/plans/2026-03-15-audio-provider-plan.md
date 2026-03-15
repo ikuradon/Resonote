@@ -572,7 +572,7 @@ git commit -m "Register AudioProvider and PodcastProvider in content registry"
 <script lang="ts">
   import type { ContentId } from '$lib/content/types.js';
   import { fromBase64url } from '$lib/content/url-utils.js';
-  import { updatePlayback } from '$lib/stores/player.svelte.js';
+  import { setContent, updatePlayback } from '$lib/stores/player.svelte.js';
 
   interface Props {
     contentId: ContentId;
@@ -641,6 +641,8 @@ git commit -m "Register AudioProvider and PodcastProvider in content registry"
 
   $effect(() => {
     if (!audioEl || !audioSrc) return;
+
+    setContent(contentId);
 
     const seekHandler = handleSeek;
     window.addEventListener('resonote:seek', seekHandler);
@@ -775,7 +777,7 @@ import PodcastEpisodeList from '$lib/components/PodcastEpisodeList.svelte';
 {#if platform === 'podcast' && contentType === 'feed'}
   <PodcastEpisodeList {contentId} />
 {:else if platform === 'audio' || (platform === 'podcast' && contentType === 'episode')}
-  <AudioEmbed {contentId} />
+  <AudioEmbed {contentId} enclosureUrl={resolvedEnclosureUrl} />
 {:else if platform === 'spotify'}
   <SpotifyEmbed {contentId} />
 <!-- ...existing else-if chain... -->
@@ -786,6 +788,42 @@ import PodcastEpisodeList from '$lib/components/PodcastEpisodeList.svelte';
 ```typescript
 if (!isValid || !provider || isCollection || contentType === 'feed') return;
 ```
+
+podcast episode の enclosure URL 解決用の state と $effect を追加:
+```typescript
+import { resolveByDTag } from '$lib/content/podcast-resolver.js';
+import { fromBase64url } from '$lib/content/url-utils.js';
+
+let resolvedEnclosureUrl = $state<string | undefined>();
+
+$effect(() => {
+  if (platform === 'audio') {
+    // AudioProvider: id から直接デコード
+    resolvedEnclosureUrl = fromBase64url(contentIdParam);
+  } else if (platform === 'podcast' && contentType === 'episode') {
+    // PodcastProvider: i タグの hint から enclosure URL を取得
+    // episode id は feedBase64:guidBase64 形式
+    // d タグ検索で kind:39701 を引き、enclosure URL を取得
+    resolvedEnclosureUrl = undefined; // loading
+    resolveEpisodeEnclosure(contentIdParam);
+  }
+});
+
+async function resolveEpisodeEnclosure(episodeId: string) {
+  // episodeId = feedBase64:guidBase64
+  // フィード URL + guid から enclosure URL を API で取得
+  // または d タグ検索で kind:39701 の r タグから取得
+  const [feedPart, guidPart] = episodeId.split(':');
+  const feedUrl = fromBase64url(feedPart);
+  const guid = fromBase64url(guidPart);
+
+  // まず d タグ検索（enclosure URL は r タグの最初の値）
+  // 失敗時は API にフォールバック
+  const { resolveByApi } = await import('$lib/content/podcast-resolver.js');
+  // 実装の詳細は podcast-resolver.ts に委譲
+}
+```
+注: 完全な実装は Task 10 (podcast-resolver) と Task 13 (統合) で行う。ここではプレースホルダーとして enclosureUrl の state と props 受け渡しを準備。
 
 - [ ] **Step 2: Create PodcastEpisodeList placeholder**
 
@@ -926,7 +964,7 @@ git commit -m "Add /resolve/ route for podcast site URL auto-discovery"
 
 ---
 
-## Chunk 3: Pending Publishes + コメントストア拡張
+## Chunk 4: Pending Publishes + コメントストア拡張
 
 ### Task 8: Pending Publishes Store
 
@@ -1207,7 +1245,7 @@ git commit -m "Add addSubscription to comments store for dual-tag comment merge"
 
 ---
 
-## Chunk 4: Podcast Resolver + API
+## Chunk 5: Podcast Resolver + API
 
 ### Task 10: Podcast Resolver（クライアント側）
 
@@ -1268,7 +1306,10 @@ Expected: FAIL — module not found
 // src/lib/content/podcast-resolver.ts
 import { normalizeUrl } from './url-utils.js';
 
-// TODO: Replace with actual system pubkey
+// システム鍵ペアの生成: `npx nostr-tools keygen` 等で生成し、
+// 秘密鍵を Cloudflare Pages の環境変数 SYSTEM_NOSTR_PRIVKEY に設定、
+// 公開鍵をここに記載する。
+// TODO: デプロイ前に実際の pubkey に置き換えること。
 export const SYSTEM_PUBKEY = '__SYSTEM_PUBKEY_PLACEHOLDER__';
 
 interface DTagResult {
@@ -1410,7 +1451,11 @@ git commit -m "Add podcast-resolver for d-tag search and API coordination"
   async function publishOrQueue(event: Record<string, unknown>) {
     try {
       const rxNostr = await getRxNostr();
-      rxNostr.send(event);
+      // Pre-signed イベントの送信: rx-nostr の send() を使用
+      // send() の引数型は rx-nostr バージョンにより異なる。
+      // 実装時に rxNostr.send(event as NostrEvent) または
+      // rxNostr.cast(event) 等、正しい API を確認すること。
+      rxNostr.send(event as never);
     } catch {
       await addPendingPublish(event as never);
     }
@@ -1497,6 +1542,12 @@ git commit -m "Implement PodcastEpisodeList with API integration and publish que
 **Files:**
 - Create: `functions/api/podcast/resolve.ts`
 
+- [ ] **Step 0: Install API dependencies**
+
+Run: `pnpm add nostr-tools @noble/hashes`
+
+注: これらは既存の依存関係に含まれている可能性がある（rx-nostr 経由）。含まれていない場合のみ追加。
+
 - [ ] **Step 1: Create the API endpoint**
 
 ```typescript
@@ -1540,19 +1591,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   if (AUDIO_EXT_RE.test(pathname)) {
     return handleAudioUrl(targetUrl, privkey);
   } else if (FEED_RE.test(pathname) || /\/(feed|rss|atom)\/?$/i.test(pathname)) {
-    return handleFeedUrl(targetUrl, privkey, pubkey);
+    return handleFeedUrl(targetUrl, privkey);
   } else {
     return handleSiteUrl(targetUrl, privkey);
   }
 };
 
-async function handleFeedUrl(feedUrl: string, privkey: Uint8Array, pubkey: string) {
+async function handleFeedUrl(feedUrl: string, privkey: Uint8Array) {
   try {
     const res = await fetch(feedUrl);
     if (!res.ok) return jsonResponse({ error: 'fetch_failed' }, 502);
 
     const xml = await res.text();
-    const feed = parseRss(xml, feedUrl);
+    const feed = await parseRss(xml, feedUrl);
     if (!feed) return jsonResponse({ error: 'rss_not_found' }, 404);
 
     const signedEvents = [];
@@ -1596,7 +1647,7 @@ async function handleAudioUrl(audioUrl: string, privkey: Uint8Array) {
         const feedRes = await fetch(rssUrl);
         if (feedRes.ok) {
           const xml = await feedRes.text();
-          const feed = parseRss(xml, rssUrl);
+          const feed = await parseRss(xml, rssUrl);
           if (feed) {
             const episode = feed.episodes.find((ep) => ep.enclosureUrl === audioUrl);
             if (episode) {
@@ -1682,7 +1733,7 @@ interface ParsedFeed {
   episodes: { guid: string; title: string; enclosureUrl: string; duration: number; publishedAt: number }[];
 }
 
-function parseRss(xml: string, feedUrl: string): ParsedFeed | null {
+async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed | null> {
   // Simple XML parsing for RSS 2.0
   const channelMatch = xml.match(/<channel>([\s\S]*?)<\/channel>/);
   if (!channelMatch) return null;
@@ -1690,7 +1741,7 @@ function parseRss(xml: string, feedUrl: string): ParsedFeed | null {
 
   const title = extractTag(channel, 'title') ?? 'Unknown';
   const podcastGuid = extractTag(channel, 'podcast:guid');
-  const guid = podcastGuid ?? syntheticGuid(feedUrl);
+  const guid = podcastGuid ?? await syntheticGuid(feedUrl);
   const image = extractImageUrl(channel) ?? '';
 
   const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)];
@@ -1737,21 +1788,7 @@ function parseDuration(str: string | null): number {
   return parts[0] || 0;
 }
 
-function syntheticGuid(feedUrl: string): string {
-  // Use simple hash for synchronous operation in parseRss
-  const encoder = new TextEncoder();
-  const data = encoder.encode(feedUrl);
-  let hash = 0x811c9dc5; // FNV-1a offset basis
-  for (const byte of data) {
-    hash ^= byte;
-    hash = (hash * 0x01000193) >>> 0;
-  }
-  const hex = hash.toString(16).padStart(8, '0').repeat(4);
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
-}
-
-// SHA-256 version for higher quality guid (used when async is acceptable)
-async function syntheticGuidAsync(feedUrl: string): Promise<string> {
+async function syntheticGuid(feedUrl: string): Promise<string> {
   const data = new TextEncoder().encode(feedUrl);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hex = bytesToHex(new Uint8Array(hashBuffer)).slice(0, 32);
@@ -1761,9 +1798,10 @@ async function syntheticGuidAsync(feedUrl: string): Promise<string> {
 function normalizeForDTag(url: string): string {
   const parsed = new URL(url);
   const host = parsed.hostname.toLowerCase();
+  const port = parsed.port ? `:${parsed.port}` : '';
   let path = parsed.pathname;
   if (path.endsWith('/') && path.length > 1) path = path.slice(0, -1);
-  return `${host}${path}`;
+  return `${host}${port}${path}`;
 }
 
 function domainRoot(url: string): string {
@@ -1821,7 +1859,7 @@ git commit -m "Add Cloudflare Pages Functions API for podcast resolution"
 
 ---
 
-## Chunk 5: 統合 + pre-commit 検証
+## Chunk 6: 統合 + pre-commit 検証
 
 ### Task 13: URL 入力フォームに d タグ検索統合
 
