@@ -52,6 +52,21 @@
   const player = getPlayer();
 
   let seekValues = $state<Record<string, number>>({});
+  let playerCache = $state<
+    Record<string, { position: number; duration: number; isPaused: boolean }>
+  >({});
+
+  // Cache player state per-platform when active
+  $effect(() => {
+    const p = player.contentId?.platform;
+    if (p) {
+      playerCache[p] = {
+        position: player.position,
+        duration: player.duration,
+        isPaused: player.isPaused
+      };
+    }
+  });
 
   function formatTime(ms: number): string {
     const totalSec = Math.floor(ms / 1000);
@@ -653,17 +668,18 @@
     <div class="h-px bg-border-subtle"></div>
 
     {#each testPlayers as { name, contentId } (contentId.platform)}
+      {@const cached = playerCache[contentId.platform]}
       <div class="rounded-xl border border-border-subtle bg-surface-1 p-5">
         <div class="mb-3 flex items-center justify-between">
           <h3 class="text-xs font-semibold tracking-wide text-text-secondary uppercase">{name}</h3>
           <div class="flex items-center gap-2 font-mono text-xs text-text-muted">
-            <span>{formatTime(player.position)} / {formatTime(player.duration)}</span>
+            <span>{formatTime(cached?.position ?? 0)} / {formatTime(cached?.duration ?? 0)}</span>
             <span
-              class="rounded px-1.5 py-0.5 {player.isPaused
+              class="rounded px-1.5 py-0.5 {cached?.isPaused !== false
                 ? 'bg-zinc-700 text-zinc-400'
                 : 'bg-green-900 text-green-400'}"
             >
-              {player.isPaused ? 'PAUSED' : 'PLAYING'}
+              {cached?.isPaused !== false ? 'PAUSED' : 'PLAYING'}
             </span>
             {#if player.contentId?.platform === contentId.platform}
               <span class="rounded bg-accent/20 px-1.5 py-0.5 text-accent">ACTIVE</span>
