@@ -289,6 +289,15 @@ Cloudflare Pages Functions で実装。ファイル配置: `functions/api/podcas
 4. 署名済みイベント JSON + メタデータをレスポンスに含めて返却
 5. **クライアント側でリレーに publish**（API からリレーへの直接 WebSocket 接続は不要）
 
+**署名済みイベントの publish 戦略**:
+
+クライアントは受け取った署名済みイベントを接続中リレーに publish を試みる。失敗時（リレー未接続・書き込み拒否等）は IndexedDB に保持し、次回リレー接続確立時にリトライする。成功するまで繰り返す。
+
+- 保存先: IndexedDB の専用ストア `pending-publishes`
+- リトライタイミング: リレー接続確立時（`onconnect` イベント）
+- 冪等性: kind:39701 は replaceable event なので重複 publish は上書きとなり安全
+- TTL: 7日経過した未 publish イベントは破棄（フィード情報が古くなるため）
+
 **レスポンス（エピソード解決時）**:
 
 ```json
