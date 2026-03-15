@@ -125,6 +125,18 @@
 
     resolveByApi(audioUrl).then((data) => {
       if (cancelled) return;
+
+      // Extract audio file metadata (ID3 tags etc.) for display
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const meta = (data as any).metadata as
+        | { title?: string; artist?: string; album?: string; image?: string }
+        | undefined;
+      if (meta) {
+        if (meta.title && !episodeTitle) episodeTitle = meta.title;
+        if (meta.artist && !episodeFeedTitle) episodeFeedTitle = meta.artist;
+        if (meta.image && !episodeImage) episodeImage = meta.image;
+      }
+
       untrack(() => {
         if (data.episode?.guid) {
           store?.addSubscription(`podcast:item:guid:${data.episode.guid}`);

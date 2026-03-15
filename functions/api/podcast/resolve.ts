@@ -1,5 +1,6 @@
 import { finalizeEvent } from 'nostr-tools/pure';
 import { hexToBytes } from 'nostr-tools/utils';
+import { fetchAudioMetadata } from '../../lib/audio-metadata.js';
 
 interface Env {
   SYSTEM_NOSTR_PRIVKEY: string;
@@ -259,22 +260,36 @@ async function handleAudioUrl(audioUrl: string, privkey: Uint8Array): Promise<Re
           podcastGuid: feed.podcastGuid,
           imageUrl: feed.imageUrl
         },
-        signedEvents: [feedEvent, episodeEvent]
+        signedEvents: [feedEvent, episodeEvent],
+        metadata: {
+          title: matchedEpisode.title,
+          artist: feed.title,
+          image: feed.imageUrl || undefined
+        }
       });
     }
   }
 
+  // No RSS match — try extracting metadata from audio file headers
+  const audioMeta = await fetchAudioMetadata(audioUrl);
+
   return jsonResponse({
     type: 'episode',
     episode: {
-      title: '',
+      title: audioMeta.title ?? '',
       guid: '',
       enclosureUrl: audioUrl,
       pubDate: '',
       duration: ''
     },
     feed: null,
-    signedEvents: []
+    signedEvents: [],
+    metadata: {
+      title: audioMeta.title,
+      artist: audioMeta.artist,
+      album: audioMeta.album,
+      image: audioMeta.image
+    }
   });
 }
 
