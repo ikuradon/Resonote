@@ -12,7 +12,8 @@
   } from '$lib/stores/notifications.svelte.js';
   import { preloadEmojiMart } from '$lib/stores/emoji-mart-preload.svelte.js';
   import { initExtensionListener, isExtensionMode } from '$lib/stores/extension.svelte.js';
-  import { getLocale, setLocale } from '$lib/stores/locale.svelte.js';
+  import LanguageSwitcher from '$lib/components/LanguageSwitcher.svelte';
+  import { getLocale } from '$lib/stores/locale.svelte.js';
   import '../app.css';
 
   let { children }: { children: Snippet } = $props();
@@ -51,12 +52,7 @@
   {#if isExtensionMode()}
     <header class="glass sticky top-0 z-40 border-b border-border-subtle">
       <div class="mx-auto flex max-w-3xl items-center justify-end px-5 py-3">
-        <button
-          onclick={() => setLocale(getLocale() === 'en' ? 'ja' : 'en')}
-          class="rounded-lg px-2 py-1 text-xs font-medium text-text-muted transition-colors hover:text-text-secondary"
-        >
-          {getLocale() === 'en' ? 'JA' : 'EN'}
-        </button>
+        <LanguageSwitcher />
         <LoginButton />
       </div>
     </header>
@@ -104,12 +100,7 @@
         </a>
         <div class="flex items-center gap-3">
           <RelayStatus />
-          <button
-            onclick={() => setLocale(getLocale() === 'en' ? 'ja' : 'en')}
-            class="rounded-lg px-2 py-1 text-xs font-medium text-text-muted transition-colors hover:text-text-secondary"
-          >
-            {getLocale() === 'en' ? 'JA' : 'EN'}
-          </button>
+          <LanguageSwitcher />
           <a
             href="/settings"
             class="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-surface-1 hover:text-text-secondary"

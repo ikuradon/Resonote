@@ -1,17 +1,17 @@
-export type Locale = 'en' | 'ja';
+import { type Locale, isLocale, detectBrowserLocale } from '../i18n/locales.js';
+
+export type { Locale };
 
 let current = $state<Locale>(detectLocale());
 
 function detectLocale(): Locale {
   try {
     const saved = localStorage.getItem('resonote-locale');
-    if (saved === 'en' || saved === 'ja') return saved;
+    if (saved && isLocale(saved)) return saved;
   } catch {
     // localStorage not available (Safari private mode, etc.)
   }
-
-  const lang = typeof navigator !== 'undefined' ? navigator.language : '';
-  return lang.startsWith('ja') ? 'ja' : 'en';
+  return detectBrowserLocale();
 }
 
 export function getLocale(): Locale {
