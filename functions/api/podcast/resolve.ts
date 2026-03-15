@@ -1,4 +1,4 @@
-import { getPublicKey, finalizeEvent } from 'nostr-tools/pure';
+import { finalizeEvent } from 'nostr-tools/pure';
 import { hexToBytes } from '@noble/hashes/utils';
 
 interface Env {
@@ -278,7 +278,7 @@ async function handleAudioUrl(audioUrl: string, privkey: Uint8Array): Promise<Re
   });
 }
 
-async function handleSiteUrl(siteUrl: string, privkey: Uint8Array): Promise<Response> {
+async function handleSiteUrl(siteUrl: string): Promise<Response> {
   const res = await fetch(siteUrl);
   if (!res.ok) {
     return jsonResponse({ error: 'fetch_failed', status: res.status }, 502);
@@ -305,9 +305,6 @@ async function handleSiteUrl(siteUrl: string, privkey: Uint8Array): Promise<Resp
       // ignore
     }
   }
-
-  // Verify privkey is valid by deriving pubkey (ensures env is properly configured)
-  void getPublicKey(privkey);
 
   return jsonResponse({ error: 'rss_not_found' }, 404);
 }
@@ -372,7 +369,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     } else if (inputType === 'feed') {
       return await handleFeedUrl(urlParam, privkey);
     } else {
-      return await handleSiteUrl(urlParam, privkey);
+      return await handleSiteUrl(urlParam);
     }
   } catch (err) {
     return jsonResponse({ error: 'internal_error', message: String(err) }, 500);

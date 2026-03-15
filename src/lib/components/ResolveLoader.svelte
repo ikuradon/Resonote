@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { fromBase64url, toBase64url } from '$lib/content/url-utils.js';
+  import { resolveByApi } from '$lib/content/podcast-resolver.js';
 
   interface Props {
     encodedUrl: string;
@@ -18,9 +19,7 @@
 
   async function resolve(url: string) {
     try {
-      const res = await fetch(`/api/podcast/resolve?url=${encodeURIComponent(url)}`);
-      if (!res.ok) throw new Error('fetch_failed');
-      const data = await res.json();
+      const data = await resolveByApi(url);
 
       if (data.error) {
         status = 'error';

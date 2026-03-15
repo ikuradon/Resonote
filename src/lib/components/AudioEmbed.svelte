@@ -52,9 +52,9 @@
   }
 
   function handleSeekEvent(e: Event) {
-    const detail = (e as CustomEvent<{ positionMs: number }>).detail;
-    if (audioEl && detail.positionMs >= 0) {
-      audioEl.currentTime = detail.positionMs / 1000;
+    const detail = (e as CustomEvent<{ position: number }>).detail;
+    if (audioEl && detail.position >= 0) {
+      audioEl.currentTime = detail.position / 1000;
     }
   }
 

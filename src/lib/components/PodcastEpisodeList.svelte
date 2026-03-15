@@ -3,6 +3,7 @@
   import type { ContentId } from '$lib/content/types.js';
   import { fromBase64url, toBase64url } from '$lib/content/url-utils.js';
   import { resolveByApi } from '$lib/content/podcast-resolver.js';
+  import { publishSignedEvent } from '$lib/nostr/publish-signed.js';
 
   interface Props {
     contentId: ContentId;
@@ -43,26 +44,6 @@
     });
   }
 
-  async function publishOrQueue(event: Record<string, unknown>) {
-    try {
-      const { Relay } = await import('nostr-tools/relay');
-      const { DEFAULT_RELAYS } = await import('$lib/nostr/relays.js');
-      await Promise.any(
-        DEFAULT_RELAYS.map(async (url: string) => {
-          const relay = await Relay.connect(url);
-          try {
-            await relay.publish(event as never);
-          } finally {
-            relay.close();
-          }
-        })
-      );
-    } catch {
-      const { addPendingPublish } = await import('$lib/nostr/pending-publishes.js');
-      await addPendingPublish(event as never);
-    }
-  }
-
   function selectEpisode(ep: { guid: string }) {
     const feedUrl = fromBase64url(contentId.id);
     const id = `${toBase64url(feedUrl)}:${toBase64url(ep.guid)}`;
@@ -98,7 +79,7 @@
 
       if (data.signedEvents && data.signedEvents.length > 0) {
         for (const ev of data.signedEvents) {
-          publishOrQueue(ev).catch(() => {
+          publishSignedEvent(ev).catch(() => {
             // ignore publish errors silently
           });
         }

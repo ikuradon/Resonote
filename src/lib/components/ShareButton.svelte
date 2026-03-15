@@ -67,32 +67,28 @@
     return `${openUrl}\n${pageUrl}`;
   }
 
-  async function copyResonoteLink() {
+  async function copyToClipboard(url: string, setCopied: (v: boolean) => void) {
     try {
-      const encoded = encodeContentLink(contentId, DEFAULT_RELAYS);
-      const url = `https://resonote.pages.dev/${encoded}`;
       await navigator.clipboard.writeText(url);
-      copiedLink = true;
-      setTimeout(() => {
-        copiedLink = false;
-      }, 2000);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       log.error('Failed to copy link', err);
     }
   }
 
+  function buildResonoteUrl(withTime = false): string {
+    const encoded = encodeContentLink(contentId, DEFAULT_RELAYS);
+    const base = `https://resonote.pages.dev/${encoded}`;
+    return withTime ? `${base}?t=${positionSec}` : base;
+  }
+
+  async function copyResonoteLink() {
+    await copyToClipboard(buildResonoteUrl(), (v) => (copiedLink = v));
+  }
+
   async function copyTimedLink() {
-    try {
-      const encoded = encodeContentLink(contentId, DEFAULT_RELAYS);
-      const url = `https://resonote.pages.dev/${encoded}?t=${positionSec}`;
-      await navigator.clipboard.writeText(url);
-      copiedTimedLink = true;
-      setTimeout(() => {
-        copiedTimedLink = false;
-      }, 2000);
-    } catch (err) {
-      log.error('Failed to copy timed link', err);
-    }
+    await copyToClipboard(buildResonoteUrl(true), (v) => (copiedTimedLink = v));
   }
 
   async function share() {

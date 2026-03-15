@@ -103,6 +103,10 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
   let rxNostrRef: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let eventsDBRef: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let rxNostrModRef: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let rxjsRef: any;
 
   // Reconciliation cleanup handles
   let reconcileSub: { unsubscribe: () => void } | undefined;
@@ -203,6 +207,8 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     const eventsDB = await getEventsDB();
     rxNostrRef = rxNostr;
     eventsDBRef = eventsDB;
+    rxNostrModRef = rxNostrMod;
+    rxjsRef = { merge };
     const [idValue] = provider.toNostrTag(contentId);
     const tagQuery = `I:${idValue}`;
 
@@ -433,12 +439,10 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
   }
 
   async function addSubscription(idValue: string): Promise<void> {
-    if (!rxNostrRef || !eventsDBRef) return;
+    if (!rxNostrRef || !eventsDBRef || !rxNostrModRef || !rxjsRef) return;
 
-    const [{ merge }, { createRxBackwardReq, createRxForwardReq, uniq }] = await Promise.all([
-      import('rxjs'),
-      import('rx-nostr')
-    ]);
+    const { merge } = rxjsRef;
+    const { createRxBackwardReq, createRxForwardReq, uniq } = rxNostrModRef;
 
     // DB cache restore for additional tag
     const tagQuery = `I:${idValue}`;
@@ -469,7 +473,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     const commentSub = merge(
       rxNostrRef.use(commentBackward).pipe(uniq()),
       rxNostrRef.use(commentForward).pipe(uniq())
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ).subscribe((rawPacket: any) => {
       const packet = rawPacket as {
         event: {
@@ -499,7 +503,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     const reactionSub = merge(
       rxNostrRef.use(reactionBackward).pipe(uniq()),
       rxNostrRef.use(reactionForward).pipe(uniq())
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ).subscribe((rawPacket: any) => {
       const packet = rawPacket as {
         event: { id: string; pubkey: string; content: string; tags: string[][] };
