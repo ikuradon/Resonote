@@ -94,10 +94,7 @@
         const pb = new (window as any).PB(iframeEl) as PB;
         widget = pb;
 
-        // eslint-disable-next-line no-undef, @typescript-eslint/no-explicit-any
-        const Events = (window as any).PB?.Widget?.Events as typeof PB.Widget.Events;
-
-        pb.bind(Events.READY, () => {
+        pb.bind('PB.Widget.Events.READY', () => {
           if (cancelled) return;
           setContent(contentId);
           ready = true;
@@ -107,15 +104,15 @@
           });
         });
 
-        pb.bind(Events.PLAY, () => {
+        pb.bind('PB.Widget.Events.PLAY', () => {
           cachedPaused = false;
         });
 
-        pb.bind(Events.PAUSE, () => {
+        pb.bind('PB.Widget.Events.PAUSE', () => {
           cachedPaused = true;
         });
 
-        pb.bind(Events.PLAY_PROGRESS, (data?: unknown) => {
+        pb.bind('PB.Widget.Events.PLAY_PROGRESS', (data?: unknown) => {
           const d = data as { currentPosition: number };
           updatePlayback(d.currentPosition * 1000, cachedDuration * 1000, cachedPaused);
         });
@@ -129,14 +126,10 @@
       cancelled = true;
       window.removeEventListener('resonote:seek', handleSeek);
       if (widget) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const Events = (window as any).PB?.Widget?.Events as typeof PB.Widget.Events | undefined; // eslint-disable-line no-undef
-        if (Events) {
-          widget.unbind(Events.READY);
-          widget.unbind(Events.PLAY);
-          widget.unbind(Events.PAUSE);
-          widget.unbind(Events.PLAY_PROGRESS);
-        }
+        widget.unbind('PB.Widget.Events.READY');
+        widget.unbind('PB.Widget.Events.PLAY');
+        widget.unbind('PB.Widget.Events.PAUSE');
+        widget.unbind('PB.Widget.Events.PLAY_PROGRESS');
       }
       widget = undefined;
       ready = false;
