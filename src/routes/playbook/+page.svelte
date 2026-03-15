@@ -1,6 +1,13 @@
 <script lang="ts">
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import SendButton from '$lib/components/SendButton.svelte';
+  import YouTubeEmbed from '$lib/components/YouTubeEmbed.svelte';
+  import SoundCloudEmbed from '$lib/components/SoundCloudEmbed.svelte';
+  import VimeoEmbed from '$lib/components/VimeoEmbed.svelte';
+  import NiconicoEmbed from '$lib/components/NiconicoEmbed.svelte';
+  import PodbeanEmbed from '$lib/components/PodbeanEmbed.svelte';
+  import { getPlayer, requestSeek } from '$lib/stores/player.svelte.js';
+  import type { ContentId } from '$lib/content/types.js';
 
   // --- Toggle states ---
   let sendingOther = $state(false);
@@ -40,6 +47,32 @@
     (v) => (formFlying = v),
     (v) => (formSending = v)
   );
+
+  // --- Player Integration Test ---
+  const player = getPlayer();
+
+  let seekSec = $state(0);
+
+  function formatTime(ms: number): string {
+    const totalSec = Math.floor(ms / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
+  const testPlayers: { name: string; contentId: ContentId }[] = [
+    { name: 'YouTube', contentId: { platform: 'youtube', type: 'video', id: 'dQw4w9WgXcQ' } },
+    {
+      name: 'SoundCloud',
+      contentId: { platform: 'soundcloud', type: 'track', id: 'flume/say-it-feat-tove-lo' }
+    },
+    { name: 'Vimeo', contentId: { platform: 'vimeo', type: 'video', id: '231857608' } },
+    { name: 'Niconico', contentId: { platform: 'niconico', type: 'video', id: 'sm9' } },
+    {
+      name: 'Podbean',
+      contentId: { platform: 'podbean', type: 'episode', id: 'pb-ar8ve-1920b14' }
+    }
+  ];
 </script>
 
 <div class="mx-auto max-w-4xl space-y-12">
@@ -612,6 +645,58 @@
         </div>
       </div>
     </div>
+  </section>
+
+  <!-- ========== Section: Player Integration Test ========== -->
+  <section class="space-y-4">
+    <h2 class="font-display text-lg font-semibold text-text-primary">Player Integration Test</h2>
+    <div class="h-px bg-border-subtle"></div>
+
+    {#each testPlayers as { name, contentId } (contentId.platform)}
+      <div class="rounded-xl border border-border-subtle bg-surface-1 p-5">
+        <div class="mb-3 flex items-center justify-between">
+          <h3 class="text-xs font-semibold tracking-wide text-text-secondary uppercase">{name}</h3>
+          <div class="flex items-center gap-2 font-mono text-xs text-text-muted">
+            <span>{formatTime(player.position)} / {formatTime(player.duration)}</span>
+            <span
+              class="rounded px-1.5 py-0.5 {player.isPaused
+                ? 'bg-zinc-700 text-zinc-400'
+                : 'bg-green-900 text-green-400'}"
+            >
+              {player.isPaused ? 'PAUSED' : 'PLAYING'}
+            </span>
+          </div>
+        </div>
+
+        {#if contentId.platform === 'youtube'}
+          <YouTubeEmbed {contentId} />
+        {:else if contentId.platform === 'soundcloud'}
+          <SoundCloudEmbed {contentId} />
+        {:else if contentId.platform === 'vimeo'}
+          <VimeoEmbed {contentId} />
+        {:else if contentId.platform === 'niconico'}
+          <NiconicoEmbed {contentId} />
+        {:else if contentId.platform === 'podbean'}
+          <PodbeanEmbed {contentId} />
+        {/if}
+
+        <div class="mt-3 flex items-center gap-2">
+          <input
+            type="number"
+            bind:value={seekSec}
+            min="0"
+            placeholder="sec"
+            class="w-20 rounded-lg border border-border bg-surface-2 px-2 py-1 text-xs text-text-primary"
+          />
+          <button
+            onclick={() => requestSeek(seekSec * 1000)}
+            class="rounded-lg bg-accent px-3 py-1 text-xs font-semibold text-surface-0 hover:bg-accent-hover"
+          >
+            Seek
+          </button>
+        </div>
+      </div>
+    {/each}
   </section>
 
   <!-- ========== Section: Color Palette ========== -->
