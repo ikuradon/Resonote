@@ -190,7 +190,6 @@ export const niconico = new NiconicoProvider();
 ```svelte
 <script lang="ts">
   import type { ContentId } from '$lib/content/types.js';
-  import { getProvider } from '$lib/content/registry.js';
   import { setContent, updatePlayback } from '$lib/stores/player.svelte.js';
   import { t } from '$lib/i18n/t.js';
 
@@ -208,7 +207,9 @@ export const niconico = new NiconicoProvider();
   const EMBED_ORIGIN_HTTPS = 'https://embed.nicovideo.jp';
   const EMBED_ORIGIN_HTTP = 'http://embed.nicovideo.jp';
 
-  let embedSrc = $derived(getProvider('niconico')?.embedUrl(contentId) ?? '');
+  let embedSrc = $derived(
+    `https://embed.nicovideo.jp/watch/${contentId.id}?jsapi=1&playerId=1`
+  );
 
   function sendCommand(eventName: string, data: Record<string, unknown> = {}) {
     iframeEl?.contentWindow?.postMessage(
@@ -248,9 +249,12 @@ export const niconico = new NiconicoProvider();
   }
 
   function handleSeek(e: Event) {
-    const detail = (e as CustomEvent<{ position: number }>).detail;
-    if (detail.position >= 0) {
-      sendCommand('seek', { time: detail.position / 1000 });
+    // Handle both 'position' (from requestSeek) and 'positionMs' (from CommentList)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const detail = (e as CustomEvent).detail as any;
+    const posMs: number = detail.position ?? detail.positionMs ?? -1;
+    if (posMs >= 0) {
+      sendCommand('seek', { time: posMs / 1000 });
     }
   }
 
