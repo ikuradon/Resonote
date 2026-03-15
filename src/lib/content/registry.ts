@@ -1,6 +1,7 @@
 import type { ContentId, ContentProvider } from './types.js';
 import { spotify } from './spotify.js';
 import { youtube } from './youtube.js';
+import { vimeo } from './vimeo.js';
 import { netflix } from './netflix.js';
 import { primeVideo } from './prime-video.js';
 import { disneyPlus } from './disney-plus.js';
@@ -14,6 +15,7 @@ import { uNext } from './u-next.js';
 const providers: ContentProvider[] = [
   spotify,
   youtube,
+  vimeo,
   netflix,
   primeVideo,
   disneyPlus,

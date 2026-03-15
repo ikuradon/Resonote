@@ -65,6 +65,26 @@ interface SpotifyEmbedController {
   destroy(): void;
 }
 
+declare namespace Vimeo {
+  class Player {
+    constructor(
+      element: HTMLIFrameElement | HTMLElement | string,
+      options?: Record<string, unknown>
+    );
+    play(): Promise<void>;
+    pause(): Promise<void>;
+    getCurrentTime(): Promise<number>;
+    setCurrentTime(seconds: number): Promise<number>;
+    getDuration(): Promise<number>;
+    getPaused(): Promise<boolean>;
+    getVolume(): Promise<number>;
+    setVolume(volume: number): Promise<number>;
+    destroy(): Promise<void>;
+    on(event: string, callback: (data: any) => void): void; // eslint-disable-line @typescript-eslint/no-explicit-any
+    off(event: string, callback?: (data: any) => void): void; // eslint-disable-line @typescript-eslint/no-explicit-any
+  }
+}
+
 declare namespace SC {
   function Widget(iframe: HTMLIFrameElement): SC.WidgetInstance;
   namespace Widget {

@@ -3,6 +3,7 @@
   import SpotifyEmbed from '$lib/components/SpotifyEmbed.svelte';
   import YouTubeEmbed from '$lib/components/YouTubeEmbed.svelte';
   import SoundCloudEmbed from '$lib/components/SoundCloudEmbed.svelte';
+  import VimeoEmbed from '$lib/components/VimeoEmbed.svelte';
   import CommentList from '$lib/components/CommentList.svelte';
   import CommentForm from '$lib/components/CommentForm.svelte';
   import ShareButton from '$lib/components/ShareButton.svelte';
@@ -140,6 +141,8 @@
             <YouTubeEmbed {contentId} />
           {:else if showPlayer && platform === 'soundcloud'}
             <SoundCloudEmbed {contentId} />
+          {:else if showPlayer && platform === 'vimeo'}
+            <VimeoEmbed {contentId} />
           {/if}
 
           {#if showInstallPrompt}
