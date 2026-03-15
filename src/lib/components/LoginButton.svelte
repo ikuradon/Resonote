@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getAuth, loginNostr, logoutNostr } from '../stores/auth.svelte.js';
   import { getProfile, getDisplayName, fetchProfile } from '../stores/profile.svelte.js';
+  import { npubEncode } from 'nostr-tools/nip19';
   import { t } from '../i18n/t.js';
 
   const auth = getAuth();
@@ -17,14 +18,19 @@
 
 {#if auth.loggedIn && auth.pubkey}
   <div class="flex items-center gap-3">
-    {#if profile?.picture}
-      <img
-        src={profile.picture}
-        alt=""
-        class="h-7 w-7 rounded-full object-cover ring-1 ring-border"
-      />
-    {/if}
-    <span class="max-w-[120px] truncate text-sm text-text-secondary">{displayText}</span>
+    <a
+      href="/profile/{npubEncode(auth.pubkey)}"
+      class="flex items-center gap-2 transition-opacity hover:opacity-80"
+    >
+      {#if profile?.picture}
+        <img
+          src={profile.picture}
+          alt=""
+          class="h-7 w-7 rounded-full object-cover ring-1 ring-border"
+        />
+      {/if}
+      <span class="max-w-[120px] truncate text-sm text-text-secondary">{displayText}</span>
+    </a>
     <button
       onclick={logoutNostr}
       class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-xs font-medium text-text-secondary transition-all duration-200 hover:bg-surface-3 hover:text-text-primary"
