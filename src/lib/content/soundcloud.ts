@@ -18,7 +18,7 @@ export class SoundCloudProvider implements ContentProvider {
   }
 
   toNostrTag(contentId: ContentId): [string, string] {
-    return [`soundcloud:${contentId.id}`, `https://soundcloud.com/${contentId.id}`];
+    return [`soundcloud:track:${contentId.id}`, `https://soundcloud.com/${contentId.id}`];
   }
 
   contentKind(): string {

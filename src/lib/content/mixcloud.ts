@@ -19,7 +19,7 @@ export class MixcloudProvider implements ContentProvider {
   }
 
   toNostrTag(contentId: ContentId): [string, string] {
-    return [`mixcloud:${contentId.id}`, `https://www.mixcloud.com/${contentId.id}/`];
+    return [`mixcloud:mix:${contentId.id}`, `https://www.mixcloud.com/${contentId.id}/`];
   }
 
   contentKind(): string {

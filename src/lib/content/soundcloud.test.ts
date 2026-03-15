@@ -60,7 +60,7 @@ describe('SoundCloudProvider', () => {
         id: 'artist-name/track-name'
       });
       expect(tag).toEqual([
-        'soundcloud:artist-name/track-name',
+        'soundcloud:track:artist-name/track-name',
         'https://soundcloud.com/artist-name/track-name'
       ]);
     });

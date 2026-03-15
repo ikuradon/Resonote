@@ -70,7 +70,7 @@ describe('MixcloudProvider.toNostrTag', () => {
   it('returns correct NIP-73 tag', () => {
     const contentId = { platform: 'mixcloud', type: 'mix', id: 'djuser/awesome-mix' };
     expect(provider.toNostrTag(contentId)).toEqual([
-      'mixcloud:djuser/awesome-mix',
+      'mixcloud:mix:djuser/awesome-mix',
       'https://www.mixcloud.com/djuser/awesome-mix/'
     ]);
   });
