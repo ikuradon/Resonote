@@ -134,20 +134,25 @@ export function parseRelayTags(tags: string[][]): RelayEntry[] {
     });
 }
 
+export interface RelayListResult {
+  entries: RelayEntry[];
+  source: 'cache' | 'kind10002' | 'kind3' | 'none';
+}
+
 /**
  * Fetch relay list for a user.
- * Tries kind:10002 first (NIP-65), then kind:3 content JSON, then DEFAULT_RELAYS.
+ * Tries cache first, then kind:10002 (NIP-65), then kind:3 content JSON.
+ * Returns source='none' if no user relay list found (caller decides fallback).
  */
-export async function fetchRelayList(pubkey: string): Promise<RelayEntry[]> {
-  // Use cached entries from login if available (avoids re-fetching from potentially different relays)
+export async function fetchRelayList(pubkey: string): Promise<RelayListResult> {
+  // Use cached entries from login if available
   if (cachedRelayEntries) {
     log.info('Using cached relay list', { count: cachedRelayEntries.length });
-    return cachedRelayEntries;
+    return { entries: cachedRelayEntries, source: 'cache' };
   }
   log.info('Fetching relay list for user', { pubkey });
-  const [{ createRxBackwardReq }, { DEFAULT_RELAYS }, { getRxNostr }] = await Promise.all([
+  const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
     import('rx-nostr'),
-    import('../nostr/relays.js'),
     import('../nostr/client.js')
   ]);
   const rxNostr = await getRxNostr();
@@ -179,7 +184,7 @@ export async function fetchRelayList(pubkey: string): Promise<RelayEntry[]> {
 
   if (kind10002 !== null) {
     log.info('Found kind:10002 relay list', { count: kind10002.length });
-    return kind10002;
+    return { entries: kind10002, source: 'kind10002' };
   }
 
   // Fallback: kind:3 content JSON
@@ -221,11 +226,11 @@ export async function fetchRelayList(pubkey: string): Promise<RelayEntry[]> {
 
   if (kind3 !== null) {
     log.info('Found kind:3 relay list', { count: kind3.length });
-    return kind3;
+    return { entries: kind3, source: 'kind3' };
   }
 
-  log.info('No relay list found, using defaults');
-  return DEFAULT_RELAYS.map((url) => ({ url, read: true, write: true }));
+  log.info('No relay list found');
+  return { entries: [], source: 'none' };
 }
 
 /**
