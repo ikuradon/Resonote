@@ -1,6 +1,7 @@
 import { getRxNostr } from './client.js';
 import { DEFAULT_RELAYS } from './relays.js';
 import { createLogger, shortHex } from '../utils/logger.js';
+import { RELAY_LIST_KIND } from './events.js';
 
 const log = createLogger('nostr:user-relays');
 
@@ -46,7 +47,7 @@ export async function applyUserRelays(pubkey: string): Promise<string[]> {
       }
     });
 
-    req.emit({ kinds: [10002], authors: [pubkey], limit: 1 });
+    req.emit({ kinds: [RELAY_LIST_KIND], authors: [pubkey], limit: 1 });
     req.over();
   });
 }

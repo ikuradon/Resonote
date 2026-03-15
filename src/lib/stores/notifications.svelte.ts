@@ -1,10 +1,9 @@
 import { createLogger, shortHex } from '../utils/logger.js';
-import { COMMENT_KIND } from '../nostr/events.js';
+import { COMMENT_KIND, REACTION_KIND } from '../nostr/events.js';
 import { isMuted, isWordMuted } from './mute.svelte.js';
 import { matchesFilter, type FollowFilter } from './follows.svelte.js';
 
 const log = createLogger('notifications');
-const REACTION_KIND = 7;
 
 export type NotificationType = 'reply' | 'reaction' | 'mention' | 'follow_comment';
 
@@ -22,6 +21,7 @@ const NOTIF_FILTER_KEY = 'resonote-notif-filter';
 const FOLLOW_COMMENT_CAP = 50;
 const BATCH_SIZE = 100;
 const SEVEN_DAYS_SEC = 7 * 24 * 60 * 60;
+const MAX_NOTIFICATIONS = 200;
 
 let allItems = $state<Notification[]>([]);
 let loading = $state(false);
@@ -145,6 +145,9 @@ function addNotification(notif: Notification, type: NotificationType): void {
   }
 
   allItems = [...allItems, notif].sort((a, b) => b.createdAt - a.createdAt);
+  if (allItems.length > MAX_NOTIFICATIONS) {
+    allItems = allItems.slice(0, MAX_NOTIFICATIONS);
+  }
   log.debug('Notification added', { id: shortHex(notif.id), type: notif.type });
 }
 

@@ -3,6 +3,11 @@ import type { ContentId, ContentProvider } from '../content/types.js';
 import { isShortcode, extractShortcode } from '../utils/emoji.js';
 
 export const COMMENT_KIND = 1111;
+export const REACTION_KIND = 7;
+export const FOLLOW_KIND = 3;
+export const MUTE_KIND = 10000;
+export const RELAY_LIST_KIND = 10002;
+export const BOOKMARK_KIND = 10003;
 const COMMENT_KIND_STR = String(COMMENT_KIND);
 
 function resolveContentInfo(provider: ContentProvider, contentId: ContentId) {

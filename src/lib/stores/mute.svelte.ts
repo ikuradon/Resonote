@@ -1,6 +1,7 @@
 /** Mute list (NIP-51 kind:10000) store with NIP-44 encryption */
 
 import { createLogger, shortHex } from '../utils/logger.js';
+import { MUTE_KIND } from '../nostr/events.js';
 
 const log = createLogger('mute');
 
@@ -65,7 +66,7 @@ export async function loadMuteList(pubkey: string): Promise<void> {
 
   try {
     const { fetchLatestEvent } = await import('../nostr/client.js');
-    const latest = await fetchLatestEvent(pubkey, 10000);
+    const latest = await fetchLatestEvent(pubkey, MUTE_KIND);
     if (gen !== generation) return;
 
     const newPubkeys = new Set<string>();
@@ -121,7 +122,7 @@ async function publishMuteList(): Promise<void> {
   ];
 
   const encrypted = await encryptTags(myPubkey, allTags);
-  await castSigned({ kind: 10000, tags: [], content: encrypted });
+  await castSigned({ kind: MUTE_KIND, tags: [], content: encrypted });
 
   log.info('Mute list published', { pubkeys: mutedPubkeys.size, words: mutedWords.length });
 }

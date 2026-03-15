@@ -1,6 +1,7 @@
 /** Follow list (NIP-02 kind:3) and Web of Trust store */
 
 import { createLogger, shortHex } from '../utils/logger.js';
+import { FOLLOW_KIND } from '../nostr/events.js';
 
 const log = createLogger('follows');
 
@@ -108,7 +109,7 @@ async function fetchWot(pubkey: string, gen: number): Promise<void> {
       }
     });
 
-    req.emit({ kinds: [3], authors: [pubkey], limit: 1 });
+    req.emit({ kinds: [FOLLOW_KIND], authors: [pubkey], limit: 1 });
     req.over();
   });
 
@@ -150,7 +151,7 @@ async function fetchWot(pubkey: string, gen: number): Promise<void> {
 
     for (let i = 0; i < followArray.length; i += BATCH_SIZE) {
       const batch = followArray.slice(i, i + BATCH_SIZE);
-      req.emit({ kinds: [3], authors: batch });
+      req.emit({ kinds: [FOLLOW_KIND], authors: batch });
     }
     req.over();
   });
@@ -173,7 +174,7 @@ export async function loadFollows(pubkey: string): Promise<void> {
   const eventsDB = await getEventsDB();
 
   // Try to restore from DB
-  const kind3 = await eventsDB.getByPubkeyAndKind(pubkey, 3);
+  const kind3 = await eventsDB.getByPubkeyAndKind(pubkey, FOLLOW_KIND);
   if (gen !== generation) return;
 
   if (kind3) {
@@ -181,7 +182,7 @@ export async function loadFollows(pubkey: string): Promise<void> {
     state.follows = follows;
 
     // Restore 2-hop WoT from DB (single index scan + JS filter)
-    const allKind3 = await eventsDB.getAllByKind(3);
+    const allKind3 = await eventsDB.getAllByKind(FOLLOW_KIND);
     if (gen !== generation) return;
 
     const allWot = new Set([...follows, pubkey]);
@@ -244,7 +245,7 @@ export async function followUser(targetPubkey: string): Promise<void> {
 
   const { castSigned, fetchLatestEvent } = await import('../nostr/client.js');
 
-  const latestKind3 = await fetchLatestEvent(myPubkey, 3);
+  const latestKind3 = await fetchLatestEvent(myPubkey, FOLLOW_KIND);
 
   let tags: string[][];
   let content: string;
@@ -266,7 +267,7 @@ export async function followUser(targetPubkey: string): Promise<void> {
     content = '';
   }
 
-  await castSigned({ kind: 3, tags, content });
+  await castSigned({ kind: FOLLOW_KIND, tags, content });
   state.follows = new Set([...state.follows, targetPubkey]);
   log.info('Followed user', { targetPubkey: shortHex(targetPubkey) });
 }
@@ -282,7 +283,7 @@ export async function unfollowUser(targetPubkey: string): Promise<void> {
 
   const { castSigned, fetchLatestEvent } = await import('../nostr/client.js');
 
-  const latestKind3 = await fetchLatestEvent(myPubkey, 3);
+  const latestKind3 = await fetchLatestEvent(myPubkey, FOLLOW_KIND);
 
   let tags: string[][];
   let content: string;
@@ -296,7 +297,7 @@ export async function unfollowUser(targetPubkey: string): Promise<void> {
     content = '';
   }
 
-  await castSigned({ kind: 3, tags, content });
+  await castSigned({ kind: FOLLOW_KIND, tags, content });
   const newFollows = new Set(state.follows);
   newFollows.delete(targetPubkey);
   state.follows = newFollows;

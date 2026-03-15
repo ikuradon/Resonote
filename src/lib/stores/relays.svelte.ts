@@ -1,4 +1,5 @@
 import { createLogger } from '../utils/logger.js';
+import { RELAY_LIST_KIND, FOLLOW_KIND } from '../nostr/events.js';
 
 const log = createLogger('relays');
 
@@ -178,7 +179,7 @@ export async function fetchRelayList(pubkey: string): Promise<RelayListResult> {
       }
     });
 
-    req.emit({ kinds: [10002], authors: [pubkey], limit: 1 });
+    req.emit({ kinds: [RELAY_LIST_KIND], authors: [pubkey], limit: 1 });
     req.over();
   });
 
@@ -220,7 +221,7 @@ export async function fetchRelayList(pubkey: string): Promise<RelayListResult> {
       }
     });
 
-    req.emit({ kinds: [3], authors: [pubkey], limit: 1 });
+    req.emit({ kinds: [FOLLOW_KIND], authors: [pubkey], limit: 1 });
     req.over();
   });
 
@@ -247,7 +248,7 @@ export async function publishRelayList(entries: RelayEntry[]): Promise<void> {
     return ['r', e.url, 'write'];
   });
 
-  await castSigned({ kind: 10002, content: '', tags });
+  await castSigned({ kind: RELAY_LIST_KIND, content: '', tags });
 
   // Update runtime relays
   const rxNostr = await getRxNostr();

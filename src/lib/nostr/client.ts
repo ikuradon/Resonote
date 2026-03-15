@@ -76,7 +76,11 @@ export async function fetchLatestEvent(
   const [{ createRxBackwardReq }] = await Promise.all([import('rx-nostr')]);
   const rxNostr = await getRxNostr();
 
-  return new Promise((resolve) => {
+  const fetchPromise = new Promise<{
+    tags: string[][];
+    content: string;
+    created_at: number;
+  } | null>((resolve) => {
     const req = createRxBackwardReq();
     let latest: { tags: string[][]; content: string; created_at: number } | null = null;
 
@@ -99,6 +103,12 @@ export async function fetchLatestEvent(
     req.emit({ kinds: [kind], authors: [pubkey], limit: 1 });
     req.over();
   });
+
+  const timeoutPromise = new Promise<null>((resolve) => {
+    setTimeout(() => resolve(null), 10_000);
+  });
+
+  return Promise.race([fetchPromise, timeoutPromise]);
 }
 
 export function disposeRxNostr(): void {

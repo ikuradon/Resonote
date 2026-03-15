@@ -2,6 +2,7 @@
 
 import { type ContentId, contentIdToString } from '../content/types.js';
 import { createLogger, shortHex } from '../utils/logger.js';
+import { BOOKMARK_KIND } from '../nostr/events.js';
 
 const log = createLogger('bookmarks');
 
@@ -65,7 +66,7 @@ export async function loadBookmarks(pubkey: string): Promise<void> {
 
   try {
     const { fetchLatestEvent } = await import('../nostr/client.js');
-    const latest = await fetchLatestEvent(pubkey, 10003);
+    const latest = await fetchLatestEvent(pubkey, BOOKMARK_KIND);
     if (gen !== generation) return;
 
     if (latest) {
@@ -98,7 +99,7 @@ export async function addBookmark(
   const value = contentIdToString(contentId);
   const hint = provider.openUrl(contentId);
 
-  const latest = await fetchLatestEvent(myPubkey, 10003);
+  const latest = await fetchLatestEvent(myPubkey, BOOKMARK_KIND);
 
   let tags: string[][];
 
@@ -114,7 +115,7 @@ export async function addBookmark(
     tags = [['i', value, hint]];
   }
 
-  await castSigned({ kind: 10003, tags, content: '' });
+  await castSigned({ kind: BOOKMARK_KIND, tags, content: '' });
   state.entries = parseBookmarkTags(tags);
   log.info('Bookmark added', { value });
 }
@@ -131,7 +132,7 @@ export async function removeBookmark(contentId: ContentId): Promise<void> {
 
   const value = contentIdToString(contentId);
 
-  const latest = await fetchLatestEvent(myPubkey, 10003);
+  const latest = await fetchLatestEvent(myPubkey, BOOKMARK_KIND);
 
   let tags: string[][];
 
@@ -141,7 +142,7 @@ export async function removeBookmark(contentId: ContentId): Promise<void> {
     tags = [];
   }
 
-  await castSigned({ kind: 10003, tags, content: '' });
+  await castSigned({ kind: BOOKMARK_KIND, tags, content: '' });
   state.entries = parseBookmarkTags(tags);
   log.info('Bookmark removed', { value });
 }
