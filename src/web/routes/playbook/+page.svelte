@@ -656,20 +656,19 @@
       <div class="rounded-xl border border-border-subtle bg-surface-1 p-5">
         <div class="mb-3 flex items-center justify-between">
           <h3 class="text-xs font-semibold tracking-wide text-text-secondary uppercase">{name}</h3>
-          {#if player.contentId?.platform === contentId.platform}
-            <div class="flex items-center gap-2 font-mono text-xs text-text-muted">
-              <span>{formatTime(player.position)} / {formatTime(player.duration)}</span>
-              <span
-                class="rounded px-1.5 py-0.5 {player.isPaused
-                  ? 'bg-zinc-700 text-zinc-400'
-                  : 'bg-green-900 text-green-400'}"
-              >
-                {player.isPaused ? 'PAUSED' : 'PLAYING'}
-              </span>
-            </div>
-          {:else}
-            <span class="font-mono text-xs text-text-muted">--:-- / --:--</span>
-          {/if}
+          <div class="flex items-center gap-2 font-mono text-xs text-text-muted">
+            <span>{formatTime(player.position)} / {formatTime(player.duration)}</span>
+            <span
+              class="rounded px-1.5 py-0.5 {player.isPaused
+                ? 'bg-zinc-700 text-zinc-400'
+                : 'bg-green-900 text-green-400'}"
+            >
+              {player.isPaused ? 'PAUSED' : 'PLAYING'}
+            </span>
+            {#if player.contentId?.platform === contentId.platform}
+              <span class="rounded bg-accent/20 px-1.5 py-0.5 text-accent">ACTIVE</span>
+            {/if}
+          </div>
         </div>
 
         {#if contentId.platform === 'youtube'}
