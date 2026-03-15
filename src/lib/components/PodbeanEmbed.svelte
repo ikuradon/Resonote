@@ -28,7 +28,6 @@
 </script>
 
 <script lang="ts">
-  import { goto } from '$app/navigation';
   import type { ContentId } from '../content/types.js';
   import { setContent, updatePlayback } from '../stores/player.svelte.js';
   import { t } from '../i18n/t.js';
@@ -44,7 +43,7 @@
   let widget: PB | undefined;
   let ready = $state(false);
   let error = $state(false);
-  let resolving = $state(false);
+  let embedSrc = $state('');
 
   function handleSeek(e: Event) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -56,29 +55,43 @@
     }
   }
 
+  // Resolve embed URL via Podbean oEmbed API
   $effect(() => {
-    // Channel slug URL: resolve via API then redirect
-    if (!contentId.id.startsWith('pb-')) {
-      resolving = true;
-      const parts = contentId.id.split('/');
-      const channelUrl = `https://${parts[0]}.podbean.com/e/${parts[1]}`;
-      fetch(`/api/podbean/resolve?url=${encodeURIComponent(channelUrl)}`)
-        .then((res) => res.json())
-        .then((data: unknown) => {
-          const d = data as { embedId?: string };
-          if (d.embedId) {
-            goto(`/podbean/episode/${d.embedId}`);
-          } else {
-            error = true;
-          }
-        })
-        .catch(() => {
-          error = true;
-        });
-      return;
+    embedSrc = '';
+    error = false;
+
+    // Build the source URL for oEmbed lookup
+    const id = contentId.id;
+    let sourceUrl: string;
+    if (id.startsWith('pb-')) {
+      sourceUrl = `https://www.podbean.com/media/share/${id}`;
+    } else {
+      const parts = id.split('/');
+      sourceUrl = `https://${parts[0]}.podbean.com/e/${parts[1]}`;
     }
 
-    if (!iframeEl) return;
+    fetch(`https://api.podbean.com/v1/oembed?format=json&url=${encodeURIComponent(sourceUrl)}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`oEmbed ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        const match = (data.html as string)?.match(/src="([^"]+)"/);
+        if (match?.[1]) {
+          embedSrc = match[1];
+        } else {
+          throw new Error('No iframe src in oEmbed response');
+        }
+      })
+      .catch((err) => {
+        log.error('Failed to resolve Podbean oEmbed', err);
+        error = true;
+      });
+  });
+
+  // Initialize widget once iframe loads
+  $effect(() => {
+    if (!iframeEl || !embedSrc) return;
 
     window.addEventListener('resonote:seek', handleSeek);
 
@@ -133,7 +146,6 @@
       }
       widget = undefined;
       ready = false;
-      error = false;
     };
   });
 </script>
@@ -142,12 +154,12 @@
   data-testid="podbean-embed"
   class="animate-fade-in relative w-full overflow-hidden rounded-2xl border border-border-subtle shadow-[0_4px_24px_rgba(0,0,0,0.4)]"
 >
-  {#if contentId.id.startsWith('pb-')}
+  {#if embedSrc}
     <iframe
       bind:this={iframeEl}
-      src={`https://admin5.podbean.com/embed.html?id=${contentId.id}`}
+      src={embedSrc}
       width="100%"
-      height="172"
+      height="150"
       scrolling="no"
       frameborder="no"
       allow="autoplay"
@@ -158,10 +170,10 @@
     <div class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-surface-1">
       <p class="text-sm text-text-muted">{t('embed.load_failed')}</p>
     </div>
-  {:else if resolving || !ready}
+  {:else if !ready}
     <div
       class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-surface-1"
-      style="min-height: 172px"
+      style="min-height: 150px"
     >
       <div class="flex items-center gap-3">
         <svg class="h-8 w-8" style="color: #3db56a;" viewBox="0 0 24 24" fill="currentColor">
@@ -175,7 +187,7 @@
         <div class="h-1 overflow-hidden rounded-full bg-surface-3">
           <div
             class="animate-shimmer h-full w-1/3 rounded-full bg-gradient-to-r from-transparent to-transparent"
-            style="background-size: 400px 100%; --tw-gradient-via-color: #3db56a66; background-image: linear-gradient(to right, transparent, #3db56a66, transparent);"
+            style="background-size: 400px 100%; background-image: linear-gradient(to right, transparent, #3db56a66, transparent);"
           ></div>
         </div>
       </div>

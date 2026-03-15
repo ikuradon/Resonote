@@ -39,10 +39,8 @@ class PodbeanProvider implements ContentProvider {
     return `podbean:${contentId.type}`;
   }
 
-  embedUrl(contentId: ContentId): string | null {
-    if (contentId.id.startsWith('pb-')) {
-      return `https://admin5.podbean.com/embed.html?id=${contentId.id}`;
-    }
+  embedUrl(): string | null {
+    // Resolved at runtime via oEmbed API in PodbeanEmbed component
     return null;
   }
 

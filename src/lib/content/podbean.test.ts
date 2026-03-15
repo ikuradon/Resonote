@@ -92,16 +92,8 @@ describe('PodbeanProvider', () => {
   });
 
   describe('embedUrl', () => {
-    it('should return embed URL for a pb- id', () => {
-      expect(
-        provider.embedUrl({ platform: 'podbean', type: 'episode', id: 'pb-ar8ve-1920b14' })
-      ).toBe('https://admin5.podbean.com/embed.html?id=pb-ar8ve-1920b14');
-    });
-
-    it('should return null for a channel slug id', () => {
-      expect(
-        provider.embedUrl({ platform: 'podbean', type: 'episode', id: 'mychannel/my-episode' })
-      ).toBeNull();
+    it('should return null (resolved via oEmbed at runtime)', () => {
+      expect(provider.embedUrl()).toBeNull();
     });
   });
 
