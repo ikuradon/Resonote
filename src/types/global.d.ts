@@ -161,6 +161,35 @@ declare namespace SP {
   }
 }
 
+declare class PB {
+  constructor(iframe: HTMLIFrameElement | string);
+  play(): void;
+  pause(): void;
+  toggle(): void;
+  seekTo(milliseconds: number): void;
+  setVolume(volume: number): void;
+  getVolume(callback: (volume: number) => void): void;
+  getDuration(callback: (duration: number) => void): void;
+  getPosition(callback: (position: number) => void): void;
+  isPaused(callback: (paused: boolean) => void): void;
+  bind(event: string, callback: (data?: unknown) => void): void;
+  unbind(event: string): void;
+}
+
+declare namespace PB {
+  namespace Widget {
+    const Events: {
+      READY: string;
+      PLAY: string;
+      PAUSE: string;
+      PLAY_PROGRESS: string;
+      FINISH: string;
+      LOAD_PROGRESS: string;
+      SEEK: string;
+    };
+  }
+}
+
 declare namespace YT {
   const PlayerState: {
     UNSTARTED: -1;
