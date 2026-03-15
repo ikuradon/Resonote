@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { t, type TranslationKey } from '$lib/i18n/t.js';
   import { getAuth } from '$lib/stores/auth.svelte.js';
   import {
@@ -50,7 +49,10 @@
     }
   }
 
-  onMount(() => {
+  // Reload relays when auth state changes (handles direct page access where
+  // auth.pubkey is initially null until initAuth completes)
+  $effect(() => {
+    void auth.pubkey;
     loadRelays();
   });
 
