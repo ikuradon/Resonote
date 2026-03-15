@@ -44,6 +44,7 @@ export default ts.config(
       'build/',
       'dist-extension/',
       '.svelte-kit/',
+      '.wrangler/',
       'node_modules/',
       'test-results/',
       'playwright-report/',

@@ -24,7 +24,7 @@
   import { requestSeek } from '$lib/stores/player.svelte.js';
   import type { ContentId } from '$lib/content/types.js';
   import { t } from '$lib/i18n/t.js';
-  import { resolveEpisodeEnclosure } from '$lib/content/episode-resolver.js';
+  import { resolveEpisode } from '$lib/content/episode-resolver.js';
   import { fromBase64url } from '$lib/content/url-utils.js';
   import { resolveByApi } from '$lib/content/podcast-resolver.js';
   import { publishSignedEvent } from '$lib/nostr/publish-signed.js';
@@ -91,16 +91,27 @@
   });
 
   let resolvedEnclosureUrl = $state<string | undefined>();
+  let episodeTitle = $state<string | undefined>();
+  let episodeFeedTitle = $state<string | undefined>();
+  let episodeImage = $state<string | undefined>();
 
   $effect(() => {
     resolvedEnclosureUrl = undefined;
+    episodeTitle = undefined;
+    episodeFeedTitle = undefined;
+    episodeImage = undefined;
+
     if (platform === 'audio') {
       resolvedEnclosureUrl = fromBase64url(contentIdParam);
     } else if (platform === 'podcast' && contentType === 'episode') {
       const parts = contentIdParam.split(':');
       if (parts.length === 2) {
-        resolveEpisodeEnclosure(parts[0], parts[1]).then((url) => {
-          resolvedEnclosureUrl = url ?? undefined;
+        resolveEpisode(parts[0], parts[1]).then((info) => {
+          if (!info) return;
+          resolvedEnclosureUrl = info.enclosureUrl;
+          episodeTitle = info.title;
+          episodeFeedTitle = info.feedTitle;
+          episodeImage = info.image;
         });
       }
     }
@@ -204,7 +215,13 @@
           {#if platform === 'podcast' && contentType === 'feed'}
             <PodcastEpisodeList {contentId} />
           {:else if platform === 'audio' || (platform === 'podcast' && contentType === 'episode')}
-            <AudioEmbed {contentId} enclosureUrl={resolvedEnclosureUrl} />
+            <AudioEmbed
+              {contentId}
+              enclosureUrl={resolvedEnclosureUrl}
+              title={episodeTitle}
+              feedTitle={episodeFeedTitle}
+              image={episodeImage}
+            />
           {:else if showPlayer && platform === 'spotify'}
             <SpotifyEmbed {contentId} />
           {:else if showPlayer && platform === 'youtube'}

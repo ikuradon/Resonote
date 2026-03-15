@@ -1,25 +1,51 @@
 import { fromBase64url } from './url-utils.js';
 import { getSystemPubkey, resolveByApi, parseDTagEvent } from './podcast-resolver.js';
 
-export async function resolveEpisodeEnclosure(
+export interface EpisodeInfo {
+  enclosureUrl: string;
+  title?: string;
+  feedTitle?: string;
+  image?: string;
+}
+
+export async function resolveEpisode(
   feedBase64: string,
   guidBase64: string
-): Promise<string | null> {
+): Promise<EpisodeInfo | null> {
   const guid = fromBase64url(guidBase64);
   const feedUrl = fromBase64url(feedBase64);
 
-  // 1. Try Nostr relay query
+  // 1. Try Nostr relay query (enclosureUrl only, no full metadata)
   const nostrResult = await queryNostrForEpisode(guid);
-  if (nostrResult) return nostrResult;
 
-  // 2. Fallback: API
+  // 2. API call for full metadata (also serves as fallback for enclosureUrl)
   const apiResult = await resolveByApi(feedUrl);
+  const feedTitle = apiResult.feed?.title;
+  const image = apiResult.feed?.image;
+
   if (apiResult.episodes) {
     const match = apiResult.episodes.find((ep) => ep.guid === guid);
-    if (match) return match.enclosureUrl;
+    if (match) {
+      return {
+        enclosureUrl: match.enclosureUrl,
+        title: match.title,
+        feedTitle,
+        image
+      };
+    }
   }
   if (apiResult.episode?.guid === guid) {
-    return apiResult.episode.enclosureUrl;
+    return {
+      enclosureUrl: apiResult.episode.enclosureUrl,
+      title: apiResult.episode.title,
+      feedTitle,
+      image
+    };
+  }
+
+  // Nostr-only result (no metadata)
+  if (nostrResult) {
+    return { enclosureUrl: nostrResult };
   }
 
   return null;
