@@ -22,7 +22,7 @@
       icon: '☁️',
       platform: 'SoundCloud',
       label: 'Flume - Say It',
-      url: 'https://soundcloud.com/flaboratory/say-it'
+      url: 'https://soundcloud.com/flume/say-it-feat-tove-lo'
     },
     { icon: '🎬', platform: 'Vimeo', label: 'Audi RS 5', url: 'https://vimeo.com/231857608' },
     {
