@@ -10,12 +10,12 @@
       icon: '🎵',
       items: [
         {
-          label: 'Rick Astley - Never Gonna Give You Up',
-          url: 'https://open.spotify.com/track/4PTG3Z6ehGkBFwjybzWkR8'
+          label: 'Rebuild - EP 416',
+          url: 'https://open.spotify.com/episode/4hMFcs08VRa7S1xyeOgFkb'
         },
         {
-          label: 'Kenshi Yonezu - KICK BACK',
-          url: 'https://open.spotify.com/track/6Qb7YsAqH4wWFUMbGsCpap'
+          label: 'Off Topic - EP 311',
+          url: 'https://open.spotify.com/episode/3X8RHJkJHiwbXdvAFHjQOp'
         }
       ]
     },
