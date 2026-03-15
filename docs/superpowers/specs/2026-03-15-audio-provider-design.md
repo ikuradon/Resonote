@@ -26,8 +26,8 @@
 ### URL エンコード規約
 
 - **Base64url**: RFC 4648 Section 5（`+` → `-`, `/` → `_`）、パディング `=` は除去
-- **`d` タグ**: スキーム除去（`https://` を取り除いた URL）
-- **`r` タグ / `i` タグ hint**: フル URL（`https://` 付き）
+- **`d` タグ**: スキーム除去 + 小文字化 + 末尾スラッシュ除去 + クエリパラメータ除去（例: `https://Example.COM/Feed.xml?token=abc` → `example.com/feed.xml`）
+- **`r` タグ / `i` タグ hint**: フル URL（`https://` 付き、正規化は `d` タグと同じルール適用後にスキームを再付加）
 
 ### AudioProvider (`src/lib/content/audio.ts`)
 
@@ -38,7 +38,7 @@
 - `type`: `'track'`
 - `id`: 音声 URL を Base64url エンコード（パディングなし）
 - `contentKind()`: guid 未解決時は `'audio'`、解決後は呼ばれない（PodcastProvider に委譲）
-- `toNostrTag()`: `["audio:<url>", "<url>"]`（常にフォールバック形式。guid 解決後はコメントストアが PodcastProvider の `toNostrTag()` を使う）
+- `toNostrTag()`: `["audio:<decoded-full-url>", "<decoded-full-url>"]`（value 例: `audio:https://example.com/ep.mp3`。常にフォールバック形式。guid 解決後はコメントストアが PodcastProvider の `toNostrTag()` を使う）
 - `embedUrl()`: デコードした音声 URL を返す
 - `openUrl()`: デコードした音声 URL を返す
 
@@ -54,7 +54,7 @@
 - `id`:
   - フィード: URL の Base64url エンコード（パディングなし）
   - エピソード: `<feedUrlBase64>:<guidBase64>` の複合キー
-- `contentKind()`: `type === 'feed'` → `'podcast:feed'`、`type === 'episode'` → `'podcast:item:guid'`
+- `contentKind()`: `type === 'episode'` → `'podcast:item:guid'`。フィード（type: `'feed'`）はコメント対象外のため `contentKind()` は呼ばれない想定だが、安全のため `'podcast:feed'` を返す
 - `toNostrTag()`: `["podcast:item:guid:<guid>", "<feed-url>"]`（hint はフィード URL。enclosure URL は ContentId から導出不可能なため、フィード URL を hint とする。他クライアントはフィードから enclosure を解決可能）
 - `embedUrl()`: エピソードの enclosure URL を返す（フィードの場合は `null`）
 - `openUrl()`: 元の Podcast サイト URL またはフィード URL
@@ -72,6 +72,8 @@ RSS の `<podcast:guid>`（Podcast Index namespace）が存在しない場合、
 ## Nostr イベント設計
 
 ### NIP-B0 ブックマーク (kind:39701) — システム鍵で発行
+
+kind:39701 内の `i` / `k` タグは NIP-73 に従い小文字。NIP-22 コメント (kind:1111) でルートスコープを参照する際は大文字 `I` / `K` を使用（NIP-22 の仕様通り）。
 
 **フィード（番組）**:
 
@@ -152,6 +154,9 @@ AudioProvider の `parseUrl()` は同期的に ContentId を返す（`{audio, tr
 - guid 解決後: `addSubscription('podcast:item:guid:<guid>', 'podcast:item:guid')` で追加購読
 - 既存の `audio:<url>` 購読は維持したまま、両方のストリームを `uniq()` でマージ
 - DB キャッシュは `I:${idValue}` のキーで個別に保存（既存と同じ）、表示時にマージ
+- `addSubscription` 時にも追加タグの DB キャッシュリストアを実行
+- `destroy()` 時に追加購読のサブスクリプションも含めて全解除
+- 重複排除は既存の `commentIds` / `reactionIds` の Set（イベント ID ベース）をそのまま共有
 
 ### 投稿時のタグ選択
 
@@ -166,7 +171,11 @@ AudioProvider の `parseUrl()` は同期的に ContentId を返す（`{audio, tr
 2. クライアント: URL を正規化（スキーム除去）→ Nostr リレーに `d` タグ検索 & `parseUrl()` を並行実行
    - d タグ検索: `{"kinds":[39701],"authors":["<SYSTEM_PUBKEY>"],"#d":["<normalized-url>"]}`
    - `SYSTEM_PUBKEY` はクライアント側定数として保持
-3. d タグヒット → kind:39701 から guid + feed URL + enclosure URL 取得 → `/podcast/episode/{feedBase64}:{guidBase64}` に直接遷移（API 呼び出し不要）
+3. d タグヒット → kind:39701 のタグから以下を導出して遷移（API 呼び出し不要）:
+   - guid: `i` タグの value から `podcast:item:guid:` プレフィックスを除去して取得
+   - feed URL: `podcast:guid:` プレフィックスを持つ `i` タグの hint から取得
+   - enclosure URL: `podcast:item:guid:` プレフィックスを持つ `i` タグの hint、または `r` タグの最初の値
+   - 遷移先: `/podcast/episode/{feedUrlBase64}:{guidBase64}`
 4. d タグミス → AudioProvider がマッチ → `/audio/track/{base64url}` に遷移
 5. バックグラウンドで `/api/podcast/resolve` に URL 送信 → guid 解決
 6. 成功 → Nostr タグを guid ベースに昇格、コメント購読追加
@@ -322,7 +331,7 @@ Cloudflare Pages Functions で実装。ファイル配置: `functions/api/podcas
       "publishedAt": 1710000000
     }
   ],
-  "signedEvents": [<署名済み kind:39701 イベント JSON（フィード + 各エピソード）>]
+  "signedEvents": [<署名済み kind:39701 イベント JSON（フィードのみ。エピソードは選択時に個別署名を要求）>]
 }
 ```
 
@@ -409,8 +418,7 @@ const providers: ContentProvider[] = [
 | RSS エントリに `<enclosure>` がない | エピソード一覧からスキップ（テキスト記事等） |
 | 複数 `<enclosure>` タグ | 音声形式を優先（MP3 > M4A > OGG > その他） |
 | auto-discovery で複数 `<link type="application/rss+xml">` | 最初に見つかった RSS リンクを使用（将来: ユーザー選択 UI） |
-| URL の正規化: 末尾スラッシュ、大文字小文字 | d タグ生成時にスキーム除去 + 小文字化 + 末尾スラッシュ除去 |
-| URL にクエリパラメータ付き | d タグ生成時にクエリパラメータ除去（認証トークン等を排除） |
+| URL の正規化: 末尾スラッシュ、大文字小文字、クエリパラメータ | 「URL エンコード規約」セクションの `d` タグ正規化ルールに従う |
 
 ## 将来の拡張
 
