@@ -158,6 +158,129 @@
       saving = false;
     }
   }
+
+  // --- Developer Tools ---
+  interface DbStats {
+    total: number;
+    byKind: { kind: number; count: number }[];
+  }
+
+  let dbStats = $state<DbStats | null>(null);
+  let clearFeedback = $state<string | null>(null);
+  let swStatus = $state<'active' | 'none'>('none');
+  let swUpdated = $state(false);
+  let debugCopied = $state(false);
+
+  $effect(() => {
+    void auth.pubkey;
+    loadDbStats();
+    checkSwStatus();
+  });
+
+  async function loadDbStats() {
+    try {
+      const { getEventsDB } = await import('$lib/nostr/event-db.js');
+      const db = await getEventsDB();
+      const kinds = [0, 3, 5, 7, 1111, 10000, 10002, 10003, 10030, 30030];
+      const byKind: { kind: number; count: number }[] = [];
+      let total = 0;
+      for (const kind of kinds) {
+        const events = await db.getAllByKind(kind);
+        if (events.length > 0) {
+          byKind.push({ kind, count: events.length });
+          total += events.length;
+        }
+      }
+      dbStats = { total, byKind };
+    } catch {
+      dbStats = { total: 0, byKind: [] };
+    }
+  }
+
+  function checkSwStatus() {
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      swStatus = 'active';
+    } else {
+      swStatus = 'none';
+    }
+  }
+
+  async function checkSwUpdate() {
+    if (!('serviceWorker' in navigator)) return;
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (reg) {
+      await reg.update();
+      swUpdated = true;
+      setTimeout(() => {
+        swUpdated = false;
+      }, 3000);
+    }
+  }
+
+  function clearStorage(key: string) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // ignore
+    }
+    clearFeedback = key;
+    setTimeout(() => {
+      clearFeedback = null;
+    }, 2000);
+  }
+
+  async function clearIndexedDB() {
+    try {
+      const { getEventsDB } = await import('$lib/nostr/event-db.js');
+      const db = await getEventsDB();
+      await db.clearAll();
+    } catch {
+      // ignore
+    }
+    clearFeedback = 'indexeddb';
+    setTimeout(() => {
+      clearFeedback = null;
+    }, 2000);
+    await loadDbStats();
+  }
+
+  function clearAllData() {
+    if (!confirm(t('dev.clear_all_confirm'))) return;
+    try {
+      localStorage.clear();
+    } catch {
+      // ignore
+    }
+    indexedDB.deleteDatabase('resonote-events');
+    window.location.reload();
+  }
+
+  async function copyDebugInfo() {
+    const relayStates = getRelays();
+    const info = {
+      app: 'Resonote',
+      url: window.location.href,
+      userAgent: navigator.userAgent,
+      locale: document.documentElement.lang,
+      auth: {
+        loggedIn: auth.loggedIn,
+        pubkey: auth.pubkey ? auth.pubkey.slice(0, 8) + '...' : null
+      },
+      relays: relayStates.map((r) => ({ url: r.url, state: r.state })),
+      cache: dbStats,
+      sw: swStatus,
+      timestamp: new Date().toISOString()
+    };
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(info, null, 2));
+      debugCopied = true;
+      setTimeout(() => {
+        debugCopied = false;
+      }, 2000);
+    } catch {
+      // ignore
+    }
+  }
 </script>
 
 <div class="mx-auto max-w-3xl space-y-8 py-4">
@@ -443,6 +566,104 @@
           {t(opt.labelKey)}
         </button>
       {/each}
+    </div>
+  </section>
+
+  <!-- Developer Tools section -->
+  <section class="rounded-2xl border border-border bg-surface-1 p-6 space-y-5">
+    <h2 class="font-display text-lg font-semibold text-text-primary">
+      {t('dev.title')}
+    </h2>
+
+    <!-- Cache Stats -->
+    <div class="space-y-2">
+      <h3 class="text-sm font-medium text-text-secondary">{t('dev.stats')}</h3>
+      {#if dbStats}
+        <div class="grid grid-cols-2 gap-2 text-xs text-text-muted">
+          <span>{t('dev.events_total')}</span>
+          <span class="font-mono text-text-primary">{dbStats.total}</span>
+          {#each dbStats.byKind as { kind, count } (kind)}
+            <span>kind:{kind}</span>
+            <span class="font-mono text-text-primary">{count}</span>
+          {/each}
+        </div>
+      {:else}
+        <p class="text-xs text-text-muted">{t('dev.stats_loading')}</p>
+      {/if}
+    </div>
+
+    <!-- Service Worker -->
+    <div class="space-y-2">
+      <h3 class="text-sm font-medium text-text-secondary">{t('dev.sw')}</h3>
+      <div class="flex items-center gap-3">
+        <span class="text-xs text-text-muted">
+          {swStatus === 'active' ? t('dev.sw_active') : t('dev.sw_none')}
+        </span>
+        {#if swStatus === 'active'}
+          <button
+            type="button"
+            onclick={checkSwUpdate}
+            class="rounded-lg bg-surface-2 px-3 py-1 text-xs text-text-muted transition-colors hover:bg-surface-3 hover:text-text-secondary"
+          >
+            {swUpdated ? t('dev.sw_updated') : t('dev.sw_update')}
+          </button>
+        {/if}
+      </div>
+    </div>
+
+    <!-- Storage Management -->
+    <div class="space-y-2">
+      <h3 class="text-sm font-medium text-text-secondary">{t('dev.storage')}</h3>
+      <div class="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onclick={() => clearStorage('resonote-locale')}
+          class="rounded-lg bg-surface-2 px-3 py-1.5 text-xs text-text-muted transition-colors hover:bg-surface-3 hover:text-text-secondary"
+        >
+          {clearFeedback === 'resonote-locale' ? t('dev.cleared') : t('dev.clear_locale')}
+        </button>
+        <button
+          type="button"
+          onclick={() => clearStorage('resonote-notif-filter')}
+          class="rounded-lg bg-surface-2 px-3 py-1.5 text-xs text-text-muted transition-colors hover:bg-surface-3 hover:text-text-secondary"
+        >
+          {clearFeedback === 'resonote-notif-filter'
+            ? t('dev.cleared')
+            : t('dev.clear_notif_filter')}
+        </button>
+        <button
+          type="button"
+          onclick={() => clearStorage('resonote-notif-last-read')}
+          class="rounded-lg bg-surface-2 px-3 py-1.5 text-xs text-text-muted transition-colors hover:bg-surface-3 hover:text-text-secondary"
+        >
+          {clearFeedback === 'resonote-notif-last-read'
+            ? t('dev.cleared')
+            : t('dev.clear_notif_lastread')}
+        </button>
+        <button
+          type="button"
+          onclick={clearIndexedDB}
+          class="rounded-lg bg-surface-2 px-3 py-1.5 text-xs text-text-muted transition-colors hover:bg-surface-3 hover:text-text-secondary"
+        >
+          {clearFeedback === 'indexeddb' ? t('dev.cleared') : t('dev.clear_indexeddb')}
+        </button>
+      </div>
+      <div class="flex gap-2 border-t border-border-subtle pt-3">
+        <button
+          type="button"
+          onclick={clearAllData}
+          class="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/20"
+        >
+          {t('dev.clear_all')}
+        </button>
+        <button
+          type="button"
+          onclick={copyDebugInfo}
+          class="rounded-lg bg-surface-2 px-3 py-1.5 text-xs text-text-muted transition-colors hover:bg-surface-3 hover:text-text-secondary"
+        >
+          {debugCopied ? t('dev.debug_copied') : t('dev.debug_copy')}
+        </button>
+      </div>
     </div>
   </section>
 </div>
