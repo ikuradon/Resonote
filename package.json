@@ -60,6 +60,7 @@
     "@ikuradon/emoji-kitchen-mart": "^7.0.0",
     "@ikuradon/emoji-kitchen-mart-data": "^2.0.0",
     "@konemono/nostr-login": "^1.15.1",
+    "@noble/hashes": "^2.0.1",
     "@rx-nostr/crypto": "^0.0.0",
     "@scure/base": "^2.0.0",
     "idb": "^8.0.3",
