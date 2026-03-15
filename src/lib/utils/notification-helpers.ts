@@ -1,5 +1,31 @@
 import type { NotificationType } from '../stores/notifications.svelte.js';
 import { t, type TranslationKey } from '../i18n/t.js';
+import { isEmojiTag } from './emoji.js';
+
+export interface ReactionDisplay {
+  type: 'heart' | 'emoji_image' | 'text';
+  content: string;
+  url?: string;
+}
+
+/**
+ * Parse a reaction notification into a display format.
+ * "+" or "" → heart, :shortcode: with emoji tag → image, else → text
+ */
+export function parseReactionDisplay(content: string, tags: string[][]): ReactionDisplay {
+  if (content === '+' || content === '') {
+    return { type: 'heart', content: '❤️' };
+  }
+  // Check for custom emoji: content is :shortcode: and tags has matching emoji tag
+  if (content.startsWith(':') && content.endsWith(':') && content.length > 2) {
+    const shortcode = content.slice(1, -1);
+    const emojiTag = tags.find((t) => isEmojiTag(t) && t[1] === shortcode);
+    if (emojiTag) {
+      return { type: 'emoji_image', content, url: emojiTag[2] };
+    }
+  }
+  return { type: 'text', content };
+}
 
 export function typeIcon(type: NotificationType): string {
   switch (type) {

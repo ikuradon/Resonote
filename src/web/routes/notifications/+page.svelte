@@ -3,7 +3,12 @@
   import { getDisplayName, getProfile, fetchProfiles } from '$lib/stores/profile.svelte.js';
   import { getAuth } from '$lib/stores/auth.svelte.js';
   import { t, type TranslationKey } from '$lib/i18n/t.js';
-  import { typeIcon, typeLabel, relativeTime } from '$lib/utils/notification-helpers.js';
+  import {
+    typeIcon,
+    typeLabel,
+    relativeTime,
+    parseReactionDisplay
+  } from '$lib/utils/notification-helpers.js';
   import { getContentPathFromTags } from '$lib/nostr/content-link.js';
   import { cachedFetchById } from '$lib/nostr/cached-nostr.svelte.js';
   import { npubEncode } from 'nostr-tools/nip19';
@@ -37,30 +42,35 @@
   let lastReadTs = $state(notifs.lastReadTs);
   let targetTexts = $state<Map<string, string>>(new Map());
 
-  // Fetch target comment texts for visible notifications
+  // Fetch target comment texts for visible notifications.
+  // untrack(targetTexts) to avoid infinite loop: reading targetTexts.has()
+  // would make $effect depend on targetTexts, which we update inside.
   $effect(() => {
-    const targetIds = paginatedItems
-      .filter((n) => n.targetEventId && (n.type === 'reply' || n.type === 'reaction'))
-      .map((n) => n.targetEventId!)
-      .filter((id) => !targetTexts.has(id));
+    const items = paginatedItems; // track paginatedItems
+    untrack(() => {
+      const targetIds = items
+        .filter((n) => n.targetEventId && (n.type === 'reply' || n.type === 'reaction'))
+        .map((n) => n.targetEventId!)
+        .filter((id) => !targetTexts.has(id));
 
-    if (targetIds.length === 0) return;
+      if (targetIds.length === 0) return;
 
-    Promise.all(
-      targetIds.map(async (id) => {
-        const event = await cachedFetchById(id);
-        return { id, event };
-      })
-    ).then((results) => {
-      const newTexts = new Map(targetTexts);
-      for (const { id, event } of results) {
-        if (event) {
-          const preview =
-            event.content.length > 40 ? event.content.slice(0, 38) + '\u2026' : event.content;
-          newTexts.set(id, preview);
+      Promise.all(
+        targetIds.map(async (id) => {
+          const event = await cachedFetchById(id);
+          return { id, event };
+        })
+      ).then((results) => {
+        const newTexts = new Map(targetTexts);
+        for (const { id, event } of results) {
+          if (event) {
+            const preview =
+              event.content.length > 40 ? event.content.slice(0, 38) + '\u2026' : event.content;
+            newTexts.set(id, preview);
+          }
         }
-      }
-      targetTexts = newTexts;
+        targetTexts = newTexts;
+      });
     });
   });
 
@@ -172,7 +182,18 @@
                 >
                 <span class="text-text-secondary">{typeLabel(notif.type)}</span>
               </p>
-              {#if notif.content}
+              {#if notif.type === 'reaction' && notif.content}
+                {@const rx = parseReactionDisplay(notif.content, notif.tags)}
+                <p class="mt-1 flex items-center gap-1 text-xs text-text-muted">
+                  {#if rx.type === 'heart'}
+                    <span class="text-base">❤️</span>
+                  {:else if rx.type === 'emoji_image' && rx.url}
+                    <img src={rx.url} alt={rx.content} class="inline h-5 w-5" loading="lazy" />
+                  {:else}
+                    <span>{rx.content}</span>
+                  {/if}
+                </p>
+              {:else if notif.content && notif.type !== 'reaction'}
                 <p class="mt-1 text-xs text-text-muted">{contentPreview(notif.content)}</p>
               {/if}
               {#if notif.targetEventId && targetTexts.has(notif.targetEventId)}
