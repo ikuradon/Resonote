@@ -11,7 +11,7 @@ interface ParsedEpisode {
   guid: string;
   enclosureUrl: string;
   pubDate: string;
-  duration: string;
+  duration: number;
 }
 
 interface ParsedFeed {
@@ -129,7 +129,8 @@ async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed | null
     const itemTitle = extractTagContent(itemXml, 'title');
     const guid = extractTagContent(itemXml, 'guid');
     const pubDate = extractTagContent(itemXml, 'pubDate');
-    const duration = extractTagContent(itemXml, 'itunes:duration');
+    const durationRaw = extractTagContent(itemXml, 'itunes:duration');
+    const duration = parseDurationToSeconds(durationRaw);
 
     items.push({
       title: itemTitle,
@@ -147,6 +148,16 @@ async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed | null
     imageUrl,
     episodes: items
   };
+}
+
+/** Parse itunes:duration value ("HH:MM:SS", "MM:SS", or raw seconds) to seconds */
+function parseDurationToSeconds(raw: string): number {
+  if (!raw) return 0;
+  const parts = raw.split(':').map(Number);
+  if (parts.some(isNaN)) return 0;
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return parts[0] || 0;
 }
 
 function findRssLink(html: string, baseUrl: string): string | null {
@@ -280,7 +291,7 @@ async function handleAudioUrl(audioUrl: string, privkey: Uint8Array): Promise<Re
       guid: '',
       enclosureUrl: audioUrl,
       pubDate: '',
-      duration: ''
+      duration: 0
     },
     feed: null,
     signedEvents: [],
