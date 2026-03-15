@@ -10,6 +10,31 @@
 
   let open = $state(false);
   let containerEl: HTMLDivElement | undefined;
+  let targetTexts = $state<Map<string, string>>(new Map());
+
+  // Fetch target comment texts for visible notifications
+  $effect(() => {
+    const targetIds = latest5
+      .filter((n) => n.targetEventId && (n.type === 'reply' || n.type === 'reaction'))
+      .map((n) => n.targetEventId!)
+      .filter((id) => !targetTexts.has(id));
+
+    if (targetIds.length === 0) return;
+
+    import('../nostr/event-db.js').then(async ({ getEventsDB }) => {
+      const db = await getEventsDB();
+      const newTexts = new Map(targetTexts);
+      for (const id of targetIds) {
+        const event = await db.getById(id);
+        if (event) {
+          const preview =
+            event.content.length > 40 ? event.content.slice(0, 38) + '\u2026' : event.content;
+          newTexts.set(id, preview);
+        }
+      }
+      targetTexts = newTexts;
+    });
+  });
 
   // Close on outside click
   $effect(() => {
@@ -101,6 +126,13 @@
                       {contentPreview(notif.content)}
                     </p>
                   {/if}
+                  {#if notif.targetEventId && targetTexts.has(notif.targetEventId)}
+                    <p class="mt-0.5 truncate text-xs text-text-muted/70 italic">
+                      {t('notification.your_comment', {
+                        text: targetTexts.get(notif.targetEventId) ?? ''
+                      })}
+                    </p>
+                  {/if}
                 </div>
                 <span class="shrink-0 text-[10px] text-text-muted"
                   >{relativeTime(notif.createdAt)}</span
@@ -117,6 +149,13 @@
                   {#if notif.content}
                     <p class="mt-0.5 truncate text-xs text-text-muted">
                       {contentPreview(notif.content)}
+                    </p>
+                  {/if}
+                  {#if notif.targetEventId && targetTexts.has(notif.targetEventId)}
+                    <p class="mt-0.5 truncate text-xs text-text-muted/70 italic">
+                      {t('notification.your_comment', {
+                        text: targetTexts.get(notif.targetEventId) ?? ''
+                      })}
                     </p>
                   {/if}
                 </div>

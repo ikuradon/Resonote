@@ -124,6 +124,7 @@
   "notification.filter.reactions": "リアクション",
   "notification.filter.mentions": "メンション",
   "notification.filter.follows": "フォロー",
+  "notification.your_comment": "あなたのコメント: 「{text}」",
   "bookmark.add": "ブックマーク",
   "bookmark.remove": "ブックマーク解除",
   "bookmark.title": "ブックマーク",

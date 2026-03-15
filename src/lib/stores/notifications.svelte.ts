@@ -14,6 +14,8 @@ export interface Notification {
   content: string;
   createdAt: number;
   tags: string[][];
+  /** Event ID of the comment this notification targets (for reply/reaction) */
+  targetEventId?: string;
 }
 
 const LAST_READ_KEY = 'resonote-notif-last-read';
@@ -195,6 +197,7 @@ export async function subscribeNotifications(
     const type = classifyEvent(event, myPubkey, follows);
     if (!type || type === 'follow_comment') return;
 
+    const eTag = event.tags.find((t) => t[0] === 'e' && t[1]);
     addNotification(
       {
         id: event.id,
@@ -202,7 +205,8 @@ export async function subscribeNotifications(
         pubkey: event.pubkey,
         content: event.content,
         createdAt: event.created_at,
-        tags: event.tags
+        tags: event.tags,
+        targetEventId: eTag?.[1]
       },
       type
     );

@@ -34,6 +34,31 @@
   let remaining = $derived(Math.max(0, filteredItems.length - limit));
 
   let lastReadTs = $state(notifs.lastReadTs);
+  let targetTexts = $state<Map<string, string>>(new Map());
+
+  // Fetch target comment texts for visible notifications
+  $effect(() => {
+    const targetIds = paginatedItems
+      .filter((n) => n.targetEventId && (n.type === 'reply' || n.type === 'reaction'))
+      .map((n) => n.targetEventId!)
+      .filter((id) => !targetTexts.has(id));
+
+    if (targetIds.length === 0) return;
+
+    import('$lib/nostr/event-db.js').then(async ({ getEventsDB }) => {
+      const db = await getEventsDB();
+      const newTexts = new Map(targetTexts);
+      for (const id of targetIds) {
+        const event = await db.getById(id);
+        if (event) {
+          const preview =
+            event.content.length > 40 ? event.content.slice(0, 38) + '\u2026' : event.content;
+          newTexts.set(id, preview);
+        }
+      }
+      targetTexts = newTexts;
+    });
+  });
 
   function isUnread(createdAt: number): boolean {
     return createdAt > lastReadTs;
@@ -145,6 +170,13 @@
               </p>
               {#if notif.content}
                 <p class="mt-1 text-xs text-text-muted">{contentPreview(notif.content)}</p>
+              {/if}
+              {#if notif.targetEventId && targetTexts.has(notif.targetEventId)}
+                <p class="mt-0.5 truncate text-xs text-text-muted/70 italic">
+                  {t('notification.your_comment', {
+                    text: targetTexts.get(notif.targetEventId) ?? ''
+                  })}
+                </p>
               {/if}
               {#if path}
                 <a

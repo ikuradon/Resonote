@@ -206,6 +206,12 @@ export class EventsDB {
     return null;
   }
 
+  /** Get an event by its ID. */
+  async getById(id: string): Promise<NostrEvent | null> {
+    const result = await this.db.get(STORE_NAME, id);
+    return result ? toNostrEvent(result) : null;
+  }
+
   /** Delete events by their IDs. Silently ignores non-existent IDs. */
   async deleteByIds(ids: string[]): Promise<void> {
     if (ids.length === 0) return;

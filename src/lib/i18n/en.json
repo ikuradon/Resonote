@@ -124,6 +124,7 @@
   "notification.filter.reactions": "Reactions",
   "notification.filter.mentions": "Mentions",
   "notification.filter.follows": "Follows",
+  "notification.your_comment": "Your comment: \"{text}\"",
   "bookmark.add": "Bookmark",
   "bookmark.remove": "Remove bookmark",
   "bookmark.title": "Bookmarks",
