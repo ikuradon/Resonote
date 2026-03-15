@@ -1,5 +1,5 @@
 import { fromBase64url } from './url-utils.js';
-import { getSystemPubkey, resolveByApi } from './podcast-resolver.js';
+import { getSystemPubkey, resolveByApi, parseDTagEvent } from './podcast-resolver.js';
 
 export async function resolveEpisodeEnclosure(
   feedBase64: string,
@@ -49,9 +49,8 @@ async function queryNostrForEpisode(guid: string): Promise<string | null> {
     const packet = await firstValueFrom(event$).catch(() => null);
     if (!packet) return null;
 
-    // First r tag is typically the enclosure URL
-    const rTags = packet.event.tags.filter((t: string[]) => t[0] === 'r');
-    return rTags[0]?.[1] ?? null;
+    const result = parseDTagEvent({ kind: 39701, tags: packet.event.tags });
+    return result?.enclosureUrl ?? null;
   } catch {
     return null;
   }

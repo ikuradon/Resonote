@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { page } from '$app/state';
   import SpotifyEmbed from '$lib/components/SpotifyEmbed.svelte';
   import YouTubeEmbed from '$lib/components/YouTubeEmbed.svelte';
@@ -105,21 +106,24 @@
     }
   });
 
+  // Background guid resolution for audio direct URLs (untrack store to prevent re-runs)
   $effect(() => {
-    if (platform !== 'audio' || !store) return;
+    if (platform !== 'audio') return;
     const audioUrl = fromBase64url(contentIdParam);
     let cancelled = false;
 
     resolveByApi(audioUrl).then((data) => {
       if (cancelled) return;
-      if (data.episode?.guid) {
-        store?.addSubscription(`podcast:item:guid:${data.episode.guid}`);
-      }
-      if (data.signedEvents) {
-        for (const ev of data.signedEvents) {
-          publishSignedEvent(ev).catch(() => {});
+      untrack(() => {
+        if (data.episode?.guid) {
+          store?.addSubscription(`podcast:item:guid:${data.episode.guid}`);
         }
-      }
+        if (data.signedEvents) {
+          for (const ev of data.signedEvents) {
+            publishSignedEvent(ev).catch(() => {});
+          }
+        }
+      });
     });
 
     return () => {

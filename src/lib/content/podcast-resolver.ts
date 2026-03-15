@@ -1,22 +1,22 @@
 import { normalizeUrl } from './url-utils.js';
 
-let cachedPubkey: string | undefined;
+let pubkeyPromise: Promise<string> | undefined;
 
 /**
- * Fetch system pubkey from API (cached after first call).
+ * Fetch system pubkey from API (single-flight cached).
  * Returns empty string if not configured.
  */
-export async function getSystemPubkey(): Promise<string> {
-  if (cachedPubkey) return cachedPubkey;
-  try {
-    const res = await fetch('/api/system/pubkey');
-    if (!res.ok) return '';
-    const data = await res.json();
-    cachedPubkey = (data.pubkey as string) ?? '';
-    return cachedPubkey!;
-  } catch {
-    return '';
+export function getSystemPubkey(): Promise<string> {
+  if (!pubkeyPromise) {
+    pubkeyPromise = fetch('/api/system/pubkey')
+      .then((res) => (res.ok ? res.json() : { pubkey: '' }))
+      .then((data) => (data.pubkey as string) ?? '')
+      .catch(() => {
+        pubkeyPromise = undefined;
+        return '';
+      });
   }
+  return pubkeyPromise;
 }
 
 interface DTagResult {

@@ -1,4 +1,5 @@
 import { DEFAULT_RELAYS } from './relays.js';
+import type { PendingEvent } from './pending-publishes.js';
 import {
   addPendingPublish,
   getPendingPublishes,
@@ -9,21 +10,21 @@ import {
 export async function retryPendingPublishes(): Promise<void> {
   await cleanExpired();
   const pending = await getPendingPublishes();
-  for (const event of pending) {
-    try {
-      await publishSignedEvent(event as unknown as Record<string, unknown>);
+  await Promise.allSettled(
+    pending.map(async (event) => {
+      await publishSignedEvent(event);
       await removePendingPublish(event.id);
-    } catch {
-      // Leave in queue for next retry
-    }
-  }
+    })
+  );
 }
 
 /**
  * Publish a pre-signed Nostr event to relays.
  * Falls back to pending-publishes queue on failure.
  */
-export async function publishSignedEvent(event: Record<string, unknown>): Promise<void> {
+export async function publishSignedEvent(
+  event: PendingEvent | Record<string, unknown>
+): Promise<void> {
   try {
     const { Relay } = await import('nostr-tools/relay');
     await Promise.any(
