@@ -42,6 +42,12 @@
       platform: 'ニコニコ',
       label: 'レッツゴー！陰陽師',
       url: 'https://www.nicovideo.jp/watch/sm9'
+    },
+    {
+      icon: '🎙️',
+      platform: 'Podbean',
+      label: 'Magdo Mix',
+      url: 'https://www.podbean.com/media/share/pb-ar8ve-1920b14'
     }
   ];
 
