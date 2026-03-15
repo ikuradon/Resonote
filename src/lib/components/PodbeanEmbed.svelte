@@ -70,17 +70,19 @@
       sourceUrl = `https://${parts[0]}.podbean.com/e/${parts[1]}`;
     }
 
-    fetch(`https://api.podbean.com/v1/oembed?format=json&url=${encodeURIComponent(sourceUrl)}`)
+    fetch(`/api/podbean/resolve?url=${encodeURIComponent(sourceUrl)}`)
       .then((res) => {
-        if (!res.ok) throw new Error(`oEmbed ${res.status}`);
+        if (!res.ok) throw new Error(`resolve ${res.status}`);
         return res.json();
       })
       .then((data) => {
-        const match = (data.html as string)?.match(/src="([^"]+)"/);
-        if (match?.[1]) {
-          embedSrc = match[1];
+        const d = data as { embedSrc?: string; embedId?: string };
+        if (d.embedSrc) {
+          embedSrc = d.embedSrc;
+        } else if (d.embedId) {
+          embedSrc = `https://www.podbean.com/player-v2/?i=${d.embedId}`;
         } else {
-          throw new Error('No iframe src in oEmbed response');
+          throw new Error('No embed URL resolved');
         }
       })
       .catch((err) => {
