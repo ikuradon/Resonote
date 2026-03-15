@@ -7,6 +7,7 @@
     message: string;
     confirmLabel?: string;
     cancelLabel?: string;
+    variant?: 'danger' | 'default';
     onConfirm: () => void;
     onCancel: () => void;
   }
@@ -17,6 +18,7 @@
     message,
     confirmLabel = 'Delete',
     cancelLabel = 'Cancel',
+    variant = 'danger',
     onConfirm,
     onCancel
   }: Props = $props();
@@ -61,7 +63,8 @@
         <button
           type="button"
           onclick={onConfirm}
-          class="rounded-lg bg-error px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:brightness-110"
+          class="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:brightness-110
+            {variant === 'danger' ? 'bg-error' : 'bg-accent hover:bg-accent-hover'}"
         >
           {confirmLabel}
         </button>

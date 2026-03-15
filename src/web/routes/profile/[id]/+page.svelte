@@ -5,6 +5,8 @@
   import { formatNip05 } from '$lib/stores/profile-utils.js';
   import { getAuth } from '$lib/stores/auth.svelte.js';
   import { getFollows, followUser, unfollowUser } from '$lib/stores/follows.svelte.js';
+  import { muteUser, isMuted, hasNip44Support, getMuteList } from '$lib/stores/mute.svelte.js';
+  import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import { t } from '$lib/i18n/t.js';
   import { iTagToContentPath } from '$lib/nostr/content-link.js';
   import { npubEncode } from 'nostr-tools/nip19';
@@ -14,6 +16,7 @@
 
   const auth = getAuth();
   const follows = getFollows();
+  const muteList = getMuteList();
 
   let pubkey = $state<string | null>(null);
   let error = $state(false);
@@ -27,6 +30,12 @@
   let commentsUntil = $state<number | null>(null);
   let hasMore = $state(false);
   let followActing = $state(false);
+  let confirmAction = $state<{
+    title: string;
+    message: string;
+    variant: 'danger' | 'default';
+    action: () => Promise<void>;
+  } | null>(null);
 
   const COMMENTS_LIMIT = 50;
 
@@ -169,28 +178,62 @@
     loadComments(pubkey, commentsUntil);
   }
 
-  async function handleFollow() {
+  function confirmFollow() {
     if (!pubkey || followActing) return;
-    followActing = true;
-    try {
-      await followUser(pubkey);
-    } catch (err) {
-      log.error('Failed to follow', err);
-    } finally {
-      followActing = false;
-    }
+    const before = follows.follows.size;
+    confirmAction = {
+      title: t('confirm.follow'),
+      message: t('confirm.follow.detail', { before, after: before + 1 }),
+      variant: 'default',
+      action: async () => {
+        if (!pubkey) return;
+        followActing = true;
+        try {
+          await followUser(pubkey);
+        } catch (err) {
+          log.error('Failed to follow', err);
+        } finally {
+          followActing = false;
+        }
+      }
+    };
   }
 
-  async function handleUnfollow() {
+  function confirmUnfollow() {
     if (!pubkey || followActing) return;
-    followActing = true;
-    try {
-      await unfollowUser(pubkey);
-    } catch (err) {
-      log.error('Failed to unfollow', err);
-    } finally {
-      followActing = false;
-    }
+    const before = follows.follows.size;
+    confirmAction = {
+      title: t('confirm.unfollow'),
+      message: t('confirm.unfollow.detail', { before, after: before - 1 }),
+      variant: 'danger',
+      action: async () => {
+        if (!pubkey) return;
+        followActing = true;
+        try {
+          await unfollowUser(pubkey);
+        } catch (err) {
+          log.error('Failed to unfollow', err);
+        } finally {
+          followActing = false;
+        }
+      }
+    };
+  }
+
+  function confirmMuteUser(pk: string) {
+    const before = muteList.mutedPubkeys.size;
+    confirmAction = {
+      title: t('confirm.mute'),
+      message: t('confirm.mute.detail', { before, after: before + 1 }),
+      variant: 'danger',
+      action: async () => {
+        try {
+          await muteUser(pk);
+        } catch (err) {
+          log.error('Failed to mute', err);
+        }
+      }
+    };
   }
 
   let profile = $derived(pubkey ? getProfile(pubkey) : undefined);
@@ -304,9 +347,9 @@
         </div>
       {/if}
 
-      <!-- Follow/Unfollow button -->
+      <!-- Follow/Unfollow + Mute buttons -->
       {#if auth.loggedIn && !isOwnProfile}
-        <div class="mt-4">
+        <div class="mt-4 flex items-center gap-2">
           {#if followActing}
             <button
               type="button"
@@ -318,7 +361,7 @@
           {:else if isFollowing}
             <button
               type="button"
-              onclick={handleUnfollow}
+              onclick={confirmUnfollow}
               class="rounded-xl border border-border px-5 py-2 text-sm font-semibold text-text-secondary transition-colors hover:border-red-400 hover:text-red-400"
             >
               {t('profile.unfollow')}
@@ -326,10 +369,19 @@
           {:else}
             <button
               type="button"
-              onclick={handleFollow}
+              onclick={confirmFollow}
               class="rounded-xl bg-accent px-5 py-2 text-sm font-semibold text-surface-0 transition-colors hover:bg-accent-hover"
             >
               {t('profile.follow')}
+            </button>
+          {/if}
+          {#if hasNip44Support() && pubkey && !isMuted(pubkey)}
+            <button
+              type="button"
+              onclick={() => confirmMuteUser(pubkey!)}
+              class="rounded-xl border border-border px-5 py-2 text-sm font-semibold text-text-secondary transition-colors hover:border-red-400 hover:text-red-400"
+            >
+              {t('mute.user')}
             </button>
           {/if}
         </div>
@@ -399,4 +451,19 @@
       {/if}
     </div>
   </div>
+
+  <ConfirmDialog
+    open={confirmAction !== null}
+    title={confirmAction?.title ?? ''}
+    message={confirmAction?.message ?? ''}
+    variant={confirmAction?.variant ?? 'default'}
+    confirmLabel={t('confirm.ok')}
+    cancelLabel={t('confirm.cancel')}
+    onConfirm={async () => {
+      const action = confirmAction?.action;
+      confirmAction = null;
+      if (action) await action();
+    }}
+    onCancel={() => (confirmAction = null)}
+  />
 {/if}

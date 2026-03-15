@@ -21,9 +21,17 @@
   import { npubEncode } from 'nostr-tools/nip19';
   import { getNotifFilter, setNotifFilter } from '$lib/stores/notifications.svelte.js';
   import type { FollowFilter } from '$lib/stores/follows.svelte.js';
+  import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 
   const auth = getAuth();
   const muteList = getMuteList();
+
+  let confirmAction = $state<{
+    title: string;
+    message: string;
+    variant: 'danger' | 'default';
+    action: () => Promise<void>;
+  } | null>(null);
 
   // Relay entries being edited
   let entries = $state<RelayEntry[]>([]);
@@ -116,8 +124,40 @@
   function handleAddMuteWord() {
     const word = newMuteWord.trim();
     if (!word) return;
-    muteWord(word);
-    newMuteWord = '';
+    const before = muteList.mutedWords.length;
+    confirmAction = {
+      title: t('confirm.mute_word_add'),
+      message: t('confirm.mute_word_add.detail', { before, after: before + 1 }),
+      variant: 'default',
+      action: async () => {
+        await muteWord(word);
+        newMuteWord = '';
+      }
+    };
+  }
+
+  function confirmUnmuteUser(pk: string) {
+    const before = muteList.mutedPubkeys.size;
+    confirmAction = {
+      title: t('confirm.unmute'),
+      message: t('confirm.unmute.detail', { before, after: before - 1 }),
+      variant: 'default',
+      action: async () => {
+        await unmuteUser(pk);
+      }
+    };
+  }
+
+  function confirmUnmuteWord(word: string) {
+    const before = muteList.mutedWords.length;
+    confirmAction = {
+      title: t('confirm.mute_word_remove'),
+      message: t('confirm.mute_word_remove.detail', { before, after: before - 1 }),
+      variant: 'default',
+      action: async () => {
+        await unmuteWord(word);
+      }
+    };
   }
 
   function handleMuteWordKeydown(e: KeyboardEvent) {
@@ -475,7 +515,7 @@
             </a>
             <button
               type="button"
-              onclick={() => unmuteUser(pk)}
+              onclick={() => confirmUnmuteUser(pk)}
               disabled={!hasNip44Support()}
               class="rounded-lg px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:bg-surface-2 hover:text-text-secondary disabled:opacity-30"
             >
@@ -499,7 +539,7 @@
             <span class="flex-1 text-sm text-text-primary">{word}</span>
             <button
               type="button"
-              onclick={() => unmuteWord(word)}
+              onclick={() => confirmUnmuteWord(word)}
               disabled={!hasNip44Support()}
               class="rounded-lg px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:bg-surface-2 hover:text-text-secondary disabled:opacity-30"
               aria-label={t('mute.unmute')}
@@ -667,3 +707,18 @@
     </div>
   </section>
 </div>
+
+<ConfirmDialog
+  open={confirmAction !== null}
+  title={confirmAction?.title ?? ''}
+  message={confirmAction?.message ?? ''}
+  variant={confirmAction?.variant ?? 'default'}
+  confirmLabel={t('confirm.ok')}
+  cancelLabel={t('confirm.cancel')}
+  onConfirm={async () => {
+    const action = confirmAction?.action;
+    confirmAction = null;
+    if (action) await action();
+  }}
+  onCancel={() => (confirmAction = null)}
+/>

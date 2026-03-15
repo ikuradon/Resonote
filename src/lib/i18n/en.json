@@ -160,5 +160,19 @@
   "dev.sw_update": "Check for update",
   "dev.sw_updated": "Updated",
   "dev.debug_copy": "Copy debug info",
-  "dev.debug_copied": "Copied to clipboard"
+  "dev.debug_copied": "Copied to clipboard",
+  "confirm.follow": "Follow this user?",
+  "confirm.follow.detail": "Following: {before} → {after}",
+  "confirm.unfollow": "Unfollow this user?",
+  "confirm.unfollow.detail": "Following: {before} → {after}",
+  "confirm.mute": "Mute this user?",
+  "confirm.mute.detail": "Muted users: {before} → {after}",
+  "confirm.unmute": "Unmute this user?",
+  "confirm.unmute.detail": "Muted users: {before} → {after}",
+  "confirm.mute_word_add": "Add muted word?",
+  "confirm.mute_word_add.detail": "Muted words: {before} → {after}",
+  "confirm.mute_word_remove": "Remove muted word?",
+  "confirm.mute_word_remove.detail": "Muted words: {before} → {after}",
+  "confirm.ok": "Confirm",
+  "confirm.cancel": "Cancel"
 }

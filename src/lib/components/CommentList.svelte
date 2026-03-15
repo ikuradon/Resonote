@@ -20,7 +20,13 @@
     refreshFollows,
     type FollowFilter
   } from '../stores/follows.svelte.js';
-  import { isMuted, isWordMuted, muteUser, hasNip44Support } from '../stores/mute.svelte.js';
+  import {
+    isMuted,
+    isWordMuted,
+    muteUser,
+    hasNip44Support,
+    getMuteList
+  } from '../stores/mute.svelte.js';
   import type { ContentId, ContentProvider } from '../content/types.js';
   import { createLogger, shortHex } from '../utils/logger.js';
   import { parseEmojiContent } from '../utils/emoji.js';
@@ -132,8 +138,11 @@
     window.dispatchEvent(new CustomEvent('resonote:seek', { detail: { positionMs } }));
   }
 
+  const muteList = getMuteList();
+
   let acting = $state<string | null>(null);
   let deleteTarget = $state<Comment | null>(null);
+  let muteTarget = $state<{ pubkey: string } | null>(null);
 
   const popoverIds = new Map<string, string>();
   function getPopoverId(commentId: string): string {
@@ -454,7 +463,7 @@
         <button
           type="button"
           disabled={acting === comment.id}
-          onclick={() => muteUser(comment.pubkey)}
+          onclick={() => (muteTarget = { pubkey: comment.pubkey })}
           class="rounded-lg p-1.5 text-text-muted transition-colors hover:text-red-400"
           title={t('mute.user')}
         >
@@ -706,4 +715,21 @@
   cancelLabel={t('comment.delete.cancel')}
   onConfirm={confirmDelete}
   onCancel={() => (deleteTarget = null)}
+/>
+
+<ConfirmDialog
+  open={muteTarget !== null}
+  title={t('confirm.mute')}
+  message={t('confirm.mute.detail', {
+    before: muteList.mutedPubkeys.size,
+    after: muteList.mutedPubkeys.size + 1
+  })}
+  confirmLabel={t('confirm.ok')}
+  cancelLabel={t('confirm.cancel')}
+  onConfirm={async () => {
+    const pk = muteTarget?.pubkey;
+    muteTarget = null;
+    if (pk) await muteUser(pk);
+  }}
+  onCancel={() => (muteTarget = null)}
 />

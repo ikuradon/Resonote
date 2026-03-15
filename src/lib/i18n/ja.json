@@ -160,5 +160,19 @@
   "dev.sw_update": "更新を確認",
   "dev.sw_updated": "更新しました",
   "dev.debug_copy": "デバッグ情報をコピー",
-  "dev.debug_copied": "クリップボードにコピーしました"
+  "dev.debug_copied": "クリップボードにコピーしました",
+  "confirm.follow": "このユーザーをフォローしますか？",
+  "confirm.follow.detail": "フォロー数: {before} → {after}",
+  "confirm.unfollow": "このユーザーのフォローを解除しますか？",
+  "confirm.unfollow.detail": "フォロー数: {before} → {after}",
+  "confirm.mute": "このユーザーをミュートしますか？",
+  "confirm.mute.detail": "ミュート中のユーザー数: {before} → {after}",
+  "confirm.unmute": "このユーザーのミュートを解除しますか？",
+  "confirm.unmute.detail": "ミュート中のユーザー数: {before} → {after}",
+  "confirm.mute_word_add": "ミュートワードを追加しますか？",
+  "confirm.mute_word_add.detail": "ミュートワード数: {before} → {after}",
+  "confirm.mute_word_remove": "ミュートワードを削除しますか？",
+  "confirm.mute_word_remove.detail": "ミュートワード数: {before} → {after}",
+  "confirm.ok": "確認",
+  "confirm.cancel": "キャンセル"
 }
