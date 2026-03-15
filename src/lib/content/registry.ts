@@ -13,6 +13,7 @@ import { tver } from './tver.js';
 import { uNext } from './u-next.js';
 import { mixcloud } from './mixcloud.js';
 import { spreaker } from './spreaker.js';
+import { niconico } from './niconico.js';
 import { podcast } from './podcast.js';
 import { audio } from './audio.js';
 
@@ -31,6 +32,7 @@ const providers: ContentProvider[] = [
   uNext,
   mixcloud,
   spreaker,
+  niconico,
   podcast,
   audio
 ];

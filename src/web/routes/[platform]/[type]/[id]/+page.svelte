@@ -7,6 +7,7 @@
   import VimeoEmbed from '$lib/components/VimeoEmbed.svelte';
   import MixcloudEmbed from '$lib/components/MixcloudEmbed.svelte';
   import SpreakerEmbed from '$lib/components/SpreakerEmbed.svelte';
+  import NiconicoEmbed from '$lib/components/NiconicoEmbed.svelte';
   import AudioEmbed from '$lib/components/AudioEmbed.svelte';
   import PodcastEpisodeList from '$lib/components/PodcastEpisodeList.svelte';
   import CommentList from '$lib/components/CommentList.svelte';
@@ -246,6 +247,8 @@
             <MixcloudEmbed {contentId} />
           {:else if showPlayer && platform === 'spreaker'}
             <SpreakerEmbed {contentId} />
+          {:else if showPlayer && platform === 'niconico'}
+            <NiconicoEmbed {contentId} />
           {/if}
 
           {#if showInstallPrompt}
