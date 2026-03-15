@@ -21,9 +21,6 @@ importers:
       '@konemono/nostr-login':
         specifier: ^1.15.1
         version: 1.15.1(typescript@5.9.3)
-      '@noble/hashes':
-        specifier: ^2.0.1
-        version: 2.0.1
       '@rx-nostr/crypto':
         specifier: ^0.0.0
         version: 0.0.0(rx-nostr@3.6.2)

@@ -1,5 +1,5 @@
 import { finalizeEvent } from 'nostr-tools/pure';
-import { hexToBytes } from '@noble/hashes/utils';
+import { hexToBytes } from 'nostr-tools/utils';
 
 interface Env {
   SYSTEM_NOSTR_PRIVKEY: string;
