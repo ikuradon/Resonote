@@ -151,13 +151,20 @@ function addNotification(notif: Notification, type: NotificationType): void {
   log.debug('Notification added', { id: shortHex(notif.id), type: notif.type });
 }
 
+/** Unsubscribe rx-nostr subscriptions without clearing notification data */
+function destroySubscriptions(): void {
+  for (const sub of subscriptions) sub.unsubscribe();
+  subscriptions = [];
+}
+
 export async function subscribeNotifications(
   myPubkey: string,
   follows: Set<string>
 ): Promise<void> {
-  // Clean up any existing subscriptions before starting new ones
-  destroyNotifications();
-  loading = true;
+  // Only destroy subscriptions, keep existing data (avoids flash on re-subscribe
+  // when follows set changes after login)
+  destroySubscriptions();
+  loading = allItems.length === 0;
   myPubkeyForFilter = myPubkey;
 
   const [{ merge }, rxNostrMod, { getRxNostr }] = await Promise.all([
@@ -176,7 +183,7 @@ export async function subscribeNotifications(
   // --- Replies + Reactions + Mentions (kind:1111, 7 tagged with myPubkey) ---
   const notifBackward = createRxBackwardReq();
   const notifForward = createRxForwardReq();
-  const notifFilter = { kinds: [COMMENT_KIND, REACTION_KIND], '#p': [myPubkey], since };
+  const mentionFilter = { kinds: [COMMENT_KIND, REACTION_KIND], '#p': [myPubkey], since };
 
   const notifSub = merge(
     rxNostr.use(notifBackward).pipe(uniq()),
@@ -199,9 +206,9 @@ export async function subscribeNotifications(
     );
   });
 
-  notifBackward.emit(notifFilter);
+  notifBackward.emit(mentionFilter);
   notifBackward.over();
-  notifForward.emit(notifFilter);
+  notifForward.emit(mentionFilter);
 
   subscriptions.push(notifSub);
 
@@ -259,8 +266,7 @@ export async function subscribeNotifications(
 
 export function destroyNotifications(): void {
   log.info('Destroying notification subscriptions');
-  for (const sub of subscriptions) sub.unsubscribe();
-  subscriptions = [];
+  destroySubscriptions();
   allItems = [];
   notifIds = new Set();
   loading = false;
