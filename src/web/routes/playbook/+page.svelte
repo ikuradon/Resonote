@@ -51,7 +51,7 @@
   // --- Player Integration Test ---
   const player = getPlayer();
 
-  let seekSec = $state(0);
+  let seekValues = $state<Record<string, number>>({});
 
   function formatTime(ms: number): string {
     const totalSec = Math.floor(ms / 1000);
@@ -656,16 +656,20 @@
       <div class="rounded-xl border border-border-subtle bg-surface-1 p-5">
         <div class="mb-3 flex items-center justify-between">
           <h3 class="text-xs font-semibold tracking-wide text-text-secondary uppercase">{name}</h3>
-          <div class="flex items-center gap-2 font-mono text-xs text-text-muted">
-            <span>{formatTime(player.position)} / {formatTime(player.duration)}</span>
-            <span
-              class="rounded px-1.5 py-0.5 {player.isPaused
-                ? 'bg-zinc-700 text-zinc-400'
-                : 'bg-green-900 text-green-400'}"
-            >
-              {player.isPaused ? 'PAUSED' : 'PLAYING'}
-            </span>
-          </div>
+          {#if player.contentId?.platform === contentId.platform}
+            <div class="flex items-center gap-2 font-mono text-xs text-text-muted">
+              <span>{formatTime(player.position)} / {formatTime(player.duration)}</span>
+              <span
+                class="rounded px-1.5 py-0.5 {player.isPaused
+                  ? 'bg-zinc-700 text-zinc-400'
+                  : 'bg-green-900 text-green-400'}"
+              >
+                {player.isPaused ? 'PAUSED' : 'PLAYING'}
+              </span>
+            </div>
+          {:else}
+            <span class="font-mono text-xs text-text-muted">--:-- / --:--</span>
+          {/if}
         </div>
 
         {#if contentId.platform === 'youtube'}
@@ -683,13 +687,16 @@
         <div class="mt-3 flex items-center gap-2">
           <input
             type="number"
-            bind:value={seekSec}
+            value={seekValues[contentId.platform] ?? 0}
+            oninput={(e) => {
+              seekValues[contentId.platform] = Number((e.target as HTMLInputElement).value);
+            }}
             min="0"
             placeholder="sec"
             class="w-20 rounded-lg border border-border bg-surface-2 px-2 py-1 text-xs text-text-primary"
           />
           <button
-            onclick={() => requestSeek(seekSec * 1000)}
+            onclick={() => requestSeek((seekValues[contentId.platform] ?? 0) * 1000)}
             class="rounded-lg bg-accent px-3 py-1 text-xs font-semibold text-surface-0 hover:bg-accent-hover"
           >
             Seek
