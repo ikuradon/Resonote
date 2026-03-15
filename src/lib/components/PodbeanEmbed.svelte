@@ -101,44 +101,55 @@
     let cachedDuration = 0;
     let cachedPaused = true;
 
-    loadPbApi()
-      .then(() => {
-        if (cancelled || !iframeEl) return;
+    // Wait for both iframe load and API script
+    const initWidget = () => {
+      loadPbApi()
+        .then(() => {
+          if (cancelled || !iframeEl) return;
 
-        // eslint-disable-next-line no-undef, @typescript-eslint/no-explicit-any
-        const pb = new (window as any).PB(iframeEl) as PB;
-        widget = pb;
+          // eslint-disable-next-line no-undef, @typescript-eslint/no-explicit-any
+          const pb = new (window as any).PB(iframeEl) as PB;
+          widget = pb;
 
-        pb.bind('PB.Widget.Events.READY', () => {
-          if (cancelled) return;
-          setContent(contentId);
-          ready = true;
-          log.info('Podbean widget ready');
-          pb.getDuration((d: number) => {
-            cachedDuration = d;
+          pb.bind('PB.Widget.Events.READY', () => {
+            if (cancelled) return;
+            setContent(contentId);
+            ready = true;
+            log.info('Podbean widget ready');
+            pb.getDuration((d: number) => {
+              cachedDuration = d;
+            });
           });
-        });
 
-        pb.bind('PB.Widget.Events.PLAY', () => {
-          cachedPaused = false;
-        });
+          pb.bind('PB.Widget.Events.PLAY', () => {
+            cachedPaused = false;
+          });
 
-        pb.bind('PB.Widget.Events.PAUSE', () => {
-          cachedPaused = true;
-        });
+          pb.bind('PB.Widget.Events.PAUSE', () => {
+            cachedPaused = true;
+          });
 
-        pb.bind('PB.Widget.Events.PLAY_PROGRESS', (data?: unknown) => {
-          const d = data as { currentPosition: number };
-          updatePlayback(d.currentPosition * 1000, cachedDuration * 1000, cachedPaused);
+          pb.bind('PB.Widget.Events.PLAY_PROGRESS', (data?: unknown) => {
+            const d = data as { currentPosition: number };
+            updatePlayback(d.currentPosition * 1000, cachedDuration * 1000, cachedPaused);
+          });
+        })
+        .catch((err) => {
+          log.error('Failed to initialize Podbean widget', err);
+          error = true;
         });
-      })
-      .catch((err) => {
-        log.error('Failed to initialize Podbean widget', err);
-        error = true;
-      });
+    };
+
+    // If iframe is already loaded, init immediately; otherwise wait for load event
+    if (iframeEl.contentDocument?.readyState === 'complete') {
+      initWidget();
+    } else {
+      iframeEl.addEventListener('load', initWidget, { once: true });
+    }
 
     return () => {
       cancelled = true;
+      iframeEl?.removeEventListener('load', initWidget);
       window.removeEventListener('resonote:seek', handleSeek);
       if (widget) {
         widget.unbind('PB.Widget.Events.READY');
@@ -159,6 +170,8 @@
   {#if embedSrc}
     <iframe
       bind:this={iframeEl}
+      id="pb-player"
+      data-name="pb-iframe-player"
       src={embedSrc}
       width="100%"
       height="150"
