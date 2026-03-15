@@ -6,6 +6,8 @@
   import VimeoEmbed from '$lib/components/VimeoEmbed.svelte';
   import MixcloudEmbed from '$lib/components/MixcloudEmbed.svelte';
   import SpreakerEmbed from '$lib/components/SpreakerEmbed.svelte';
+  import AudioEmbed from '$lib/components/AudioEmbed.svelte';
+  import PodcastEpisodeList from '$lib/components/PodcastEpisodeList.svelte';
   import CommentList from '$lib/components/CommentList.svelte';
   import CommentForm from '$lib/components/CommentForm.svelte';
   import ShareButton from '$lib/components/ShareButton.svelte';
@@ -56,7 +58,7 @@
   let store: ReturnType<typeof createCommentsStore> | undefined = $state();
 
   $effect(() => {
-    if (!isValid || !provider || isCollection) return;
+    if (!isValid || !provider || isCollection || contentType === 'feed') return;
 
     const s = createCommentsStore(contentId, provider);
     s.subscribe();
@@ -137,7 +139,11 @@
         <div
           class="lg:sticky lg:top-[var(--header-height)] lg:max-h-[calc(100vh-var(--header-height)-2rem)] lg:overflow-y-auto lg:scrollbar-hide"
         >
-          {#if showPlayer && platform === 'spotify'}
+          {#if platform === 'podcast' && contentType === 'feed'}
+            <PodcastEpisodeList {contentId} />
+          {:else if platform === 'audio' || (platform === 'podcast' && contentType === 'episode')}
+            <AudioEmbed {contentId} />
+          {:else if showPlayer && platform === 'spotify'}
             <SpotifyEmbed {contentId} />
           {:else if showPlayer && platform === 'youtube'}
             <YouTubeEmbed {contentId} />
