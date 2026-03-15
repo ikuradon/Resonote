@@ -98,6 +98,12 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
   // NIP-09 pubkey verification: maps event ID → pubkey
   const eventPubkeys = new Map<string, string>();
 
+  // Shared refs for addSubscription (populated by subscribe())
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let rxNostrRef: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let eventsDBRef: any;
+
   // Reconciliation cleanup handles
   let reconcileSub: { unsubscribe: () => void } | undefined;
   let reconcileTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -195,6 +201,8 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     const { createRxBackwardReq, createRxForwardReq, uniq } = rxNostrMod;
     const rxNostr = await getRxNostr();
     const eventsDB = await getEventsDB();
+    rxNostrRef = rxNostr;
+    eventsDBRef = eventsDB;
     const [idValue] = provider.toNostrTag(contentId);
     const tagQuery = `I:${idValue}`;
 
@@ -424,6 +432,93 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     subscriptions = [commentSub, reactionSub, deletionSub];
   }
 
+  async function addSubscription(idValue: string): Promise<void> {
+    if (!rxNostrRef || !eventsDBRef) return;
+
+    const [{ merge }, { createRxBackwardReq, createRxForwardReq, uniq }] = await Promise.all([
+      import('rxjs'),
+      import('rx-nostr')
+    ]);
+
+    // DB cache restore for additional tag
+    const tagQuery = `I:${idValue}`;
+    const cachedEvents = await eventsDBRef.getByTagValue(tagQuery);
+    const newComments: Comment[] = [];
+    for (const ev of cachedEvents) {
+      if (ev.kind === 1111 && !commentIds.has(ev.id) && !deletedIds.has(ev.id)) {
+        commentIds.add(ev.id);
+        eventPubkeys.set(ev.id, ev.pubkey);
+        newComments.push(buildCommentFromEvent(ev));
+      }
+      if (ev.kind === 7 && !reactionIds.has(ev.id) && !deletedIds.has(ev.id)) {
+        const reaction = buildReactionFromEvent(ev);
+        if (reaction) {
+          addReaction(reaction);
+          eventPubkeys.set(ev.id, ev.pubkey);
+        }
+      }
+    }
+    if (newComments.length > 0) {
+      commentsRaw = [...commentsRaw, ...newComments];
+    }
+
+    // Comment subscription (backward + forward)
+    const commentBackward = createRxBackwardReq();
+    const commentForward = createRxForwardReq();
+
+    const commentSub = merge(
+      rxNostrRef.use(commentBackward).pipe(uniq()),
+      rxNostrRef.use(commentForward).pipe(uniq())
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ).subscribe((rawPacket: any) => {
+      const packet = rawPacket as {
+        event: {
+          id: string;
+          pubkey: string;
+          content: string;
+          created_at: number;
+          tags: string[][];
+          kind: number;
+        };
+      };
+      if (commentIds.has(packet.event.id)) return;
+      eventsDBRef?.put(packet.event);
+      commentIds.add(packet.event.id);
+      eventPubkeys.set(packet.event.id, packet.event.pubkey);
+      commentsRaw = [...commentsRaw, buildCommentFromEvent(packet.event)];
+    });
+
+    commentBackward.emit({ kinds: [1111], '#I': [idValue] });
+    commentBackward.over();
+    commentForward.emit({ kinds: [1111], '#I': [idValue] });
+
+    // Reaction subscription (backward + forward)
+    const reactionBackward = createRxBackwardReq();
+    const reactionForward = createRxForwardReq();
+
+    const reactionSub = merge(
+      rxNostrRef.use(reactionBackward).pipe(uniq()),
+      rxNostrRef.use(reactionForward).pipe(uniq())
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ).subscribe((rawPacket: any) => {
+      const packet = rawPacket as {
+        event: { id: string; pubkey: string; content: string; tags: string[][] };
+      };
+      eventsDBRef?.put(packet.event);
+      const reaction = buildReactionFromEvent(packet.event);
+      if (reaction) {
+        addReaction(reaction);
+        eventPubkeys.set(packet.event.id, packet.event.pubkey);
+      }
+    });
+
+    reactionBackward.emit({ kinds: [7], '#I': [idValue] });
+    reactionBackward.over();
+    reactionForward.emit({ kinds: [7], '#I': [idValue] });
+
+    subscriptions.push(commentSub, reactionSub);
+  }
+
   function destroy() {
     log.info('Destroying comment subscriptions');
     destroyed = true;
@@ -458,6 +553,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       return deletedIds;
     },
     subscribe,
+    addSubscription,
     destroy
   };
 }

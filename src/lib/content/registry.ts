@@ -13,6 +13,8 @@ import { tver } from './tver.js';
 import { uNext } from './u-next.js';
 import { mixcloud } from './mixcloud.js';
 import { spreaker } from './spreaker.js';
+import { podcast } from './podcast.js';
+import { audio } from './audio.js';
 
 const providers: ContentProvider[] = [
   spotify,
@@ -28,7 +30,9 @@ const providers: ContentProvider[] = [
   tver,
   uNext,
   mixcloud,
-  spreaker
+  spreaker,
+  podcast,
+  audio
 ];
 
 const byPlatform = new Map<string, ContentProvider>(providers.map((p) => [p.platform, p]));
