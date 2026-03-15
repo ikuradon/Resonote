@@ -7,6 +7,7 @@
   import { getFollows, followUser, unfollowUser } from '$lib/stores/follows.svelte.js';
   import { t } from '$lib/i18n/t.js';
   import { iTagToContentPath } from '$lib/nostr/content-link.js';
+  import { npubEncode } from 'nostr-tools/nip19';
   import { createLogger } from '$lib/utils/logger.js';
 
   const log = createLogger('ProfilePage');
@@ -17,6 +18,8 @@
   let pubkey = $state<string | null>(null);
   let error = $state(false);
   let followsCount = $state<number | null>(null);
+  let followsPubkeys = $state<string[]>([]);
+  let showFollowsList = $state(false);
   let comments = $state<{ id: string; content: string; createdAt: number; iTag: string | null }[]>(
     []
   );
@@ -51,6 +54,8 @@
   $effect(() => {
     if (!pubkey) return;
     followsCount = null;
+    followsPubkeys = [];
+    showFollowsList = false;
     fetchFollowsCount(pubkey);
   });
 
@@ -81,9 +86,14 @@
         complete: () => {
           sub.unsubscribe();
           if (latestEvent) {
-            followsCount = latestEvent.tags.filter((tag) => tag[0] === 'p' && tag[1]).length;
+            const pks = latestEvent.tags
+              .filter((tag) => tag[0] === 'p' && tag[1])
+              .map((tag) => tag[1]);
+            followsCount = pks.length;
+            followsPubkeys = pks;
           } else {
             followsCount = 0;
+            followsPubkeys = [];
           }
         },
         error: () => {
@@ -243,12 +253,56 @@
       <!-- Stats row -->
       <div class="mt-4 flex items-center gap-6">
         {#if followsCount !== null}
-          <div class="text-sm">
+          <button
+            type="button"
+            onclick={() => {
+              if (followsPubkeys.length > 0) {
+                showFollowsList = !showFollowsList;
+                if (showFollowsList) {
+                  import('$lib/stores/profile.svelte.js').then(({ fetchProfiles }) =>
+                    fetchProfiles(followsPubkeys.slice(0, 50))
+                  );
+                }
+              }
+            }}
+            class="text-sm transition-opacity hover:opacity-80"
+            disabled={followsCount === 0}
+          >
             <span class="font-semibold text-text-primary">{followsCount}</span>
             <span class="text-text-muted">{t('profile.follows_count')}</span>
-          </div>
+          </button>
         {/if}
       </div>
+
+      <!-- Follows list (expandable) -->
+      {#if showFollowsList && followsPubkeys.length > 0}
+        <div
+          class="mt-3 max-h-64 space-y-1 overflow-y-auto rounded-xl border border-border-subtle bg-surface-0 p-3"
+        >
+          {#each followsPubkeys as pk (pk)}
+            {@const prof = getProfile(pk)}
+            <a
+              href="/profile/{npubEncode(pk)}"
+              class="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface-1"
+            >
+              {#if prof?.picture}
+                <img
+                  src={prof.picture}
+                  alt=""
+                  class="h-6 w-6 rounded-full object-cover ring-1 ring-border"
+                />
+              {:else}
+                <div
+                  class="flex h-6 w-6 items-center justify-center rounded-full bg-surface-3 text-xs text-text-muted"
+                >
+                  ?
+                </div>
+              {/if}
+              <span class="truncate text-sm text-text-primary">{getDisplayName(pk)}</span>
+            </a>
+          {/each}
+        </div>
+      {/if}
 
       <!-- Follow/Unfollow button -->
       {#if auth.loggedIn && !isOwnProfile}
