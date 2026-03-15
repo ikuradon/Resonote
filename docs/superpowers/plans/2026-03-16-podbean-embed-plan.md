@@ -231,8 +231,7 @@ PB Widget API は SoundCloud Widget API と非常に似たパターン。
 - [ ] **Step 1: Create embed component**
 
 Key points:
-- `embedUrl` が null の場合（チャンネル slug ID）は API 経由で embed ID を解決
-- API: `GET /api/podbean/resolve?url={channelUrl}` → `{ embedId: "pb-xxx-xxx" }`
+- contentId.id が `pb-` で始まらない場合（チャンネル slug）→ API で embed ID 解決後 `/podbean/episode/{pbId}` にリダイレクト（コメント ID 統一のため）
 - `PB` コンストラクタで iframe を制御
 - Script: `https://pbcdn1.podbean.com/fs1/player/api.js`
 - `PB.Widget.Events.READY` → `setContent(contentId)`
@@ -241,6 +240,18 @@ Key points:
 - `resonote:seek` → `widget.seekTo(posMs)` (ms)
 - ブランドローディング画面: Podbean グリーン (#3db56a)
 - 両キー対応 seek (`detail.position ?? detail.positionMs`)
+- API 解決失敗時はエラー表示
+
+**チャンネル URL リダイレクトフロー:**
+```
+/podbean/episode/jayburkeshow/episode-slug
+  → PodbeanEmbed 検出: id が pb- でない
+  → API: /api/podbean/resolve?url=https://jayburkeshow.podbean.com/e/episode-slug
+  → { embedId: "pb-8di7w-16fabe1" }
+  → goto('/podbean/episode/pb-8di7w-16fabe1')
+  → 以降は通常の pb- ID フロー
+```
+これにより全コメントが `podbean:episode:pb-xxx` の統一タグに紐付く。
 
 - [ ] **Step 2: Run lint, check, commit**
 
