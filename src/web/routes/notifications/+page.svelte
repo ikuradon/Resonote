@@ -5,6 +5,7 @@
   import { t, type TranslationKey } from '$lib/i18n/t.js';
   import { typeIcon, typeLabel, relativeTime } from '$lib/utils/notification-helpers.js';
   import { getContentPathFromTags } from '$lib/nostr/content-link.js';
+  import { fetchEventContent } from '$lib/nostr/fetch-event.js';
   import { npubEncode } from 'nostr-tools/nip19';
   import { untrack } from 'svelte';
 
@@ -45,11 +46,14 @@
 
     if (targetIds.length === 0) return;
 
-    import('$lib/nostr/event-db.js').then(async ({ getEventsDB }) => {
-      const db = await getEventsDB();
+    Promise.all(
+      targetIds.map(async (id) => {
+        const event = await fetchEventContent(id);
+        return { id, event };
+      })
+    ).then((results) => {
       const newTexts = new Map(targetTexts);
-      for (const id of targetIds) {
-        const event = await db.getById(id);
+      for (const { id, event } of results) {
         if (event) {
           const preview =
             event.content.length > 40 ? event.content.slice(0, 38) + '\u2026' : event.content;

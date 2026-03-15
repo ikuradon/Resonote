@@ -4,6 +4,7 @@
   import { t } from '../i18n/t.js';
   import { typeIcon, typeLabel, relativeTime } from '../utils/notification-helpers.js';
   import { getContentPathFromTags } from '../nostr/content-link.js';
+  import { fetchEventContent } from '../nostr/fetch-event.js';
   import { untrack } from 'svelte';
 
   const notifs = getNotifications();
@@ -21,11 +22,14 @@
 
     if (targetIds.length === 0) return;
 
-    import('../nostr/event-db.js').then(async ({ getEventsDB }) => {
-      const db = await getEventsDB();
+    Promise.all(
+      targetIds.map(async (id) => {
+        const event = await fetchEventContent(id);
+        return { id, event };
+      })
+    ).then((results) => {
       const newTexts = new Map(targetTexts);
-      for (const id of targetIds) {
-        const event = await db.getById(id);
+      for (const { id, event } of results) {
         if (event) {
           const preview =
             event.content.length > 40 ? event.content.slice(0, 38) + '\u2026' : event.content;
