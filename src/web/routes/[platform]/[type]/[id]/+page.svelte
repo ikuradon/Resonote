@@ -5,6 +5,7 @@
   import SoundCloudEmbed from '$lib/components/SoundCloudEmbed.svelte';
   import VimeoEmbed from '$lib/components/VimeoEmbed.svelte';
   import MixcloudEmbed from '$lib/components/MixcloudEmbed.svelte';
+  import SpreakerEmbed from '$lib/components/SpreakerEmbed.svelte';
   import CommentList from '$lib/components/CommentList.svelte';
   import CommentForm from '$lib/components/CommentForm.svelte';
   import ShareButton from '$lib/components/ShareButton.svelte';
@@ -146,6 +147,8 @@
             <VimeoEmbed {contentId} />
           {:else if showPlayer && platform === 'mixcloud'}
             <MixcloudEmbed {contentId} />
+          {:else if showPlayer && platform === 'spreaker'}
+            <SpreakerEmbed {contentId} />
           {/if}
 
           {#if showInstallPrompt}

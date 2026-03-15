@@ -145,6 +145,22 @@ declare namespace Mixcloud {
   }
 }
 
+declare namespace SP {
+  function getWidget(iframe: HTMLIFrameElement | string): SpreakerWidget;
+
+  interface SpreakerWidget {
+    play(): boolean;
+    pause(): boolean;
+    seek(milliseconds: number): boolean;
+    load(episodeId: string): boolean;
+    playPrev(): boolean;
+    playNext(): boolean;
+    getPosition(callback: (position: number, progress: number, duration: number) => void): boolean;
+    getDuration(callback: (duration: number) => void): boolean;
+    getState(callback: (episode: unknown, state: string, isPlaying: boolean) => void): boolean;
+  }
+}
+
 declare namespace YT {
   const PlayerState: {
     UNSTARTED: -1;

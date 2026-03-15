@@ -12,6 +12,7 @@ import { abema } from './abema.js';
 import { tver } from './tver.js';
 import { uNext } from './u-next.js';
 import { mixcloud } from './mixcloud.js';
+import { spreaker } from './spreaker.js';
 
 const providers: ContentProvider[] = [
   spotify,
@@ -26,7 +27,8 @@ const providers: ContentProvider[] = [
   abema,
   tver,
   uNext,
-  mixcloud
+  mixcloud,
+  spreaker
 ];
 
 const byPlatform = new Map<string, ContentProvider>(providers.map((p) => [p.platform, p]));
