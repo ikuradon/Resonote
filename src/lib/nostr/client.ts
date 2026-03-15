@@ -65,6 +65,42 @@ export async function castSigned(
   });
 }
 
+/**
+ * Fetch the latest event matching a kind and author from relays.
+ * Returns null if no event found.
+ */
+export async function fetchLatestEvent(
+  pubkey: string,
+  kind: number
+): Promise<{ tags: string[][]; content: string; created_at: number } | null> {
+  const [{ createRxBackwardReq }] = await Promise.all([import('rx-nostr')]);
+  const rxNostr = await getRxNostr();
+
+  return new Promise((resolve) => {
+    const req = createRxBackwardReq();
+    let latest: { tags: string[][]; content: string; created_at: number } | null = null;
+
+    const sub = rxNostr.use(req).subscribe({
+      next: (packet) => {
+        if (!latest || packet.event.created_at > latest.created_at) {
+          latest = packet.event;
+        }
+      },
+      complete: () => {
+        sub.unsubscribe();
+        resolve(latest);
+      },
+      error: () => {
+        sub.unsubscribe();
+        resolve(latest);
+      }
+    });
+
+    req.emit({ kinds: [kind], authors: [pubkey], limit: 1 });
+    req.over();
+  });
+}
+
 export function disposeRxNostr(): void {
   log.info('Disposing RxNostr');
   rxNostr?.dispose();

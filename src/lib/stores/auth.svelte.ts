@@ -16,32 +16,52 @@ function loadNostrLogin() {
 async function onLogin(pubkey: string) {
   log.info('Login', { pubkey: shortHex(pubkey) });
   state.pubkey = pubkey;
-  const [{ applyUserRelays }, { loadFollows }, { loadCustomEmojis }] = await Promise.all([
+  const [
+    { applyUserRelays },
+    { loadFollows },
+    { loadCustomEmojis },
+    { loadBookmarks },
+    { loadMuteList }
+  ] = await Promise.all([
     import('../nostr/user-relays.js'),
     import('./follows.svelte.js'),
-    import('./emoji-sets.svelte.js')
+    import('./emoji-sets.svelte.js'),
+    import('./bookmarks.svelte.js'),
+    import('./mute.svelte.js')
   ]);
   const relayUrls = await applyUserRelays(pubkey);
   const { refreshRelayList } = await import('./relays.svelte.js');
   refreshRelayList(relayUrls);
   loadFollows(pubkey).catch((err) => log.error('Failed to load follows', err));
   loadCustomEmojis(pubkey).catch((err) => log.error('Failed to load custom emojis', err));
+  loadBookmarks(pubkey).catch((err) => log.error('Failed to load bookmarks', err));
+  loadMuteList(pubkey).catch((err) => log.error('Failed to load mute list', err));
 }
 
 async function onLogout() {
   log.info('Logout');
   state.pubkey = null;
-  const [{ resetToDefaultRelays }, { clearFollows }, { clearCustomEmojis }, { clearProfiles }] =
-    await Promise.all([
-      import('../nostr/user-relays.js'),
-      import('./follows.svelte.js'),
-      import('./emoji-sets.svelte.js'),
-      import('./profile.svelte.js')
-    ]);
+  const [
+    { resetToDefaultRelays },
+    { clearFollows },
+    { clearCustomEmojis },
+    { clearProfiles },
+    { clearBookmarks },
+    { clearMuteList }
+  ] = await Promise.all([
+    import('../nostr/user-relays.js'),
+    import('./follows.svelte.js'),
+    import('./emoji-sets.svelte.js'),
+    import('./profile.svelte.js'),
+    import('./bookmarks.svelte.js'),
+    import('./mute.svelte.js')
+  ]);
   await resetToDefaultRelays();
   clearFollows();
   clearCustomEmojis();
   clearProfiles();
+  clearBookmarks();
+  clearMuteList();
   const { refreshRelayList } = await import('./relays.svelte.js');
   const { DEFAULT_RELAYS } = await import('../nostr/relays.js');
   refreshRelayList(DEFAULT_RELAYS);

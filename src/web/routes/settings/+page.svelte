@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { t } from '$lib/i18n/t.js';
+  import { t, type TranslationKey } from '$lib/i18n/t.js';
   import { getAuth } from '$lib/stores/auth.svelte.js';
   import {
     fetchRelayList,
@@ -11,8 +11,20 @@
     type RelayEntry,
     type ConnectionState
   } from '$lib/stores/relays.svelte.js';
+  import {
+    getMuteList,
+    hasNip44Support,
+    unmuteUser,
+    muteWord,
+    unmuteWord
+  } from '$lib/stores/mute.svelte.js';
+  import { getDisplayName } from '$lib/stores/profile.svelte.js';
+  import { npubEncode } from 'nostr-tools/nip19';
+  import { getNotifFilter, setNotifFilter } from '$lib/stores/notifications.svelte.js';
+  import type { FollowFilter } from '$lib/stores/follows.svelte.js';
 
   const auth = getAuth();
+  const muteList = getMuteList();
 
   // Relay entries being edited
   let entries = $state<RelayEntry[]>([]);
@@ -82,6 +94,40 @@
     const { DEFAULT_RELAYS } = await import('$lib/nostr/relays.js');
     entries = DEFAULT_RELAYS.map((url) => ({ url, read: true, write: true }));
   }
+
+  // --- Mute word form ---
+  let newMuteWord = $state('');
+
+  function handleAddMuteWord() {
+    const word = newMuteWord.trim();
+    if (!word) return;
+    muteWord(word);
+    newMuteWord = '';
+  }
+
+  function handleMuteWordKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddMuteWord();
+    }
+  }
+
+  // --- Notification filter ---
+  let currentNotifFilter = $state<FollowFilter>(getNotifFilter());
+
+  function handleNotifFilterChange(filter: FollowFilter) {
+    currentNotifFilter = filter;
+    setNotifFilter(filter);
+  }
+
+  const notifFilterOptions: {
+    value: FollowFilter;
+    labelKey: TranslationKey;
+  }[] = [
+    { value: 'all', labelKey: 'filter.all' },
+    { value: 'follows', labelKey: 'filter.follows' },
+    { value: 'wot', labelKey: 'filter.wot' }
+  ];
 
   async function save() {
     if (saving || entries.length === 0) return;
@@ -241,6 +287,130 @@
           {t('settings.relays.save')}
         {/if}
       </button>
+    </div>
+  </section>
+
+  <!-- Mute section -->
+  <section class="rounded-2xl border border-border bg-surface-1 p-6 space-y-5">
+    <h2 class="font-display text-lg font-semibold text-text-primary">
+      {t('mute.title')}
+    </h2>
+
+    {#if !hasNip44Support()}
+      <p class="rounded-xl bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
+        {t('mute.nip44_required')}
+      </p>
+    {/if}
+
+    <!-- Muted Users -->
+    <div class="space-y-2">
+      <h3 class="text-sm font-medium text-text-secondary">{t('mute.users')}</h3>
+      {#if muteList.mutedPubkeys.size === 0}
+        <p class="py-2 text-sm text-text-muted">{t('mute.empty_users')}</p>
+      {:else}
+        {#each [...muteList.mutedPubkeys] as pk (pk)}
+          <div
+            class="flex items-center gap-3 rounded-xl border border-border-subtle bg-surface-0 px-4 py-3"
+          >
+            <a
+              href="/profile/{npubEncode(pk)}"
+              class="flex-1 truncate text-sm text-accent hover:underline"
+            >
+              {getDisplayName(pk)}
+            </a>
+            <button
+              type="button"
+              onclick={() => unmuteUser(pk)}
+              disabled={!hasNip44Support()}
+              class="rounded-lg px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:bg-surface-2 hover:text-text-secondary disabled:opacity-30"
+            >
+              {t('mute.unmute')}
+            </button>
+          </div>
+        {/each}
+      {/if}
+    </div>
+
+    <!-- Muted Words -->
+    <div class="space-y-2">
+      <h3 class="text-sm font-medium text-text-secondary">{t('mute.words')}</h3>
+      {#if muteList.mutedWords.length === 0}
+        <p class="py-2 text-sm text-text-muted">{t('mute.empty_words')}</p>
+      {:else}
+        {#each muteList.mutedWords as word (word)}
+          <div
+            class="flex items-center gap-3 rounded-xl border border-border-subtle bg-surface-0 px-4 py-3"
+          >
+            <span class="flex-1 text-sm text-text-primary">{word}</span>
+            <button
+              type="button"
+              onclick={() => unmuteWord(word)}
+              disabled={!hasNip44Support()}
+              class="rounded-lg px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:bg-surface-2 hover:text-text-secondary disabled:opacity-30"
+              aria-label={t('mute.unmute')}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        {/each}
+      {/if}
+
+      <!-- Add word form -->
+      <div class="flex gap-2">
+        <input
+          type="text"
+          bind:value={newMuteWord}
+          onkeydown={handleMuteWordKeydown}
+          placeholder={t('mute.word_placeholder')}
+          disabled={!hasNip44Support()}
+          class="flex-1 rounded-xl border border-border bg-surface-0 px-4 py-2.5 text-sm text-text-primary placeholder-text-muted outline-none transition-colors focus:border-accent focus:ring-1 focus:ring-accent/40 disabled:opacity-30"
+        />
+        <button
+          type="button"
+          onclick={handleAddMuteWord}
+          disabled={!hasNip44Support()}
+          class="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-surface-0 transition-colors hover:bg-accent-hover disabled:opacity-30"
+        >
+          {t('mute.add_word')}
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Notification Filter section -->
+  <section class="rounded-2xl border border-border bg-surface-1 p-6 space-y-5">
+    <h2 class="font-display text-lg font-semibold text-text-primary">
+      {t('notification.filter.title')}
+    </h2>
+    <p class="text-sm text-text-muted">
+      {t('notification.filter.description')}
+    </p>
+    <div class="flex items-center rounded-lg bg-surface-2 p-0.5 w-fit">
+      {#each notifFilterOptions as opt (opt.value)}
+        <button
+          type="button"
+          onclick={() => handleNotifFilterChange(opt.value)}
+          class="rounded-md px-3 py-1.5 text-sm font-medium transition-all
+            {currentNotifFilter === opt.value
+            ? 'bg-surface-0 text-text-primary shadow-sm'
+            : 'text-text-muted hover:text-text-secondary'}"
+        >
+          {t(opt.labelKey)}
+        </button>
+      {/each}
     </div>
   </section>
 </div>

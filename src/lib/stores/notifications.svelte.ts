@@ -1,5 +1,7 @@
 import { createLogger, shortHex } from '../utils/logger.js';
 import { COMMENT_KIND } from '../nostr/events.js';
+import { isMuted, isWordMuted } from './mute.svelte.js';
+import { matchesFilter, type FollowFilter } from './follows.svelte.js';
 
 const log = createLogger('notifications');
 const REACTION_KIND = 7;
@@ -16,15 +18,42 @@ export interface Notification {
 }
 
 const LAST_READ_KEY = 'resonote-notif-last-read';
+const NOTIF_FILTER_KEY = 'resonote-notif-filter';
 const FOLLOW_COMMENT_CAP = 50;
 const BATCH_SIZE = 100;
 const SEVEN_DAYS_SEC = 7 * 24 * 60 * 60;
 
-let items = $state<Notification[]>([]);
+let allItems = $state<Notification[]>([]);
 let loading = $state(false);
+let notifFilter = $state<FollowFilter>(getNotifFilterFromStorage());
+let myPubkeyForFilter = $state<string | null>(null);
 
 let notifIds = new Set<string>();
 let subscriptions: { unsubscribe: () => void }[] = [];
+
+function getNotifFilterFromStorage(): FollowFilter {
+  try {
+    if (typeof localStorage === 'undefined') return 'all';
+    const saved = localStorage.getItem(NOTIF_FILTER_KEY);
+    if (saved === 'follows' || saved === 'wot') return saved;
+  } catch {
+    /* empty */
+  }
+  return 'all';
+}
+
+export function getNotifFilter(): FollowFilter {
+  return notifFilter;
+}
+
+export function setNotifFilter(filter: FollowFilter): void {
+  notifFilter = filter;
+  try {
+    localStorage.setItem(NOTIF_FILTER_KEY, filter);
+  } catch {
+    /* empty */
+  }
+}
 
 export function getLastRead(): number {
   if (typeof localStorage === 'undefined') return 0;
@@ -32,14 +61,19 @@ export function getLastRead(): number {
   return v ? parseInt(v, 10) : 0;
 }
 
+function filteredItems(): Notification[] {
+  if (notifFilter === 'all') return allItems;
+  return allItems.filter((n) => matchesFilter(n.pubkey, notifFilter, myPubkeyForFilter));
+}
+
 export function getNotifications() {
   return {
     get items() {
-      return items;
+      return filteredItems();
     },
     get unreadCount() {
       const lastRead = getLastRead();
-      return items.filter((n) => n.createdAt > lastRead).length;
+      return filteredItems().filter((n) => n.createdAt > lastRead).length;
     },
     get loading() {
       return loading;
@@ -87,21 +121,25 @@ function classifyEvent(
 
 function addNotification(notif: Notification, type: NotificationType): void {
   if (notifIds.has(notif.id)) return;
+
+  // Skip muted users and word-muted content
+  if (isMuted(notif.pubkey) || isWordMuted(notif.content)) return;
+
   notifIds.add(notif.id);
 
   if (type === 'follow_comment') {
-    const followComments = items.filter((n) => n.type === 'follow_comment');
+    const followComments = allItems.filter((n) => n.type === 'follow_comment');
     if (followComments.length >= FOLLOW_COMMENT_CAP) {
       // Keep newest 50: find oldest follow_comment and remove if new one is newer
       const oldest = followComments.reduce((a, b) => (a.createdAt < b.createdAt ? a : b));
       if (notif.createdAt <= oldest.createdAt) return;
       // Remove oldest follow_comment
       notifIds.delete(oldest.id);
-      items = items.filter((n) => n.id !== oldest.id);
+      allItems = allItems.filter((n) => n.id !== oldest.id);
     }
   }
 
-  items = [...items, notif].sort((a, b) => b.createdAt - a.createdAt);
+  allItems = [...allItems, notif].sort((a, b) => b.createdAt - a.createdAt);
   log.debug('Notification added', { id: shortHex(notif.id), type: notif.type });
 }
 
@@ -112,6 +150,7 @@ export async function subscribeNotifications(
   // Clean up any existing subscriptions before starting new ones
   destroyNotifications();
   loading = true;
+  myPubkeyForFilter = myPubkey;
 
   const [{ merge }, rxNostrMod, { getRxNostr }] = await Promise.all([
     import('rxjs'),
@@ -214,7 +253,8 @@ export function destroyNotifications(): void {
   log.info('Destroying notification subscriptions');
   for (const sub of subscriptions) sub.unsubscribe();
   subscriptions = [];
-  items = [];
+  allItems = [];
   notifIds = new Set();
   loading = false;
+  myPubkeyForFilter = null;
 }

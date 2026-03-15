@@ -4,6 +4,10 @@ export interface ContentId {
   id: string;
 }
 
+export function contentIdToString(id: ContentId): string {
+  return `${id.platform}:${id.type}:${id.id}`;
+}
+
 export interface ContentProvider {
   readonly platform: string;
   readonly displayName: string;

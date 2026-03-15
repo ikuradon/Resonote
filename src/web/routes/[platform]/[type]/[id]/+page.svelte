@@ -12,6 +12,8 @@
     detectExtension,
     requestOpenContent
   } from '$lib/stores/extension.svelte.js';
+  import { getAuth } from '$lib/stores/auth.svelte.js';
+  import { isBookmarked, addBookmark, removeBookmark } from '$lib/stores/bookmarks.svelte.js';
   import type { ContentId } from '$lib/content/types.js';
   import { t } from '$lib/i18n/t.js';
 
@@ -29,6 +31,24 @@
   let showPlayer = $derived(!isExtensionMode() && !requiresExt);
   let showInstallPrompt = $derived(!isExtensionMode() && requiresExt && !extAvailable);
   let showPlayButton = $derived(!isExtensionMode() && requiresExt && extAvailable);
+  const auth = getAuth();
+  let bookmarked = $derived(isBookmarked(contentId));
+  let bookmarkBusy = $state(false);
+
+  async function toggleBookmark() {
+    if (!provider || bookmarkBusy) return;
+    bookmarkBusy = true;
+    try {
+      if (bookmarked) {
+        await removeBookmark(contentId);
+      } else {
+        await addBookmark(contentId, provider);
+      }
+    } finally {
+      bookmarkBusy = false;
+    }
+  }
+
   let store: ReturnType<typeof createCommentsStore> | undefined = $state();
 
   $effect(() => {
@@ -170,6 +190,21 @@
             </h2>
             <div class="h-px flex-1 bg-border-subtle"></div>
             <ShareButton {contentId} {provider} />
+            {#if auth.loggedIn}
+              <button
+                type="button"
+                onclick={toggleBookmark}
+                disabled={bookmarkBusy}
+                class="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 disabled:opacity-50
+                  {bookmarked
+                  ? 'bg-accent/10 text-accent hover:bg-accent/20'
+                  : 'bg-surface-2 text-text-secondary hover:bg-surface-3 hover:text-text-primary'}"
+                title={bookmarked ? t('bookmark.remove') : t('bookmark.add')}
+              >
+                {bookmarked ? '\u2605' : '\u2606'}
+                {bookmarked ? t('bookmark.remove') : t('bookmark.add')}
+              </button>
+            {/if}
           </div>
           <CommentForm {contentId} {provider} />
           {#if store}

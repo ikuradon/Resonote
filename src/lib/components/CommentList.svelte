@@ -20,6 +20,7 @@
     refreshFollows,
     type FollowFilter
   } from '../stores/follows.svelte.js';
+  import { isMuted, isWordMuted, muteUser, hasNip44Support } from '../stores/mute.svelte.js';
   import type { ContentId, ContentProvider } from '../content/types.js';
   import { createLogger, shortHex } from '../utils/logger.js';
   import { parseEmojiContent } from '../utils/emoji.js';
@@ -59,7 +60,9 @@
 
   // --- Filtered comments ---
   let filteredComments = $derived(
-    comments.filter((c) => matchesFilter(c.pubkey, followFilter, auth.pubkey))
+    comments
+      .filter((c) => matchesFilter(c.pubkey, followFilter, auth.pubkey))
+      .filter((c) => !isMuted(c.pubkey) && !isWordMuted(c.content))
   );
 
   /** Top-level comments only (exclude replies) */
@@ -444,6 +447,26 @@
           >
             <polyline points="9 17 4 12 9 7" />
             <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+          </svg>
+        </button>
+      {/if}
+      {#if auth.loggedIn && !isOwn && hasNip44Support()}
+        <button
+          type="button"
+          disabled={acting === comment.id}
+          onclick={() => muteUser(comment.pubkey)}
+          class="rounded-lg p-1.5 text-text-muted transition-colors hover:text-red-400"
+          title={t('mute.user')}
+        >
+          <svg
+            class="h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
           </svg>
         </button>
       {/if}

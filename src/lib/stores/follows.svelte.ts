@@ -233,40 +233,6 @@ export async function refreshFollows(pubkey: string): Promise<void> {
   }
 }
 
-async function fetchLatestKind3(
-  myPubkey: string
-): Promise<{ tags: string[][]; content: string } | null> {
-  const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
-    import('rx-nostr'),
-    import('../nostr/client.js')
-  ]);
-  const rxNostr = await getRxNostr();
-
-  return new Promise((resolve) => {
-    const req = createRxBackwardReq();
-    let latest: { tags: string[][]; content: string; created_at: number } | null = null;
-
-    const sub = rxNostr.use(req).subscribe({
-      next: (packet) => {
-        if (!latest || packet.event.created_at > latest.created_at) {
-          latest = packet.event;
-        }
-      },
-      complete: () => {
-        sub.unsubscribe();
-        resolve(latest);
-      },
-      error: () => {
-        sub.unsubscribe();
-        resolve(latest);
-      }
-    });
-
-    req.emit({ kinds: [3], authors: [myPubkey], limit: 1 });
-    req.over();
-  });
-}
-
 /**
  * Follow a user by publishing a new kind:3 event with targetPubkey added.
  * Fetches the latest kind:3 from relays to preserve existing p-tags and content.
@@ -276,9 +242,9 @@ export async function followUser(targetPubkey: string): Promise<void> {
   const myPubkey = getAuth().pubkey;
   if (!myPubkey) throw new Error('Not logged in');
 
-  const { castSigned } = await import('../nostr/client.js');
+  const { castSigned, fetchLatestEvent } = await import('../nostr/client.js');
 
-  const latestKind3 = await fetchLatestKind3(myPubkey);
+  const latestKind3 = await fetchLatestEvent(myPubkey, 3);
 
   let tags: string[][];
   let content: string;
@@ -314,9 +280,9 @@ export async function unfollowUser(targetPubkey: string): Promise<void> {
   const myPubkey = getAuth().pubkey;
   if (!myPubkey) throw new Error('Not logged in');
 
-  const { castSigned } = await import('../nostr/client.js');
+  const { castSigned, fetchLatestEvent } = await import('../nostr/client.js');
 
-  const latestKind3 = await fetchLatestKind3(myPubkey);
+  const latestKind3 = await fetchLatestEvent(myPubkey, 3);
 
   let tags: string[][];
   let content: string;
