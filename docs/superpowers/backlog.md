@@ -15,7 +15,7 @@
 | ~~9~~ | ~~**URL パーサー網羅性調査**~~ | ~~実装済み: Spotify intl-{locale}, SoundCloud m. 対応~~ | ~~完了~~ | |
 | ~~10~~ | ~~**Vimeo Web 埋め込み**~~ | ~~実装済み~~ | ~~完了~~ | |
 | ~~11~~ | ~~**Mixcloud Web 埋め込み**~~ | ~~実装済み~~ | ~~完了~~ | |
-| 12 | **ニコニコ動画 Web 埋め込み** | postMessage API (非公式)。seek/playerMetadataChange で再生同期。認証不要 | 中 | 日本市場で重要。非公式 API のため突然壊れるリスク。実装前に実機確認要 |
+| ~~12~~ | ~~**ニコニコ動画 Web 埋め込み**~~ | ~~実装済み~~ | ~~完了~~ | |
 | 13 | **Podbean Web 埋め込み** | Widget API (`api.js` + `PB`)。seekTo(ms)/getPosition(cb)。SoundCloud/Spotify と同一パターン | 中 | Podcast ホスティング大手 |
 | ~~14~~ | ~~**Spreaker Web 埋め込み**~~ | ~~実装済み~~ | ~~完了~~ | |
 | 15 | **Podigee Web 埋め込み** | playerjs.io 準拠。setCurrentTime()/getCurrentTime()。標準プロトコル | 低 | ニッチだが実装容易 |
@@ -61,3 +61,4 @@
 - URL 時間パラメータ対応 (?t= 初期シーク + 入力 URL からの時間抽出)
 - SoundCloud/Mixcloud i タグ正規化 (platform:type:id 形式統一)
 - ホームページ UI 刷新 (チップ式入力例 + プレースホルダーローテーション)
+- ニコニコ動画 Web 埋め込み (postMessage API + 再生同期 + sm/so/nico.ms 対応)
