@@ -177,8 +177,10 @@ export async function subscribeNotifications(
   const rxNostr = await getRxNostr();
 
   const loginTimestamp = Math.floor(Date.now() / 1000);
-  const lastRead = getLastRead();
-  const since = lastRead > 0 ? lastRead : loginTimestamp - SEVEN_DAYS_SEC;
+  // Always fetch a 7-day window for backward request.
+  // lastRead is only for read/unread UI display, NOT for filtering the Nostr query.
+  // Using lastRead as 'since' caused notifications to disappear after markAllAsRead.
+  const since = loginTimestamp - SEVEN_DAYS_SEC;
 
   // --- Replies + Reactions + Mentions (kind:1111, 7 tagged with myPubkey) ---
   const notifBackward = createRxBackwardReq();
