@@ -11,6 +11,7 @@ import { fountainFm } from './fountain-fm.js';
 import { abema } from './abema.js';
 import { tver } from './tver.js';
 import { uNext } from './u-next.js';
+import { mixcloud } from './mixcloud.js';
 
 const providers: ContentProvider[] = [
   spotify,
@@ -24,7 +25,8 @@ const providers: ContentProvider[] = [
   fountainFm,
   abema,
   tver,
-  uNext
+  uNext,
+  mixcloud
 ];
 
 const byPlatform = new Map<string, ContentProvider>(providers.map((p) => [p.platform, p]));

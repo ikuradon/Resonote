@@ -115,6 +115,36 @@ declare namespace SC {
   }
 }
 
+declare namespace Mixcloud {
+  function PlayerWidget(element: HTMLIFrameElement): MixcloudWidget;
+
+  interface MixcloudWidget {
+    ready: Promise<void>;
+    play(): void;
+    pause(): void;
+    togglePlay(): void;
+    seek(seconds: number): Promise<boolean>;
+    load(cloudcastKey: string, startPlaying?: boolean): void;
+    getPosition(): Promise<number>;
+    getDuration(): Promise<number>;
+    getIsPaused(): Promise<boolean>;
+    events: {
+      play: { on(callback: () => void): void; off(callback: () => void): void };
+      pause: { on(callback: () => void): void; off(callback: () => void): void };
+      ended: { on(callback: () => void): void; off(callback: () => void): void };
+      buffering: { on(callback: () => void): void; off(callback: () => void): void };
+      progress: {
+        on(callback: (position: number, duration: number) => void): void;
+        off(callback: (position: number, duration: number) => void): void;
+      };
+      error: {
+        on(callback: (error: unknown) => void): void;
+        off(callback: (error: unknown) => void): void;
+      };
+    };
+  }
+}
+
 declare namespace YT {
   const PlayerState: {
     UNSTARTED: -1;
