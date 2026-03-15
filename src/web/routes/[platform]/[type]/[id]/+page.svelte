@@ -20,6 +20,7 @@
   } from '$lib/stores/extension.svelte.js';
   import { getAuth } from '$lib/stores/auth.svelte.js';
   import { isBookmarked, addBookmark, removeBookmark } from '$lib/stores/bookmarks.svelte.js';
+  import { requestSeek } from '$lib/stores/player.svelte.js';
   import type { ContentId } from '$lib/content/types.js';
   import { t } from '$lib/i18n/t.js';
 
@@ -54,6 +55,21 @@
       bookmarkBusy = false;
     }
   }
+
+  // Read initial time from URL ?t= parameter
+  let initialTimeSec = $derived(Number(page.url.searchParams.get('t')) || 0);
+  let seekDispatched = $state(false);
+
+  $effect(() => {
+    if (initialTimeSec > 0 && !seekDispatched) {
+      // Delay to let embed initialize
+      const timer = setTimeout(() => {
+        requestSeek(initialTimeSec * 1000);
+        seekDispatched = true;
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  });
 
   let store: ReturnType<typeof createCommentsStore> | undefined = $state();
 
