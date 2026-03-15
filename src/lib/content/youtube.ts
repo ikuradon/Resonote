@@ -15,22 +15,13 @@ const YOUTUBE_EMBED_RE = /^https?:\/\/(?:www\.|m\.)?youtube\.com\/embed\/([a-zA-
 // https://www.youtube.com/shorts/VIDEO_ID
 const YOUTUBE_SHORTS_RE = /^https?:\/\/(?:www\.|m\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/;
 
-// https://www.youtube.com/live/VIDEO_ID
-const YOUTUBE_LIVE_RE = /^https?:\/\/(?:www\.|m\.)?youtube\.com\/live\/([a-zA-Z0-9_-]+)/;
-
 export class YouTubeProvider implements ContentProvider {
   readonly platform = 'youtube';
   readonly displayName = 'YouTube';
   readonly requiresExtension = false;
 
   parseUrl(url: string): ContentId | null {
-    for (const re of [
-      YOUTUBE_WATCH_RE,
-      YOUTUBE_SHORT_RE,
-      YOUTUBE_EMBED_RE,
-      YOUTUBE_SHORTS_RE,
-      YOUTUBE_LIVE_RE
-    ]) {
+    for (const re of [YOUTUBE_WATCH_RE, YOUTUBE_SHORT_RE, YOUTUBE_EMBED_RE, YOUTUBE_SHORTS_RE]) {
       const match = url.match(re);
       if (match && match[1]) {
         return { platform: this.platform, type: 'video', id: match[1] };

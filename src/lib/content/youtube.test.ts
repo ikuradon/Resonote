@@ -45,16 +45,6 @@ describe('YouTubeProvider', () => {
       expect(result).toEqual({ platform: 'youtube', type: 'video', id: 'dQw4w9WgXcQ' });
     });
 
-    it('should parse a live URL', () => {
-      const result = provider.parseUrl('https://www.youtube.com/live/dQw4w9WgXcQ');
-      expect(result).toEqual({ platform: 'youtube', type: 'video', id: 'dQw4w9WgXcQ' });
-    });
-
-    it('should parse a mobile live URL', () => {
-      const result = provider.parseUrl('https://m.youtube.com/live/dQw4w9WgXcQ');
-      expect(result).toEqual({ platform: 'youtube', type: 'video', id: 'dQw4w9WgXcQ' });
-    });
-
     it('should parse a URL with extra query parameters', () => {
       const result = provider.parseUrl(
         'https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf'
