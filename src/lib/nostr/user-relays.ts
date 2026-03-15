@@ -11,7 +11,7 @@ const log = createLogger('nostr:user-relays');
  */
 export async function applyUserRelays(pubkey: string): Promise<string[]> {
   log.info('Fetching user relay list (kind:10002)', { pubkey: shortHex(pubkey) });
-  const [{ createRxBackwardReq }, { parseRelayTags, setCachedRelayEntries }] = await Promise.all([
+  const [{ createRxBackwardReq }, { parseRelayTags }] = await Promise.all([
     import('rx-nostr'),
     import('../stores/relays.svelte.js')
   ]);
@@ -33,7 +33,6 @@ export async function applyUserRelays(pubkey: string): Promise<string[]> {
           const urls = entries.map((e) => e.url);
           log.info('Applied user relays', { count: urls.length, relays: urls });
           rxNostr.setDefaultRelays(urls);
-          setCachedRelayEntries(entries);
           resolve(urls);
         } else {
           log.info('No user relays found, using defaults');

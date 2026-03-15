@@ -4,7 +4,7 @@
   import { t } from '../i18n/t.js';
   import { typeIcon, typeLabel, relativeTime } from '../utils/notification-helpers.js';
   import { getContentPathFromTags } from '../nostr/content-link.js';
-  import { fetchEventContent } from '../nostr/fetch-event.js';
+  import { cachedFetchById } from '../nostr/cached-nostr.svelte.js';
   import { untrack } from 'svelte';
 
   const notifs = getNotifications();
@@ -24,7 +24,7 @@
 
     Promise.all(
       targetIds.map(async (id) => {
-        const event = await fetchEventContent(id);
+        const event = await cachedFetchById(id);
         return { id, event };
       })
     ).then((results) => {

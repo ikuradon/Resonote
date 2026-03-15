@@ -2,11 +2,11 @@
   import { t, type TranslationKey } from '$lib/i18n/t.js';
   import { getAuth } from '$lib/stores/auth.svelte.js';
   import {
-    fetchRelayList,
     publishRelayList,
     getRelays,
     shortUrl,
     stateColor,
+    parseRelayTags,
     type RelayEntry,
     type ConnectionState
   } from '$lib/stores/relays.svelte.js';
@@ -22,6 +22,8 @@
   import { getNotifFilter, setNotifFilter } from '$lib/stores/notifications.svelte.js';
   import type { FollowFilter } from '$lib/stores/follows.svelte.js';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+  import { useCachedLatest, type UseCachedLatestResult } from '$lib/nostr/cached-nostr.svelte.js';
+  import { RELAY_LIST_KIND } from '$lib/nostr/events.js';
 
   const auth = getAuth();
   const muteList = getMuteList();
@@ -35,12 +37,40 @@
 
   // Relay entries being edited
   let entries = $state<RelayEntry[]>([]);
-  let relayLoading = $state(true);
-  let noRelayList = $state(false);
+  let dirty = $state(false);
   let saving = $state(false);
   let savedOk = $state(false);
   let addUrl = $state('');
   let addError = $state('');
+
+  // SWR query for relay list
+  let relayQuery: UseCachedLatestResult | undefined;
+
+  // SWR query — starts when auth.pubkey is available
+  $effect(() => {
+    if (!auth.pubkey) return;
+    relayQuery?.destroy();
+    relayQuery = useCachedLatest(auth.pubkey, RELAY_LIST_KIND);
+    return () => relayQuery?.destroy();
+  });
+
+  // Derive server entries from SWR event
+  let serverEntries = $derived.by(() => {
+    if (!relayQuery?.event) return [];
+    return parseRelayTags(relayQuery.event.tags);
+  });
+
+  // Sync server → local only when not dirty
+  $effect(() => {
+    if (!dirty && serverEntries.length > 0) {
+      entries = [...serverEntries];
+    }
+  });
+
+  let relayLoading = $derived(!relayQuery || !relayQuery.settled);
+  let noRelayList = $derived(
+    relayQuery?.settled === true && !relayQuery.event && entries.length === 0
+  );
 
   // Live connection states from the running rx-nostr instance
   let liveRelays = $derived(getRelays());
@@ -50,43 +80,25 @@
     return found?.state ?? null;
   }
 
-  async function loadRelays() {
-    if (!auth.pubkey) {
-      relayLoading = false;
-      noRelayList = true;
-      return;
-    }
-    relayLoading = true;
-    noRelayList = false;
-    const result = await fetchRelayList(auth.pubkey);
-    entries = result.entries;
-    noRelayList = result.source === 'none';
-    relayLoading = false;
-  }
-
   async function setupDefaults() {
     const { DEFAULT_RELAYS } = await import('$lib/nostr/relays.js');
     entries = DEFAULT_RELAYS.map((url) => ({ url, read: true, write: true }));
-    noRelayList = false;
+    dirty = true;
   }
-
-  // Reload relays when auth state changes (handles direct page access where
-  // auth.pubkey is initially null until initAuth completes)
-  $effect(() => {
-    void auth.pubkey;
-    loadRelays();
-  });
 
   function toggleRead(index: number) {
     entries[index] = { ...entries[index], read: !entries[index].read };
+    dirty = true;
   }
 
   function toggleWrite(index: number) {
     entries[index] = { ...entries[index], write: !entries[index].write };
+    dirty = true;
   }
 
   function removeRelay(index: number) {
     entries = entries.filter((_, i) => i !== index);
+    dirty = true;
   }
 
   function validateRelayUrl(url: string): boolean {
@@ -102,6 +114,7 @@
     addError = '';
     if (!entries.some((e) => e.url === url)) {
       entries = [...entries, { url, read: true, write: true }];
+      dirty = true;
     }
     addUrl = '';
   }
@@ -116,6 +129,7 @@
   async function resetToDefaults() {
     const { DEFAULT_RELAYS } = await import('$lib/nostr/relays.js');
     entries = DEFAULT_RELAYS.map((url) => ({ url, read: true, write: true }));
+    dirty = true;
   }
 
   // --- Mute word form ---
@@ -190,6 +204,7 @@
     savedOk = false;
     try {
       await publishRelayList(entries);
+      dirty = false;
       savedOk = true;
       setTimeout(() => {
         savedOk = false;

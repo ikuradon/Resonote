@@ -5,7 +5,7 @@
   import { t, type TranslationKey } from '$lib/i18n/t.js';
   import { typeIcon, typeLabel, relativeTime } from '$lib/utils/notification-helpers.js';
   import { getContentPathFromTags } from '$lib/nostr/content-link.js';
-  import { fetchEventContent } from '$lib/nostr/fetch-event.js';
+  import { cachedFetchById } from '$lib/nostr/cached-nostr.svelte.js';
   import { npubEncode } from 'nostr-tools/nip19';
   import { untrack } from 'svelte';
 
@@ -48,7 +48,7 @@
 
     Promise.all(
       targetIds.map(async (id) => {
-        const event = await fetchEventContent(id);
+        const event = await cachedFetchById(id);
         return { id, event };
       })
     ).then((results) => {

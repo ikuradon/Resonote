@@ -76,39 +76,53 @@ export async function fetchLatestEvent(
   const [{ createRxBackwardReq }] = await Promise.all([import('rx-nostr')]);
   const rxNostr = await getRxNostr();
 
-  const fetchPromise = new Promise<{
-    tags: string[][];
-    content: string;
-    created_at: number;
-  } | null>((resolve) => {
-    const req = createRxBackwardReq();
-    let latest: { tags: string[][]; content: string; created_at: number } | null = null;
+  return new Promise<{ tags: string[][]; content: string; created_at: number } | null>(
+    (resolve) => {
+      const req = createRxBackwardReq();
+      let latest: { tags: string[][]; content: string; created_at: number } | null = null;
+      let resolved = false;
 
-    const sub = rxNostr.use(req).subscribe({
-      next: (packet) => {
-        if (!latest || packet.event.created_at > latest.created_at) {
-          latest = packet.event;
+      const timeout = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          sub.unsubscribe();
+          resolve(latest);
         }
-      },
-      complete: () => {
-        sub.unsubscribe();
-        resolve(latest);
-      },
-      error: () => {
-        sub.unsubscribe();
-        resolve(latest);
-      }
-    });
+      }, 10_000);
 
-    req.emit({ kinds: [kind], authors: [pubkey], limit: 1 });
-    req.over();
-  });
+      const sub = rxNostr.use(req).subscribe({
+        next: (packet) => {
+          if (!latest || packet.event.created_at > latest.created_at) {
+            latest = packet.event;
+          }
+          // Auto-persist to IndexedDB for SWR cache
+          import('./event-db.js')
+            .then(({ getEventsDB }) => getEventsDB())
+            .then((db) => db.put(packet.event))
+            .catch(() => {});
+        },
+        complete: () => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timeout);
+            sub.unsubscribe();
+            resolve(latest);
+          }
+        },
+        error: () => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timeout);
+            sub.unsubscribe();
+            resolve(latest);
+          }
+        }
+      });
 
-  const timeoutPromise = new Promise<null>((resolve) => {
-    setTimeout(() => resolve(null), 10_000);
-  });
-
-  return Promise.race([fetchPromise, timeoutPromise]);
+      req.emit({ kinds: [kind], authors: [pubkey], limit: 1 });
+      req.over();
+    }
+  );
 }
 
 export function disposeRxNostr(): void {
