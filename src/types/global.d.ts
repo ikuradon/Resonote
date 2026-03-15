@@ -65,6 +65,36 @@ interface SpotifyEmbedController {
   destroy(): void;
 }
 
+declare namespace SC {
+  function Widget(iframe: HTMLIFrameElement): SC.WidgetInstance;
+  namespace Widget {
+    const Events: {
+      READY: string;
+      PLAY: string;
+      PAUSE: string;
+      FINISH: string;
+      PLAY_PROGRESS: string;
+      SEEK: string;
+      ERROR: string;
+    };
+  }
+  interface WidgetInstance {
+    bind(eventName: string, listener: (data?: unknown) => void): void;
+    unbind(eventName: string): void;
+    play(): void;
+    pause(): void;
+    toggle(): void;
+    seekTo(milliseconds: number): void;
+    setVolume(volume: number): void;
+    getVolume(callback: (volume: number) => void): void;
+    getDuration(callback: (duration: number) => void): void;
+    getPosition(callback: (position: number) => void): void;
+    isPaused(callback: (paused: boolean) => void): void;
+    getCurrentSound(callback: (sound: unknown) => void): void;
+    load(url: string, options?: Record<string, unknown>): void;
+  }
+}
+
 declare namespace YT {
   const PlayerState: {
     UNSTARTED: -1;

@@ -8,8 +8,8 @@ describe('SoundCloudProvider', () => {
     expect(provider.platform).toBe('soundcloud');
   });
 
-  it('should require extension', () => {
-    expect(provider.requiresExtension).toBe(true);
+  it('should not require extension', () => {
+    expect(provider.requiresExtension).toBe(false);
   });
 
   describe('parseUrl', () => {
@@ -67,8 +67,15 @@ describe('SoundCloudProvider', () => {
   });
 
   describe('embedUrl', () => {
-    it('should return null', () => {
-      expect(provider.embedUrl()).toBeNull();
+    it('should return SoundCloud embed URL', () => {
+      const result = provider.embedUrl({
+        platform: 'soundcloud',
+        type: 'track',
+        id: 'artist/track'
+      });
+      expect(result).toBe(
+        'https://w.soundcloud.com/player/?url=https%3A%2F%2Fsoundcloud.com%2Fartist%2Ftrack&auto_play=false&show_artwork=true&show_playcount=false&show_user=true&color=%23c9a256'
+      );
     });
   });
 

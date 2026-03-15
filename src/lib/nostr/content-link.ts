@@ -31,9 +31,19 @@ export function encodeContentLink(contentId: ContentId, relays: string[]): strin
 /** Parse an I-tag value ("platform:type:id") to a URL path ("/platform/type/id"). */
 export function iTagToContentPath(iTagValue: string): string | null {
   const i1 = iTagValue.indexOf(':');
+  if (i1 === -1) return null;
   const i2 = iTagValue.indexOf(':', i1 + 1);
-  if (i1 === -1 || i2 === -1) return null;
-  return `/${iTagValue.slice(0, i1)}/${iTagValue.slice(i1 + 1, i2)}/${iTagValue.slice(i2 + 1)}`;
+  if (i2 !== -1) {
+    // Standard 3-part: platform:type:id
+    const platform = iTagValue.slice(0, i1);
+    const type = iTagValue.slice(i1 + 1, i2);
+    const id = iTagValue.slice(i2 + 1);
+    return `/${platform}/${type}/${encodeURIComponent(id)}`;
+  }
+  // 2-part (e.g., soundcloud:user/track) — default type to 'track'
+  const platform = iTagValue.slice(0, i1);
+  const id = iTagValue.slice(i1 + 1);
+  return `/${platform}/track/${encodeURIComponent(id)}`;
 }
 
 /** Extract content path from event tags. Looks for ["I", value, ...] tag. */

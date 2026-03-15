@@ -2,6 +2,7 @@
   import { page } from '$app/state';
   import SpotifyEmbed from '$lib/components/SpotifyEmbed.svelte';
   import YouTubeEmbed from '$lib/components/YouTubeEmbed.svelte';
+  import SoundCloudEmbed from '$lib/components/SoundCloudEmbed.svelte';
   import CommentList from '$lib/components/CommentList.svelte';
   import CommentForm from '$lib/components/CommentForm.svelte';
   import ShareButton from '$lib/components/ShareButton.svelte';
@@ -137,6 +138,8 @@
             <SpotifyEmbed {contentId} />
           {:else if showPlayer && platform === 'youtube'}
             <YouTubeEmbed {contentId} />
+          {:else if showPlayer && platform === 'soundcloud'}
+            <SoundCloudEmbed {contentId} />
           {/if}
 
           {#if showInstallPrompt}

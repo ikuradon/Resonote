@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decodeContentLink, encodeContentLink } from './content-link.js';
+import { decodeContentLink, encodeContentLink, iTagToContentPath } from './content-link.js';
 import type { ContentId } from '../content/types.js';
 
 const SPOTIFY_CONTENT_ID: ContentId = {
@@ -62,5 +62,23 @@ describe('encodeContentLink / decodeContentLink', () => {
   it('encoded string starts with "ncontent1"', () => {
     const encoded = encodeContentLink(SPOTIFY_CONTENT_ID, []);
     expect(encoded).toMatch(/^ncontent1/);
+  });
+});
+
+describe('iTagToContentPath', () => {
+  it('should parse standard 3-part I-tag value', () => {
+    expect(iTagToContentPath('spotify:track:4iV5W9uYEdYUVa79Axb7Rh')).toBe(
+      '/spotify/track/4iV5W9uYEdYUVa79Axb7Rh'
+    );
+  });
+
+  it('should parse single-colon I-tag value (SoundCloud format)', () => {
+    expect(iTagToContentPath('soundcloud:artist/track-name')).toBe(
+      '/soundcloud/track/artist%2Ftrack-name'
+    );
+  });
+
+  it('should return null for invalid I-tag value', () => {
+    expect(iTagToContentPath('nocolon')).toBeNull();
   });
 });

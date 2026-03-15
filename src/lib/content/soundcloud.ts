@@ -6,7 +6,7 @@ const SOUNDCLOUD_RE =
 export class SoundCloudProvider implements ContentProvider {
   readonly platform = 'soundcloud';
   readonly displayName = 'SoundCloud';
-  readonly requiresExtension = true;
+  readonly requiresExtension = false;
 
   parseUrl(url: string): ContentId | null {
     const match = url.match(SOUNDCLOUD_RE);
@@ -25,8 +25,9 @@ export class SoundCloudProvider implements ContentProvider {
     return 'soundcloud:track';
   }
 
-  embedUrl(): null {
-    return null;
+  embedUrl(contentId: ContentId): string {
+    const trackUrl = `https://soundcloud.com/${contentId.id}`;
+    return `https://w.soundcloud.com/player/?url=${encodeURIComponent(trackUrl)}&auto_play=false&show_artwork=true&show_playcount=false&show_user=true&color=%23c9a256`;
   }
 
   openUrl(contentId: ContentId): string {

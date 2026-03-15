@@ -13,7 +13,7 @@
       error = t('track.unsupported');
       return;
     }
-    goto(`/${contentId.platform}/${contentId.type}/${contentId.id}`);
+    goto(`/${contentId.platform}/${contentId.type}/${encodeURIComponent(contentId.id)}`);
   }
 </script>
 
