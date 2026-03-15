@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { parseContentUrl } from '../content/registry.js';
-  import { toBase64url } from '../content/url-utils.js';
+  import { toBase64url, extractTimeParam } from '../content/url-utils.js';
   import { t } from '../i18n/t.js';
 
   let url = $state('');
@@ -39,8 +39,11 @@
     const contentId = parseContentUrl(trimmed);
 
     if (contentId) {
-      // Known provider matched — navigate
-      goto(`/${contentId.platform}/${contentId.type}/${encodeURIComponent(contentId.id)}`);
+      const timeSec = extractTimeParam(trimmed);
+      const timeQuery = timeSec > 0 ? `?t=${timeSec}` : '';
+      goto(
+        `/${contentId.platform}/${contentId.type}/${encodeURIComponent(contentId.id)}${timeQuery}`
+      );
       return;
     }
 

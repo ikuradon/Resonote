@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import TrackInput from '$lib/components/TrackInput.svelte';
   import { parseContentUrl } from '$lib/content/registry.js';
+  import { extractTimeParam } from '$lib/content/url-utils.js';
   import { t } from '$lib/i18n/t.js';
 
   const examples = [
@@ -41,7 +42,11 @@
   function handleExample(url: string) {
     const contentId = parseContentUrl(url);
     if (contentId) {
-      goto(`/${contentId.platform}/${contentId.type}/${encodeURIComponent(contentId.id)}`);
+      const timeSec = extractTimeParam(url);
+      const timeQuery = timeSec > 0 ? `?t=${timeSec}` : '';
+      goto(
+        `/${contentId.platform}/${contentId.type}/${encodeURIComponent(contentId.id)}${timeQuery}`
+      );
     }
   }
 </script>

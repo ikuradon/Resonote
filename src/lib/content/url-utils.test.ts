@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeUrl, toBase64url, fromBase64url, stripScheme } from './url-utils.js';
+import {
+  normalizeUrl,
+  toBase64url,
+  fromBase64url,
+  stripScheme,
+  extractTimeParam
+} from './url-utils.js';
 
 describe('stripScheme', () => {
   it('should remove https:// scheme', () => {
@@ -102,5 +108,39 @@ describe('fromBase64url', () => {
   it('should round-trip a URL with special characters', () => {
     const original = 'https://Example.COM/Feed.xml';
     expect(fromBase64url(toBase64url(original))).toBe(original);
+  });
+});
+
+describe('extractTimeParam', () => {
+  it('should extract ?t= parameter', () => {
+    expect(extractTimeParam('https://youtu.be/abc?t=42')).toBe(42);
+  });
+
+  it('should extract &t= parameter', () => {
+    expect(extractTimeParam('https://www.youtube.com/watch?v=abc&t=83')).toBe(83);
+  });
+
+  it('should extract ?start= parameter', () => {
+    expect(extractTimeParam('https://www.youtube.com/embed/abc?start=120')).toBe(120);
+  });
+
+  it('should extract #t= from hash', () => {
+    expect(extractTimeParam('https://example.com/track#t=30')).toBe(30);
+  });
+
+  it('should return 0 when no time param', () => {
+    expect(extractTimeParam('https://youtu.be/abc')).toBe(0);
+  });
+
+  it('should return 0 for invalid URL', () => {
+    expect(extractTimeParam('not a url')).toBe(0);
+  });
+
+  it('should return 0 for t=0', () => {
+    expect(extractTimeParam('https://youtu.be/abc?t=0')).toBe(0);
+  });
+
+  it('should return 0 for negative t', () => {
+    expect(extractTimeParam('https://youtu.be/abc?t=-5')).toBe(0);
   });
 });

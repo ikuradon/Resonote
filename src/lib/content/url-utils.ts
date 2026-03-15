@@ -40,3 +40,27 @@ export function fromBase64url(encoded: string): string {
   const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
   return new TextDecoder().decode(bytes);
 }
+
+/**
+ * Extract time parameter from a media URL (seconds).
+ * Supports: ?t=123, &t=123, ?start=123, #t=123
+ * Returns 0 if no time parameter found.
+ */
+export function extractTimeParam(url: string): number {
+  try {
+    const parsed = new URL(url);
+    const t = parsed.searchParams.get('t') ?? parsed.searchParams.get('start');
+    if (t) {
+      const sec = parseInt(t, 10);
+      if (!isNaN(sec) && sec > 0) return sec;
+    }
+    const hashMatch = parsed.hash.match(/[#&]t=(\d+)/);
+    if (hashMatch) {
+      const sec = parseInt(hashMatch[1], 10);
+      if (!isNaN(sec) && sec > 0) return sec;
+    }
+  } catch {
+    // Invalid URL
+  }
+  return 0;
+}
