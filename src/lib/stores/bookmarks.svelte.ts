@@ -15,11 +15,14 @@ export interface BookmarkEntry {
 interface BookmarksState {
   entries: BookmarkEntry[];
   loading: boolean;
+  /** Whether loadBookmarks has been called at least once */
+  loaded: boolean;
 }
 
 let state = $state<BookmarksState>({
   entries: [],
-  loading: false
+  loading: false,
+  loaded: false
 });
 
 /** Generation counter to cancel stale loads */
@@ -32,6 +35,9 @@ export function getBookmarks() {
     },
     get loading() {
       return state.loading;
+    },
+    get loaded() {
+      return state.loaded;
     }
   };
 }
@@ -79,6 +85,7 @@ export async function loadBookmarks(pubkey: string): Promise<void> {
   } finally {
     if (gen === generation) {
       state.loading = false;
+      state.loaded = true;
     }
   }
 }
@@ -153,4 +160,5 @@ export function clearBookmarks(): void {
   ++generation;
   state.entries = [];
   state.loading = false;
+  state.loaded = false;
 }

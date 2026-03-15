@@ -53,7 +53,7 @@
       </h1>
     </div>
 
-    {#if bookmarks.loading}
+    {#if bookmarks.loading || !bookmarks.loaded}
       <div class="py-16 text-center">
         <p class="text-sm text-text-muted">{t('loading')}</p>
       </div>
