@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import type { Snippet } from 'svelte';
   import LoginButton from '$lib/components/LoginButton.svelte';
   import NotificationBell from '$lib/components/NotificationBell.svelte';
@@ -24,14 +24,17 @@
     document.documentElement.lang = getLocale();
   });
 
-  // Subscribe/unsubscribe notifications on auth changes
+  // Subscribe/unsubscribe notifications on auth/follows changes.
+  // untrack prevents $effect from tracking reactive reads inside
+  // subscribeNotifications (e.g., allItems.length), which would cause
+  // infinite re-subscription on every received event.
   $effect(() => {
     if (auth.loggedIn && auth.pubkey) {
       const pubkey = auth.pubkey;
       const follows = getFollows().follows;
-      subscribeNotifications(pubkey, follows);
+      untrack(() => subscribeNotifications(pubkey, follows));
     } else if (auth.initialized && !auth.loggedIn) {
-      destroyNotifications();
+      untrack(() => destroyNotifications());
     }
   });
 
