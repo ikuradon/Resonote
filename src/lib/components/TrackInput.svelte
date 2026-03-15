@@ -14,7 +14,8 @@
     'PodcastフィードのURLを入力...',
     'VimeoのURLを入力...',
     'MixcloudのURLを入力...',
-    '音声ファイルのURLを入力...'
+    '音声ファイルのURLを入力...',
+    'ニコニコ動画のURLを入力...'
   ];
 
   let placeholderIndex = $state(0);

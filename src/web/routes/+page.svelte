@@ -36,6 +36,12 @@
       platform: 'Spreaker',
       label: 'Episode',
       url: 'https://www.spreaker.com/episode/59652612'
+    },
+    {
+      icon: '🎥',
+      platform: 'ニコニコ',
+      label: 'レッツゴー！陰陽師',
+      url: 'https://www.nicovideo.jp/watch/sm9'
     }
   ];
 

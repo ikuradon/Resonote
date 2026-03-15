@@ -143,4 +143,8 @@ describe('extractTimeParam', () => {
   it('should return 0 for negative t', () => {
     expect(extractTimeParam('https://youtu.be/abc?t=-5')).toBe(0);
   });
+
+  it('should extract ?from= parameter (niconico)', () => {
+    expect(extractTimeParam('https://www.nicovideo.jp/watch/sm9?from=30')).toBe(30);
+  });
 });

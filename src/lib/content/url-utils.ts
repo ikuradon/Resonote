@@ -49,7 +49,10 @@ export function fromBase64url(encoded: string): string {
 export function extractTimeParam(url: string): number {
   try {
     const parsed = new URL(url);
-    const t = parsed.searchParams.get('t') ?? parsed.searchParams.get('start');
+    const t =
+      parsed.searchParams.get('t') ??
+      parsed.searchParams.get('start') ??
+      parsed.searchParams.get('from');
     if (t) {
       const sec = parseInt(t, 10);
       if (!isNaN(sec) && sec > 0) return sec;
