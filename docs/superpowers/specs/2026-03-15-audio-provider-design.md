@@ -55,13 +55,19 @@
   - フィード: URL の Base64url エンコード（パディングなし）
   - エピソード: `<feedUrlBase64>:<guidBase64>` の複合キー
 - `contentKind()`: `type === 'feed'` → `'podcast:feed'`、`type === 'episode'` → `'podcast:item:guid'`
-- `toNostrTag()`: `["podcast:item:guid:<guid>", "<enclosure-url>"]`
+- `toNostrTag()`: `["podcast:item:guid:<guid>", "<feed-url>"]`（hint はフィード URL。enclosure URL は ContentId から導出不可能なため、フィード URL を hint とする。他クライアントはフィードから enclosure を解決可能）
 - `embedUrl()`: エピソードの enclosure URL を返す（フィードの場合は `null`）
 - `openUrl()`: 元の Podcast サイト URL またはフィード URL
 
+**注意**: `parseUrl()` はフィード URL のみマッチし、type: `'feed'` を返す。エピソードの ContentId（type: `'episode'`）は `parseUrl()` からは生成されず、エピソード一覧 UI でユーザーが選択した時に API レスポンスから構築される。
+
 ### フィード guid のフォールバック
 
-RSS の `<podcast:guid>`（Podcast Index namespace）が存在しない場合、フィード URL の SHA-256 ハッシュ（先頭32文字）を UUID v4 形式に整形して代替 guid として使用する。
+RSS の `<podcast:guid>`（Podcast Index namespace）が存在しない場合、フィード URL の SHA-256 ハッシュ（先頭32文字の hex）をハイフン区切り（8-4-4-4-12）で synthetic guid として使用する。UUID 準拠は主張しない。
+
+### `audio:<url>` 識別子について
+
+`audio:<url>` は NIP-73 の標準定義外のカスタム拡張。guid 未解決時のフォールバック専用。他クライアントとの互換性は限定的だが、guid 解決後は標準の `podcast:item:guid:<guid>` に昇格するため影響は軽微。
 
 ## Nostr イベント設計
 
@@ -121,12 +127,14 @@ RSS の `<podcast:guid>`（Podcast Index namespace）が存在しない場合、
 {
   "kind": 1111,
   "tags": [
-    ["I", "podcast:item:guid:abc-123-def", "https://example.com/episodes/ep01.mp3"],
+    ["I", "podcast:item:guid:abc-123-def", "https://example.com/feed.xml"],
     ["K", "podcast:item:guid"]
   ],
   "content": "コメント内容"
 }
 ```
+
+注: hint はフィード URL（toNostrTag() と同一）。
 
 ## コメント購読の2系統マージ
 
@@ -156,7 +164,9 @@ AudioProvider の `parseUrl()` は同期的に ContentId を返す（`{audio, tr
 
 1. URL 入力
 2. クライアント: URL を正規化（スキーム除去）→ Nostr リレーに `d` タグ検索 & `parseUrl()` を並行実行
-3. d タグヒット → kind:39701 から guid + enclosure URL 取得 → API 呼び出し不要
+   - d タグ検索: `{"kinds":[39701],"authors":["<SYSTEM_PUBKEY>"],"#d":["<normalized-url>"]}`
+   - `SYSTEM_PUBKEY` はクライアント側定数として保持
+3. d タグヒット → kind:39701 から guid + feed URL + enclosure URL 取得 → `/podcast/episode/{feedBase64}:{guidBase64}` に直接遷移（API 呼び出し不要）
 4. d タグミス → AudioProvider がマッチ → `/audio/track/{base64url}` に遷移
 5. バックグラウンドで `/api/podcast/resolve` に URL 送信 → guid 解決
 6. 成功 → Nostr タグを guid ベースに昇格、コメント購読追加
@@ -166,13 +176,14 @@ AudioProvider の `parseUrl()` は同期的に ContentId を返す（`{audio, tr
 ### フロー2: RSS フィード URL
 
 1. URL 入力
-2. クライアント: d タグ検索 & `parseUrl()` を並行実行
-3. PodcastProvider がマッチ → `/podcast/feed/{base64url}` に遷移
-4. `/api/podcast/resolve` にフィード URL 送信
-5. API: RSS fetch → パース → フィード kind:39701 発行 → エピソード一覧返却
+2. クライアント: `parseUrl()` で PodcastProvider がマッチ → `/podcast/feed/{base64url}` に遷移
+   - d タグ検索はフィード URL に対しては不要（ヒットしてもエピソード一覧が得られないため）
+3. `/api/podcast/resolve` にフィード URL 送信
+4. API: RSS fetch → パース → 署名済み kind:39701 イベント + エピソード一覧をレスポンスに含めて返却
+5. クライアント: 受け取った署名済みイベントを接続中のリレーに publish
 6. エピソード一覧 UI 表示（タイトル、公開日、再生時間）
 7. ユーザーがエピソード選択 → `/podcast/episode/{feedBase64}:{guidBase64}` に遷移
-8. エピソード kind:39701 発行 + AudioEmbed で再生 + guid ベースコメント欄
+8. AudioEmbed で再生 + guid ベースコメント欄
 
 ### フロー3: Podcast サイト URL
 
@@ -265,8 +276,9 @@ Cloudflare Pages Functions で実装。ファイル配置: `functions/api/podcas
    - 音声拡張子 → auto-discovery 試行 → RSS fetch → enclosure 照合 → guid 解決
    - フィード URL → RSS fetch → パース → フィード情報 + エピソード一覧返却（最新100件上限、長寿 Podcast 対応）
    - その他 → HTML fetch → `<link type="application/rss+xml">` 探索 → フィード URL 解決
-3. 解決成功時: システム鍵で kind:39701 イベント発行（フィード + エピソード）
-4. レスポンス返却
+3. 解決成功時: システム鍵で kind:39701 イベントに**署名**（フィード + エピソード）
+4. 署名済みイベント JSON + メタデータをレスポンスに含めて返却
+5. **クライアント側でリレーに publish**（API からリレーへの直接 WebSocket 接続は不要）
 
 **レスポンス（エピソード解決時）**:
 
@@ -285,7 +297,8 @@ Cloudflare Pages Functions で実装。ファイル配置: `functions/api/podcas
     "enclosureUrl": "https://example.com/episodes/ep01.mp3",
     "duration": 3600,
     "publishedAt": 1710000000
-  }
+  },
+  "signedEvents": [<署名済み kind:39701 イベント JSON>]
 }
 ```
 
@@ -308,7 +321,8 @@ Cloudflare Pages Functions で実装。ファイル配置: `functions/api/podcas
       "duration": 3600,
       "publishedAt": 1710000000
     }
-  ]
+  ],
+  "signedEvents": [<署名済み kind:39701 イベント JSON（フィード + 各エピソード）>]
 }
 ```
 
@@ -347,9 +361,23 @@ Cloudflare Pages Functions で実装。ファイル配置: `functions/api/podcas
 
 **コンテンツページ (`+page.svelte`) の変更**:
 
-- `platform === 'audio'` → `AudioEmbed.svelte` を表示
-- `platform === 'podcast' && type === 'feed'` → `PodcastEpisodeList.svelte` を表示
-- `platform === 'podcast' && type === 'episode'` → `AudioEmbed.svelte` を表示
+描画の判定順序（platform/type を embedUrl より先に評価）:
+
+1. `platform === 'podcast' && type === 'feed'` → `PodcastEpisodeList.svelte`（embedUrl は null だが、エピソード一覧を表示）
+2. `platform === 'audio'` or `(platform === 'podcast' && type === 'episode')` → `AudioEmbed.svelte`
+3. その他 → 既存ロジック（embedUrl ベースの判定）
+
+### レジストリ登録順序
+
+AudioProvider と PodcastProvider は**全プラットフォーム固有プロバイダーの後に**登録する。拡張子ベースのマッチング（AudioProvider）やパス末尾マッチング（PodcastProvider）が、より具体的な URL パターン（Spotify, SoundCloud 等）を誤ってマッチしないようにするため。
+
+```typescript
+const providers: ContentProvider[] = [
+  spotify, youtube, vimeo, /* ...既存プロバイダー... */,
+  podcast,  // フィード URL パターン
+  audio,    // 最後: 拡張子フォールバック
+];
+```
 
 ## エラーハンドリング
 
@@ -371,11 +399,22 @@ Cloudflare Pages Functions で実装。ファイル配置: `functions/api/podcas
   - AudioProvider / PodcastProvider の `parseUrl()`, `toNostrTag()`, `contentKind()`, URL エンコード/デコード
   - コメントストアの2系統マージ（`audio:<url>` と `podcast:item:guid:<guid>` 両方からのイベント重複排除）
   - フィード guid フォールバック（`<podcast:guid>` なしの場合の SHA-256 ベース生成）
-- **API テスト**: RSS パース、auto-discovery、guid 照合ロジック、エピソード100件上限
+- **API テスト**: RSS パース、auto-discovery、guid 照合ロジック、エピソード100件上限、enclosure なしエントリのスキップ、複数 enclosure 時の音声形式優先選択
 - **E2E**: URL 入力 → エピソード一覧 → 選択 → 再生 → コメント投稿の一連フロー
+
+## エッジケース
+
+| ケース | 対応 |
+|---|---|
+| RSS エントリに `<enclosure>` がない | エピソード一覧からスキップ（テキスト記事等） |
+| 複数 `<enclosure>` タグ | 音声形式を優先（MP3 > M4A > OGG > その他） |
+| auto-discovery で複数 `<link type="application/rss+xml">` | 最初に見つかった RSS リンクを使用（将来: ユーザー選択 UI） |
+| URL の正規化: 末尾スラッシュ、大文字小文字 | d タグ生成時にスキーム除去 + 小文字化 + 末尾スラッシュ除去 |
+| URL にクエリパラメータ付き | d タグ生成時にクエリパラメータ除去（認証トークン等を排除） |
 
 ## 将来の拡張
 
 - NIP-73 `podcast:item:guid` と Podcast Index API との連携
 - OGP 機能（backlog #1）— Bluesky Cardyb (`cardyb.bsky.app/v1/extract`) が参考になる
 - Podcast サイト URL の既知パターンマッチ（uncrop.jp 等）による auto-discovery 精度向上
+- auto-discovery 時の複数 RSS リンク選択 UI
