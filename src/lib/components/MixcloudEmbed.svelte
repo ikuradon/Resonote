@@ -127,7 +127,22 @@
     </div>
   {:else if !ready}
     <div class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-surface-1">
-      <span class="text-sm font-medium text-text-muted">{t('loading')}</span>
+      <div class="flex items-center gap-3">
+        <svg class="h-8 w-8 text-violet-500" viewBox="0 0 24 24" fill="currentColor">
+          <path
+            d="M12 1a9 9 0 0 0-9 9v7c0 1.66 1.34 3 3 3h3v-8H5v-2a7 7 0 0 1 14 0v2h-4v8h3c1.66 0 3-1.34 3-3v-7a9 9 0 0 0-9-9z"
+          />
+        </svg>
+        <span class="text-sm font-medium text-text-muted">{t('loading')}</span>
+      </div>
+      <div class="w-48">
+        <div class="h-1 overflow-hidden rounded-full bg-surface-3">
+          <div
+            class="animate-shimmer h-full w-1/3 rounded-full bg-gradient-to-r from-transparent via-violet-500/40 to-transparent"
+            style="background-size: 400px 100%;"
+          ></div>
+        </div>
+      </div>
     </div>
   {/if}
 </div>
