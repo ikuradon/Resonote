@@ -1135,22 +1135,22 @@ git commit -m "Add pending-publishes IndexedDB store for signed event queue"
 
 ```typescript
 // addSubscription は subscribe() の後に呼ばれる前提
-// subscribe() 内で確保した rxNostr / eventsDB をクロージャ外に持ち上げる必要がある
-// そのため、subscribe() のスコープ内にあるローカル変数を createCommentsStore の
-// トップレベルスコープに移動し、subscribe() 内で代入するよう変更する
-
-// createCommentsStore のトップレベルに以下を追加:
+// subscribe() 内で確保した rxNostr / eventsDB をクロージャ外に持ち上げる
+//
+// createCommentsStore のトップレベルに追加:
 let rxNostrRef: RxNostr | undefined;
 let eventsDBRef: EventsDB | undefined;
-let relaysRef: string[] = [];
-
+//
 // subscribe() 内で既存の変数代入後に追加:
 // rxNostrRef = rxNostr;
 // eventsDBRef = eventsDB;
-// relaysRef = relays;
 
-async function addSubscription(idValue: string, kind: string): Promise<void> {
+async function addSubscription(idValue: string, _kind: string): Promise<void> {
   if (!rxNostrRef || !eventsDBRef) return;
+
+  // rx-nostr モジュールの動的 import（subscribe() と同じパターン）
+  const { createRxBackwardReq, createRxForwardReq, uniq } = await import('rx-nostr');
+  const { merge } = await import('rxjs');
 
   // DB cache restore for additional tag
   const cachedEvents = await eventsDBRef.getByTagValue(`I:${idValue}`);
@@ -1167,8 +1167,7 @@ async function addSubscription(idValue: string, kind: string): Promise<void> {
     }
   }
 
-  // Additional backward + forward subscriptions
-  // Use the same rx-nostr pattern as subscribe() — createRxBackwardReq/createRxForwardReq
+  // Additional backward + forward subscriptions（既存 subscribe() と同一パターン）
   const commentBwReq = createRxBackwardReq();
   const commentFwReq = createRxForwardReq();
 
@@ -1184,9 +1183,10 @@ async function addSubscription(idValue: string, kind: string): Promise<void> {
     if (comment) commentsRaw.push(comment);
   });
 
-  commentBwReq.emit({ kinds: [COMMENT_KIND], '#I': [idValue] }, { relays: relaysRef });
+  // リレー指定なし（rxNostr のデフォルトリレーを使用、既存パターンに合わせる）
+  commentBwReq.emit({ kinds: [COMMENT_KIND], '#I': [idValue] });
   commentBwReq.over();
-  commentFwReq.emit({ kinds: [COMMENT_KIND], '#I': [idValue] }, { relays: relaysRef });
+  commentFwReq.emit({ kinds: [COMMENT_KIND], '#I': [idValue] });
 
   const reactionBwReq = createRxBackwardReq();
   const reactionFwReq = createRxForwardReq();
@@ -1203,9 +1203,9 @@ async function addSubscription(idValue: string, kind: string): Promise<void> {
     if (reaction) addReaction(reaction);
   });
 
-  reactionBwReq.emit({ kinds: [REACTION_KIND], '#I': [idValue] }, { relays: relaysRef });
+  reactionBwReq.emit({ kinds: [REACTION_KIND], '#I': [idValue] });
   reactionBwReq.over();
-  reactionFwReq.emit({ kinds: [REACTION_KIND], '#I': [idValue] }, { relays: relaysRef });
+  reactionFwReq.emit({ kinds: [REACTION_KIND], '#I': [idValue] });
 
   subscriptions.push(
     { unsubscribe: () => sub1.unsubscribe() },
@@ -1449,13 +1449,24 @@ git commit -m "Add podcast-resolver for d-tag search and API coordination"
   }
 
   async function publishOrQueue(event: Record<string, unknown>) {
+    // rx-nostr の send()/cast() は EventParameters を受け取り内部で署名するため、
+    // pre-signed イベントには使えない（ユーザー鍵で再署名されてしまう）。
+    // nostr-tools の Relay.publish() で直接 WebSocket 送信する。
     try {
-      const rxNostr = await getRxNostr();
-      // Pre-signed イベントの送信: rx-nostr の send() を使用
-      // send() の引数型は rx-nostr バージョンにより異なる。
-      // 実装時に rxNostr.send(event as NostrEvent) または
-      // rxNostr.cast(event) 等、正しい API を確認すること。
-      rxNostr.send(event as never);
+      const { Relay } = await import('nostr-tools/relay');
+      const { getDefaultRelays } = await import('$lib/nostr/relays.js');
+      const relays = getDefaultRelays();
+      const published = await Promise.any(
+        relays.map(async (url) => {
+          const relay = await Relay.connect(url);
+          try {
+            await relay.publish(event as never);
+          } finally {
+            relay.close();
+          }
+        }),
+      );
+      return published;
     } catch {
       await addPendingPublish(event as never);
     }
