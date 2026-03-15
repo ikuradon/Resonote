@@ -23,6 +23,12 @@
 
 ## プロバイダー設計
 
+### URL エンコード規約
+
+- **Base64url**: RFC 4648 Section 5（`+` → `-`, `/` → `_`）、パディング `=` は除去
+- **`d` タグ**: スキーム除去（`https://` を取り除いた URL）
+- **`r` タグ / `i` タグ hint**: フル URL（`https://` 付き）
+
 ### AudioProvider (`src/lib/content/audio.ts`)
 
 - `platform: 'audio'`
@@ -30,8 +36,9 @@
 - `requiresExtension: false`
 - `parseUrl()`: クエリパラメータ除去後の拡張子判定（`.mp3`, `.m4a`, `.ogg`, `.wav`, `.opus`, `.flac`, `.aac`）
 - `type`: `'track'`
-- `id`: 音声 URL を Base64url エンコード
-- `toNostrTag()`: guid 解決済みなら `["podcast:item:guid:<guid>", "<enclosure-url>"]`、未解決なら `["audio:<url>", "<url>"]`
+- `id`: 音声 URL を Base64url エンコード（パディングなし）
+- `contentKind()`: guid 未解決時は `'audio'`、解決後は呼ばれない（PodcastProvider に委譲）
+- `toNostrTag()`: `["audio:<url>", "<url>"]`（常にフォールバック形式。guid 解決後はコメントストアが PodcastProvider の `toNostrTag()` を使う）
 - `embedUrl()`: デコードした音声 URL を返す
 - `openUrl()`: デコードした音声 URL を返す
 
@@ -40,16 +47,21 @@
 - `platform: 'podcast'`
 - `displayName: 'Podcast'`
 - `requiresExtension: false`
-- `parseUrl()`: Content-Type やパス末尾で RSS/Atom/JSON フィード判定
+- `parseUrl()`: URL パス末尾で RSS/Atom/JSON フィード判定（`.rss`, `.xml`, `.atom`, `/feed` 等のパターンマッチ。同期処理のみ、HTTP リクエストは行わない）
 - `type`:
   - フィード URL → `'feed'`
   - エピソード → `'episode'`
 - `id`:
-  - フィード: URL の Base64url エンコード
+  - フィード: URL の Base64url エンコード（パディングなし）
   - エピソード: `<feedUrlBase64>:<guidBase64>` の複合キー
+- `contentKind()`: `type === 'feed'` → `'podcast:feed'`、`type === 'episode'` → `'podcast:item:guid'`
 - `toNostrTag()`: `["podcast:item:guid:<guid>", "<enclosure-url>"]`
-- `embedUrl()`: エピソードの enclosure URL を返す
+- `embedUrl()`: エピソードの enclosure URL を返す（フィードの場合は `null`）
 - `openUrl()`: 元の Podcast サイト URL またはフィード URL
+
+### フィード guid のフォールバック
+
+RSS の `<podcast:guid>`（Podcast Index namespace）が存在しない場合、フィード URL の SHA-256 ハッシュ（先頭32文字）を UUID v4 形式に整形して代替 guid として使用する。
 
 ## Nostr イベント設計
 
@@ -120,12 +132,23 @@
 
 同じエピソードに対して `audio:<url>` と `podcast:item:guid:<guid>` の両方でコメントが存在しうる。
 
-- guid 解決前: `audio:<url>` の `I` タグでコメント購読開始（即座に表示可能）
-- guid 解決後: `podcast:item:guid:<guid>` の `I` タグで追加購読
-- 両方の結果を `uniq()` でマージして表示
-- 投稿時は解決済みなら `podcast:item:guid:<guid>`、未解決なら `audio:<url>` を使用
+### guid 解決前後の状態遷移
 
-`comments.svelte.ts` を複数タグでの並行購読 + マージに対応させる。
+AudioProvider の `parseUrl()` は同期的に ContentId を返す（`{audio, track, base64url}`）。guid 解決は非同期で行われるため、解決後に新しい ContentId（`{podcast, episode, feedBase64:guidBase64}`）を生成し、コメントストアに追加購読を指示する。
+
+### コメントストアの拡張
+
+`createCommentsStore()` に `addSubscription(idValue: string, kind: string)` メソッドを追加:
+
+- 初期化時: `audio:<url>` で購読開始
+- guid 解決後: `addSubscription('podcast:item:guid:<guid>', 'podcast:item:guid')` で追加購読
+- 既存の `audio:<url>` 購読は維持したまま、両方のストリームを `uniq()` でマージ
+- DB キャッシュは `I:${idValue}` のキーで個別に保存（既存と同じ）、表示時にマージ
+
+### 投稿時のタグ選択
+
+- guid 解決済み → `["I", "podcast:item:guid:<guid>", ...]` + `["K", "podcast:item:guid"]`
+- guid 未解決 → `["I", "audio:<url>", ...]` + `["K", "audio"]`
 
 ## ユーザーフロー
 
@@ -227,14 +250,20 @@ Nostr d タグ検索                parseUrl() 判定
 
 ### `GET /api/podcast/resolve?url=<url>`
 
-Cloudflare Pages Functions で実装。
+Cloudflare Pages Functions で実装。ファイル配置: `functions/api/podcast/resolve.ts`（adapter-static と共存可能）。
+
+**セキュリティ**:
+
+- Rate limiting: Cloudflare の Rate Limiting ルールで IP ベースの制限（例: 10 req/min/IP）
+- 冪等性: kind:39701 は parameterized replaceable event（NIP-33）なので、同じ `d` タグへの再発行は上書きとなり副作用なし
+- CORS: 同一オリジン（Pages）からのリクエストのみ許可。拡張機能モードからのリクエストは `Access-Control-Allow-Origin` に拡張機能オリジンを追加
 
 **処理フロー**:
 
 1. URL バリデーション（許可スキーム: http/https のみ）
 2. 入力タイプ判定:
    - 音声拡張子 → auto-discovery 試行 → RSS fetch → enclosure 照合 → guid 解決
-   - フィード URL → RSS fetch → パース → フィード情報 + 全エピソード返却
+   - フィード URL → RSS fetch → パース → フィード情報 + エピソード一覧返却（最新100件上限、長寿 Podcast 対応）
    - その他 → HTML fetch → `<link type="application/rss+xml">` 探索 → フィード URL 解決
 3. 解決成功時: システム鍵で kind:39701 イベント発行（フィード + エピソード）
 4. レスポンス返却
@@ -304,12 +333,17 @@ Cloudflare Pages Functions で実装。
 
 ## ルーティング
 
-| ルート | 用途 |
-|---|---|
-| `/audio/track/{base64url}` | 音声直 URL 再生 + コメント |
-| `/podcast/feed/{base64url}` | フィード → エピソード一覧 |
-| `/podcast/episode/{feedBase64}:{guidBase64}` | エピソード再生 + コメント |
-| `/resolve/{base64url}` | サイト URL → auto-discovery 中間ページ |
+既存の `src/web/routes/[platform]/[type]/[id]/+page.svelte` パターンに乗せる:
+
+| ルート | platform | type | id | 用途 |
+|---|---|---|---|---|
+| `/audio/track/{base64url}` | `audio` | `track` | Base64url | 音声直 URL 再生 + コメント |
+| `/podcast/feed/{base64url}` | `podcast` | `feed` | Base64url | フィード → エピソード一覧 |
+| `/podcast/episode/{feedBase64}:{guidBase64}` | `podcast` | `episode` | 複合キー | エピソード再生 + コメント |
+
+`/resolve/` は既存 `[platform]/[type]/[id]` パターンに属さないため、**別ルートファイル**として追加:
+
+- `src/web/routes/resolve/[id]/+page.svelte` — ResolveLoader.svelte を表示
 
 **コンテンツページ (`+page.svelte`) の変更**:
 
@@ -333,8 +367,11 @@ Cloudflare Pages Functions で実装。
 
 ## テスト方針
 
-- **ユニットテスト**: AudioProvider / PodcastProvider の `parseUrl()`, `toNostrTag()`, URL エンコード/デコード
-- **API テスト**: RSS パース、auto-discovery、guid 照合ロジック
+- **ユニットテスト**:
+  - AudioProvider / PodcastProvider の `parseUrl()`, `toNostrTag()`, `contentKind()`, URL エンコード/デコード
+  - コメントストアの2系統マージ（`audio:<url>` と `podcast:item:guid:<guid>` 両方からのイベント重複排除）
+  - フィード guid フォールバック（`<podcast:guid>` なしの場合の SHA-256 ベース生成）
+- **API テスト**: RSS パース、auto-discovery、guid 照合ロジック、エピソード100件上限
 - **E2E**: URL 入力 → エピソード一覧 → 選択 → 再生 → コメント投稿の一連フロー
 
 ## 将来の拡張
