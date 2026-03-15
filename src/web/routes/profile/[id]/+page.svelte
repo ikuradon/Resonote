@@ -79,40 +79,18 @@
 
   async function fetchFollowsCount(pk: string) {
     try {
-      const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
-        import('rx-nostr'),
-        import('$lib/nostr/client.js')
-      ]);
-      const rxNostr = await getRxNostr();
-      const req = createRxBackwardReq();
+      const { fetchLatestEvent } = await import('$lib/nostr/client.js');
+      const { FOLLOW_KIND } = await import('$lib/nostr/events.js');
+      const latestEvent = await fetchLatestEvent(pk, FOLLOW_KIND);
 
-      let latestEvent: { tags: string[][] } | null = null;
-
-      const sub = rxNostr.use(req).subscribe({
-        next: (packet) => {
-          latestEvent = packet.event;
-        },
-        complete: () => {
-          sub.unsubscribe();
-          if (latestEvent) {
-            const pks = latestEvent.tags
-              .filter((tag) => tag[0] === 'p' && tag[1])
-              .map((tag) => tag[1]);
-            followsCount = pks.length;
-            followsPubkeys = pks;
-          } else {
-            followsCount = 0;
-            followsPubkeys = [];
-          }
-        },
-        error: () => {
-          sub.unsubscribe();
-          followsCount = 0;
-        }
-      });
-
-      req.emit({ kinds: [3], authors: [pk], limit: 1 });
-      req.over();
+      if (latestEvent) {
+        const pks = latestEvent.tags.filter((tag) => tag[0] === 'p' && tag[1]).map((tag) => tag[1]);
+        followsCount = pks.length;
+        followsPubkeys = pks;
+      } else {
+        followsCount = 0;
+        followsPubkeys = [];
+      }
     } catch (err) {
       log.error('Failed to fetch follows count', err);
       followsCount = 0;
@@ -302,9 +280,12 @@
               if (followsPubkeys.length > 0) {
                 showFollowsList = !showFollowsList;
                 if (showFollowsList) {
-                  import('$lib/stores/profile.svelte.js').then(({ fetchProfiles }) =>
-                    fetchProfiles(followsPubkeys.slice(0, 50))
-                  );
+                  // Fetch profiles in batches of 50
+                  import('$lib/stores/profile.svelte.js').then(({ fetchProfiles }) => {
+                    for (let i = 0; i < followsPubkeys.length; i += 50) {
+                      fetchProfiles(followsPubkeys.slice(i, i + 50));
+                    }
+                  });
                 }
               }
             }}
