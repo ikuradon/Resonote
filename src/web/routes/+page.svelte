@@ -6,55 +6,19 @@
 
   const examples = [
     {
-      platform: 'Spotify',
       icon: '🎵',
-      items: [
-        {
-          label: 'Rebuild - EP 416',
-          url: 'https://open.spotify.com/episode/4hMFcs08VRa7S1xyeOgFkb'
-        },
-        {
-          label: 'Off Topic - EP 311',
-          url: 'https://open.spotify.com/episode/3X8RHJkJHiwbXdvAFHjQOp'
-        }
-      ]
+      label: 'Rebuild EP416',
+      url: 'https://open.spotify.com/episode/4hMFcs08VRa7S1xyeOgFkb'
     },
+    { icon: '▶️', label: 'Lofi Girl', url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk' },
+    { icon: '☁️', label: 'Flume - Say It', url: 'https://soundcloud.com/flaboratory/say-it' },
+    { icon: '🎬', label: 'Audi RS 5', url: 'https://vimeo.com/231857608' },
     {
-      platform: 'YouTube',
-      icon: '▶️',
-      items: [
-        {
-          label: 'Lofi Girl - lofi hip hop radio',
-          url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk'
-        },
-        { label: 'YOASOBI「アイドル」', url: 'https://www.youtube.com/watch?v=ZRtdQ81jPUQ' }
-      ]
-    },
-    {
-      platform: 'SoundCloud',
-      icon: '☁️',
-      items: [
-        {
-          label: 'Flume - Say It (feat. Tove Lo)',
-          url: 'https://soundcloud.com/flaboratory/say-it'
-        }
-      ]
-    },
-    {
-      platform: 'Vimeo',
-      icon: '🎬',
-      items: [{ label: 'Audi RS 5 - The Rally', url: 'https://vimeo.com/231857608' }]
-    },
-    {
-      platform: 'Mixcloud',
       icon: '🎧',
-      items: [
-        {
-          label: 'NTS Radio - Do!! You!!',
-          url: 'https://www.mixcloud.com/NTSRadio/do-you-w-kenny-dope-170222/'
-        }
-      ]
-    }
+      label: 'NTS Radio',
+      url: 'https://www.mixcloud.com/NTSRadio/do-you-w-kenny-dope-170222/'
+    },
+    { icon: '📻', label: 'Spreaker EP', url: 'https://www.spreaker.com/episode/59652612' }
   ];
 
   function handleExample(url: string) {
@@ -86,23 +50,16 @@
     <p class="text-center text-xs font-medium tracking-wide text-text-muted uppercase">
       {t('app.examples')}
     </p>
-    <div class="grid gap-3">
-      {#each examples as group (group.platform)}
-        <div class="space-y-1.5">
-          <div class="flex items-center gap-1.5 text-xs text-text-muted">
-            <span>{group.icon}</span>
-            <span class="font-medium">{group.platform}</span>
-          </div>
-          {#each group.items as item (item.url)}
-            <button
-              type="button"
-              onclick={() => handleExample(item.url)}
-              class="w-full rounded-lg border border-border-subtle bg-surface-1 px-4 py-2.5 text-left text-sm text-text-secondary transition-all duration-200 hover:border-accent/30 hover:bg-surface-2 hover:text-text-primary"
-            >
-              {item.label}
-            </button>
-          {/each}
-        </div>
+    <div class="flex flex-wrap justify-center gap-2">
+      {#each examples as item (item.url)}
+        <button
+          type="button"
+          onclick={() => handleExample(item.url)}
+          class="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface-1 px-3.5 py-1.5 text-sm text-text-secondary transition-all duration-200 hover:border-accent/30 hover:bg-surface-2 hover:text-text-primary"
+        >
+          <span>{item.icon}</span>
+          <span>{item.label}</span>
+        </button>
       {/each}
     </div>
   </div>

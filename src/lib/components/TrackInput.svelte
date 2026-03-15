@@ -7,6 +7,30 @@
   let url = $state('');
   let error = $state('');
 
+  const placeholders = [
+    'YouTubeのURLを入力...',
+    'SpotifyのURLを入力...',
+    'SoundCloudのURLを入力...',
+    'PodcastフィードのURLを入力...',
+    'VimeoのURLを入力...',
+    'MixcloudのURLを入力...',
+    '音声ファイルのURLを入力...'
+  ];
+
+  let placeholderIndex = $state(0);
+  let placeholderVisible = $state(true);
+
+  $effect(() => {
+    const interval = setInterval(() => {
+      placeholderVisible = false;
+      setTimeout(() => {
+        placeholderIndex = (placeholderIndex + 1) % placeholders.length;
+        placeholderVisible = true;
+      }, 300);
+    }, 3000);
+    return () => clearInterval(interval);
+  });
+
   function submit() {
     error = '';
     const trimmed = url.trim();
@@ -45,9 +69,10 @@
     <input
       type="text"
       bind:value={url}
-      placeholder={t('track.placeholder')}
+      placeholder={placeholders[placeholderIndex]}
       data-testid="track-url-input"
-      class="flex-1 rounded-xl border border-border bg-surface-1 px-4 py-3 text-sm text-text-primary placeholder-text-muted transition-all duration-200 focus:border-accent focus:ring-1 focus:ring-accent/30 focus:outline-none"
+      class="flex-1 rounded-xl border border-border bg-surface-1 px-4 py-3 text-sm text-text-primary transition-all duration-200 focus:border-accent focus:ring-1 focus:ring-accent/30 focus:outline-none"
+      style="--placeholder-opacity: {placeholderVisible ? 1 : 0}"
     />
     <button
       type="submit"
@@ -62,3 +87,11 @@
     <p class="animate-fade-in text-sm text-error">{error}</p>
   {/if}
 </form>
+
+<style>
+  input::placeholder {
+    opacity: var(--placeholder-opacity, 1);
+    transition: opacity 0.3s ease;
+    color: var(--color-text-muted);
+  }
+</style>
