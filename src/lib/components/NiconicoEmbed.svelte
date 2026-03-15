@@ -117,7 +117,22 @@
     </div>
   {:else if !ready}
     <div class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-surface-1">
-      <span class="text-sm font-medium text-text-muted">{t('loading')}</span>
+      <div class="flex items-center gap-3">
+        <svg class="h-8 w-8 text-zinc-100" viewBox="0 0 24 24" fill="currentColor">
+          <path
+            d="M.79 6.41L.67 6.56C-.2 7.7-.23 9.37.74 10.57L9.43 21.16C10.26 22.19 11.89 22.19 12.72 21.16L21.42 10.57C22.39 9.37 22.35 7.7 21.48 6.56L21.37 6.41C20.38 5.12 18.4 5.13 17.42 6.42L11.08 14.79L4.74 6.42C3.75 5.13 1.78 5.12 .79 6.41Z"
+          />
+        </svg>
+        <span class="text-sm font-medium text-text-muted">{t('loading')}</span>
+      </div>
+      <div class="w-48">
+        <div class="h-1 overflow-hidden rounded-full bg-surface-3">
+          <div
+            class="animate-shimmer h-full w-1/3 rounded-full bg-gradient-to-r from-transparent via-zinc-100/40 to-transparent"
+            style="background-size: 400px 100%;"
+          ></div>
+        </div>
+      </div>
     </div>
   {/if}
 </div>
