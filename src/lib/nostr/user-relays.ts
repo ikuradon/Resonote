@@ -10,25 +10,30 @@ const log = createLogger('nostr:user-relays');
  */
 export async function applyUserRelays(pubkey: string): Promise<string[]> {
   log.info('Fetching user relay list (kind:10002)', { pubkey: shortHex(pubkey) });
-  const [{ createRxBackwardReq }] = await Promise.all([import('rx-nostr')]);
+  const [{ createRxBackwardReq }, { parseRelayTags, setCachedRelayEntries }] = await Promise.all([
+    import('rx-nostr'),
+    import('../stores/relays.svelte.js')
+  ]);
   const rxNostr = await getRxNostr();
 
   return new Promise<string[]>((resolve) => {
     const req = createRxBackwardReq();
-    let relayUrls: string[] = [];
+    let relayTags: string[][] = [];
 
     const sub = rxNostr.use(req).subscribe({
       next: (packet) => {
-        const tags = packet.event.tags;
-        relayUrls = tags.filter((t) => t[0] === 'r' && t[1]).map((t) => t[1]);
+        relayTags = packet.event.tags;
       },
       complete: () => {
         sub.unsubscribe();
 
-        if (relayUrls.length > 0) {
-          log.info('Applied user relays', { count: relayUrls.length, relays: relayUrls });
-          rxNostr.setDefaultRelays(relayUrls);
-          resolve(relayUrls);
+        const entries = parseRelayTags(relayTags);
+        if (entries.length > 0) {
+          const urls = entries.map((e) => e.url);
+          log.info('Applied user relays', { count: urls.length, relays: urls });
+          rxNostr.setDefaultRelays(urls);
+          setCachedRelayEntries(entries);
+          resolve(urls);
         } else {
           log.info('No user relays found, using defaults');
           resolve(DEFAULT_RELAYS);

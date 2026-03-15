@@ -27,6 +27,24 @@ export interface RelayState {
 let relays = $state<RelayState[]>([]);
 let subscription: { unsubscribe: () => void } | undefined;
 
+/** Cached relay entries from login-time kind:10002 fetch. Used by settings page. */
+let cachedRelayEntries: RelayEntry[] | null = null;
+
+/** Store relay entries fetched during login for settings page reuse. */
+export function setCachedRelayEntries(entries: RelayEntry[]): void {
+  cachedRelayEntries = entries;
+}
+
+/** Get cached relay entries (null if not yet loaded). */
+export function getCachedRelayEntries(): RelayEntry[] | null {
+  return cachedRelayEntries;
+}
+
+/** Clear cached relay entries (on logout). */
+export function clearCachedRelayEntries(): void {
+  cachedRelayEntries = null;
+}
+
 export function getRelays(): RelayState[] {
   return relays;
 }
@@ -121,6 +139,11 @@ export function parseRelayTags(tags: string[][]): RelayEntry[] {
  * Tries kind:10002 first (NIP-65), then kind:3 content JSON, then DEFAULT_RELAYS.
  */
 export async function fetchRelayList(pubkey: string): Promise<RelayEntry[]> {
+  // Use cached entries from login if available (avoids re-fetching from potentially different relays)
+  if (cachedRelayEntries) {
+    log.info('Using cached relay list', { count: cachedRelayEntries.length });
+    return cachedRelayEntries;
+  }
   log.info('Fetching relay list for user', { pubkey });
   const [{ createRxBackwardReq }, { DEFAULT_RELAYS }, { getRxNostr }] = await Promise.all([
     import('rx-nostr'),
@@ -225,6 +248,9 @@ export async function publishRelayList(entries: RelayEntry[]): Promise<void> {
   const rxNostr = await getRxNostr();
   const urls = entries.map((e) => e.url);
   rxNostr.setDefaultRelays(urls);
+
+  // Update cache so settings page stays in sync
+  cachedRelayEntries = entries;
 
   await refreshRelayList(urls);
 }

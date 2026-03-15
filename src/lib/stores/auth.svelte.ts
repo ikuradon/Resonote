@@ -62,8 +62,9 @@ async function onLogout() {
   clearProfiles();
   clearBookmarks();
   clearMuteList();
-  const { refreshRelayList } = await import('./relays.svelte.js');
+  const { refreshRelayList, clearCachedRelayEntries } = await import('./relays.svelte.js');
   const { DEFAULT_RELAYS } = await import('../nostr/relays.js');
+  clearCachedRelayEntries();
   refreshRelayList(DEFAULT_RELAYS);
 
   // Clear the events DB
