@@ -116,8 +116,8 @@
             setContent(contentId);
             ready = true;
             log.info('Podbean widget ready');
-            pb.getDuration((d: number) => {
-              cachedDuration = d;
+            pb.getDuration((d) => {
+              cachedDuration = typeof d === 'number' ? d : 0;
             });
           });
 
@@ -129,9 +129,12 @@
             cachedPaused = true;
           });
 
-          pb.bind('PB.Widget.Events.PLAY_PROGRESS', (data?: unknown) => {
-            const d = data as { currentPosition: number };
-            updatePlayback(d.currentPosition * 1000, cachedDuration * 1000, cachedPaused);
+          pb.bind('PB.Widget.Events.PLAY_PROGRESS', (e?: unknown) => {
+            const ev = e as { data?: { currentPosition?: number } };
+            const pos = ev?.data?.currentPosition;
+            if (pos !== undefined) {
+              updatePlayback(pos * 1000, cachedDuration * 1000, cachedPaused);
+            }
           });
         })
         .catch((err) => {
