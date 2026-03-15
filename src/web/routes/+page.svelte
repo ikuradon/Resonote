@@ -14,8 +14,8 @@
     {
       icon: '▶️',
       platform: 'YouTube',
-      label: 'Lofi Girl',
-      url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk'
+      label: 'Rick Astley',
+      url: 'https://youtu.be/dQw4w9WgXcQ'
     },
     {
       icon: '☁️',
