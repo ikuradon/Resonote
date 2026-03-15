@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { parseContentUrl } from '../content/registry.js';
+  import { toBase64url } from '../content/url-utils.js';
   import { t } from '../i18n/t.js';
 
   let url = $state('');
@@ -8,12 +9,28 @@
 
   function submit() {
     error = '';
-    const contentId = parseContentUrl(url.trim());
-    if (!contentId) {
+    const trimmed = url.trim();
+    if (!trimmed) return;
+
+    const contentId = parseContentUrl(trimmed);
+
+    if (contentId) {
+      // Known provider matched — navigate
+      goto(`/${contentId.platform}/${contentId.type}/${encodeURIComponent(contentId.id)}`);
+      return;
+    }
+
+    // No provider matched — try resolve page for auto-discovery
+    // Only for URLs that look like URLs (have a scheme or domain-like pattern)
+    try {
+      new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
+    } catch {
       error = t('track.unsupported');
       return;
     }
-    goto(`/${contentId.platform}/${contentId.type}/${encodeURIComponent(contentId.id)}`);
+
+    const encoded = toBase64url(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
+    goto(`/resolve/${encoded}`);
   }
 </script>
 
