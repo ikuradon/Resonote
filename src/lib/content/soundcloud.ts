@@ -25,9 +25,12 @@ export class SoundCloudProvider implements ContentProvider {
     return 'soundcloud:track';
   }
 
-  embedUrl(contentId: ContentId): string {
-    const trackUrl = `https://soundcloud.com/${contentId.id}`;
-    return `https://w.soundcloud.com/player/?url=${encodeURIComponent(trackUrl)}&auto_play=false&show_artwork=true&show_playcount=false&show_user=true&color=%23c9a256`;
+  embedUrl(contentId: ContentId): string | null {
+    // SoundCloud now requires api.soundcloud.com/tracks/{numericId} URLs.
+    // Since we only have the permalink slug, return null here.
+    // The embed component resolves the actual embed URL via oEmbed API.
+    void contentId;
+    return null;
   }
 
   openUrl(contentId: ContentId): string {

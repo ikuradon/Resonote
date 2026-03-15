@@ -67,15 +67,13 @@ describe('SoundCloudProvider', () => {
   });
 
   describe('embedUrl', () => {
-    it('should return SoundCloud embed URL', () => {
+    it('should return null (resolved via oEmbed at runtime)', () => {
       const result = provider.embedUrl({
         platform: 'soundcloud',
         type: 'track',
         id: 'artist/track'
       });
-      expect(result).toBe(
-        'https://w.soundcloud.com/player/?url=https%3A%2F%2Fsoundcloud.com%2Fartist%2Ftrack&auto_play=false&show_artwork=true&show_playcount=false&show_user=true&color=%23c9a256'
-      );
+      expect(result).toBeNull();
     });
   });
 
