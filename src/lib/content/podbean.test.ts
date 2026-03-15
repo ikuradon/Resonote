@@ -95,9 +95,7 @@ describe('PodbeanProvider', () => {
     it('should return embed URL for a pb- id', () => {
       expect(
         provider.embedUrl({ platform: 'podbean', type: 'episode', id: 'pb-ar8ve-1920b14' })
-      ).toBe(
-        'https://www.podbean.com/player-v2/?i=pb-ar8ve-1920b14&share=0&download=0&skin=f6f6f6&btn-skin=c9a256'
-      );
+      ).toBe('https://admin5.podbean.com/embed.html?id=pb-ar8ve-1920b14');
     });
 
     it('should return null for a channel slug id', () => {

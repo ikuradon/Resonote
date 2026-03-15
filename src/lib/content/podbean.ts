@@ -41,7 +41,7 @@ class PodbeanProvider implements ContentProvider {
 
   embedUrl(contentId: ContentId): string | null {
     if (contentId.id.startsWith('pb-')) {
-      return `https://www.podbean.com/player-v2/?i=${contentId.id}&share=0&download=0&skin=f6f6f6&btn-skin=c9a256`;
+      return `https://admin5.podbean.com/embed.html?id=${contentId.id}`;
     }
     return null;
   }
