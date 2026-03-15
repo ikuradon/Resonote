@@ -121,27 +121,35 @@
       // Note: we don't remove them after - they'll be useful for the content page too
     }
 
-    return new Promise<{ kind: number; tags: string[][]; content: string } | null>((resolve) => {
-      const req = createRxBackwardReq();
-      let found: { kind: number; tags: string[][]; content: string } | null = null;
+    const fetchPromise = new Promise<{ kind: number; tags: string[][]; content: string } | null>(
+      (resolve) => {
+        const req = createRxBackwardReq();
+        let found: { kind: number; tags: string[][]; content: string } | null = null;
 
-      const sub = rxNostr.use(req).subscribe({
-        next: (packet) => {
-          found = packet.event;
-        },
-        complete: () => {
-          sub.unsubscribe();
-          resolve(found);
-        },
-        error: () => {
-          sub.unsubscribe();
-          resolve(found);
-        }
-      });
+        const sub = rxNostr.use(req).subscribe({
+          next: (packet) => {
+            found = packet.event;
+          },
+          complete: () => {
+            sub.unsubscribe();
+            resolve(found);
+          },
+          error: () => {
+            sub.unsubscribe();
+            resolve(found);
+          }
+        });
 
-      req.emit({ ids: [eventId] });
-      req.over();
+        req.emit({ ids: [eventId] });
+        req.over();
+      }
+    );
+
+    const timeoutPromise = new Promise<null>((resolve) => {
+      setTimeout(() => resolve(null), 10_000);
     });
+
+    return Promise.race([fetchPromise, timeoutPromise]);
   }
 </script>
 

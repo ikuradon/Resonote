@@ -46,6 +46,7 @@
   let player: YT.Player | undefined;
   let pollTimer: ReturnType<typeof setInterval> | undefined;
   let ready = $state(false);
+  let error = $state(false);
 
   function syncPlayback(p: YT.Player) {
     const isPaused = p.getPlayerState() !== YT.PlayerState.PLAYING;
@@ -130,7 +131,10 @@
         player = p;
         ready = true;
       })
-      .catch((err) => log.error('Failed to initialize YouTube player', err));
+      .catch((err) => {
+        log.error('Failed to initialize YouTube player', err);
+        error = true;
+      });
 
     return () => {
       cancelled = true;
@@ -139,6 +143,7 @@
       player?.destroy();
       player = undefined;
       ready = false;
+      error = false;
     };
   });
 </script>
@@ -148,7 +153,11 @@
   class="animate-fade-in relative aspect-video w-full overflow-hidden rounded-2xl border border-border-subtle shadow-[0_4px_24px_rgba(0,0,0,0.4)]"
 >
   <div bind:this={containerEl} class="h-full"></div>
-  {#if !ready}
+  {#if error}
+    <div class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-surface-1">
+      <p class="text-sm text-text-muted">{t('embed.load_failed')}</p>
+    </div>
+  {:else if !ready}
     <div class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-surface-1">
       <div class="flex items-center gap-3">
         <svg class="h-8 w-8 text-youtube" viewBox="0 0 24 24" fill="currentColor">

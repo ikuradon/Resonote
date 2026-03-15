@@ -56,9 +56,12 @@ export function setNotifFilter(filter: FollowFilter): void {
 }
 
 export function getLastRead(): number {
-  if (typeof localStorage === 'undefined') return 0;
-  const v = localStorage.getItem(LAST_READ_KEY);
-  return v ? parseInt(v, 10) : 0;
+  try {
+    const v = localStorage.getItem(LAST_READ_KEY);
+    return v ? parseInt(v, 10) : 0;
+  } catch {
+    return 0;
+  }
 }
 
 function filteredItems(): Notification[] {
@@ -86,8 +89,10 @@ export function getNotifications() {
 
 export function markAllAsRead(): void {
   const now = Math.floor(Date.now() / 1000);
-  if (typeof localStorage !== 'undefined') {
+  try {
     localStorage.setItem(LAST_READ_KEY, String(now));
+  } catch {
+    // localStorage not available (private browsing, quota exceeded, etc.)
   }
   log.info('Marked all notifications as read', { timestamp: now });
 }
