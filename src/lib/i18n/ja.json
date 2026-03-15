@@ -1,6 +1,7 @@
 {
-  "app.tagline": "聴いている音楽の感想を共有しよう",
-  "track.placeholder": "SpotifyまたはYouTubeのURLを貼り付け...",
+  "app.tagline": "音楽や動画に、再生時刻と共にコメントを残そう",
+  "track.placeholder": "Spotify, YouTube, SoundCloud, Vimeo, MixcloudのURLを貼り付け...",
+  "app.examples": "例を試す",
   "track.go": "Go",
   "track.unsupported": "サポートされていないURL",
   "login.button": "Nostrでログイン",

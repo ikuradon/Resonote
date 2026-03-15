@@ -1,6 +1,7 @@
 {
-  "app.tagline": "Share your thoughts on what you're listening to",
-  "track.placeholder": "Paste a Spotify or YouTube URL...",
+  "app.tagline": "Comment on music and video, synced to playback time",
+  "track.placeholder": "Paste a Spotify, YouTube, SoundCloud, Vimeo, or Mixcloud URL...",
+  "app.examples": "Try an example",
   "track.go": "Go",
   "track.unsupported": "Unsupported URL",
   "login.button": "Login with Nostr",
