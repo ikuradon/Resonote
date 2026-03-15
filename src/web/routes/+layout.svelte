@@ -99,9 +99,9 @@
           Resonote
         </a>
         <div class="flex items-center gap-3">
-          <RelayStatus />
           <LanguageSwitcher />
           {#if auth.loggedIn}
+            <RelayStatus />
             <a
               href="/bookmarks"
               class="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-surface-1 hover:text-text-secondary"
