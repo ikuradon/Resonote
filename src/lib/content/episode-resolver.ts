@@ -1,5 +1,5 @@
 import { fromBase64url } from './url-utils.js';
-import { SYSTEM_PUBKEY, resolveByApi } from './podcast-resolver.js';
+import { getSystemPubkey, resolveByApi } from './podcast-resolver.js';
 
 export async function resolveEpisodeEnclosure(
   feedBase64: string,
@@ -35,9 +35,12 @@ async function queryNostrForEpisode(guid: string): Promise<string | null> {
     const req = createRxBackwardReq();
 
     const event$ = rxNostr.use(req).pipe(uniq(), timeout(5000));
+    const pubkey = await getSystemPubkey();
+    if (!pubkey) return null;
+
     req.emit({
       kinds: [39701],
-      authors: [SYSTEM_PUBKEY],
+      authors: [pubkey],
       '#i': [`podcast:item:guid:${guid}`],
       limit: 1
     });

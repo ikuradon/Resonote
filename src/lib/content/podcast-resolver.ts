@@ -1,7 +1,23 @@
 import { normalizeUrl } from './url-utils.js';
 
-// System key pubkey — placeholder, replace before deployment
-export const SYSTEM_PUBKEY = '__SYSTEM_PUBKEY_PLACEHOLDER__';
+let cachedPubkey: string | undefined;
+
+/**
+ * Fetch system pubkey from API (cached after first call).
+ * Returns empty string if not configured.
+ */
+export async function getSystemPubkey(): Promise<string> {
+  if (cachedPubkey) return cachedPubkey;
+  try {
+    const res = await fetch('/api/system/pubkey');
+    if (!res.ok) return '';
+    const data = await res.json();
+    cachedPubkey = (data.pubkey as string) ?? '';
+    return cachedPubkey!;
+  } catch {
+    return '';
+  }
+}
 
 interface DTagResult {
   guid: string;
@@ -48,10 +64,12 @@ export async function resolveByDTag(
   url: string,
   rxNostrQuery: (filter: Record<string, unknown>) => Promise<{ tags: string[][] } | null>
 ): Promise<DTagResult | null> {
+  const pubkey = await getSystemPubkey();
+  if (!pubkey) return null;
   const normalized = normalizeUrl(url);
   const event = await rxNostrQuery({
     kinds: [39701],
-    authors: [SYSTEM_PUBKEY],
+    authors: [pubkey],
     '#d': [normalized]
   });
   if (!event) return null;

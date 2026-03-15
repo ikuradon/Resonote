@@ -1,11 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { parseDTagEvent, SYSTEM_PUBKEY } from './podcast-resolver.js';
+import { parseDTagEvent, getSystemPubkey } from './podcast-resolver.js';
 
 describe('podcast-resolver', () => {
-  describe('SYSTEM_PUBKEY', () => {
-    it('should be a non-empty string', () => {
-      expect(typeof SYSTEM_PUBKEY).toBe('string');
-      expect(SYSTEM_PUBKEY.length).toBeGreaterThan(0);
+  describe('getSystemPubkey', () => {
+    it('should be an async function', () => {
+      expect(typeof getSystemPubkey).toBe('function');
     });
   });
 
