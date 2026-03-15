@@ -29,7 +29,9 @@ function parseProfileContent(content: string): Profile {
   return {
     name: typeof meta.name === 'string' ? truncate(meta.name) : undefined,
     displayName: typeof meta.display_name === 'string' ? truncate(meta.display_name) : undefined,
-    picture: typeof meta.picture === 'string' ? meta.picture : undefined
+    picture: typeof meta.picture === 'string' ? meta.picture : undefined,
+    about: typeof meta.about === 'string' ? meta.about : undefined,
+    nip05: typeof meta.nip05 === 'string' ? meta.nip05 : undefined
   };
 }
 
@@ -85,6 +87,17 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
             const profile = parseProfileContent(packet.event.content);
             profiles.set(packet.event.pubkey, profile);
             eventsDB.put(packet.event).catch(() => {});
+            if (profile.nip05) {
+              import('../nostr/nip05.js').then(({ verifyNip05 }) =>
+                verifyNip05(profile.nip05!, packet.event.pubkey).then((result) => {
+                  const existing = profiles.get(packet.event.pubkey);
+                  if (existing && existing.nip05 === profile.nip05) {
+                    existing.nip05valid = result.valid;
+                    profiles = new Map(profiles);
+                  }
+                })
+              );
+            }
           } catch {
             log.warn('Malformed profile JSON', { pubkey: shortHex(packet.event.pubkey) });
           }

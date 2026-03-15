@@ -6,6 +6,14 @@ export interface Profile {
   name?: string;
   displayName?: string;
   picture?: string;
+  about?: string;
+  nip05?: string;
+  nip05valid?: boolean | null;
+}
+
+export function formatNip05(nip05: string, truncate = false): string {
+  if (!truncate) return nip05;
+  return nip05.length > 20 ? nip05.slice(0, 18) + '…' : nip05;
 }
 
 export function truncate(s: string): string {

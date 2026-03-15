@@ -1,0 +1,107 @@
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('nostr:nip05');
+
+export interface Nip05Result {
+  valid: boolean | null;
+  nip05: string;
+  checkedAt: number;
+}
+
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const MAX_CONCURRENT = 5;
+const TIMEOUT_MS = 5000;
+
+const cache = new Map<string, Nip05Result>();
+
+let activeCount = 0;
+const queue: Array<() => void> = [];
+
+function runNext(): void {
+  if (queue.length > 0 && activeCount < MAX_CONCURRENT) {
+    const next = queue.shift();
+    next?.();
+  }
+}
+
+async function withConcurrencyLimit<T>(fn: () => Promise<T>): Promise<T> {
+  if (activeCount >= MAX_CONCURRENT) {
+    await new Promise<void>((resolve) => queue.push(resolve));
+  }
+  activeCount++;
+  try {
+    return await fn();
+  } finally {
+    activeCount--;
+    runNext();
+  }
+}
+
+async function fetchNip05(nip05: string, pubkey: string): Promise<Nip05Result> {
+  const atIndex = nip05.indexOf('@');
+  if (atIndex === -1 || atIndex === 0 || atIndex === nip05.length - 1) {
+    log.warn('Invalid NIP-05 format', { nip05 });
+    return { valid: false, nip05, checkedAt: Date.now() };
+  }
+
+  const local = nip05.slice(0, atIndex);
+  const domain = nip05.slice(atIndex + 1);
+  const url = `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(local)}`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    log.debug('Fetching NIP-05', { url });
+    const response = await fetch(url, {
+      redirect: 'error',
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      log.warn('NIP-05 fetch returned non-OK status', { status: response.status, nip05 });
+      return { valid: null, nip05, checkedAt: Date.now() };
+    }
+
+    const json = await response.json();
+    const resolvedPubkey = json?.names?.[local];
+
+    if (resolvedPubkey === pubkey) {
+      log.info('NIP-05 verified', { nip05 });
+      return { valid: true, nip05, checkedAt: Date.now() };
+    } else {
+      log.info('NIP-05 pubkey mismatch', { nip05, expected: pubkey, got: resolvedPubkey });
+      return { valid: false, nip05, checkedAt: Date.now() };
+    }
+  } catch (err) {
+    log.warn('NIP-05 fetch error (CORS/network/redirect)', { nip05, err });
+    return { valid: null, nip05, checkedAt: Date.now() };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Verify a NIP-05 identifier against a pubkey.
+ * Results are cached in-memory for 1 hour.
+ * At most 5 verifications run simultaneously; excess calls are queued.
+ */
+export async function verifyNip05(nip05: string, pubkey: string): Promise<Nip05Result> {
+  const cacheKey = `${nip05}:${pubkey}`;
+  const cached = cache.get(cacheKey);
+  if (cached && Date.now() - cached.checkedAt < CACHE_TTL_MS) {
+    log.debug('NIP-05 cache hit', { nip05 });
+    return cached;
+  }
+
+  const result = await withConcurrencyLimit(() => fetchNip05(nip05, pubkey));
+  cache.set(cacheKey, result);
+  return result;
+}
+
+/**
+ * Clear the in-memory NIP-05 verification cache.
+ */
+export function clearNip05Cache(): void {
+  cache.clear();
+}

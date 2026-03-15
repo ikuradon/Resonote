@@ -2,8 +2,14 @@
   import { onMount } from 'svelte';
   import type { Snippet } from 'svelte';
   import LoginButton from '$lib/components/LoginButton.svelte';
+  import NotificationBell from '$lib/components/NotificationBell.svelte';
   import RelayStatus from '$lib/components/RelayStatus.svelte';
-  import { initAuth } from '$lib/stores/auth.svelte.js';
+  import { getAuth, initAuth } from '$lib/stores/auth.svelte.js';
+  import { getFollows } from '$lib/stores/follows.svelte.js';
+  import {
+    subscribeNotifications,
+    destroyNotifications
+  } from '$lib/stores/notifications.svelte.js';
   import { preloadEmojiMart } from '$lib/stores/emoji-mart-preload.svelte.js';
   import { initExtensionListener, isExtensionMode } from '$lib/stores/extension.svelte.js';
   import { getLocale, setLocale } from '$lib/stores/locale.svelte.js';
@@ -11,8 +17,21 @@
 
   let { children }: { children: Snippet } = $props();
 
+  const auth = getAuth();
+
   $effect(() => {
     document.documentElement.lang = getLocale();
+  });
+
+  // Subscribe/unsubscribe notifications on auth changes
+  $effect(() => {
+    if (auth.loggedIn && auth.pubkey) {
+      const pubkey = auth.pubkey;
+      const follows = getFollows().follows;
+      subscribeNotifications(pubkey, follows);
+    } else if (auth.initialized && !auth.loggedIn) {
+      destroyNotifications();
+    }
   });
 
   onMount(() => {
@@ -91,6 +110,31 @@
           >
             {getLocale() === 'en' ? 'JA' : 'EN'}
           </button>
+          <a
+            href="/settings"
+            class="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-surface-1 hover:text-text-secondary"
+            aria-label="Settings"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="3"></circle>
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+              ></path>
+            </svg>
+          </a>
+          {#if auth.loggedIn}
+            <NotificationBell />
+          {/if}
           <LoginButton />
         </div>
       </div>

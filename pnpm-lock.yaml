@@ -24,6 +24,9 @@ importers:
       '@rx-nostr/crypto':
         specifier: ^0.0.0
         version: 0.0.0(rx-nostr@3.6.2)
+      '@scure/base':
+        specifier: ^2.0.0
+        version: 2.0.0
       idb:
         specifier: ^8.0.3
         version: 8.0.3

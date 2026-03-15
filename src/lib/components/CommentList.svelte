@@ -9,6 +9,8 @@
   } from '../nostr/events.js';
   import { castSigned } from '../nostr/client.js';
   import { getProfile, getDisplayName, fetchProfiles } from '../stores/profile.svelte.js';
+  import { formatNip05 } from '../stores/profile-utils.js';
+  import { npubEncode } from 'nostr-tools/nip19';
   import { untrack } from 'svelte';
   import { getPlayer } from '../stores/player.svelte.js';
   import { getAuth } from '../stores/auth.svelte.js';
@@ -317,7 +319,16 @@
             ?
           </div>
         {/if}
-        <span class="text-xs font-medium text-accent">{getDisplayName(comment.pubkey)}</span>
+        <a
+          href="/profile/{npubEncode(comment.pubkey)}"
+          class="text-xs font-medium text-accent hover:underline"
+          >{getDisplayName(comment.pubkey)}</a
+        >
+        {#if getProfile(comment.pubkey)?.nip05valid === true}
+          <span class="text-xs text-text-muted" title={getProfile(comment.pubkey)?.nip05 ?? ''}>
+            ✓{formatNip05(getProfile(comment.pubkey)?.nip05 ?? '', true)}
+          </span>
+        {/if}
         {#if showPosition && comment.positionMs !== null}
           <button
             type="button"

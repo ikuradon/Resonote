@@ -233,6 +233,110 @@ export async function refreshFollows(pubkey: string): Promise<void> {
   }
 }
 
+async function fetchLatestKind3(
+  myPubkey: string
+): Promise<{ tags: string[][]; content: string } | null> {
+  const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
+    import('rx-nostr'),
+    import('../nostr/client.js')
+  ]);
+  const rxNostr = await getRxNostr();
+
+  return new Promise((resolve) => {
+    const req = createRxBackwardReq();
+    let latest: { tags: string[][]; content: string; created_at: number } | null = null;
+
+    const sub = rxNostr.use(req).subscribe({
+      next: (packet) => {
+        if (!latest || packet.event.created_at > latest.created_at) {
+          latest = packet.event;
+        }
+      },
+      complete: () => {
+        sub.unsubscribe();
+        resolve(latest);
+      },
+      error: () => {
+        sub.unsubscribe();
+        resolve(latest);
+      }
+    });
+
+    req.emit({ kinds: [3], authors: [myPubkey], limit: 1 });
+    req.over();
+  });
+}
+
+/**
+ * Follow a user by publishing a new kind:3 event with targetPubkey added.
+ * Fetches the latest kind:3 from relays to preserve existing p-tags and content.
+ */
+export async function followUser(targetPubkey: string): Promise<void> {
+  const { getAuth } = await import('./auth.svelte.js');
+  const myPubkey = getAuth().pubkey;
+  if (!myPubkey) throw new Error('Not logged in');
+
+  const { castSigned } = await import('../nostr/client.js');
+
+  const latestKind3 = await fetchLatestKind3(myPubkey);
+
+  let tags: string[][];
+  let content: string;
+
+  if (latestKind3) {
+    // Check if already following
+    const alreadyFollowing = latestKind3.tags.some(
+      (tag) => tag[0] === 'p' && tag[1] === targetPubkey
+    );
+    if (alreadyFollowing) {
+      log.info('Already following', { targetPubkey: shortHex(targetPubkey) });
+      return;
+    }
+    // Preserve all existing tags and append new p-tag
+    tags = [...latestKind3.tags, ['p', targetPubkey]];
+    content = latestKind3.content;
+  } else {
+    tags = [['p', targetPubkey]];
+    content = '';
+  }
+
+  await castSigned({ kind: 3, tags, content });
+  state.follows = new Set([...state.follows, targetPubkey]);
+  log.info('Followed user', { targetPubkey: shortHex(targetPubkey) });
+}
+
+/**
+ * Unfollow a user by publishing a new kind:3 event with targetPubkey removed.
+ * Fetches the latest kind:3 from relays to preserve existing p-tags and content.
+ */
+export async function unfollowUser(targetPubkey: string): Promise<void> {
+  const { getAuth } = await import('./auth.svelte.js');
+  const myPubkey = getAuth().pubkey;
+  if (!myPubkey) throw new Error('Not logged in');
+
+  const { castSigned } = await import('../nostr/client.js');
+
+  const latestKind3 = await fetchLatestKind3(myPubkey);
+
+  let tags: string[][];
+  let content: string;
+
+  if (latestKind3) {
+    // Filter out the target p-tag, preserving all other tags
+    tags = latestKind3.tags.filter((tag) => !(tag[0] === 'p' && tag[1] === targetPubkey));
+    content = latestKind3.content;
+  } else {
+    tags = [];
+    content = '';
+  }
+
+  await castSigned({ kind: 3, tags, content });
+  const newFollows = new Set(state.follows);
+  newFollows.delete(targetPubkey);
+  state.follows = newFollows;
+  log.info('Unfollowed user', { targetPubkey: shortHex(targetPubkey) });
+}
+
 /** Clear follows (called on logout). In-memory only — DB cleared separately. */
 export function clearFollows(): void {
   log.info('Clearing follows');

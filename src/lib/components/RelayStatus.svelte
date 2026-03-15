@@ -1,6 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getRelays, initRelayStatus, type ConnectionState } from '../stores/relays.svelte.js';
+  import {
+    getRelays,
+    initRelayStatus,
+    shortUrl,
+    stateColor,
+    type ConnectionState
+  } from '../stores/relays.svelte.js';
   import { t, type TranslationKey } from '../i18n/t.js';
 
   let open = $state(false);
@@ -22,24 +28,6 @@
     return () => document.removeEventListener('click', handler, true);
   });
 
-  function stateColor(state: ConnectionState): string {
-    switch (state) {
-      case 'connected':
-        return 'bg-emerald-400';
-      case 'connecting':
-      case 'retrying':
-        return 'bg-amber-400 animate-pulse';
-      case 'waiting-for-retrying':
-      case 'dormant':
-      case 'initialized':
-        return 'bg-text-muted';
-      case 'error':
-      case 'rejected':
-      case 'terminated':
-        return 'bg-error';
-    }
-  }
-
   const stateKeys: Record<ConnectionState, TranslationKey> = {
     connected: 'relay.state.connected',
     connecting: 'relay.state.connecting',
@@ -57,10 +45,6 @@
   }
 
   let connectedCount = $derived(relays.filter((r) => r.state === 'connected').length);
-
-  function shortUrl(url: string): string {
-    return url.replace(/^wss?:\/\//, '');
-  }
 </script>
 
 <div class="relative" bind:this={containerEl}>
