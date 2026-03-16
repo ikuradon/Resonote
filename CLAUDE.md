@@ -100,14 +100,15 @@ Web embed 対応: Spotify, YouTube, Vimeo, SoundCloud, Mixcloud, Spreaker, Nicon
 - `src/lib/nostr/event-db.ts`: IndexedDB-based event cache (`idb` wrapper)
 - `src/lib/nostr/relays.ts`: Default relay list
 - `src/lib/nostr/user-relays.ts`: Per-user relay discovery
-- `src/lib/nostr/publish-signed.ts`: Pre-signed event publish via `nostr-tools/relay` + pending queue
+- `src/lib/nostr/publish-signed.ts`: Pre-signed event publish via `rxNostr.cast()` + pending queue
 - Signing: `nip07Signer()` from rx-nostr (delegates to `window.nostr`)
 
 ### Podcast/Audio Resolution Flow
 
 - NIP-B0 (kind:39701) ブックマークで URL→guid マッピング
 - フィード解決時に全エピソードの署名済みブックマークを生成
-- クライアントが `nostr-tools/relay` の `Relay.publish()` で publish (rx-nostr の send() は不可)
+- クライアントが `rxNostr.cast()` で publish (署名済みイベントは再署名されずそのまま通る)
+- NIP-B0 bookmark の `content` フィールドにエピソード description を格納 (1000文字上限)
 - 音声直 URL: IndexedDB → Nostr d タグ検索 → API auto-discovery の3段フォールバック
 - guid 解決時: `history.replaceState` で URL 書き換え + `addSubscription` でコメントマージ
 
@@ -132,6 +133,13 @@ Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
 - `relays.svelte.ts`: Relay connection status
 - `emoji-sets.svelte.ts`: Custom emoji set management
 - `extension.svelte.ts`: Browser extension mode state + postMessage listener
+
+## Testing
+
+- Unit: vitest (`src/**/*.test.ts` + `functions/**/*.test.ts`)
+- E2E: Playwright (`e2e/*.test.ts`, Chromium, build+preview on :4173)
+- IndexedDB テストは `fake-indexeddb/auto` を import
+- rx-nostr/client は `vi.mock()` でモック
 
 ## Deployment
 
@@ -162,4 +170,4 @@ Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
 - rx-nostr `firstValueFrom` は EOSE で空ストリームになると失敗 → 手動 subscribe + timeout
 - `@noble/hashes` は pnpm でホイストされない → `nostr-tools/utils` 経由で `hexToBytes` を使用
 - Svelte 5 の `$effect` 内で `store` を読むと依存追跡される → `untrack()` で回避
-- pre-signed イベントの publish に `rxNostr.send()` は使えない（ユーザー鍵で再署名される）→ `nostr-tools/relay` の `Relay.publish()` を使用
+- rx-nostr の `send()`/`cast()` は署名済みイベント (id+sig 存在) をそのまま通す → `rxNostr.cast()` で pre-signed publish 可能
