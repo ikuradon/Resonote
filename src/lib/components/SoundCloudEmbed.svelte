@@ -135,13 +135,17 @@
       clearTimeout(readyTimeout);
       window.removeEventListener('resonote:seek', handleSeek);
       if (widget) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const SCWidget = (window as any).SC?.Widget;
-        if (SCWidget?.Events) {
-          widget.unbind(SCWidget.Events.READY);
-          widget.unbind(SCWidget.Events.PLAY);
-          widget.unbind(SCWidget.Events.PAUSE);
-          widget.unbind(SCWidget.Events.PLAY_PROGRESS);
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const SCWidget = (window as any).SC?.Widget;
+          if (SCWidget?.Events) {
+            widget.unbind(SCWidget.Events.READY);
+            widget.unbind(SCWidget.Events.PLAY);
+            widget.unbind(SCWidget.Events.PAUSE);
+            widget.unbind(SCWidget.Events.PLAY_PROGRESS);
+          }
+        } catch {
+          // iframe may already be removed from DOM during navigation
         }
       }
       widget = undefined;

@@ -110,12 +110,16 @@
       clearTimeout(readyTimeout);
       window.removeEventListener('resonote:seek', handleSeek);
       if (player) {
-        player.off('play');
-        player.off('pause');
-        player.off('ended');
-        player.off('timeupdate');
-        player.off('loaded');
-        player.destroy();
+        try {
+          player.off('play');
+          player.off('pause');
+          player.off('ended');
+          player.off('timeupdate');
+          player.off('loaded');
+          player.destroy();
+        } catch {
+          // iframe may already be removed from DOM during navigation
+        }
       }
       player = undefined;
       ready = false;

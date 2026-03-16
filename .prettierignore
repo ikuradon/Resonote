@@ -1,6 +1,7 @@
 node_modules
 build
 .svelte-kit
+.serena
 pnpm-lock.yaml
 test-results
 playwright-report
