@@ -51,7 +51,7 @@
     const posMs: number = detail.position ?? detail.positionMs ?? -1;
     if (widget && posMs >= 0) {
       log.debug('Seeking to position', { posMs });
-      widget.seekTo(posMs);
+      widget.seekTo(posMs / 1000); // PB.seekTo takes seconds despite docs saying ms
     }
   }
 
@@ -130,9 +130,16 @@
           });
 
           pb.bind('PB.Widget.Events.PLAY_PROGRESS', (e?: unknown) => {
-            const ev = e as { data?: { currentPosition?: number } };
+            const ev = e as {
+              data?: { currentPosition?: number; relativePosition?: number };
+            };
             const pos = ev?.data?.currentPosition;
+            const rel = ev?.data?.relativePosition;
             if (pos !== undefined) {
+              // Derive duration from currentPosition / relativePosition
+              if (rel && rel > 0) {
+                cachedDuration = pos / rel;
+              }
               updatePlayback(pos * 1000, cachedDuration * 1000, cachedPaused);
             }
           });
