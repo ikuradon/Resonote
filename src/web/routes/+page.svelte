@@ -61,7 +61,7 @@
       label: '当たり前かのように配信を始めたふたり',
       url: 'https://op3.dev/e/dts.podtrac.com/redirect.mp3/media-cdn.uncrop.jp/uncrop-jp/production/media/audio-348cbbc4e1841a4cbc517dd4dace84ba.mp3'
     }
-  ];
+  ].sort(() => Math.random() - 0.5);
 
   function handleExample(url: string) {
     const contentId = parseContentUrl(url);
