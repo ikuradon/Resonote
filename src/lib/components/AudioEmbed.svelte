@@ -10,9 +10,10 @@
     title?: string;
     feedTitle?: string;
     image?: string;
+    openUrl?: string;
   }
 
-  let { contentId, enclosureUrl, title, feedTitle, image }: Props = $props();
+  let { contentId, enclosureUrl, title, feedTitle, image, openUrl }: Props = $props();
 
   let audioEl: HTMLAudioElement | undefined = $state();
   let currentTime = $state(0);
@@ -130,8 +131,18 @@
   <audio bind:this={audioEl} src={audioSrc ?? undefined} preload="metadata" class="hidden"></audio>
 
   {#if error}
-    <div class="flex items-center justify-center px-4 py-6">
+    <div class="flex flex-col items-center justify-center gap-3 px-4 py-6">
       <p class="text-sm text-zinc-400">{t('embed.load_failed')}</p>
+      {#if openUrl}
+        <a
+          href={openUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-xs text-accent underline transition-colors hover:text-accent-hover"
+        >
+          {t('embed.check_source')}
+        </a>
+      {/if}
     </div>
   {:else}
     <div class="flex gap-4 p-4">

@@ -10,9 +10,10 @@
 
   interface Props {
     contentId: ContentId;
+    openUrl?: string;
   }
 
-  let { contentId }: Props = $props();
+  let { contentId, openUrl }: Props = $props();
 
   let iframeEl: HTMLIFrameElement | undefined = $state();
   // eslint-disable-next-line no-undef
@@ -65,7 +66,7 @@
         log.error('Player initialization timed out');
         error = true;
       }
-    }, 30000);
+    }, 15000);
 
     loadApi()
       .then(() => {
@@ -131,8 +132,18 @@
     title="Mixcloud Player"
   ></iframe>
   {#if error}
-    <div class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-surface-1">
+    <div class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-surface-1">
       <p class="text-sm text-text-muted">{t('embed.load_failed')}</p>
+      {#if openUrl}
+        <a
+          href={openUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-xs text-accent underline transition-colors hover:text-accent-hover"
+        >
+          {t('embed.check_source')}
+        </a>
+      {/if}
     </div>
   {:else if !ready}
     <div class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-surface-1">

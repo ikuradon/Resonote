@@ -171,7 +171,7 @@
   {#if isCollection}
     <div class="mx-auto max-w-3xl space-y-8">
       {#if showPlayer && platform === 'spotify'}
-        <SpotifyEmbed {contentId} />
+        <SpotifyEmbed {contentId} openUrl={provider.openUrl(contentId)} />
       {/if}
 
       {#if showInstallPrompt}
@@ -245,23 +245,24 @@
               title={episodeTitle}
               feedTitle={episodeFeedTitle}
               image={episodeImage}
+              openUrl={provider.openUrl(contentId)}
             />
           {:else if showPlayer && platform === 'spotify'}
-            <SpotifyEmbed {contentId} />
+            <SpotifyEmbed {contentId} openUrl={provider.openUrl(contentId)} />
           {:else if showPlayer && platform === 'youtube'}
-            <YouTubeEmbed {contentId} />
+            <YouTubeEmbed {contentId} openUrl={provider.openUrl(contentId)} />
           {:else if showPlayer && platform === 'soundcloud'}
-            <SoundCloudEmbed {contentId} />
+            <SoundCloudEmbed {contentId} openUrl={provider.openUrl(contentId)} />
           {:else if showPlayer && platform === 'vimeo'}
-            <VimeoEmbed {contentId} />
+            <VimeoEmbed {contentId} openUrl={provider.openUrl(contentId)} />
           {:else if showPlayer && platform === 'mixcloud'}
-            <MixcloudEmbed {contentId} />
+            <MixcloudEmbed {contentId} openUrl={provider.openUrl(contentId)} />
           {:else if showPlayer && platform === 'spreaker'}
-            <SpreakerEmbed {contentId} />
+            <SpreakerEmbed {contentId} openUrl={provider.openUrl(contentId)} />
           {:else if showPlayer && platform === 'niconico'}
-            <NiconicoEmbed {contentId} />
+            <NiconicoEmbed {contentId} openUrl={provider.openUrl(contentId)} />
           {:else if showPlayer && platform === 'podbean'}
-            <PodbeanEmbed {contentId} />
+            <PodbeanEmbed {contentId} openUrl={provider.openUrl(contentId)} />
           {/if}
 
           {#if showInstallPrompt}

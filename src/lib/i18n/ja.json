@@ -69,6 +69,7 @@
   "dialog.close": "閉じる",
   "loading": "読み込み中...",
   "embed.load_failed": "プレイヤーの読み込みに失敗しました",
+  "embed.check_source": "元のコンテンツを確認する",
   "content.requires_extension": "このコンテンツにはResonote拡張機能が必要です",
   "content.install_chrome": "Chrome版をインストール",
   "content.install_firefox": "Firefox版をインストール",

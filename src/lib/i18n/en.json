@@ -69,6 +69,7 @@
   "dialog.close": "Close",
   "loading": "Loading...",
   "embed.load_failed": "Failed to load player",
+  "embed.check_source": "Check original content",
   "content.requires_extension": "This content requires the Resonote extension",
   "content.install_chrome": "Install for Chrome",
   "content.install_firefox": "Install for Firefox",
