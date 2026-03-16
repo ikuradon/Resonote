@@ -180,6 +180,28 @@ describe('EventsDB', () => {
       const kind3 = await eventsDB.getByPubkeyAndKind('pk-1', 3);
       expect(kind3?.id).toBe('e2');
     });
+
+    it('should batch non-replaceable and handle replaceable individually', async () => {
+      const events = [
+        makeEvent({ id: 'r1', kind: 1111, created_at: 100 }),
+        makeEvent({ id: 'r2', kind: 1111, created_at: 200 }),
+        makeEvent({ id: 'rep1', kind: 3, created_at: 100 }),
+        makeEvent({ id: 'rep2', kind: 3, created_at: 200 }),
+        makeEvent({ id: 'r3', kind: 7, created_at: 300 })
+      ];
+
+      await eventsDB.putMany(events);
+
+      // Non-replaceable: all stored
+      const kind1111 = await eventsDB.getAllByKind(1111);
+      expect(kind1111).toHaveLength(2);
+      const kind7 = await eventsDB.getAllByKind(7);
+      expect(kind7).toHaveLength(1);
+
+      // Replaceable: only latest kept
+      const kind3 = await eventsDB.getByPubkeyAndKind('pk-1', 3);
+      expect(kind3?.id).toBe('rep2');
+    });
   });
 
   describe('getManyByPubkeysAndKind', () => {

@@ -140,9 +140,21 @@ export class EventsDB {
 
   /** Store multiple events, applying replaceable event rules for each. */
   async putMany(events: NostrEvent[]): Promise<void> {
-    for (const event of events) {
-      await this.put(event);
+    const replaceable: NostrEvent[] = [];
+    const regular: StoredEvent[] = [];
+    for (const e of events) {
+      if (isReplaceable(e.kind) || isParameterizedReplaceable(e.kind)) {
+        replaceable.push(e);
+      } else {
+        regular.push(toStoredEvent(e));
+      }
     }
+    if (regular.length > 0) {
+      const tx = this.db.transaction(STORE_NAME, 'readwrite');
+      for (const stored of regular) tx.store.put(stored);
+      await tx.done;
+    }
+    for (const e of replaceable) await this.put(e);
   }
 
   /** Get the latest replaceable event for a pubkey+kind combination. */
