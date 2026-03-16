@@ -108,7 +108,7 @@
                 type="button"
                 onclick={() => handleRemove(entry.value)}
                 disabled={removing === entry.value}
-                class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-surface-2 hover:text-error disabled:opacity-50"
+                class="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-surface-2 hover:text-error disabled:opacity-50"
                 aria-label={t('bookmark.remove')}
               >
                 <svg

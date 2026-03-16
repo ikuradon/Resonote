@@ -13,12 +13,21 @@
   import { initExtensionListener, isExtensionMode } from '$lib/stores/extension.svelte.js';
   import { retryPendingPublishes } from '$lib/nostr/publish-signed.js';
   import LanguageSwitcher from '$lib/components/LanguageSwitcher.svelte';
+  import { getRelays, isTransitionalState } from '$lib/stores/relays.svelte.js';
+  import { t } from '$lib/i18n/t.js';
   import { getLocale } from '$lib/stores/locale.svelte.js';
   import '../app.css';
 
   let { children }: { children: Snippet } = $props();
 
   const auth = getAuth();
+
+  let relayList = $derived(getRelays());
+  let relayConnectedCount = $derived(relayList.filter((r) => r.state === 'connected').length);
+  let anyRelayConnecting = $derived(relayList.some((r) => isTransitionalState(r.state)));
+  let showRelayWarning = $derived(
+    relayList.length > 0 && relayConnectedCount === 0 && !anyRelayConnecting
+  );
 
   $effect(() => {
     document.documentElement.lang = getLocale();
@@ -150,6 +159,32 @@
         </div>
       </div>
     </header>
+  {/if}
+
+  {#if showRelayWarning}
+    <div class="mx-auto flex max-w-7xl items-center gap-3 px-5 py-2">
+      <div
+        class="flex flex-1 items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-200"
+      >
+        <svg
+          class="h-4 w-4 shrink-0"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+          />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+        <div>
+          <span class="font-medium">{t('relay.disconnected.title')}</span>
+          <span class="ml-1 text-amber-200/70">{t('relay.disconnected.message')}</span>
+        </div>
+      </div>
+    </div>
   {/if}
 
   <main class="relative mx-auto max-w-7xl px-5 py-6 lg:py-8">

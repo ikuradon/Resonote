@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { fromBase64url, toBase64url } from '$lib/content/url-utils.js';
   import { resolveByApi } from '$lib/content/podcast-resolver.js';
+  import { t } from '../i18n/t.js';
 
   interface Props {
     encodedUrl: string;
@@ -25,8 +26,8 @@
         status = 'error';
         errorMessage =
           data.error === 'rss_not_found'
-            ? 'このURLからポッドキャストが見つかりませんでした'
-            : 'URLの解析に失敗しました';
+            ? t('resolve.error.not_found')
+            : t('resolve.error.parse_failed');
         return;
       }
 
@@ -36,7 +37,7 @@
       }
     } catch {
       status = 'error';
-      errorMessage = 'URLの解析に失敗しました';
+      errorMessage = t('resolve.error.parse_failed');
     }
   }
 </script>
@@ -47,7 +48,7 @@
       <div
         class="h-8 w-8 animate-spin rounded-full border-2 border-amber-500 border-t-transparent"
       ></div>
-      <p class="text-text-secondary">URLを解析中...</p>
+      <p class="text-text-secondary">{t('resolve.loading')}</p>
     </div>
   {:else}
     <div class="rounded-2xl border border-border-subtle bg-surface-secondary p-6 text-center">

@@ -413,7 +413,7 @@
             <button
               type="button"
               onclick={() => removeRelay(i)}
-              class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-surface-2 hover:text-error"
+              class="flex min-h-11 min-w-11 flex-shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-surface-2 hover:text-error"
               aria-label="Remove relay"
             >
               <svg

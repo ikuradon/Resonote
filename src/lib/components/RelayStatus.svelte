@@ -50,7 +50,7 @@
 <div class="relative" bind:this={containerEl}>
   <button
     onclick={() => (open = !open)}
-    class="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-text-secondary"
+    class="flex items-center gap-1.5 min-h-11 rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-text-secondary"
     title={t('relay.title')}
   >
     <span class="relative flex h-2 w-2">

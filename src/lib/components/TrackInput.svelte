@@ -7,17 +7,17 @@
   let url = $state('');
   let error = $state('');
 
-  const placeholders = [
-    'YouTubeのURLを入力...',
-    'SpotifyのURLを入力...',
-    'SoundCloudのURLを入力...',
-    'PodcastフィードのURLを入力...',
-    'VimeoのURLを入力...',
-    'MixcloudのURLを入力...',
-    '音声ファイルのURLを入力...',
-    'ニコニコ動画のURLを入力...',
-    'PodbeanのURLを入力...'
-  ];
+  const placeholders = $derived.by(() => [
+    t('track.placeholder.youtube'),
+    t('track.placeholder.spotify'),
+    t('track.placeholder.soundcloud'),
+    t('track.placeholder.podcast'),
+    t('track.placeholder.vimeo'),
+    t('track.placeholder.mixcloud'),
+    t('track.placeholder.audio'),
+    t('track.placeholder.niconico'),
+    t('track.placeholder.podbean')
+  ]);
 
   let placeholderIndex = $state(0);
   let placeholderVisible = $state(true);

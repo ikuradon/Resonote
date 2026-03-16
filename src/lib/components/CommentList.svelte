@@ -407,7 +407,7 @@
           type="button"
           disabled={acting === comment.id || myReaction}
           onclick={() => sendReaction(comment)}
-          class="inline-flex items-center gap-1 rounded-lg p-1.5 transition-colors
+          class="inline-flex items-center gap-1 min-h-11 rounded-lg p-1.5 transition-colors
             {myReaction ? 'text-accent' : 'text-text-muted hover:text-accent'}"
           title={myReaction ? t('liked.title') : t('like.title')}
         >
@@ -444,7 +444,7 @@
         <button
           type="button"
           onclick={() => startReply(replyToComment ?? comment)}
-          class="rounded-lg p-1.5 text-text-muted transition-colors hover:text-accent"
+          class="inline-flex items-center min-h-11 rounded-lg p-1.5 text-text-muted transition-colors hover:text-accent"
           title={t('reply.title')}
         >
           <svg
@@ -464,7 +464,7 @@
           type="button"
           disabled={acting === comment.id}
           onclick={() => (muteTarget = { pubkey: comment.pubkey })}
-          class="rounded-lg p-1.5 text-text-muted transition-colors hover:text-red-400"
+          class="inline-flex items-center min-h-11 rounded-lg p-1.5 text-text-muted transition-colors hover:text-red-400"
           title={t('mute.user')}
         >
           <svg
@@ -484,7 +484,7 @@
           type="button"
           disabled={acting === comment.id}
           onclick={() => requestDelete(comment)}
-          class="ml-auto rounded-lg p-1.5 text-text-muted transition-colors hover:text-red-400"
+          class="ml-auto inline-flex items-center min-h-11 rounded-lg p-1.5 text-text-muted transition-colors hover:text-red-400"
           title={t('delete.title')}
         >
           {#if acting === comment.id}

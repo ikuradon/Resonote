@@ -72,6 +72,18 @@ export async function initRelayStatus(): Promise<void> {
   });
 }
 
+/** States where a relay is still attempting to connect (not yet failed). */
+const TRANSITIONAL_STATES: Set<ConnectionState> = new Set([
+  'initialized',
+  'connecting',
+  'retrying',
+  'waiting-for-retrying'
+]);
+
+export function isTransitionalState(state: ConnectionState): boolean {
+  return TRANSITIONAL_STATES.has(state);
+}
+
 export function shortUrl(url: string): string {
   return url.replace(/^wss?:\/\//, '');
 }
