@@ -41,7 +41,14 @@
     if (auth.loggedIn && auth.pubkey) {
       const pubkey = auth.pubkey;
       const follows = getFollows().follows;
-      untrack(() => subscribeNotifications(pubkey, follows));
+      if (follows.size === 0) {
+        untrack(() => subscribeNotifications(pubkey, follows));
+        return;
+      }
+      const timer = setTimeout(() => {
+        untrack(() => subscribeNotifications(pubkey, follows));
+      }, 1000);
+      return () => clearTimeout(timer);
     } else if (auth.initialized && !auth.loggedIn) {
       untrack(() => destroyNotifications());
     }
