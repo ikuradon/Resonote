@@ -100,6 +100,40 @@ export interface ResolveApiResponse {
 }
 
 /**
+ * Search Nostr relays for a bookmark event matching the given URL.
+ * Uses d-tag search with system pubkey.
+ */
+export async function searchBookmarkByUrl(url: string): Promise<DTagResult | null> {
+  try {
+    const pubkey = await getSystemPubkey();
+    if (!pubkey) return null;
+
+    const { getRxNostr } = await import('../nostr/client.js');
+    const { createRxBackwardReq, uniq } = await import('rx-nostr');
+    const { firstValueFrom, timeout } = await import('rxjs');
+
+    const rxNostr = await getRxNostr();
+    const req = createRxBackwardReq();
+    const normalized = normalizeUrl(url);
+
+    const event$ = rxNostr.use(req).pipe(uniq(), timeout(5000));
+    req.emit({
+      kinds: [39701],
+      authors: [pubkey],
+      '#d': [normalized],
+      limit: 1
+    });
+    req.over();
+
+    const packet = await firstValueFrom(event$).catch(() => null);
+    if (!packet) return null;
+    return parseDTagEvent({ kind: 39701, tags: packet.event.tags });
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Call the API to resolve a URL.
  */
 export async function resolveByApi(url: string): Promise<ResolveApiResponse> {

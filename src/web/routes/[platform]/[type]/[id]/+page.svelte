@@ -28,7 +28,7 @@
   import { t } from '$lib/i18n/t.js';
   import { resolveEpisode } from '$lib/content/episode-resolver.js';
   import { fromBase64url, toBase64url } from '$lib/content/url-utils.js';
-  import { resolveByApi } from '$lib/content/podcast-resolver.js';
+  import { resolveByApi, searchBookmarkByUrl } from '$lib/content/podcast-resolver.js';
   import { publishSignedEvent } from '$lib/nostr/publish-signed.js';
 
   let platform = $derived(page.params.platform ?? '');
@@ -133,50 +133,80 @@
     }
   });
 
-  // Background guid resolution for audio direct URLs (untrack store to prevent re-runs)
+  // Background guid resolution for audio direct URLs
+  // 1. Search Nostr relays for existing bookmark (d-tag)
+  // 2. Fallback: call API for auto-discovery
   $effect(() => {
     if (platform !== 'audio') return;
     const audioUrl = fromBase64url(contentIdParam);
     let cancelled = false;
 
-    resolveByApi(audioUrl).then((data) => {
-      if (cancelled) return;
-
-      // Extract metadata from API response (feed match or ID3 fallback)
-      if (data.episode?.title && !episodeTitle) episodeTitle = data.episode.title;
-      if (data.feed?.title && !episodeFeedTitle) episodeFeedTitle = data.feed.title;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const feedImage = (data.feed as any)?.imageUrl as string | undefined;
-      if (feedImage && !episodeImage) episodeImage = feedImage;
-      // Fallback to audio file metadata (ID3 tags etc.)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const meta = (data as any).metadata as
-        | { title?: string; artist?: string; image?: string }
-        | undefined;
-      if (meta) {
-        if (meta.title && !episodeTitle) episodeTitle = meta.title;
-        if (meta.artist && !episodeFeedTitle) episodeFeedTitle = meta.artist;
-        if (meta.image && !episodeImage) episodeImage = meta.image;
-      }
-
+    function applyResolution(guid: string, feedUrl: string) {
       untrack(() => {
-        if (data.signedEvents) {
-          for (const ev of data.signedEvents) {
-            publishSignedEvent(ev).catch(() => {});
-          }
+        store?.addSubscription(`podcast:item:guid:${guid}`);
+        const episodeId = `${toBase64url(feedUrl)}:${toBase64url(guid)}`;
+        history.replaceState(history.state, '', `/podcast/episode/${episodeId}`);
+      });
+    }
+
+    // Step 1: Search Nostr relays for bookmark
+    searchBookmarkByUrl(audioUrl)
+      .then((bookmark) => {
+        if (cancelled) return;
+        if (bookmark) {
+          // Bookmark found — apply immediately
+          if (!episodeTitle) episodeTitle = undefined; // will be resolved by episode-resolver
+          applyResolution(bookmark.guid, bookmark.feedUrl);
+          // Also resolve metadata via episode-resolver
+          const feedBase64 = toBase64url(bookmark.feedUrl);
+          const guidBase64 = toBase64url(bookmark.guid);
+          resolveEpisode(feedBase64, guidBase64).then((info) => {
+            if (cancelled || !info) return;
+            if (info.title && !episodeTitle) episodeTitle = info.title;
+            if (info.feedTitle && !episodeFeedTitle) episodeFeedTitle = info.feedTitle;
+            if (info.image && !episodeImage) episodeImage = info.image;
+          });
+          return;
         }
 
-        // Add podcast:item:guid subscription for comment merge
-        if (data.episode?.guid) {
-          store?.addSubscription(`podcast:item:guid:${data.episode.guid}`);
-          // Rewrite URL to canonical podcast episode path (no navigation)
-          if (data.feed?.feedUrl) {
-            const episodeId = `${toBase64url(data.feed.feedUrl)}:${toBase64url(data.episode.guid)}`;
-            history.replaceState(history.state, '', `/podcast/episode/${episodeId}`);
+        // Step 2: Bookmark not found — fallback to API
+        return resolveByApi(audioUrl).then((data) => {
+          if (cancelled) return;
+
+          // Extract metadata from API response
+          if (data.episode?.title && !episodeTitle) episodeTitle = data.episode.title;
+          if (data.feed?.title && !episodeFeedTitle) episodeFeedTitle = data.feed.title;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const feedImage = (data.feed as any)?.imageUrl as string | undefined;
+          if (feedImage && !episodeImage) episodeImage = feedImage;
+          // Fallback to audio file metadata (ID3 tags etc.)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const meta = (data as any).metadata as
+            | { title?: string; artist?: string; image?: string }
+            | undefined;
+          if (meta) {
+            if (meta.title && !episodeTitle) episodeTitle = meta.title;
+            if (meta.artist && !episodeFeedTitle) episodeFeedTitle = meta.artist;
+            if (meta.image && !episodeImage) episodeImage = meta.image;
           }
-        }
+
+          untrack(() => {
+            if (data.signedEvents) {
+              for (const ev of data.signedEvents) {
+                publishSignedEvent(ev).catch(() => {});
+              }
+            }
+            if (data.episode?.guid && data.feed?.feedUrl) {
+              applyResolution(data.episode.guid, data.feed.feedUrl);
+            } else if (data.episode?.guid) {
+              store?.addSubscription(`podcast:item:guid:${data.episode.guid}`);
+            }
+          });
+        });
+      })
+      .catch(() => {
+        // Both searches failed — stay on audio:<url>
       });
-    });
 
     return () => {
       cancelled = true;
