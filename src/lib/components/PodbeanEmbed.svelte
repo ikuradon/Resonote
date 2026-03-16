@@ -116,13 +116,18 @@
             setContent(contentId);
             ready = true;
             log.info('Podbean widget ready');
-            pb.getDuration((d) => {
-              cachedDuration = typeof d === 'number' ? d : 0;
-            });
           });
 
           pb.bind('PB.Widget.Events.PLAY', () => {
             cachedPaused = false;
+            // getDuration returns NaN before playback starts
+            if (!cachedDuration || isNaN(cachedDuration)) {
+              pb.getDuration((d) => {
+                if (typeof d === 'number' && !isNaN(d) && d > 0) {
+                  cachedDuration = d;
+                }
+              });
+            }
           });
 
           pb.bind('PB.Widget.Events.PAUSE', () => {
