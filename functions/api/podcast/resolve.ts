@@ -188,13 +188,32 @@ async function handleFeedUrl(feedUrl: string, privkey: Uint8Array): Promise<Resp
   }
 
   const feedDTag = normalizeForDTag(feedUrl);
+  const feedRoot = domainRoot(feedUrl);
   const feedEvent = signBookmarkEvent(privkey, {
     dTag: feedDTag,
     iTags: [[`podcast:guid:${feed.podcastGuid}`, feedUrl]],
     kTag: 'podcast:guid',
-    rTags: [feedUrl, domainRoot(feedUrl)],
+    rTags: [feedUrl, feedRoot],
     title: feed.title
   });
+
+  // Sign bookmark events for all episodes
+  const signedEvents = [feedEvent];
+  for (const ep of feed.episodes) {
+    const itemGuid = ep.guid || ep.enclosureUrl;
+    signedEvents.push(
+      signBookmarkEvent(privkey, {
+        dTag: normalizeForDTag(ep.enclosureUrl),
+        iTags: [
+          [`podcast:item:guid:${itemGuid}`, ep.enclosureUrl],
+          [`podcast:guid:${feed.podcastGuid}`, feedUrl]
+        ],
+        kTag: 'podcast:item:guid',
+        rTags: [ep.enclosureUrl, feedUrl, feedRoot],
+        title: ep.title
+      })
+    );
+  }
 
   return jsonResponse({
     type: 'feed',
@@ -205,7 +224,7 @@ async function handleFeedUrl(feedUrl: string, privkey: Uint8Array): Promise<Resp
       imageUrl: feed.imageUrl
     },
     episodes: feed.episodes,
-    signedEvents: [feedEvent]
+    signedEvents
   });
 }
 
