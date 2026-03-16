@@ -53,6 +53,25 @@ export async function resolveEpisode(
 
 async function queryNostrForEpisode(guid: string): Promise<string | null> {
   try {
+    const pubkey = await getSystemPubkey();
+    if (!pubkey) return null;
+
+    // 1. Try IndexedDB cache (search by tag value)
+    try {
+      const { getEventsDB } = await import('../nostr/event-db.js');
+      const db = await getEventsDB();
+      const cached = await db.getByTagValue(`i:podcast:item:guid:${guid}`, 39701);
+      for (const ev of cached) {
+        if (ev.pubkey === pubkey) {
+          const result = parseDTagEvent({ kind: 39701, tags: ev.tags });
+          if (result) return result.enclosureUrl;
+        }
+      }
+    } catch {
+      // DB not available
+    }
+
+    // 2. Fallback: query relays
     const { getRxNostr } = await import('../nostr/client.js');
     const { createRxBackwardReq, uniq } = await import('rx-nostr');
     const { firstValueFrom, timeout } = await import('rxjs');
@@ -61,9 +80,6 @@ async function queryNostrForEpisode(guid: string): Promise<string | null> {
     const req = createRxBackwardReq();
 
     const event$ = rxNostr.use(req).pipe(uniq(), timeout(5000));
-    const pubkey = await getSystemPubkey();
-    if (!pubkey) return null;
-
     req.emit({
       kinds: [39701],
       authors: [pubkey],
@@ -74,6 +90,15 @@ async function queryNostrForEpisode(guid: string): Promise<string | null> {
 
     const packet = await firstValueFrom(event$).catch(() => null);
     if (!packet) return null;
+
+    // Persist to IndexedDB
+    try {
+      const { getEventsDB } = await import('../nostr/event-db.js');
+      const db = await getEventsDB();
+      await db.put(packet.event);
+    } catch {
+      // DB not available
+    }
 
     const result = parseDTagEvent({ kind: 39701, tags: packet.event.tags });
     return result?.enclosureUrl ?? null;

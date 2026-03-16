@@ -108,13 +108,28 @@ export async function searchBookmarkByUrl(url: string): Promise<DTagResult | nul
     const pubkey = await getSystemPubkey();
     if (!pubkey) return null;
 
+    const normalized = normalizeUrl(url);
+
+    // 1. Try IndexedDB cache first
+    try {
+      const { getEventsDB } = await import('../nostr/event-db.js');
+      const db = await getEventsDB();
+      const cached = await db.getByReplaceKey(pubkey, 39701, normalized);
+      if (cached) {
+        const result = parseDTagEvent({ kind: 39701, tags: cached.tags });
+        if (result) return result;
+      }
+    } catch {
+      // DB not available
+    }
+
+    // 2. Fallback: query relays
     const { getRxNostr } = await import('../nostr/client.js');
     const { createRxBackwardReq, uniq } = await import('rx-nostr');
     const { firstValueFrom, timeout } = await import('rxjs');
 
     const rxNostr = await getRxNostr();
     const req = createRxBackwardReq();
-    const normalized = normalizeUrl(url);
 
     const event$ = rxNostr.use(req).pipe(uniq(), timeout(5000));
     req.emit({
@@ -127,6 +142,16 @@ export async function searchBookmarkByUrl(url: string): Promise<DTagResult | nul
 
     const packet = await firstValueFrom(event$).catch(() => null);
     if (!packet) return null;
+
+    // Persist to IndexedDB for future cache hits
+    try {
+      const { getEventsDB } = await import('../nostr/event-db.js');
+      const db = await getEventsDB();
+      await db.put(packet.event);
+    } catch {
+      // DB not available
+    }
+
     return parseDTagEvent({ kind: 39701, tags: packet.event.tags });
   } catch {
     return null;
