@@ -176,6 +176,10 @@ Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
 
 ## Gotchas
 
+- CSP テスト: `pnpm build && wrangler pages dev build --port 8788` + `cloudflared tunnel --url http://localhost:8788` で本番同等テスト可能 (localhost は CSP を無視しがち)
+- CSP `script-src` にはワイルドカードサブドメイン (`*.spotify.com` 等) を使用。プロバイダーが CDN サブドメインにリダイレクトするため個別指定は漏れやすい
+- Spotify IFrame API は内部で eval を使用 → CSP に `'unsafe-eval'` が必要
+- SPA ナビゲーション時に iframe が先に DOM から消え、widget の cleanup (`destroy()`, `unbind()`) で `postMessage` が null に対して呼ばれる → `try-catch` で囲む
 - `static/_headers` は静的アセットにのみ適用される。Pages Functions のレスポンスヘッダーは関数内で制御
 - `/_app/immutable/` のチャンクはコンテンツハッシュ付き → immutable キャッシュ設定済み。Resonote 側コード変更でもハッシュが変わりうる
 - 新しい embed プロバイダー追加時は `static/_headers` の CSP `frame-src` / `script-src` も更新すること
