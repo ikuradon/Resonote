@@ -190,6 +190,56 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     };
   }
 
+  function handleCommentPacket(event: {
+    id: string;
+    pubkey: string;
+    content: string;
+    created_at: number;
+    tags: string[][];
+  }) {
+    if (commentIds.has(event.id)) return;
+    commentIds.add(event.id);
+    eventPubkeys.set(event.id, event.pubkey);
+    commentsRaw = [...commentsRaw, buildCommentFromEvent(event)];
+    log.debug('Comment received', { id: shortHex(event.id) });
+  }
+
+  function handleReactionPacket(event: {
+    id: string;
+    pubkey: string;
+    content: string;
+    tags: string[][];
+  }) {
+    const reaction = buildReactionFromEvent(event);
+    if (reaction) {
+      addReaction(reaction);
+      eventPubkeys.set(event.id, event.pubkey);
+    }
+  }
+
+  function handleDeletionPacket(event: { id: string; pubkey: string; tags: string[][] }) {
+    const eTags = extractDeletionTargets(event);
+    if (eTags.length === 0) return;
+    const verified = eTags.filter((id) => {
+      const originalPubkey = eventPubkeys.get(id);
+      return !originalPubkey || originalPubkey === event.pubkey;
+    });
+    if (verified.length === 0) return;
+    const next = new Set(deletedIds);
+    for (const id of verified) next.add(id);
+    deletedIds = next;
+    if (deletedIds.size !== prevDeletedSize) {
+      prevDeletedSize = deletedIds.size;
+      rebuildReactionIndex();
+    }
+    const toPurge = verified.filter((id) => commentIds.has(id) || reactionIds.has(id));
+    if (toPurge.length > 0)
+      eventsDBRef
+        ?.deleteByIds(toPurge)
+        .catch((err: unknown) => log.error('Failed to purge deletion targets', err));
+    log.debug('Deletion event received', { deletedIds: verified.map(shortHex) });
+  }
+
   async function subscribe() {
     log.info('Subscribing to comments', {
       contentId: `${contentId.platform}:${contentId.type}:${contentId.id}`
@@ -348,94 +398,42 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       }, 5000);
     }
 
-    // --- Comments (kind:1111) ---
-    const commentBackward = createRxBackwardReq();
-    const commentForward = createRxForwardReq();
-    const commentFilter = maxCreatedAt
-      ? { kinds: [1111], '#I': [idValue], since: maxCreatedAt + 1 }
-      : { kinds: [1111], '#I': [idValue] };
+    // --- Unified subscription (kind:1111 + kind:7 + kind:5) ---
+    const backward = createRxBackwardReq();
+    const forward = createRxForwardReq();
 
-    const commentSub = merge(
-      rxNostr.use(commentBackward).pipe(uniq()),
-      rxNostr.use(commentForward).pipe(uniq())
-    ).subscribe((packet) => {
-      if (commentIds.has(packet.event.id)) return;
-      eventsDB.put(packet.event);
-      commentIds.add(packet.event.id);
-      eventPubkeys.set(packet.event.id, packet.event.pubkey);
-      commentsRaw = [...commentsRaw, buildCommentFromEvent(packet.event)];
-      log.debug('Comment received', { id: shortHex(packet.event.id) });
-    });
+    const baseFilters = [
+      { kinds: [1111], '#I': [idValue] },
+      { kinds: [7], '#I': [idValue] },
+      { kinds: [5], '#I': [idValue] }
+    ];
+    const backwardFilters = maxCreatedAt
+      ? baseFilters.map((f) => ({ ...f, since: maxCreatedAt + 1 }))
+      : baseFilters;
 
-    commentBackward.emit(commentFilter);
-    commentBackward.over();
-    commentForward.emit({ kinds: [1111], '#I': [idValue] });
-
-    // --- Reactions (kind:7) ---
-    const reactionBackward = createRxBackwardReq();
-    const reactionForward = createRxForwardReq();
-    const reactionFilter = maxCreatedAt
-      ? { kinds: [7], '#I': [idValue], since: maxCreatedAt + 1 }
-      : { kinds: [7], '#I': [idValue] };
-
-    const reactionSub = merge(
-      rxNostr.use(reactionBackward).pipe(uniq()),
-      rxNostr.use(reactionForward).pipe(uniq())
+    const sub = merge(
+      rxNostr.use(backward).pipe(uniq()),
+      rxNostr.use(forward).pipe(uniq())
     ).subscribe((packet) => {
       eventsDB.put(packet.event);
-      const reaction = buildReactionFromEvent(packet.event);
-      if (reaction) {
-        addReaction(reaction);
-        eventPubkeys.set(packet.event.id, packet.event.pubkey);
+      switch (packet.event.kind) {
+        case 1111:
+          handleCommentPacket(packet.event);
+          break;
+        case 7:
+          handleReactionPacket(packet.event);
+          break;
+        case 5:
+          handleDeletionPacket(packet.event);
+          break;
       }
     });
 
-    reactionBackward.emit(reactionFilter);
-    reactionBackward.over();
-    reactionForward.emit({ kinds: [7], '#I': [idValue] });
+    backward.emit(backwardFilters);
+    backward.over();
+    forward.emit(baseFilters);
 
-    // --- Deletions (kind:5) ---
-    const deletionBackward = createRxBackwardReq();
-    const deletionForward = createRxForwardReq();
-    const deletionFilter = maxCreatedAt
-      ? { kinds: [5], '#I': [idValue], since: maxCreatedAt + 1 }
-      : { kinds: [5], '#I': [idValue] };
-
-    const deletionSub = merge(
-      rxNostr.use(deletionBackward).pipe(uniq()),
-      rxNostr.use(deletionForward).pipe(uniq())
-    ).subscribe((packet) => {
-      eventsDB.put(packet.event);
-      const eTags = extractDeletionTargets(packet.event);
-      if (eTags.length > 0) {
-        const verified = eTags.filter((id) => {
-          const originalPubkey = eventPubkeys.get(id);
-          return !originalPubkey || originalPubkey === packet.event.pubkey;
-        });
-        if (verified.length > 0) {
-          const next = new Set(deletedIds);
-          for (const id of verified) next.add(id);
-          deletedIds = next;
-          if (deletedIds.size !== prevDeletedSize) {
-            prevDeletedSize = deletedIds.size;
-            rebuildReactionIndex();
-          }
-          // Fire-and-forget, only delete known cached events
-          const toPurge = verified.filter((id) => commentIds.has(id) || reactionIds.has(id));
-          if (toPurge.length > 0)
-            eventsDB
-              .deleteByIds(toPurge)
-              .catch((err) => log.error('Failed to purge deletion targets', err));
-          log.debug('Deletion event received', { deletedIds: verified.map(shortHex) });
-        }
-      }
-    });
-
-    deletionBackward.emit(deletionFilter);
-    deletionBackward.over();
-    deletionForward.emit({ kinds: [5], '#I': [idValue] });
-
-    subscriptions = [commentSub, reactionSub, deletionSub];
+    subscriptions = [sub];
   }
 
   async function addSubscription(idValue: string): Promise<void> {
