@@ -3,19 +3,17 @@
 
   const log = createLogger('SpreakerEmbed');
 
-  let apiLoaded = false;
-
-  function ensureApiScript(): void {
-    if (apiLoaded) return;
-    if (document.querySelector('script[src*="widget.spreaker.com/widgets.js"]')) {
-      apiLoaded = true;
-      return;
-    }
+  /**
+   * Load widgets.js. On re-invocation (SPA navigation), remove and re-add
+   * the script so it re-scans for new .spreaker-player anchors.
+   */
+  function loadWidgetsScript(): void {
+    const existing = document.querySelector('script[src*="widget.spreaker.com/widgets.js"]');
+    if (existing) existing.remove();
     const script = document.createElement('script');
     script.src = 'https://widget.spreaker.com/widgets.js';
     script.async = true;
     document.head.appendChild(script);
-    apiLoaded = true;
   }
 </script>
 
@@ -59,64 +57,40 @@
     let cancelled = false;
     let spReadyTimer: ReturnType<typeof setInterval> | undefined;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const existingSP = (window as any).SP;
+    // Create anchor element for widgets.js to convert to iframe
+    const anchor = document.createElement('a');
+    anchor.className = 'spreaker-player';
+    anchor.href = `https://www.spreaker.com/episode/${contentId.id}`;
+    anchor.setAttribute('data-resource', `episode_id=${contentId.id}`);
+    anchor.setAttribute('data-width', '100%');
+    anchor.setAttribute('data-height', '200px');
+    anchor.setAttribute('data-theme', 'dark');
+    // eslint-disable-next-line svelte/no-dom-manipulating -- Spreaker widgets.js requires anchor element injection
+    containerEl.appendChild(anchor);
 
-    if (existingSP?.getWidget) {
-      // Re-visit: SP already available, create iframe directly
-      const iframe = document.createElement('iframe');
-      iframe.src = `https://widget.spreaker.com/player?episode_id=${contentId.id}&theme=dark`;
-      iframe.width = '100%';
-      iframe.height = '200';
-      iframe.setAttribute('frameborder', 'no');
-      iframe.setAttribute('scrolling', 'no');
-      iframe.allow = 'autoplay';
-      // eslint-disable-next-line svelte/no-dom-manipulating -- Direct iframe for SPA re-navigation
-      containerEl.appendChild(iframe);
+    // Re-add script to trigger re-scan of .spreaker-player anchors
+    loadWidgetsScript();
 
-      iframe.addEventListener(
-        'load',
-        () => {
-          if (cancelled) return;
-          initWidget(existingSP.getWidget(iframe));
-        },
-        { once: true }
-      );
-    } else {
-      // First visit: use anchor + widgets.js
-      const anchor = document.createElement('a');
-      anchor.className = 'spreaker-player';
-      anchor.href = `https://www.spreaker.com/episode/${contentId.id}`;
-      anchor.setAttribute('data-resource', `episode_id=${contentId.id}`);
-      anchor.setAttribute('data-width', '100%');
-      anchor.setAttribute('data-height', '200px');
-      anchor.setAttribute('data-theme', 'dark');
-      // eslint-disable-next-line svelte/no-dom-manipulating -- Spreaker widgets.js requires anchor element injection
-      containerEl.appendChild(anchor);
-
-      ensureApiScript();
-
-      const startTime = Date.now();
-      spReadyTimer = setInterval(() => {
-        if (cancelled) {
-          clearInterval(spReadyTimer);
-          return;
-        }
-        if (Date.now() - startTime > SP_READY_TIMEOUT_MS) {
-          clearInterval(spReadyTimer);
-          log.error('Spreaker SP.getWidget not available after timeout');
-          error = true;
-          return;
-        }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const SP = (window as any).SP;
-        if (!SP?.getWidget) return;
-        const iframe = containerEl?.querySelector('iframe');
-        if (!iframe) return;
+    const startTime = Date.now();
+    spReadyTimer = setInterval(() => {
+      if (cancelled) {
         clearInterval(spReadyTimer);
-        initWidget(SP.getWidget(iframe));
-      }, SP_READY_POLL_MS);
-    }
+        return;
+      }
+      if (Date.now() - startTime > SP_READY_TIMEOUT_MS) {
+        clearInterval(spReadyTimer);
+        log.error('Spreaker SP.getWidget not available after timeout');
+        error = true;
+        return;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const SP = (window as any).SP;
+      if (!SP?.getWidget) return;
+      const iframe = containerEl?.querySelector('iframe');
+      if (!iframe) return;
+      clearInterval(spReadyTimer);
+      initWidget(SP.getWidget(iframe));
+    }, SP_READY_POLL_MS);
 
     // eslint-disable-next-line no-undef
     function initWidget(w: SP.SpreakerWidget) {
