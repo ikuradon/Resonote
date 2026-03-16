@@ -66,6 +66,15 @@
         });
         p.on('pause', () => {
           cachedPaused = true;
+          // Immediately update to reflect paused state (timeupdate may lag)
+          p.getCurrentTime().then((sec: number) => {
+            p.getDuration().then((dur: number) => {
+              updatePlayback(sec * 1000, dur * 1000, true);
+            });
+          });
+        });
+        p.on('ended', () => {
+          cachedPaused = true;
         });
 
         p.on('timeupdate', (data: { seconds: number; duration: number }) => {
@@ -93,6 +102,7 @@
       if (player) {
         player.off('play');
         player.off('pause');
+        player.off('ended');
         player.off('timeupdate');
         player.off('loaded');
         player.destroy();
