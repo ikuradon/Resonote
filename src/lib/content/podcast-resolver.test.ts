@@ -87,5 +87,73 @@ describe('podcast-resolver', () => {
       const result = parseDTagEvent(event);
       expect(result).toBeNull();
     });
+
+    it('should extract description from content field', () => {
+      const event = {
+        kind: 39701,
+        tags: [
+          ['d', 'example.com/episode.mp3'],
+          ['i', 'podcast:guid:feed-guid-123', 'https://example.com/feed.xml'],
+          ['i', 'podcast:item:guid:episode-guid-456', 'https://example.com/episode.mp3']
+        ],
+        content: 'This is the episode description'
+      };
+
+      const result = parseDTagEvent(event);
+      expect(result).not.toBeNull();
+      expect(result!.description).toBe('This is the episode description');
+    });
+
+    it('should return undefined description when content is empty string', () => {
+      const event = {
+        kind: 39701,
+        tags: [
+          ['d', 'example.com/episode.mp3'],
+          ['i', 'podcast:guid:feed-guid-123', 'https://example.com/feed.xml'],
+          ['i', 'podcast:item:guid:episode-guid-456', 'https://example.com/episode.mp3']
+        ],
+        content: ''
+      };
+
+      const result = parseDTagEvent(event);
+      expect(result).not.toBeNull();
+      expect(result!.description).toBeUndefined();
+    });
+
+    it('should return undefined description when content field is missing', () => {
+      const event = {
+        kind: 39701,
+        tags: [
+          ['d', 'example.com/episode.mp3'],
+          ['i', 'podcast:guid:feed-guid-123', 'https://example.com/feed.xml'],
+          ['i', 'podcast:item:guid:episode-guid-456', 'https://example.com/episode.mp3']
+        ]
+      };
+
+      const result = parseDTagEvent(event);
+      expect(result).not.toBeNull();
+      expect(result!.description).toBeUndefined();
+    });
+
+    it('should include description in DTagResult type', () => {
+      const event = {
+        kind: 39701,
+        tags: [
+          ['d', 'example.com/episode.mp3'],
+          ['i', 'podcast:guid:feed-guid-123', 'https://example.com/feed.xml'],
+          ['i', 'podcast:item:guid:episode-guid-456', 'https://example.com/episode.mp3']
+        ],
+        content: 'A description'
+      };
+
+      const result = parseDTagEvent(event);
+      expect(result).not.toBeNull();
+      // Verify the result conforms to DTagResult with description
+      const { guid, feedUrl, enclosureUrl, description } = result!;
+      expect(guid).toBe('episode-guid-456');
+      expect(feedUrl).toBe('https://example.com/feed.xml');
+      expect(enclosureUrl).toBe('https://example.com/episode.mp3');
+      expect(description).toBe('A description');
+    });
   });
 });

@@ -111,6 +111,115 @@ test.describe('Content page (YouTube)', () => {
   });
 });
 
+test.describe('Content page (niconico)', () => {
+  const niconicoUrl = '/niconico/video/sm9';
+
+  test('should display niconico embed', async ({ page }) => {
+    await page.goto(niconicoUrl);
+    await expect(page.locator('[data-testid="niconico-embed"]')).toBeVisible();
+  });
+
+  test('should display Comments heading for niconico', async ({ page }) => {
+    await page.goto(niconicoUrl);
+    await expect(page.locator('h2:has-text("Comments")')).toBeVisible();
+  });
+
+  test('should display login prompt when not logged in on niconico', async ({ page }) => {
+    await page.goto(niconicoUrl);
+    await expect(page.locator('[data-testid="comment-login-prompt"]')).toBeVisible();
+  });
+});
+
+test.describe('Content page (audio)', () => {
+  // Base64url-encoded "https://example.com/test.mp3"
+  const audioUrl = '/audio/track/aHR0cHM6Ly9leGFtcGxlLmNvbS90ZXN0Lm1wMw';
+
+  test('should display audio embed', async ({ page }) => {
+    await page.goto(audioUrl);
+    await expect(page.locator('[data-testid="audio-embed"]')).toBeVisible();
+  });
+
+  test('should display Comments heading for audio', async ({ page }) => {
+    await page.goto(audioUrl);
+    await expect(page.locator('h2:has-text("Comments")')).toBeVisible();
+  });
+
+  test('should display login prompt when not logged in on audio', async ({ page }) => {
+    await page.goto(audioUrl);
+    await expect(page.locator('[data-testid="comment-login-prompt"]')).toBeVisible();
+  });
+});
+
+test.describe('Content page (podcast feed)', () => {
+  // Base64url-encoded "https://example.com/feed/rss"
+  const feedUrl = '/podcast/feed/aHR0cHM6Ly9leGFtcGxlLmNvbS9mZWVkL3Jzcw';
+
+  test('should render podcast feed page without crashing', async ({ page }) => {
+    await page.goto(feedUrl);
+    // The page should render the app shell (API won't be available in E2E without dev:full)
+    await expect(page.locator('header a[href="/"]')).toBeVisible();
+  });
+
+  test('should display Comments heading for podcast feed', async ({ page }) => {
+    await page.goto(feedUrl);
+    // Feed page still renders the comments UI layout
+    await expect(page.locator('h2:has-text("Comments")')).toBeVisible();
+  });
+});
+
+test.describe('Content page (podbean)', () => {
+  const podbeanUrl = '/podbean/episode/pb-ar8ve-1920b14';
+
+  test('should display podbean embed', async ({ page }) => {
+    await page.goto(podbeanUrl);
+    await expect(page.locator('[data-testid="podbean-embed"]')).toBeVisible();
+  });
+
+  test('should display Comments heading for podbean', async ({ page }) => {
+    await page.goto(podbeanUrl);
+    await expect(page.locator('h2:has-text("Comments")')).toBeVisible();
+  });
+
+  test('should display login prompt when not logged in on podbean', async ({ page }) => {
+    await page.goto(podbeanUrl);
+    await expect(page.locator('[data-testid="comment-login-prompt"]')).toBeVisible();
+  });
+});
+
+test.describe('Content page navigation between types', () => {
+  test('should navigate from Spotify track to YouTube video via home', async ({ page }) => {
+    await page.goto('/spotify/track/4C6zDr6e86HYqLxPAhO8jA');
+    await expect(page.locator('[data-testid="spotify-embed"]')).toBeVisible();
+
+    // Go back to home
+    await page.locator('header a[href="/"]').click();
+    await expect(page).toHaveURL('/');
+
+    // Navigate to YouTube
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    await expect(page).toHaveURL('/youtube/video/dQw4w9WgXcQ');
+    await expect(page.locator('[data-testid="youtube-embed"]')).toBeVisible();
+  });
+
+  test('should navigate from YouTube to niconico via home', async ({ page }) => {
+    await page.goto('/youtube/video/dQw4w9WgXcQ');
+    await expect(page.locator('[data-testid="youtube-embed"]')).toBeVisible();
+
+    // Go back to home
+    await page.locator('header a[href="/"]').click();
+    await expect(page).toHaveURL('/');
+
+    // Navigate to niconico
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://www.nicovideo.jp/watch/sm9');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    await expect(page).toHaveURL('/niconico/video/sm9');
+    await expect(page.locator('[data-testid="niconico-embed"]')).toBeVisible();
+  });
+});
+
 test.describe('Content page (invalid)', () => {
   test('should show unsupported content for unknown platform', async ({ page }) => {
     await page.goto('/unknown/type/abc123');

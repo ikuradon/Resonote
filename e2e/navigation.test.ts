@@ -110,4 +110,86 @@ test.describe('URL input navigation', () => {
     // Domain-like text is sent to resolve page for auto-discovery
     await expect(page).toHaveURL(/\/resolve\//);
   });
+
+  test('should navigate to resolve page and show loading for unknown URL', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://www.example.com/unknown-content');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    await expect(page).toHaveURL(/\/resolve\//);
+    // Resolve page should show loading or error state (no external API in tests)
+    await expect(page.locator('header a[href="/"]')).toBeVisible();
+  });
+
+  test('should navigate to podcast feed page for RSS feed URL', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://example.com/feed/rss');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    await expect(page).toHaveURL(/\/podcast\/feed\//);
+  });
+
+  test('should navigate to podcast feed page for XML extension URL', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://example.com/podcast.xml');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    await expect(page).toHaveURL(/\/podcast\/feed\//);
+  });
+
+  test('should navigate to niconico page for sm-prefix URL', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://www.nicovideo.jp/watch/sm9');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    await expect(page).toHaveURL('/niconico/video/sm9');
+  });
+
+  test('should navigate to niconico page for so-prefix URL', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://www.nicovideo.jp/watch/so12345');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    await expect(page).toHaveURL('/niconico/video/so12345');
+  });
+
+  test('should navigate to niconico page for nico.ms short URL', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://nico.ms/sm9');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    await expect(page).toHaveURL('/niconico/video/sm9');
+  });
+
+  test('should navigate to podbean page for share URL', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://www.podbean.com/media/share/pb-ar8ve-1920b14');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    await expect(page).toHaveURL('/podbean/episode/pb-ar8ve-1920b14');
+  });
+
+  test('should navigate to podbean page for channel URL', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://mypodcast.podbean.com/e/my-episode');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    await expect(page).toHaveURL(/\/podbean\/episode\//);
+  });
+
+  test('should navigate to audio page for .mp3 URL', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://example.com/audio/track.mp3');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    await expect(page).toHaveURL(/\/audio\/track\//);
+  });
+
+  test('should navigate to audio page for .m4a URL', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://example.com/audio/track.m4a');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    await expect(page).toHaveURL(/\/audio\/track\//);
+  });
 });

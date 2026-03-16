@@ -12,7 +12,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000
   },
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'functions/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],

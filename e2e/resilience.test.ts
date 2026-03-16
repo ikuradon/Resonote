@@ -65,4 +65,69 @@ test.describe('Resilience', () => {
     await expect(page.locator(embedLocator)).toBeVisible();
     await expect(page.locator('h2:has-text("Comments")')).toBeVisible();
   });
+
+  test('should maintain URL after page reload on content page', async ({ page }) => {
+    const contentUrl = '/youtube/video/dQw4w9WgXcQ';
+    await page.goto(contentUrl);
+    await expect(page.locator('[data-testid="youtube-embed"]')).toBeVisible();
+
+    // Reload and verify URL is preserved
+    await page.reload();
+    await expect(page).toHaveURL(contentUrl);
+    await expect(page.locator('[data-testid="youtube-embed"]')).toBeVisible();
+    await expect(page.locator('h2:has-text("Comments")')).toBeVisible();
+  });
+
+  test('should maintain URL after page reload on niconico page', async ({ page }) => {
+    const contentUrl = '/niconico/video/sm9';
+    await page.goto(contentUrl);
+    await expect(page.locator('[data-testid="niconico-embed"]')).toBeVisible();
+
+    await page.reload();
+    await expect(page).toHaveURL(contentUrl);
+    await expect(page.locator('[data-testid="niconico-embed"]')).toBeVisible();
+  });
+
+  test('should handle back/forward navigation between different content types', async ({
+    page
+  }) => {
+    // Start at home
+    await page.goto('/');
+    await expect(page.locator('h1')).toHaveText('Resonote');
+
+    // Navigate to Spotify track
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://open.spotify.com/track/4C6zDr6e86HYqLxPAhO8jA');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    await expect(page).toHaveURL('/spotify/track/4C6zDr6e86HYqLxPAhO8jA');
+
+    // Go back to home
+    await page.goBack();
+    await expect(page).toHaveURL('/');
+
+    // Navigate to YouTube
+    await page
+      .locator('[data-testid="track-url-input"]')
+      .fill('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    await expect(page).toHaveURL('/youtube/video/dQw4w9WgXcQ');
+
+    // Go back to home
+    await page.goBack();
+    await expect(page).toHaveURL('/');
+
+    // Go forward to YouTube
+    await page.goForward();
+    await expect(page).toHaveURL('/youtube/video/dQw4w9WgXcQ');
+  });
+
+  test('should handle reload on home page', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('h1')).toHaveText('Resonote');
+
+    await page.reload();
+    await expect(page).toHaveURL('/');
+    await expect(page.locator('h1')).toHaveText('Resonote');
+    await expect(page.locator('[data-testid="track-url-input"]')).toBeVisible();
+  });
 });
