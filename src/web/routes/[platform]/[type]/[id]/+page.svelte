@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import SpotifyEmbed from '$lib/components/SpotifyEmbed.svelte';
   import YouTubeEmbed from '$lib/components/YouTubeEmbed.svelte';
@@ -27,7 +28,7 @@
   import type { ContentId } from '$lib/content/types.js';
   import { t } from '$lib/i18n/t.js';
   import { resolveEpisode } from '$lib/content/episode-resolver.js';
-  import { fromBase64url } from '$lib/content/url-utils.js';
+  import { fromBase64url, toBase64url } from '$lib/content/url-utils.js';
   import { resolveByApi } from '$lib/content/podcast-resolver.js';
   import { publishSignedEvent } from '$lib/nostr/publish-signed.js';
 
@@ -150,13 +151,18 @@
       }
 
       untrack(() => {
-        if (data.episode?.guid) {
-          store?.addSubscription(`podcast:item:guid:${data.episode.guid}`);
-        }
         if (data.signedEvents) {
           for (const ev of data.signedEvents) {
             publishSignedEvent(ev).catch(() => {});
           }
+        }
+
+        // Redirect to canonical podcast episode URL if guid + feedUrl resolved
+        if (data.episode?.guid && data.feed?.feedUrl) {
+          const episodeId = `${toBase64url(data.feed.feedUrl)}:${toBase64url(data.episode.guid)}`;
+          goto(`/podcast/episode/${episodeId}`, { replaceState: true });
+        } else if (data.episode?.guid) {
+          store?.addSubscription(`podcast:item:guid:${data.episode.guid}`);
         }
       });
     });
