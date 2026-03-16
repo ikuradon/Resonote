@@ -1,3 +1,5 @@
+import { sanitizeImageUrl } from './url.js';
+
 export type EmojiSegment =
   | { type: 'text'; value: string }
   | { type: 'emoji'; shortcode: string; url: string };
@@ -40,7 +42,8 @@ export function parseEmojiContent(content: string, emojiTags: string[][]): Emoji
   const emojiMap = new Map<string, string>();
   for (const tag of emojiTags) {
     if (tag.length >= 3) {
-      emojiMap.set(tag[1], tag[2]);
+      const safeUrl = sanitizeImageUrl(tag[2]);
+      if (safeUrl) emojiMap.set(tag[1], safeUrl);
     }
   }
 

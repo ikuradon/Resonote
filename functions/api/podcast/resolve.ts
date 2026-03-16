@@ -439,7 +439,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     } else {
       return await handleSiteUrl(urlParam);
     }
-  } catch (err) {
-    return jsonResponse({ error: 'internal_error', message: String(err) }, 500);
+  } catch {
+    return jsonResponse({ error: 'internal_error' }, 500);
   }
 };
