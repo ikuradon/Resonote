@@ -60,5 +60,5 @@ export function requestSeek(position: number): void {
   if (isExtensionMode()) {
     sendSeekRequest(position);
   }
-  window.dispatchEvent(new CustomEvent('resonote:seek', { detail: { position } }));
+  window.dispatchEvent(new CustomEvent('resonote:seek', { detail: { positionMs: position } }));
 }

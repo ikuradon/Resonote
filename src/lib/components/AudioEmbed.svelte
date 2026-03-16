@@ -55,9 +55,11 @@
   }
 
   function handleSeekEvent(e: Event) {
-    const detail = (e as CustomEvent<{ position: number }>).detail;
-    if (audioEl && detail.position >= 0) {
-      audioEl.currentTime = detail.position / 1000;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const detail = (e as CustomEvent).detail as any;
+    const posMs: number = detail.positionMs ?? detail.position ?? -1;
+    if (audioEl && posMs >= 0) {
+      audioEl.currentTime = posMs / 1000;
     }
   }
 
