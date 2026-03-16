@@ -106,41 +106,66 @@ export interface ResolveApiResponse {
 export async function searchBookmarkByUrl(url: string): Promise<DTagResult | null> {
   try {
     const pubkey = await getSystemPubkey();
+    console.log('[searchBookmark] pubkey:', pubkey);
     if (!pubkey) return null;
 
     const normalized = normalizeUrl(url);
+    console.log('[searchBookmark] normalized d-tag:', normalized);
 
     // 1. Try IndexedDB cache first
     try {
       const { getEventsDB } = await import('../nostr/event-db.js');
       const db = await getEventsDB();
       const cached = await db.getByReplaceKey(pubkey, 39701, normalized);
+      console.log('[searchBookmark] DB cache hit:', !!cached);
       if (cached) {
         const result = parseDTagEvent({ kind: 39701, tags: cached.tags });
         if (result) return result;
       }
-    } catch {
-      // DB not available
+    } catch (e) {
+      console.log('[searchBookmark] DB error:', e);
     }
 
     // 2. Fallback: query relays
     const { getRxNostr } = await import('../nostr/client.js');
     const { createRxBackwardReq, uniq } = await import('rx-nostr');
-    const { firstValueFrom, timeout } = await import('rxjs');
 
     const rxNostr = await getRxNostr();
     const req = createRxBackwardReq();
 
-    const event$ = rxNostr.use(req).pipe(uniq(), timeout(5000));
-    req.emit({
+    const filter = {
       kinds: [39701],
       authors: [pubkey],
       '#d': [normalized],
       limit: 1
-    });
-    req.over();
+    };
 
-    const packet = await firstValueFrom(event$).catch(() => null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const packet = await new Promise<any>((resolve) => {
+      const timer = setTimeout(() => {
+        sub.unsubscribe();
+        resolve(null);
+      }, 5000);
+
+      const sub = rxNostr
+        .use(req)
+        .pipe(uniq())
+        .subscribe({
+          next: (p) => {
+            clearTimeout(timer);
+            sub.unsubscribe();
+            resolve(p);
+          },
+          complete: () => {
+            clearTimeout(timer);
+            resolve(null);
+          }
+        });
+
+      req.emit(filter);
+      req.over();
+    });
+
     if (!packet) return null;
 
     // Persist to IndexedDB for future cache hits

@@ -74,21 +74,42 @@ async function queryNostrForEpisode(guid: string): Promise<string | null> {
     // 2. Fallback: query relays
     const { getRxNostr } = await import('../nostr/client.js');
     const { createRxBackwardReq, uniq } = await import('rx-nostr');
-    const { firstValueFrom, timeout } = await import('rxjs');
 
     const rxNostr = await getRxNostr();
     const req = createRxBackwardReq();
-
-    const event$ = rxNostr.use(req).pipe(uniq(), timeout(5000));
-    req.emit({
+    const filter = {
       kinds: [39701],
       authors: [pubkey],
       '#i': [`podcast:item:guid:${guid}`],
       limit: 1
-    });
-    req.over();
+    };
 
-    const packet = await firstValueFrom(event$).catch(() => null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const packet = await new Promise<any>((resolve) => {
+      const timer = setTimeout(() => {
+        sub.unsubscribe();
+        resolve(null);
+      }, 5000);
+
+      const sub = rxNostr
+        .use(req)
+        .pipe(uniq())
+        .subscribe({
+          next: (p) => {
+            clearTimeout(timer);
+            sub.unsubscribe();
+            resolve(p);
+          },
+          complete: () => {
+            clearTimeout(timer);
+            resolve(null);
+          }
+        });
+
+      req.emit(filter);
+      req.over();
+    });
+
     if (!packet) return null;
 
     // Persist to IndexedDB
