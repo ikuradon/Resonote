@@ -14,14 +14,16 @@
 
 ## Chunk 1: Subscription Consolidation + kind:5
 
-### Task 1: Extract event handler helpers in comments.svelte.ts
+### Task 1: Extract helpers and consolidate subscribe()
 
 **Files:**
-- Modify: `src/lib/stores/comments.svelte.ts:351-438` (subscribe handlers)
+- Modify: `src/lib/stores/comments.svelte.ts:151-438`
 
-- [ ] **Step 1: Extract `handleCommentPacket` helper**
+Note: Helpers and subscribe() rewrite are in one task because ESLint `no-unused-vars` would fail if helpers were committed without callers.
 
-Add inside `createCommentsStore()`, before `subscribe()`:
+- [ ] **Step 1: Add 3 handler helpers inside `createCommentsStore()`, before `subscribe()`**
+
+Add after `buildReactionFromEvent` (after line ~191):
 
 ```typescript
 function handleCommentPacket(event: { id: string; pubkey: string; content: string; created_at: number; tags: string[][] }) {
@@ -31,11 +33,7 @@ function handleCommentPacket(event: { id: string; pubkey: string; content: strin
   commentsRaw = [...commentsRaw, buildCommentFromEvent(event)];
   log.debug('Comment received', { id: shortHex(event.id) });
 }
-```
 
-- [ ] **Step 2: Extract `handleReactionPacket` helper**
-
-```typescript
 function handleReactionPacket(event: { id: string; pubkey: string; content: string; tags: string[][] }) {
   const reaction = buildReactionFromEvent(event);
   if (reaction) {
@@ -43,11 +41,7 @@ function handleReactionPacket(event: { id: string; pubkey: string; content: stri
     eventPubkeys.set(event.id, event.pubkey);
   }
 }
-```
 
-- [ ] **Step 3: Extract `handleDeletionPacket` helper**
-
-```typescript
 function handleDeletionPacket(event: { id: string; pubkey: string; tags: string[][] }) {
   const eTags = extractDeletionTargets(event);
   if (eTags.length === 0) return;
@@ -74,26 +68,7 @@ function handleDeletionPacket(event: { id: string; pubkey: string; tags: string[
 
 Note: `handleDeletionPacket` uses `eventsDBRef` (not `eventsDB` local) so it works in both `subscribe()` and `addSubscription()`. Set `eventsDBRef = eventsDB` before the handler is first called (already the case at L208).
 
-- [ ] **Step 4: Run lint and type check**
-
-Run: `pnpm lint && pnpm check`
-Expected: PASS (helpers are defined but not yet used)
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add src/lib/stores/comments.svelte.ts
-git commit -m "Extract comment/reaction/deletion handler helpers in comments store"
-```
-
----
-
-### Task 2: Consolidate subscribe() subscriptions
-
-**Files:**
-- Modify: `src/lib/stores/comments.svelte.ts:351-438`
-
-- [ ] **Step 1: Replace 3 backward + 3 forward with 1 + 1**
+- [ ] **Step 2: Replace 3 backward + 3 forward with unified subscription**
 
 Replace lines 351-438 (from `// --- Comments (kind:1111) ---` through `subscriptions = [commentSub, reactionSub, deletionSub];`) with:
 
@@ -136,21 +111,21 @@ Replace lines 351-438 (from `// --- Comments (kind:1111) ---` through `subscript
     subscriptions = [sub];
 ```
 
-- [ ] **Step 2: Run lint + check + test + e2e**
+- [ ] **Step 3: Run full pre-commit validation**
 
 Run: `pnpm format:check && pnpm lint && pnpm check && pnpm test && pnpm test:e2e`
 Expected: All PASS
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add src/lib/stores/comments.svelte.ts
-git commit -m "Consolidate comment subscriptions: 6 slots → 2 slots per content page"
+git commit -m "Extract handler helpers and consolidate subscriptions: 6 → 2 slots"
 ```
 
 ---
 
-### Task 3: Rewrite addSubscription with kind:5 + consolidation
+### Task 2: Rewrite addSubscription with kind:5 + consolidation
 
 **Files:**
 - Modify: `src/lib/stores/comments.svelte.ts:441-524`
@@ -271,7 +246,7 @@ git commit -m "Add kind:5 to addSubscription and consolidate to 2 slots"
 
 ## Chunk 2: putMany, Debounce, Dynamic Import
 
-### Task 4: Batch putMany for non-replaceable events
+### Task 3: Batch putMany for non-replaceable events
 
 **Files:**
 - Modify: `src/lib/nostr/event-db.ts:141-146`
@@ -349,7 +324,7 @@ git commit -m "Batch non-replaceable events in putMany for single-transaction wr
 
 ---
 
-### Task 5: Notification debounce
+### Task 4: Notification debounce
 
 **Files:**
 - Modify: `src/web/routes/+layout.svelte:40-48`
@@ -391,7 +366,7 @@ git commit -m "Debounce notification re-subscription during WoT construction"
 
 ---
 
-### Task 6: Dynamic import for embed components
+### Task 5: Dynamic import for embed components
 
 **Files:**
 - Modify: `src/web/routes/[platform]/[type]/[id]/+page.svelte:4-12,301-317`
