@@ -63,6 +63,7 @@ This matches the CI pipeline order. Do not skip any step:
 - `src/web/` — SvelteKit entry points (routes, app.html, app.css)
 - `src/extension/` — Browser extension (Chrome/Firefox Manifest V3)
 - `functions/` — Cloudflare Pages Functions (API endpoints)
+- `static/` — Static assets copied to build output (favicon, `_headers`, etc.)
 
 ### ContentProvider Pattern
 
@@ -91,6 +92,7 @@ Web embed 対応: Spotify, YouTube, Vimeo, SoundCloud, Mixcloud, Spreaker, Nicon
 - `functions/api/podbean/resolve.ts`: Podbean oEmbed プロキシ
 - `functions/api/system/pubkey.ts`: システム鍵の pubkey 公開
 - `functions/lib/audio-metadata.ts`: ID3v2/Vorbis/FLAC メタデータパーサー
+- `functions/lib/url-validation.ts`: SSRF 防御 — 全 server-side fetch() の前に `assertSafeUrl()` を呼ぶ
 - 環境変数: `SYSTEM_NOSTR_PRIVKEY` (hex) — `.dev.vars` (ローカル) / `wrangler pages secret` (本番)
 
 ### Nostr Layer
@@ -166,6 +168,8 @@ Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
 
 ## Gotchas
 
+- 新しい embed プロバイダー追加時は `static/_headers` の CSP `frame-src` / `script-src` も更新すること
+- Nostr イベント由来の画像 URL は `sanitizeImageUrl()` (`src/lib/utils/url.ts`) でスキーム検証すること
 - `pnpm dev` では Pages Functions が動かない。API 必要時は `pnpm dev:full`
 - Spreaker `widgets.js` は SPA 再ナビゲーション時に再走査しない → script remove+re-add が必要
 - SoundCloud embed は permalink URL を受け付けない → oEmbed API で api.soundcloud.com URL に解決

@@ -10,7 +10,6 @@
     subscribeNotifications,
     destroyNotifications
   } from '$lib/stores/notifications.svelte.js';
-  import { preloadEmojiMart } from '$lib/stores/emoji-mart-preload.svelte.js';
   import { initExtensionListener, isExtensionMode } from '$lib/stores/extension.svelte.js';
   import { retryPendingPublishes } from '$lib/nostr/publish-signed.js';
   import LanguageSwitcher from '$lib/components/LanguageSwitcher.svelte';
@@ -41,7 +40,6 @@
 
   onMount(() => {
     initAuth();
-    preloadEmojiMart();
     initExtensionListener();
     retryPendingPublishes().catch(() => {});
   });

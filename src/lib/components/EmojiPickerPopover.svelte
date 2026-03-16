@@ -30,6 +30,7 @@
 
 <script lang="ts">
   import EmojiPicker from './EmojiPicker.svelte';
+  import { preloadEmojiMart } from '../stores/emoji-mart-preload.svelte.js';
   import { t } from '../i18n/t.js';
   import { onMount } from 'svelte';
   import type { Action } from 'svelte/action';
@@ -111,6 +112,8 @@
   bind:this={triggerEl}
   type="button"
   onclick={toggle}
+  onpointerenter={preloadEmojiMart}
+  onfocus={preloadEmojiMart}
   class="rounded-lg p-1.5 text-text-muted transition-colors hover:text-text-secondary"
   title={t('emoji.title')}
 >
