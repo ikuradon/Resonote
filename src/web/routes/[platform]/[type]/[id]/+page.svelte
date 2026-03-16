@@ -1,6 +1,5 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import SpotifyEmbed from '$lib/components/SpotifyEmbed.svelte';
   import YouTubeEmbed from '$lib/components/YouTubeEmbed.svelte';
@@ -125,6 +124,10 @@
           episodeTitle = info.title;
           episodeFeedTitle = info.feedTitle;
           episodeImage = info.image;
+          // Also subscribe to audio:<enclosureUrl> for comments posted via direct URL
+          untrack(() => {
+            store?.addSubscription(`audio:${info.enclosureUrl}`);
+          });
         });
       }
     }
@@ -157,12 +160,14 @@
           }
         }
 
-        // Redirect to canonical podcast episode URL if guid + feedUrl resolved
-        if (data.episode?.guid && data.feed?.feedUrl) {
-          const episodeId = `${toBase64url(data.feed.feedUrl)}:${toBase64url(data.episode.guid)}`;
-          goto(`/podcast/episode/${episodeId}`, { replaceState: true });
-        } else if (data.episode?.guid) {
+        // Add podcast:item:guid subscription for comment merge
+        if (data.episode?.guid) {
           store?.addSubscription(`podcast:item:guid:${data.episode.guid}`);
+          // Rewrite URL to canonical podcast episode path (no navigation)
+          if (data.feed?.feedUrl) {
+            const episodeId = `${toBase64url(data.feed.feedUrl)}:${toBase64url(data.episode.guid)}`;
+            history.replaceState(history.state, '', `/podcast/episode/${episodeId}`);
+          }
         }
       });
     });
