@@ -9,8 +9,8 @@
     {
       icon: '🎵',
       platform: 'Spotify',
-      label: 'Rebuild EP416',
-      url: 'https://open.spotify.com/episode/4hMFcs08VRa7S1xyeOgFkb'
+      label: '#1 はじめました',
+      url: 'https://open.spotify.com/episode/7mwLSxdUKHgYxxgdI3ooZw'
     },
     {
       icon: '▶️',
@@ -48,6 +48,18 @@
       platform: 'Podbean',
       label: 'Magdo Mix',
       url: 'https://www.podbean.com/media/share/pb-ar8ve-1920b14'
+    },
+    {
+      icon: '📡',
+      platform: 'RSS Feed',
+      label: 'uncrop.jp',
+      url: 'https://uncrop.jp/rss'
+    },
+    {
+      icon: '🎧',
+      platform: 'Podcast EP',
+      label: '当たり前かのように配信を始めたふたり',
+      url: 'https://op3.dev/e/dts.podtrac.com/redirect.mp3/media-cdn.uncrop.jp/uncrop-jp/production/media/audio-348cbbc4e1841a4cbc517dd4dace84ba.mp3'
     }
   ];
 
