@@ -16,7 +16,10 @@ export class DisneyPlusProvider implements ContentProvider {
   }
 
   toNostrTag(contentId: ContentId): [string, string] {
-    return [`disneyplus:${contentId.id}`, `https://www.disneyplus.com/video/${contentId.id}`];
+    return [
+      `disneyplus:${contentId.type}:${contentId.id}`,
+      `https://www.disneyplus.com/video/${contentId.id}`
+    ];
   }
 
   contentKind(): string {

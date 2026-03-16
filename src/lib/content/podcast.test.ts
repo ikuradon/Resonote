@@ -92,11 +92,11 @@ describe('PodcastProvider', () => {
   });
 
   describe('toNostrTag (feed type)', () => {
-    it('should return [podcast:guid:<feedUrl>, <feedUrl>] for feed', () => {
+    it('should return [podcast:feed:<feedUrl>, <feedUrl>] for feed', () => {
       const feedUrl = 'https://example.com/feed.rss';
       const contentId = { platform: 'podcast', type: 'feed', id: toBase64url(feedUrl) };
       const tag = provider.toNostrTag(contentId);
-      expect(tag).toEqual([`podcast:guid:${feedUrl}`, feedUrl]);
+      expect(tag).toEqual([`podcast:feed:${feedUrl}`, feedUrl]);
     });
   });
 

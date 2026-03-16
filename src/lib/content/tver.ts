@@ -16,7 +16,7 @@ export class TVerProvider implements ContentProvider {
   }
 
   toNostrTag(contentId: ContentId): [string, string] {
-    return [`tver:${contentId.id}`, `https://tver.jp/episodes/${contentId.id}`];
+    return [`tver:${contentId.type}:${contentId.id}`, `https://tver.jp/episodes/${contentId.id}`];
   }
 
   contentKind(): string {

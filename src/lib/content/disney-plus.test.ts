@@ -53,7 +53,7 @@ describe('DisneyPlusProvider', () => {
         id: 'abc123-def456'
       });
       expect(tag).toEqual([
-        'disneyplus:abc123-def456',
+        'disneyplus:video:abc123-def456',
         'https://www.disneyplus.com/video/abc123-def456'
       ]);
     });

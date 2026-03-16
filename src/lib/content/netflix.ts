@@ -16,7 +16,10 @@ export class NetflixProvider implements ContentProvider {
   }
 
   toNostrTag(contentId: ContentId): [string, string] {
-    return [`netflix:${contentId.id}`, `https://www.netflix.com/title/${contentId.id}`];
+    return [
+      `netflix:${contentId.type}:${contentId.id}`,
+      `https://www.netflix.com/title/${contentId.id}`
+    ];
   }
 
   contentKind(): string {

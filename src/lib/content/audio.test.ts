@@ -106,8 +106,8 @@ describe('AudioProvider', () => {
   });
 
   describe('contentKind', () => {
-    it('should return "audio"', () => {
-      expect(provider.contentKind()).toBe('audio');
+    it('should return "audio:track"', () => {
+      expect(provider.contentKind()).toBe('audio:track');
     });
   });
 

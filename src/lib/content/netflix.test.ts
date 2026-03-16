@@ -44,7 +44,7 @@ describe('NetflixProvider', () => {
   describe('toNostrTag', () => {
     it('should generate correct NIP-73 tag', () => {
       const tag = provider.toNostrTag({ platform: 'netflix', type: 'title', id: '80100172' });
-      expect(tag).toEqual(['netflix:80100172', 'https://www.netflix.com/title/80100172']);
+      expect(tag).toEqual(['netflix:title:80100172', 'https://www.netflix.com/title/80100172']);
     });
   });
 

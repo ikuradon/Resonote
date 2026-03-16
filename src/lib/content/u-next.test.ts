@@ -43,7 +43,7 @@ describe('UNextProvider', () => {
   describe('toNostrTag', () => {
     it('should generate correct tag for title', () => {
       const tag = provider.toNostrTag({ platform: 'unext', type: 'title', id: 'SID0012345' });
-      expect(tag).toEqual(['unext:SID0012345', 'https://video.unext.jp/play/SID0012345']);
+      expect(tag).toEqual(['unext:title:SID0012345', 'https://video.unext.jp/play/SID0012345']);
     });
 
     it('should generate correct tag for episode', () => {
@@ -53,7 +53,7 @@ describe('UNextProvider', () => {
         id: 'SID0012345/ED00067890'
       });
       expect(tag).toEqual([
-        'unext:SID0012345/ED00067890',
+        'unext:episode:SID0012345/ED00067890',
         'https://video.unext.jp/play/SID0012345/ED00067890'
       ]);
     });

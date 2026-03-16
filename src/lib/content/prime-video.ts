@@ -4,7 +4,7 @@ const PRIME_VIDEO_RE =
   /^https?:\/\/(?:www\.)?(?:amazon\.(?:com|co\.jp)\/(?:gp\/video\/detail|dp)|primevideo\.com\/detail)\/([A-Z0-9]+)/;
 
 export class PrimeVideoProvider implements ContentProvider {
-  readonly platform = 'prime-video';
+  readonly platform = 'primevideo';
   readonly displayName = 'Prime Video';
   readonly requiresExtension = true;
 
@@ -17,11 +17,14 @@ export class PrimeVideoProvider implements ContentProvider {
   }
 
   toNostrTag(contentId: ContentId): [string, string] {
-    return [`amazon:${contentId.id}`, `https://www.primevideo.com/detail/${contentId.id}`];
+    return [
+      `primevideo:${contentId.type}:${contentId.id}`,
+      `https://www.primevideo.com/detail/${contentId.id}`
+    ];
   }
 
-  contentKind(): string {
-    return 'prime-video:video';
+  contentKind(contentId: ContentId): string {
+    return `primevideo:${contentId.type}`;
   }
 
   embedUrl(): null {

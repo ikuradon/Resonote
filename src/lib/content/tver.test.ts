@@ -44,7 +44,7 @@ describe('TVerProvider', () => {
   describe('toNostrTag', () => {
     it('should generate correct NIP-73 tag', () => {
       const tag = provider.toNostrTag({ platform: 'tver', type: 'episode', id: 'ep12345678' });
-      expect(tag).toEqual(['tver:ep12345678', 'https://tver.jp/episodes/ep12345678']);
+      expect(tag).toEqual(['tver:episode:ep12345678', 'https://tver.jp/episodes/ep12345678']);
     });
   });
 

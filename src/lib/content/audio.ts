@@ -31,7 +31,7 @@ export class AudioProvider implements ContentProvider {
   }
 
   contentKind(): string {
-    return 'audio';
+    return 'audio:track';
   }
 
   embedUrl(contentId: ContentId): string {

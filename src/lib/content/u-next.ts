@@ -23,7 +23,10 @@ export class UNextProvider implements ContentProvider {
   }
 
   toNostrTag(contentId: ContentId): [string, string] {
-    return [`unext:${contentId.id}`, `https://video.unext.jp/play/${contentId.id}`];
+    return [
+      `unext:${contentId.type}:${contentId.id}`,
+      `https://video.unext.jp/play/${contentId.id}`
+    ];
   }
 
   contentKind(contentId: ContentId): string {

@@ -41,7 +41,7 @@ export class PodcastProvider implements ContentProvider {
 
     // feed type
     const feedUrl = fromBase64url(contentId.id);
-    return [`podcast:guid:${feedUrl}`, feedUrl];
+    return [`podcast:feed:${feedUrl}`, feedUrl];
   }
 
   contentKind(contentId: ContentId): string {
