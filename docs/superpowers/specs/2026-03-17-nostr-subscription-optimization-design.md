@@ -59,24 +59,35 @@ subscriptions = [sub];
 **addSubscription()** — same pattern, now including kind:5. DB cache restore must also handle kind:5:
 
 ```typescript
-// DB cache restore — add kind:5 handling
+// DB cache restore — two-pass approach (same as subscribe())
+// Pass 1: process kind:5 deletions FIRST so deletedIds is populated
+//         before restoring comments/reactions
 const tagQuery = `I:${idValue}`;
 const cachedEvents = await eventsDBRef.getByTagValue(tagQuery);
+let addedDeletions = false;
+for (const ev of cachedEvents) {
+  if (ev.kind === 5) {
+    for (const id of extractDeletionTargets(ev)) {
+      const originalPubkey = eventPubkeys.get(id);
+      if (!originalPubkey || originalPubkey === ev.pubkey) {
+        deletedIds.add(id);
+        addedDeletions = true;
+      }
+    }
+  }
+}
+// Reassign for Svelte 5 reactivity ($state<Set> requires new reference)
+if (addedDeletions) {
+  deletedIds = new Set(deletedIds);
+}
+
+// Pass 2: restore comments and reactions (skipping deleted)
 for (const ev of cachedEvents) {
   if (ev.kind === 1111 && !commentIds.has(ev.id) && !deletedIds.has(ev.id)) {
     // ... existing comment restore logic
   }
   if (ev.kind === 7 && !reactionIds.has(ev.id) && !deletedIds.has(ev.id)) {
     // ... existing reaction restore logic
-  }
-  // NEW: restore cached deletions for this tag
-  if (ev.kind === 5) {
-    for (const id of extractDeletionTargets(ev)) {
-      const originalPubkey = eventPubkeys.get(id);
-      if (!originalPubkey || originalPubkey === ev.pubkey) {
-        deletedIds.add(id);
-      }
-    }
   }
 }
 
@@ -125,7 +136,7 @@ Extract `handleComment`, `handleReaction`, `handleDeletion` helper functions fro
 
 ### Problem
 
-`EventsDB.putMany()` calls `await this.put()` in a loop, creating one IndexedDB transaction per event.
+`EventsDB.putMany()` calls `await this.put()` in a loop, creating one IndexedDB transaction per event. Note: `putMany` is currently only called from tests, not production code. This optimization prepares for future batch usage and improves test performance.
 
 ### Design
 
@@ -173,7 +184,7 @@ $effect(() => {
     const pubkey = auth.pubkey;
     const follows = getFollows().follows;
     // Skip debounce on initial login (empty follows) for immediate feedback
-    if (follows.length === 0) {
+    if (follows.size === 0) {
       untrack(() => subscribeNotifications(pubkey, follows));
       return;
     }
@@ -212,20 +223,20 @@ Replace static imports with `{#await import(...)}` in each `{:else if}` branch. 
 {:else if showPlayer && platform === 'spotify'}
   <SpotifyEmbed {contentId} openUrl={provider.openUrl(contentId)} />
 
-<!-- After -->
-{:else if showPlayer && platform === 'spotify'}
-  {#await import('$lib/components/SpotifyEmbed.svelte')}
+<!-- After (example: YouTube — one of the 7 dynamically imported embeds) -->
+{:else if showPlayer && platform === 'youtube'}
+  {#await import('$lib/components/YouTubeEmbed.svelte')}
     <div class="flex h-40 items-center justify-center rounded-2xl bg-surface-1">
       <div class="h-5 w-32 animate-pulse rounded bg-surface-2"></div>
     </div>
-  {:then { default: SpotifyEmbed }}
-    <SpotifyEmbed {contentId} openUrl={provider.openUrl(contentId)} />
+  {:then { default: YouTubeEmbed }}
+    <YouTubeEmbed {contentId} openUrl={provider.openUrl(contentId)} />
   {/await}
 ```
 
 A shimmer placeholder is shown during chunk loading to avoid a blank flash on slow networks. Each embed component already has its own brand loading screen internally, so the placeholder only covers the chunk download phase.
 
-AudioEmbed and PodcastEpisodeList remain static imports because they are used for multiple platforms (audio, podcast).
+AudioEmbed, PodcastEpisodeList, and SpotifyEmbed remain static imports. AudioEmbed/PodcastEpisodeList are used for multiple platforms (audio, podcast). SpotifyEmbed is used in both the collection (`isCollection`) and non-collection branches, so keeping it static avoids duplicating `{#await}` blocks. The remaining 7 embeds (YouTube, SoundCloud, Vimeo, Mixcloud, Spreaker, Niconico, Podbean) are dynamically imported.
 
 ### Files Changed
 
@@ -244,7 +255,7 @@ Items 2–4 in this list are independent of each other and can be implemented in
 
 ## Testing
 
-- Existing unit tests for `comments.svelte.ts` (subscription behavior)
-- Existing unit tests for `event-db.ts` (putMany)
-- E2E tests verify comments/reactions still display correctly
+- Unit tests for `event-db.ts` (putMany) — existing, verify batch behavior
+- No unit tests exist for `comments.svelte.ts` subscription logic — verify via E2E
+- E2E tests verify comments/reactions still display correctly after subscription changes
 - Manual verification: relay subscription count via browser DevTools WebSocket inspector
