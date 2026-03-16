@@ -150,10 +150,8 @@
     }
 
     // Step 1: Search Nostr relays for bookmark
-    console.log('[content-page] Starting bookmark search for:', audioUrl);
     searchBookmarkByUrl(audioUrl)
       .then((bookmark) => {
-        console.log('[content-page] Bookmark search result:', bookmark);
         if (cancelled) return;
         if (bookmark) {
           // Bookmark found — apply immediately

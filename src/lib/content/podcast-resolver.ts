@@ -106,24 +106,21 @@ export interface ResolveApiResponse {
 export async function searchBookmarkByUrl(url: string): Promise<DTagResult | null> {
   try {
     const pubkey = await getSystemPubkey();
-    console.log('[searchBookmark] pubkey:', pubkey);
     if (!pubkey) return null;
 
     const normalized = normalizeUrl(url);
-    console.log('[searchBookmark] normalized d-tag:', normalized);
 
     // 1. Try IndexedDB cache first
     try {
       const { getEventsDB } = await import('../nostr/event-db.js');
       const db = await getEventsDB();
       const cached = await db.getByReplaceKey(pubkey, 39701, normalized);
-      console.log('[searchBookmark] DB cache hit:', !!cached);
       if (cached) {
         const result = parseDTagEvent({ kind: 39701, tags: cached.tags });
         if (result) return result;
       }
-    } catch (e) {
-      console.log('[searchBookmark] DB error:', e);
+    } catch {
+      // DB not available
     }
 
     // 2. Fallback: query relays
