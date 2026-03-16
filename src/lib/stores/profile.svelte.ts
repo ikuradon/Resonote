@@ -1,6 +1,7 @@
 import { truncate, formatDisplayName } from './profile-utils.js';
 import type { Profile } from './profile-utils.js';
 import { createLogger, shortHex } from '../utils/logger.js';
+import { sanitizeImageUrl } from '../utils/url.js';
 
 const log = createLogger('profile');
 
@@ -29,7 +30,7 @@ function parseProfileContent(content: string): Profile {
   return {
     name: typeof meta.name === 'string' ? truncate(meta.name) : undefined,
     displayName: typeof meta.display_name === 'string' ? truncate(meta.display_name) : undefined,
-    picture: typeof meta.picture === 'string' ? meta.picture : undefined,
+    picture: typeof meta.picture === 'string' ? sanitizeImageUrl(meta.picture) : undefined,
     about: typeof meta.about === 'string' ? meta.about : undefined,
     nip05: typeof meta.nip05 === 'string' ? meta.nip05 : undefined
   };

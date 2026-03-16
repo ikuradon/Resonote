@@ -125,4 +125,16 @@ describe('parseEmojiContent edge cases', () => {
       { type: 'emoji', shortcode: 'fire', url: 'https://example.com/fire.png' }
     ]);
   });
+
+  it('should reject emoji with javascript: URL', () => {
+    const result = parseEmojiContent(':evil:', [['emoji', 'evil', 'javascript:alert(1)']]);
+    expect(result).toEqual([{ type: 'text', value: ':evil:' }]);
+  });
+
+  it('should reject emoji with data: URL', () => {
+    const result = parseEmojiContent(':evil:', [
+      ['emoji', 'evil', 'data:text/html,<script>alert(1)</script>']
+    ]);
+    expect(result).toEqual([{ type: 'text', value: ':evil:' }]);
+  });
 });

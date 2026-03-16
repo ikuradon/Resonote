@@ -18,7 +18,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const data = (await res.json()) as { html?: string };
     const srcMatch = data.html?.match(/src="([^"]+)"/);
     if (srcMatch?.[1]) {
-      return json({ embedSrc: srcMatch[1] });
+      try {
+        const embedHost = new URL(srcMatch[1]).hostname;
+        if (embedHost === 'podbean.com' || embedHost.endsWith('.podbean.com')) {
+          return json({ embedSrc: srcMatch[1] });
+        }
+      } catch {
+        // invalid URL from oEmbed — fall through
+      }
     }
 
     // Fallback: fetch page HTML and extract embed ID
