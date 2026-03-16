@@ -67,30 +67,23 @@ test.describe('URL input navigation', () => {
     await expect(page).toHaveURL('/youtube/video/dQw4w9WgXcQ');
   });
 
-  test('should show error for invalid URL', async ({ page }) => {
+  test('should navigate to resolve page for unknown URL', async ({ page }) => {
     await page.goto('/');
     const input = page.locator('[data-testid="track-url-input"]');
     await input.fill('https://www.example.com/some-page');
     await page.locator('[data-testid="track-submit-button"]').click();
-    await expect(page.locator('text=Unsupported URL')).toBeVisible();
-    // Should stay on home page
-    await expect(page).toHaveURL('/');
+    // Unknown URLs are sent to the resolve page for auto-discovery
+    await expect(page).toHaveURL(/\/resolve\//);
   });
 
-  test('should show error for random text', async ({ page }) => {
-    await page.goto('/');
-    const input = page.locator('[data-testid="track-url-input"]');
-    await input.fill('not a valid url');
-    await page.locator('[data-testid="track-submit-button"]').click();
-    await expect(page.locator('text=Unsupported URL')).toBeVisible();
-  });
-
-  test('should show error for unsupported Spotify type (playlist)', async ({ page }) => {
+  test('should navigate to resolve page for unsupported Spotify type (playlist)', async ({
+    page
+  }) => {
     await page.goto('/');
     const input = page.locator('[data-testid="track-url-input"]');
     await input.fill('https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M');
     await page.locator('[data-testid="track-submit-button"]').click();
-    await expect(page.locator('text=Unsupported URL')).toBeVisible();
+    await expect(page).toHaveURL(/\/resolve\//);
   });
 
   test('should not navigate with whitespace-only input', async ({ page }) => {
@@ -109,18 +102,12 @@ test.describe('URL input navigation', () => {
     await expect(page).toHaveURL('/spotify/track/4C6zDr6e86HYqLxPAhO8jA');
   });
 
-  test('should clear error when navigating successfully after error', async ({ page }) => {
+  test('should navigate to resolve page for unknown domain', async ({ page }) => {
     await page.goto('/');
     const input = page.locator('[data-testid="track-url-input"]');
-
-    // First: invalid URL
     await input.fill('invalid-url');
     await page.locator('[data-testid="track-submit-button"]').click();
-    await expect(page.locator('text=Unsupported URL')).toBeVisible();
-
-    // Then: valid URL
-    await input.fill('https://open.spotify.com/track/4C6zDr6e86HYqLxPAhO8jA');
-    await page.locator('[data-testid="track-submit-button"]').click();
-    await expect(page).toHaveURL('/spotify/track/4C6zDr6e86HYqLxPAhO8jA');
+    // Domain-like text is sent to resolve page for auto-discovery
+    await expect(page).toHaveURL(/\/resolve\//);
   });
 });
