@@ -86,7 +86,7 @@ export async function resolveByDTag(
 // API response types
 export interface ResolveApiResponse {
   type: 'episode' | 'feed' | 'redirect';
-  feed?: { guid: string; title: string; feedUrl: string; image: string };
+  feed?: { guid: string; title: string; feedUrl: string; imageUrl: string };
   episode?: {
     guid: string;
     title: string;
@@ -105,6 +105,7 @@ export interface ResolveApiResponse {
   }[];
   feedUrl?: string;
   signedEvents?: Record<string, unknown>[];
+  metadata?: { title?: string; artist?: string; album?: string; image?: string };
   error?: string;
 }
 

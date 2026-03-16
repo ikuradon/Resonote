@@ -283,7 +283,10 @@ async function handleAudioUrl(audioUrl: string, privkey: Uint8Array): Promise<Re
       const itemGuid = matchedEpisode.guid || matchedEpisode.enclosureUrl;
       const episodeEvent = signBookmarkEvent(privkey, {
         dTag: episodeDTag,
-        iTags: [[`podcast:item:guid:${feed.podcastGuid}:${itemGuid}`, matchedEpisode.enclosureUrl]],
+        iTags: [
+          [`podcast:item:guid:${itemGuid}`, matchedEpisode.enclosureUrl],
+          [`podcast:guid:${feed.podcastGuid}`, rssUrl]
+        ],
         kTag: 'podcast:item:guid',
         rTags: [matchedEpisode.enclosureUrl, rssUrl, domainRoot(rssUrl)],
         title: matchedEpisode.title,

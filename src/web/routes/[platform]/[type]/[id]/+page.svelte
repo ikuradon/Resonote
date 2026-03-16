@@ -30,7 +30,7 @@
   import { resolveEpisode } from '$lib/content/episode-resolver.js';
   import { fromBase64url, toBase64url } from '$lib/content/url-utils.js';
   import { resolveByApi, searchBookmarkByUrl } from '$lib/content/podcast-resolver.js';
-  import { publishSignedEvent } from '$lib/nostr/publish-signed.js';
+  import { publishSignedEvents } from '$lib/nostr/publish-signed.js';
 
   let platform = $derived(page.params.platform ?? '');
   let contentType = $derived(page.params.type ?? '');
@@ -183,25 +183,17 @@
           if (data.episode?.description && !episodeDescription)
             episodeDescription = data.episode.description;
           if (data.feed?.title && !episodeFeedTitle) episodeFeedTitle = data.feed.title;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const feedImage = (data.feed as any)?.imageUrl as string | undefined;
-          if (feedImage && !episodeImage) episodeImage = feedImage;
+          if (data.feed?.imageUrl && !episodeImage) episodeImage = data.feed.imageUrl;
           // Fallback to audio file metadata (ID3 tags etc.)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const meta = (data as any).metadata as
-            | { title?: string; artist?: string; image?: string }
-            | undefined;
-          if (meta) {
-            if (meta.title && !episodeTitle) episodeTitle = meta.title;
-            if (meta.artist && !episodeFeedTitle) episodeFeedTitle = meta.artist;
-            if (meta.image && !episodeImage) episodeImage = meta.image;
+          if (data.metadata) {
+            if (data.metadata.title && !episodeTitle) episodeTitle = data.metadata.title;
+            if (data.metadata.artist && !episodeFeedTitle) episodeFeedTitle = data.metadata.artist;
+            if (data.metadata.image && !episodeImage) episodeImage = data.metadata.image;
           }
 
           untrack(() => {
             if (data.signedEvents) {
-              for (const ev of data.signedEvents) {
-                publishSignedEvent(ev).catch(() => {});
-              }
+              publishSignedEvents(data.signedEvents).catch(() => {});
             }
             if (data.episode?.guid && data.feed?.feedUrl) {
               applyResolution(data.episode.guid, data.feed.feedUrl);

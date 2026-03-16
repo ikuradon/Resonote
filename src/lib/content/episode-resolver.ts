@@ -24,7 +24,7 @@ export async function resolveEpisode(
   ]);
 
   const feedTitle = apiResult.feed?.title;
-  const image = apiResult.feed?.image;
+  const image = apiResult.feed?.imageUrl;
 
   if (apiResult.episodes) {
     const match = apiResult.episodes.find((ep) => ep.guid === guid);

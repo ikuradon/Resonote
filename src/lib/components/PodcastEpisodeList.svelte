@@ -3,7 +3,7 @@
   import type { ContentId } from '$lib/content/types.js';
   import { fromBase64url, toBase64url } from '$lib/content/url-utils.js';
   import { resolveByApi } from '$lib/content/podcast-resolver.js';
-  import { publishSignedEvent } from '$lib/nostr/publish-signed.js';
+  import { publishSignedEvents } from '$lib/nostr/publish-signed.js';
 
   interface Props {
     contentId: ContentId;
@@ -68,7 +68,7 @@
 
       if (data.feed) {
         feedTitle = data.feed.title;
-        feedImage = data.feed.image;
+        feedImage = data.feed.imageUrl;
       }
 
       if (data.episodes) {
@@ -78,11 +78,9 @@
       status = 'loaded';
 
       if (data.signedEvents && data.signedEvents.length > 0) {
-        for (const ev of data.signedEvents) {
-          publishSignedEvent(ev).catch(() => {
-            // ignore publish errors silently
-          });
-        }
+        publishSignedEvents(data.signedEvents).catch(() => {
+          // ignore publish errors silently
+        });
       }
     } catch {
       status = 'error';
