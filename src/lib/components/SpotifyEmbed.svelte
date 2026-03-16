@@ -99,6 +99,13 @@
 
     let cancelled = false;
 
+    const readyTimeout = setTimeout(() => {
+      if (!ready && !error) {
+        log.error('Player initialization timed out');
+        error = true;
+      }
+    }, 30000);
+
     initController(containerEl, uri)
       .then((ctrl) => {
         if (cancelled) {
@@ -107,6 +114,7 @@
         }
         controller = ctrl;
         ready = true;
+        clearTimeout(readyTimeout);
       })
       .catch((err) => {
         log.error('Failed to initialize Spotify controller', err);
@@ -115,6 +123,7 @@
 
     return () => {
       cancelled = true;
+      clearTimeout(readyTimeout);
       window.removeEventListener('resonote:seek', handleSeek);
       controller?.destroy();
       controller = undefined;

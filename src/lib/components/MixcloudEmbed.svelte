@@ -60,6 +60,13 @@
     let playHandler: (() => void) | undefined;
     let pauseHandler: (() => void) | undefined;
 
+    const readyTimeout = setTimeout(() => {
+      if (!ready && !error) {
+        log.error('Player initialization timed out');
+        error = true;
+      }
+    }, 30000);
+
     loadApi()
       .then(() => {
         if (cancelled) return;
@@ -70,6 +77,7 @@
           if (cancelled) return;
           widget = w;
           ready = true;
+          clearTimeout(readyTimeout);
           log.info('Mixcloud widget ready');
 
           playHandler = () => {
@@ -94,6 +102,7 @@
 
     return () => {
       cancelled = true;
+      clearTimeout(readyTimeout);
       window.removeEventListener('resonote:seek', handleSeek);
       if (widget && progressHandler && playHandler && pauseHandler) {
         widget.events.progress.off(progressHandler);

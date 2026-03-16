@@ -18,6 +18,7 @@
   let iframeEl: HTMLIFrameElement | undefined = $state();
   let ready = $state(false);
   let error = $state(false);
+  let readyTimeout: ReturnType<typeof setTimeout> | undefined;
 
   const NICONICO_ORIGINS = ['https://embed.nicovideo.jp', 'http://embed.nicovideo.jp'];
 
@@ -52,6 +53,7 @@
       case 'loadComplete':
         setContent(contentId);
         ready = true;
+        clearTimeout(readyTimeout);
         break;
       case 'playerMetadataChange': {
         const currentTimeMs = data?.currentTime !== undefined ? data.currentTime * 1000 : undefined;
@@ -85,7 +87,15 @@
     window.addEventListener('resonote:seek', handleSeek);
     window.addEventListener('message', handleMessage);
 
+    readyTimeout = setTimeout(() => {
+      if (!ready && !error) {
+        log.error('Player initialization timed out');
+        error = true;
+      }
+    }, 30000);
+
     return () => {
+      clearTimeout(readyTimeout);
       window.removeEventListener('resonote:seek', handleSeek);
       window.removeEventListener('message', handleMessage);
       ready = false;

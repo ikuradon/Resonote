@@ -122,6 +122,13 @@
 
     let cancelled = false;
 
+    const readyTimeout = setTimeout(() => {
+      if (!ready && !error) {
+        log.error('Player initialization timed out');
+        error = true;
+      }
+    }, 30000);
+
     initPlayer(containerEl, videoId)
       .then((p) => {
         if (cancelled) {
@@ -130,6 +137,7 @@
         }
         player = p;
         ready = true;
+        clearTimeout(readyTimeout);
       })
       .catch((err) => {
         log.error('Failed to initialize YouTube player', err);
@@ -138,6 +146,7 @@
 
     return () => {
       cancelled = true;
+      clearTimeout(readyTimeout);
       window.removeEventListener('resonote:seek', handleSeek);
       stopPolling();
       player?.destroy();

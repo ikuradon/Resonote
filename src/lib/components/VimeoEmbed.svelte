@@ -54,6 +54,13 @@
     window.addEventListener('resonote:seek', handleSeek);
     let cancelled = false;
 
+    const readyTimeout = setTimeout(() => {
+      if (!ready && !error) {
+        log.error('Player initialization timed out');
+        error = true;
+      }
+    }, 30000);
+
     loadApi()
       .then(() => {
         if (cancelled) return;
@@ -88,6 +95,7 @@
           }
           player = p;
           ready = true;
+          clearTimeout(readyTimeout);
           log.info('Vimeo player ready');
         });
       })
@@ -98,6 +106,7 @@
 
     return () => {
       cancelled = true;
+      clearTimeout(readyTimeout);
       window.removeEventListener('resonote:seek', handleSeek);
       if (player) {
         player.off('play');

@@ -101,6 +101,13 @@
     let cachedDuration = 0;
     let cachedPaused = true;
 
+    const readyTimeout = setTimeout(() => {
+      if (!ready && !error) {
+        log.error('Player initialization timed out');
+        error = true;
+      }
+    }, 30000);
+
     // Wait for both iframe load and API script
     const initWidget = () => {
       loadPbApi()
@@ -115,6 +122,7 @@
             if (cancelled) return;
             setContent(contentId);
             ready = true;
+            clearTimeout(readyTimeout);
             log.info('Podbean widget ready');
           });
 
@@ -164,6 +172,7 @@
 
     return () => {
       cancelled = true;
+      clearTimeout(readyTimeout);
       iframeEl?.removeEventListener('load', initWidget);
       window.removeEventListener('resonote:seek', handleSeek);
       if (widget) {

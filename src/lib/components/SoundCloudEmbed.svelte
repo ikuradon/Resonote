@@ -86,6 +86,13 @@
     let cachedDuration = 0;
     let cachedPaused = true;
 
+    const readyTimeout = setTimeout(() => {
+      if (!ready && !error) {
+        log.error('Player initialization timed out');
+        error = true;
+      }
+    }, 30000);
+
     loadApi()
       .then(() => {
         if (cancelled) return;
@@ -97,6 +104,7 @@
           if (cancelled) return;
           widget = w;
           ready = true;
+          clearTimeout(readyTimeout);
           setContent(contentId);
           log.info('SoundCloud widget ready');
           w.getDuration((d: number) => {
@@ -123,6 +131,7 @@
 
     return () => {
       cancelled = true;
+      clearTimeout(readyTimeout);
       window.removeEventListener('resonote:seek', handleSeek);
       if (widget) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
