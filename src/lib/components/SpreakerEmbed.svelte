@@ -106,13 +106,14 @@
         log.info('Spreaker widget ready');
 
         let cachedPaused = true;
+        let lastPosition = -1;
 
         pollTimer = setInterval(() => {
           w.getPosition((position, _progress, duration) => {
+            // Detect play/pause from position changes (getState returns undefined)
+            cachedPaused = position === lastPosition;
+            lastPosition = position;
             updatePlayback(position, duration, cachedPaused);
-          });
-          w.getState((_episode, _state, isPlaying) => {
-            cachedPaused = !isPlaying;
           });
         }, POLL_INTERVAL_MS);
       } catch (err) {
