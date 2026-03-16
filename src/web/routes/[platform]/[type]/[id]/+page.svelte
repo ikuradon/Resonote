@@ -142,10 +142,16 @@
     resolveByApi(audioUrl).then((data) => {
       if (cancelled) return;
 
-      // Extract audio file metadata (ID3 tags etc.) for display
+      // Extract metadata from API response (feed match or ID3 fallback)
+      if (data.episode?.title && !episodeTitle) episodeTitle = data.episode.title;
+      if (data.feed?.title && !episodeFeedTitle) episodeFeedTitle = data.feed.title;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const feedImage = (data.feed as any)?.imageUrl as string | undefined;
+      if (feedImage && !episodeImage) episodeImage = feedImage;
+      // Fallback to audio file metadata (ID3 tags etc.)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const meta = (data as any).metadata as
-        | { title?: string; artist?: string; album?: string; image?: string }
+        | { title?: string; artist?: string; image?: string }
         | undefined;
       if (meta) {
         if (meta.title && !episodeTitle) episodeTitle = meta.title;
