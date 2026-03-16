@@ -147,6 +147,11 @@ Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
 - **CI**: GitHub Actions (`ci.yml`) — lint-and-check + audit + test + e2e + build-extension (parallel) → deploy
 - **Deploy trigger**: Push to `main` → staging, `v*` tag → production
 
+## Issue Tracking
+
+- GitHub Issues で管理。ラベル: `security`, `performance`, `a11y`, `ux`, `testing`, `code-quality`, `bundle-size`, `feature`
+- 旧 `docs/superpowers/backlog.md` は GitHub Issues に移行済み (削除済み)
+
 ## Key Decisions
 
 - SPA mode (`ssr = false`, `prerender = false`) — Nostr requires client-side WebSocket
