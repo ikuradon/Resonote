@@ -56,6 +56,13 @@ export function updatePlayback(position: number, duration: number, isPaused: boo
   state.isPaused = isPaused;
 }
 
+export function resetPlayer(): void {
+  state.contentId = null;
+  state.position = 0;
+  state.duration = 0;
+  state.isPaused = true;
+}
+
 export function requestSeek(position: number): void {
   if (isExtensionMode()) {
     sendSeekRequest(position);

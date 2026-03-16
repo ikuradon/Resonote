@@ -23,7 +23,7 @@
   } from '$lib/stores/extension.svelte.js';
   import { getAuth } from '$lib/stores/auth.svelte.js';
   import { isBookmarked, addBookmark, removeBookmark } from '$lib/stores/bookmarks.svelte.js';
-  import { getPlayer, requestSeek } from '$lib/stores/player.svelte.js';
+  import { getPlayer, requestSeek, resetPlayer } from '$lib/stores/player.svelte.js';
   import type { ContentId } from '$lib/content/types.js';
   import { t } from '$lib/i18n/t.js';
   import { resolveEpisode } from '$lib/content/episode-resolver.js';
@@ -65,6 +65,13 @@
       bookmarkBusy = false;
     }
   }
+
+  // Reset player state when navigating to a new content page
+  $effect(() => {
+    // Track contentId to re-run on navigation
+    void contentId;
+    return () => resetPlayer();
+  });
 
   // Read initial time from URL ?t= parameter
   let initialTimeSec = $derived(Number(page.url.searchParams.get('t')) || 0);
