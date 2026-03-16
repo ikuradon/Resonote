@@ -70,6 +70,8 @@ This matches the CI pipeline order. Do not skip any step:
 `src/lib/content/types.ts` defines `ContentProvider` interface and `ContentId` type.
 Each platform implements this interface. Extension-only providers set `requiresExtension: true`.
 Nostr tags are generated via `toNostrTag()` returning NIP-73 tags. i タグ形式は `platform:type:id` で統一。
+`toNostrTag()` の value prefix は `contentKind()` の返り値と一致させること (例: K=`spotify:track` なら I=`spotify:track:xxx`)。
+`toNostrTag()` / `contentKind()` では文字列ハードコードではなく `contentId.type` を使う。Podcast feed は `podcast:feed:` prefix (サーバー解決後は `podcast:guid:` + 実UUID)。
 Supported: Spotify, YouTube, Vimeo, SoundCloud, Mixcloud, Spreaker, Niconico, Podbean, Audio (直URL), Podcast (RSS), Netflix, Prime Video, Disney+, Apple Music, Fountain.fm, AbemaTV, TVer, U-NEXT
 Web embed 対応: Spotify, YouTube, Vimeo, SoundCloud, Mixcloud, Spreaker, Niconico, Podbean, Audio
 
@@ -99,6 +101,7 @@ Web embed 対応: Spotify, YouTube, Vimeo, SoundCloud, Mixcloud, Spreaker, Nicon
 
 - `src/lib/nostr/client.ts`: Singleton `getRxNostr()` with `@rx-nostr/crypto` verifier
 - `src/lib/nostr/events.ts`: Event builders for kind:1111 (comment) and kind:7 (reaction)
+- `src/lib/nostr/events.ts` にないイベント: kind:3 (follows.svelte.ts), kind:10000 (mute.svelte.ts), kind:10002 (relays.svelte.ts), kind:10003 (bookmarks.svelte.ts), kind:39701 (functions/api/podcast/resolve.ts)
 - `src/lib/nostr/event-db.ts`: IndexedDB-based event cache (`idb` wrapper)
 - `src/lib/nostr/relays.ts`: Default relay list
 - `src/lib/nostr/user-relays.ts`: Per-user relay discovery
@@ -196,3 +199,4 @@ Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
 - rx-nostr の `send()`/`cast()` は署名済みイベント (id+sig 存在) をそのまま通す → `rxNostr.cast()` で pre-signed publish 可能
 - Svelte 5.53 では npm の `.svelte` ソース配布ライブラリが `$props is not defined` で失敗する場合あり (svelte-virtuallists, @josesan9/svelte-virtual-scroll-list, @tanstack/svelte-virtual で確認)
 - `player.position` は再生中 250-500ms ごとに更新される → `$effect` 内で直接使う場合、同一結果のガード (前回値比較) を入れないと下流の処理が毎秒 2-4 回無駄に走る
+- コメント/リアクション/削除のサブスクリプションは `#I` (大文字) フィルタを使用。他クライアントの `I` タグなしイベントは取得しない設計 (Resonote 独自のコンテンツスコープ)
