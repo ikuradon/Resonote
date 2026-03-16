@@ -1,8 +1,8 @@
 import type { ContentId, ContentProvider } from './types.js';
 
 // https://www.mixcloud.com/user/mix-name/
-const MIXCLOUD_RE =
-  /^https?:\/\/(?:www\.)?mixcloud\.com\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_-]+)\/?(?:\?.*)?$/;
+// User and mix names can contain percent-encoded characters (e.g. DJ%E9%99%B8)
+const MIXCLOUD_RE = /^https?:\/\/(?:www\.)?mixcloud\.com\/([^/]+)\/([^/?#]+)\/?(?:\?.*)?$/;
 
 export class MixcloudProvider implements ContentProvider {
   readonly platform = 'mixcloud';

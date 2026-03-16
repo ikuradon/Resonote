@@ -28,8 +28,8 @@
     {
       icon: '🎧',
       platform: 'Mixcloud',
-      label: 'NTS Radio',
-      url: 'https://www.mixcloud.com/NTSRadio/do-you-w-kenny-dope-170222/'
+      label: 'DJ陸',
+      url: 'https://www.mixcloud.com/DJ%E9%99%B8/153-amber-logic-mellow-hiphop-rb/'
     },
     {
       icon: '📻',

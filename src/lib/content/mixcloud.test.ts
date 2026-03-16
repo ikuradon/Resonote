@@ -64,6 +64,16 @@ describe('MixcloudProvider.parseUrl', () => {
     // Regex requires 2 segments, so single segment returns null
     expect(provider.parseUrl('https://www.mixcloud.com/djuser/')).toBeNull();
   });
+
+  it('parses URL with percent-encoded characters', () => {
+    expect(
+      provider.parseUrl('https://www.mixcloud.com/DJ%E9%99%B8/153-amber-logic-mellow-hiphop-rb/')
+    ).toEqual({
+      platform: 'mixcloud',
+      type: 'mix',
+      id: 'DJ%E9%99%B8/153-amber-logic-mellow-hiphop-rb'
+    });
+  });
 });
 
 describe('MixcloudProvider.toNostrTag', () => {
