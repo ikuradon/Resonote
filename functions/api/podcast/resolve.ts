@@ -1,6 +1,7 @@
 import { finalizeEvent } from 'nostr-tools/pure';
 import { hexToBytes } from 'nostr-tools/utils';
 import { fetchAudioMetadata } from '../../lib/audio-metadata.js';
+import { assertSafeUrl } from '../../lib/url-validation.js';
 
 interface Env {
   SYSTEM_NOSTR_PRIVKEY: string;
@@ -242,6 +243,7 @@ async function handleAudioUrl(audioUrl: string, privkey: Uint8Array): Promise<Re
   let feed: ParsedFeed | null = null;
 
   try {
+    assertSafeUrl(rootUrl);
     const rootRes = await fetch(rootUrl);
     if (rootRes.ok) {
       const html = await rootRes.text();
@@ -253,6 +255,7 @@ async function handleAudioUrl(audioUrl: string, privkey: Uint8Array): Promise<Re
 
   if (rssUrl) {
     try {
+      assertSafeUrl(rssUrl);
       const feedRes = await fetch(rssUrl);
       if (feedRes.ok) {
         const xml = await feedRes.text();
@@ -351,6 +354,7 @@ async function handleSiteUrl(siteUrl: string): Promise<Response> {
   const rootUrl = domainRoot(siteUrl);
   if (rootUrl !== siteUrl.replace(/\/$/, '')) {
     try {
+      assertSafeUrl(rootUrl);
       const rootRes = await fetch(rootUrl);
       if (rootRes.ok) {
         const rootHtml = await rootRes.text();
@@ -405,6 +409,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
     return jsonResponse({ error: 'invalid_url' }, 400);
+  }
+
+  try {
+    assertSafeUrl(urlParam);
+  } catch {
+    return jsonResponse({ error: 'url_blocked' }, 400);
   }
 
   const privkeyHex = context.env.SYSTEM_NOSTR_PRIVKEY;

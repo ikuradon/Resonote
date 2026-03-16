@@ -1,3 +1,5 @@
+import { assertSafeUrl } from '../../lib/url-validation.js';
+
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface Env {}
 
@@ -6,6 +8,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const targetUrl = url.searchParams.get('url');
   if (!targetUrl) {
     return json({ error: 'missing_url' }, 400);
+  }
+
+  try {
+    assertSafeUrl(targetUrl);
+  } catch {
+    return json({ error: 'url_blocked' }, 400);
   }
 
   // Use Podbean oEmbed API to get the embed iframe URL
