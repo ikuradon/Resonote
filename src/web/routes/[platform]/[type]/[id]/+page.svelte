@@ -2,13 +2,6 @@
   import { untrack } from 'svelte';
   import { page } from '$app/state';
   import SpotifyEmbed from '$lib/components/SpotifyEmbed.svelte';
-  import YouTubeEmbed from '$lib/components/YouTubeEmbed.svelte';
-  import SoundCloudEmbed from '$lib/components/SoundCloudEmbed.svelte';
-  import VimeoEmbed from '$lib/components/VimeoEmbed.svelte';
-  import MixcloudEmbed from '$lib/components/MixcloudEmbed.svelte';
-  import SpreakerEmbed from '$lib/components/SpreakerEmbed.svelte';
-  import NiconicoEmbed from '$lib/components/NiconicoEmbed.svelte';
-  import PodbeanEmbed from '$lib/components/PodbeanEmbed.svelte';
   import AudioEmbed from '$lib/components/AudioEmbed.svelte';
   import PodcastEpisodeList from '$lib/components/PodcastEpisodeList.svelte';
   import CommentList from '$lib/components/CommentList.svelte';
@@ -301,19 +294,61 @@
           {:else if showPlayer && platform === 'spotify'}
             <SpotifyEmbed {contentId} openUrl={provider.openUrl(contentId)} />
           {:else if showPlayer && platform === 'youtube'}
-            <YouTubeEmbed {contentId} openUrl={provider.openUrl(contentId)} />
+            {#await import('$lib/components/YouTubeEmbed.svelte')}
+              <div class="flex h-40 items-center justify-center rounded-2xl bg-surface-1">
+                <div class="h-5 w-32 animate-pulse rounded bg-surface-2"></div>
+              </div>
+            {:then { default: YouTubeEmbed }}
+              <YouTubeEmbed {contentId} openUrl={provider.openUrl(contentId)} />
+            {/await}
           {:else if showPlayer && platform === 'soundcloud'}
-            <SoundCloudEmbed {contentId} openUrl={provider.openUrl(contentId)} />
+            {#await import('$lib/components/SoundCloudEmbed.svelte')}
+              <div class="flex h-40 items-center justify-center rounded-2xl bg-surface-1">
+                <div class="h-5 w-32 animate-pulse rounded bg-surface-2"></div>
+              </div>
+            {:then { default: SoundCloudEmbed }}
+              <SoundCloudEmbed {contentId} openUrl={provider.openUrl(contentId)} />
+            {/await}
           {:else if showPlayer && platform === 'vimeo'}
-            <VimeoEmbed {contentId} openUrl={provider.openUrl(contentId)} />
+            {#await import('$lib/components/VimeoEmbed.svelte')}
+              <div class="flex h-40 items-center justify-center rounded-2xl bg-surface-1">
+                <div class="h-5 w-32 animate-pulse rounded bg-surface-2"></div>
+              </div>
+            {:then { default: VimeoEmbed }}
+              <VimeoEmbed {contentId} openUrl={provider.openUrl(contentId)} />
+            {/await}
           {:else if showPlayer && platform === 'mixcloud'}
-            <MixcloudEmbed {contentId} openUrl={provider.openUrl(contentId)} />
+            {#await import('$lib/components/MixcloudEmbed.svelte')}
+              <div class="flex h-40 items-center justify-center rounded-2xl bg-surface-1">
+                <div class="h-5 w-32 animate-pulse rounded bg-surface-2"></div>
+              </div>
+            {:then { default: MixcloudEmbed }}
+              <MixcloudEmbed {contentId} openUrl={provider.openUrl(contentId)} />
+            {/await}
           {:else if showPlayer && platform === 'spreaker'}
-            <SpreakerEmbed {contentId} openUrl={provider.openUrl(contentId)} />
+            {#await import('$lib/components/SpreakerEmbed.svelte')}
+              <div class="flex h-40 items-center justify-center rounded-2xl bg-surface-1">
+                <div class="h-5 w-32 animate-pulse rounded bg-surface-2"></div>
+              </div>
+            {:then { default: SpreakerEmbed }}
+              <SpreakerEmbed {contentId} openUrl={provider.openUrl(contentId)} />
+            {/await}
           {:else if showPlayer && platform === 'niconico'}
-            <NiconicoEmbed {contentId} openUrl={provider.openUrl(contentId)} />
+            {#await import('$lib/components/NiconicoEmbed.svelte')}
+              <div class="flex h-40 items-center justify-center rounded-2xl bg-surface-1">
+                <div class="h-5 w-32 animate-pulse rounded bg-surface-2"></div>
+              </div>
+            {:then { default: NiconicoEmbed }}
+              <NiconicoEmbed {contentId} openUrl={provider.openUrl(contentId)} />
+            {/await}
           {:else if showPlayer && platform === 'podbean'}
-            <PodbeanEmbed {contentId} openUrl={provider.openUrl(contentId)} />
+            {#await import('$lib/components/PodbeanEmbed.svelte')}
+              <div class="flex h-40 items-center justify-center rounded-2xl bg-surface-1">
+                <div class="h-5 w-32 animate-pulse rounded bg-surface-2"></div>
+              </div>
+            {:then { default: PodbeanEmbed }}
+              <PodbeanEmbed {contentId} openUrl={provider.openUrl(contentId)} />
+            {/await}
           {/if}
 
           {#if showInstallPrompt}
