@@ -442,9 +442,29 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     const { merge } = rxjsRef;
     const { createRxBackwardReq, createRxForwardReq, uniq } = rxNostrModRef;
 
-    // DB cache restore for additional tag
+    // DB cache restore — two-pass approach
     const tagQuery = `I:${idValue}`;
     const cachedEvents = await eventsDBRef.getByTagValue(tagQuery);
+
+    // Pass 1: process kind:5 deletions FIRST
+    let addedDeletions = false;
+    for (const ev of cachedEvents) {
+      if (ev.kind === 5) {
+        for (const id of extractDeletionTargets(ev)) {
+          const originalPubkey = eventPubkeys.get(id);
+          if (!originalPubkey || originalPubkey === ev.pubkey) {
+            deletedIds.add(id);
+            addedDeletions = true;
+          }
+        }
+      }
+    }
+    if (addedDeletions) {
+      deletedIds = new Set(deletedIds);
+      prevDeletedSize = deletedIds.size;
+    }
+
+    // Pass 2: restore comments and reactions (skipping deleted)
     const newComments: Comment[] = [];
     for (const ev of cachedEvents) {
       if (ev.kind === 1111 && !commentIds.has(ev.id) && !deletedIds.has(ev.id)) {
@@ -464,13 +484,19 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       commentsRaw = [...commentsRaw, ...newComments];
     }
 
-    // Comment subscription (backward + forward)
-    const commentBackward = createRxBackwardReq();
-    const commentForward = createRxForwardReq();
+    // Unified subscription (kind:1111 + kind:7 + kind:5)
+    const backward = createRxBackwardReq();
+    const forward = createRxForwardReq();
 
-    const commentSub = merge(
-      rxNostrRef.use(commentBackward).pipe(uniq()),
-      rxNostrRef.use(commentForward).pipe(uniq())
+    const filters = [
+      { kinds: [1111], '#I': [idValue] },
+      { kinds: [7], '#I': [idValue] },
+      { kinds: [5], '#I': [idValue] }
+    ];
+
+    const sub = merge(
+      rxNostrRef.use(backward).pipe(uniq()),
+      rxNostrRef.use(forward).pipe(uniq())
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ).subscribe((rawPacket: any) => {
       const packet = rawPacket as {
@@ -483,42 +509,25 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
           kind: number;
         };
       };
-      if (commentIds.has(packet.event.id)) return;
       eventsDBRef?.put(packet.event);
-      commentIds.add(packet.event.id);
-      eventPubkeys.set(packet.event.id, packet.event.pubkey);
-      commentsRaw = [...commentsRaw, buildCommentFromEvent(packet.event)];
-    });
-
-    commentBackward.emit({ kinds: [1111], '#I': [idValue] });
-    commentBackward.over();
-    commentForward.emit({ kinds: [1111], '#I': [idValue] });
-
-    // Reaction subscription (backward + forward)
-    const reactionBackward = createRxBackwardReq();
-    const reactionForward = createRxForwardReq();
-
-    const reactionSub = merge(
-      rxNostrRef.use(reactionBackward).pipe(uniq()),
-      rxNostrRef.use(reactionForward).pipe(uniq())
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ).subscribe((rawPacket: any) => {
-      const packet = rawPacket as {
-        event: { id: string; pubkey: string; content: string; tags: string[][] };
-      };
-      eventsDBRef?.put(packet.event);
-      const reaction = buildReactionFromEvent(packet.event);
-      if (reaction) {
-        addReaction(reaction);
-        eventPubkeys.set(packet.event.id, packet.event.pubkey);
+      switch (packet.event.kind) {
+        case 1111:
+          handleCommentPacket(packet.event);
+          break;
+        case 7:
+          handleReactionPacket(packet.event);
+          break;
+        case 5:
+          handleDeletionPacket(packet.event);
+          break;
       }
     });
 
-    reactionBackward.emit({ kinds: [7], '#I': [idValue] });
-    reactionBackward.over();
-    reactionForward.emit({ kinds: [7], '#I': [idValue] });
+    backward.emit(filters);
+    backward.over();
+    forward.emit(filters);
 
-    subscriptions.push(commentSub, reactionSub);
+    subscriptions.push(sub);
   }
 
   function destroy() {
