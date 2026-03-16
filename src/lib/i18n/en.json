@@ -32,6 +32,7 @@
   "comment.section.general": "General",
   "comment.nearby": "Nearby",
   "comment.all": "All",
+  "comment.jump_to_now": "Jump to now",
   "comment.load_more": "Load more ({count} remaining)",
   "cw.label": "CW",
   "cw.reason_placeholder": "Reason (optional)",

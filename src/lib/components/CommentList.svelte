@@ -34,6 +34,7 @@
   import EmojiPickerPopover, { allocatePopoverId } from './EmojiPickerPopover.svelte';
   import NoteInput from './NoteInput.svelte';
   import ConfirmDialog from './ConfirmDialog.svelte';
+  import VirtualScrollList from './VirtualScrollList.svelte';
 
   const log = createLogger('CommentList');
 
@@ -51,18 +52,9 @@
   const follows = getFollows();
 
   // --- Filter state ---
-  let showAllTimed = $state(false);
   let followFilter = $state<FollowFilter>('all');
 
-  const NEARBY_THRESHOLD_MS = 30_000;
   const HIGHLIGHT_THRESHOLD_MS = 5_000;
-  /** Minimum number of comments to show when nearby filter yields few results */
-  const MIN_NEARBY_COUNT = 3;
-
-  // --- Pagination ---
-  const PAGE_SIZE = 30;
-  let timedLimit = $state(PAGE_SIZE);
-  let generalLimit = $state(PAGE_SIZE);
 
   // --- Filtered comments ---
   let filteredComments = $derived(
@@ -80,36 +72,57 @@
       .sort((a, b) => a.positionMs! - b.positionMs!)
   );
 
-  let nearbyTimedComments = $derived.by(() => {
-    if (showAllTimed || player.position <= 0) return timedComments;
-
-    const nearby = timedComments.filter(
-      (c) => Math.abs(player.position - c.positionMs!) <= NEARBY_THRESHOLD_MS
-    );
-
-    if (nearby.length >= MIN_NEARBY_COUNT || timedComments.length <= MIN_NEARBY_COUNT) {
-      return nearby;
-    }
-
-    // Not enough nearby — pick the closest N by distance
-    return [...timedComments]
-      .sort(
-        (a, b) =>
-          Math.abs(player.position - a.positionMs!) - Math.abs(player.position - b.positionMs!)
-      )
-      .slice(0, MIN_NEARBY_COUNT)
-      .sort((a, b) => a.positionMs! - b.positionMs!);
-  });
-
-  let paginatedTimedComments = $derived(nearbyTimedComments.slice(0, timedLimit));
-  let remainingTimed = $derived(Math.max(0, nearbyTimedComments.length - timedLimit));
-
   let generalComments = $derived(
     topLevelComments.filter((c) => c.positionMs === null).sort((a, b) => b.createdAt - a.createdAt)
   );
 
-  let paginatedGeneralComments = $derived(generalComments.slice(0, generalLimit));
-  let remainingGeneral = $derived(Math.max(0, generalComments.length - generalLimit));
+  // --- Virtual scroll auto-scroll ---
+  let timedVirtualList = $state<VirtualScrollList<Comment> | undefined>();
+  let userScrolledAway = $state(false);
+
+  function findNearestTimedIndex(posMs: number): number {
+    let lo = 0;
+    let hi = timedComments.length - 1;
+    let result = 0;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (timedComments[mid].positionMs! <= posMs) {
+        result = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return result;
+  }
+
+  let lastScrolledIndex = -1;
+
+  $effect(() => {
+    if (!userScrolledAway && timedComments.length > 0 && timedVirtualList && player.position > 0) {
+      const idx = findNearestTimedIndex(player.position);
+      if (idx !== lastScrolledIndex) {
+        lastScrolledIndex = idx;
+        timedVirtualList.scrollToIndex(idx);
+      }
+    }
+  });
+
+  function handleTimedRangeChange(start: number, end: number) {
+    if (timedVirtualList && !timedVirtualList.isAutoScrolling() && player.position > 0) {
+      const target = findNearestTimedIndex(player.position);
+      if (target < start || target > end) {
+        userScrolledAway = true;
+      }
+    }
+  }
+
+  function jumpToNow() {
+    userScrolledAway = false;
+    if (timedVirtualList && timedComments.length > 0) {
+      timedVirtualList.scrollToIndex(findNearestTimedIndex(player.position));
+    }
+  }
 
   function statsFor(eventId: string): ReactionStats {
     return reactionIndex.get(eventId) ?? emptyStats();
@@ -636,46 +649,33 @@
             >{t('comment.section.timed')}</span
           >
           <span class="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-mono text-accent"
-            >{nearbyTimedComments.length}{#if !showAllTimed && nearbyTimedComments.length !== timedComments.length}/{timedComments.length}{/if}</span
+            >{timedComments.length}</span
           >
           <div class="h-px flex-1 bg-border-subtle"></div>
-          {#if timedComments.length > 0}
-            <div class="flex items-center rounded-lg bg-surface-2 p-0.5">
-              <button
-                type="button"
-                onclick={() => (showAllTimed = false)}
-                class="rounded-md px-2 py-0.5 text-xs font-medium transition-all
-                  {!showAllTimed
-                  ? 'bg-surface-0 text-text-primary shadow-sm'
-                  : 'text-text-muted hover:text-text-secondary'}"
-              >
-                {t('comment.nearby')}
-              </button>
-              <button
-                type="button"
-                onclick={() => (showAllTimed = true)}
-                class="rounded-md px-2 py-0.5 text-xs font-medium transition-all
-                  {showAllTimed
-                  ? 'bg-surface-0 text-text-primary shadow-sm'
-                  : 'text-text-muted hover:text-text-secondary'}"
-              >
-                {t('comment.all')}
-              </button>
-            </div>
+          {#if userScrolledAway}
+            <button
+              type="button"
+              onclick={jumpToNow}
+              class="rounded-lg bg-accent/20 px-2 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/30"
+            >
+              {t('comment.jump_to_now')}
+            </button>
           {/if}
         </div>
-        {#each paginatedTimedComments as comment, i (comment.id)}
-          {@render commentCard(comment, i, true)}
-        {/each}
-        {#if remainingTimed > 0}
-          <button
-            type="button"
-            onclick={() => (timedLimit += PAGE_SIZE)}
-            class="w-full rounded-lg bg-surface-2 py-2 text-xs font-medium text-text-muted transition-colors hover:bg-surface-3 hover:text-text-secondary"
+        <div class="max-h-[400px] overflow-hidden rounded-xl border border-border-subtle">
+          <VirtualScrollList
+            bind:this={timedVirtualList}
+            items={timedComments}
+            keyFn={(c) => c.id}
+            estimateHeight={120}
+            overscan={3}
+            onRangeChange={handleTimedRangeChange}
           >
-            {t('comment.load_more', { count: remainingTimed })}
-          </button>
-        {/if}
+            {#snippet children({ item: comment, index: i })}
+              {@render commentCard(comment, i, true)}
+            {/snippet}
+          </VirtualScrollList>
+        </div>
       </section>
     {/if}
 
@@ -690,18 +690,18 @@
           >
           <div class="h-px flex-1 bg-border-subtle"></div>
         </div>
-        {#each paginatedGeneralComments as comment, i (comment.id)}
-          {@render commentCard(comment, i, false)}
-        {/each}
-        {#if remainingGeneral > 0}
-          <button
-            type="button"
-            onclick={() => (generalLimit += PAGE_SIZE)}
-            class="w-full rounded-lg bg-surface-2 py-2 text-xs font-medium text-text-muted transition-colors hover:bg-surface-3 hover:text-text-secondary"
+        <div class="max-h-[400px] overflow-hidden rounded-xl border border-border-subtle">
+          <VirtualScrollList
+            items={generalComments}
+            keyFn={(c) => c.id}
+            estimateHeight={120}
+            overscan={3}
           >
-            {t('comment.load_more', { count: remainingGeneral })}
-          </button>
-        {/if}
+            {#snippet children({ item: comment, index: i })}
+              {@render commentCard(comment, i, false)}
+            {/snippet}
+          </VirtualScrollList>
+        </div>
       </section>
     {/if}
   {/if}
