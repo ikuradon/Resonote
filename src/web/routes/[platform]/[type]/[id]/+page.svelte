@@ -26,6 +26,7 @@
   import { getPlayer, requestSeek, resetPlayer } from '$lib/stores/player.svelte.js';
   import type { ContentId } from '$lib/content/types.js';
   import { t } from '$lib/i18n/t.js';
+  import EpisodeDescription from '$lib/components/EpisodeDescription.svelte';
   import { resolveEpisode } from '$lib/content/episode-resolver.js';
   import { fromBase64url, toBase64url } from '$lib/content/url-utils.js';
   import { resolveByApi, searchBookmarkByUrl } from '$lib/content/podcast-resolver.js';
@@ -106,12 +107,14 @@
   let episodeTitle = $state<string | undefined>();
   let episodeFeedTitle = $state<string | undefined>();
   let episodeImage = $state<string | undefined>();
+  let episodeDescription = $state<string | undefined>();
 
   $effect(() => {
     resolvedEnclosureUrl = undefined;
     episodeTitle = undefined;
     episodeFeedTitle = undefined;
     episodeImage = undefined;
+    episodeDescription = undefined;
 
     if (platform === 'audio') {
       resolvedEnclosureUrl = fromBase64url(contentIdParam);
@@ -124,6 +127,7 @@
           episodeTitle = info.title;
           episodeFeedTitle = info.feedTitle;
           episodeImage = info.image;
+          episodeDescription = info.description;
           // Also subscribe to audio:<enclosureUrl> for comments posted via direct URL
           untrack(() => {
             store?.addSubscription(`audio:${info.enclosureUrl}`);
@@ -165,6 +169,7 @@
             if (info.title && !episodeTitle) episodeTitle = info.title;
             if (info.feedTitle && !episodeFeedTitle) episodeFeedTitle = info.feedTitle;
             if (info.image && !episodeImage) episodeImage = info.image;
+            if (info.description && !episodeDescription) episodeDescription = info.description;
           });
           return;
         }
@@ -175,6 +180,8 @@
 
           // Extract metadata from API response
           if (data.episode?.title && !episodeTitle) episodeTitle = data.episode.title;
+          if (data.episode?.description && !episodeDescription)
+            episodeDescription = data.episode.description;
           if (data.feed?.title && !episodeFeedTitle) episodeFeedTitle = data.feed.title;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const feedImage = (data.feed as any)?.imageUrl as string | undefined;
@@ -294,6 +301,11 @@
               image={episodeImage}
               openUrl={provider.openUrl(contentId)}
             />
+            {#if episodeDescription}
+              <div class="mt-3">
+                <EpisodeDescription description={episodeDescription} />
+              </div>
+            {/if}
           {:else if showPlayer && platform === 'spotify'}
             <SpotifyEmbed {contentId} openUrl={provider.openUrl(contentId)} />
           {:else if showPlayer && platform === 'youtube'}

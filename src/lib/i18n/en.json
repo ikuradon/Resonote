@@ -180,5 +180,7 @@
   "confirm.mute_word_remove": "Remove muted word?",
   "confirm.mute_word_remove.detail": "Muted words: {before} → {after}",
   "confirm.ok": "Confirm",
-  "confirm.cancel": "Cancel"
+  "confirm.cancel": "Cancel",
+  "episode.description": "Description",
+  "episode.show_more": "Show more"
 }

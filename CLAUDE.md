@@ -72,6 +72,7 @@ Web embed 対応: Spotify, YouTube, Vimeo, SoundCloud, Mixcloud, Spreaker, Nicon
 ### Embed Component Pattern
 
 各 embed コンポーネントの共通パターン:
+
 - Props: `contentId: ContentId`, `openUrl?: string`
 - `updatePlayback(positionMs, durationMs, isPaused)` で player store 同期
 - `resonote:seek` イベント (`detail.positionMs`) でシーク受信

@@ -12,6 +12,7 @@ interface ParsedEpisode {
   enclosureUrl: string;
   pubDate: string;
   duration: number;
+  description: string;
 }
 
 interface ParsedFeed {
@@ -61,6 +62,7 @@ function signBookmarkEvent(
     kTag: string;
     rTags: string[];
     title: string;
+    content?: string;
   }
 ) {
   const tags = [
@@ -76,7 +78,7 @@ function signBookmarkEvent(
       kind: 39701,
       created_at: Math.floor(Date.now() / 1000),
       tags,
-      content: ''
+      content: (params.content ?? '').slice(0, 1000)
     },
     privkey
   );
@@ -131,13 +133,18 @@ async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed | null
     const pubDate = extractTagContent(itemXml, 'pubDate');
     const durationRaw = extractTagContent(itemXml, 'itunes:duration');
     const duration = parseDurationToSeconds(durationRaw);
+    const description =
+      extractTagContent(itemXml, 'description') ||
+      extractTagContent(itemXml, 'itunes:summary') ||
+      '';
 
     items.push({
       title: itemTitle,
       guid,
       enclosureUrl,
       pubDate,
-      duration
+      duration,
+      description
     });
   }
 
@@ -210,7 +217,8 @@ async function handleFeedUrl(feedUrl: string, privkey: Uint8Array): Promise<Resp
         ],
         kTag: 'podcast:item:guid',
         rTags: [ep.enclosureUrl, feedUrl, feedRoot],
-        title: ep.title
+        title: ep.title,
+        content: ep.description
       })
     );
   }
@@ -278,7 +286,8 @@ async function handleAudioUrl(audioUrl: string, privkey: Uint8Array): Promise<Re
         iTags: [[`podcast:item:guid:${feed.podcastGuid}:${itemGuid}`, matchedEpisode.enclosureUrl]],
         kTag: 'podcast:item:guid',
         rTags: [matchedEpisode.enclosureUrl, rssUrl, domainRoot(rssUrl)],
-        title: matchedEpisode.title
+        title: matchedEpisode.title,
+        content: matchedEpisode.description
       });
 
       return jsonResponse({
@@ -310,7 +319,8 @@ async function handleAudioUrl(audioUrl: string, privkey: Uint8Array): Promise<Re
       guid: '',
       enclosureUrl: audioUrl,
       pubDate: '',
-      duration: 0
+      duration: 0,
+      description: ''
     },
     feed: null,
     signedEvents: [],

@@ -180,5 +180,7 @@
   "confirm.mute_word_remove": "ミュートワードを削除しますか？",
   "confirm.mute_word_remove.detail": "ミュートワード数: {before} → {after}",
   "confirm.ok": "確認",
-  "confirm.cancel": "キャンセル"
+  "confirm.cancel": "キャンセル",
+  "episode.description": "概要",
+  "episode.show_more": "もっと見る"
 }

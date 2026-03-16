@@ -19,10 +19,11 @@ export function getSystemPubkey(): Promise<string> {
   return pubkeyPromise;
 }
 
-interface DTagResult {
+export interface DTagResult {
   guid: string;
   feedUrl: string;
   enclosureUrl: string;
+  description?: string;
 }
 
 /**
@@ -32,7 +33,11 @@ interface DTagResult {
  * - 'podcast:guid:xxx' prefix → hint = feedUrl
  * Returns null if either is missing.
  */
-export function parseDTagEvent(event: { kind: number; tags: string[][] }): DTagResult | null {
+export function parseDTagEvent(event: {
+  kind: number;
+  tags: string[][];
+  content?: string;
+}): DTagResult | null {
   let guid: string | undefined;
   let feedUrl: string | undefined;
   let enclosureUrl: string | undefined;
@@ -54,7 +59,7 @@ export function parseDTagEvent(event: { kind: number; tags: string[][] }): DTagR
   }
 
   if (!guid || !feedUrl || !enclosureUrl) return null;
-  return { guid, feedUrl, enclosureUrl };
+  return { guid, feedUrl, enclosureUrl, description: event.content || undefined };
 }
 
 /**
@@ -62,7 +67,9 @@ export function parseDTagEvent(event: { kind: number; tags: string[][] }): DTagR
  */
 export async function resolveByDTag(
   url: string,
-  rxNostrQuery: (filter: Record<string, unknown>) => Promise<{ tags: string[][] } | null>
+  rxNostrQuery: (
+    filter: Record<string, unknown>
+  ) => Promise<{ tags: string[][]; content?: string } | null>
 ): Promise<DTagResult | null> {
   const pubkey = await getSystemPubkey();
   if (!pubkey) return null;
@@ -73,7 +80,7 @@ export async function resolveByDTag(
     '#d': [normalized]
   });
   if (!event) return null;
-  return parseDTagEvent({ kind: 39701, tags: event.tags });
+  return parseDTagEvent({ kind: 39701, tags: event.tags, content: event.content });
 }
 
 // API response types
@@ -86,6 +93,7 @@ export interface ResolveApiResponse {
     enclosureUrl: string;
     duration: number;
     publishedAt: number;
+    description?: string;
   };
   episodes?: {
     guid: string;
@@ -93,6 +101,7 @@ export interface ResolveApiResponse {
     enclosureUrl: string;
     duration: number;
     publishedAt: number;
+    description?: string;
   }[];
   feedUrl?: string;
   signedEvents?: Record<string, unknown>[];
@@ -116,7 +125,7 @@ export async function searchBookmarkByUrl(url: string): Promise<DTagResult | nul
       const db = await getEventsDB();
       const cached = await db.getByReplaceKey(pubkey, 39701, normalized);
       if (cached) {
-        const result = parseDTagEvent({ kind: 39701, tags: cached.tags });
+        const result = parseDTagEvent({ kind: 39701, tags: cached.tags, content: cached.content });
         if (result) return result;
       }
     } catch {
@@ -174,7 +183,11 @@ export async function searchBookmarkByUrl(url: string): Promise<DTagResult | nul
       // DB not available
     }
 
-    return parseDTagEvent({ kind: 39701, tags: packet.event.tags });
+    return parseDTagEvent({
+      kind: 39701,
+      tags: packet.event.tags,
+      content: packet.event.content
+    });
   } catch {
     return null;
   }

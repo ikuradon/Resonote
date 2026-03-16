@@ -1,4 +1,5 @@
 import { fromBase64url } from './url-utils.js';
+import type { DTagResult } from './podcast-resolver.js';
 import { getSystemPubkey, resolveByApi, parseDTagEvent } from './podcast-resolver.js';
 
 export interface EpisodeInfo {
@@ -6,6 +7,7 @@ export interface EpisodeInfo {
   title?: string;
   feedTitle?: string;
   image?: string;
+  description?: string;
 }
 
 export async function resolveEpisode(
@@ -15,11 +17,12 @@ export async function resolveEpisode(
   const guid = fromBase64url(guidBase64);
   const feedUrl = fromBase64url(feedBase64);
 
-  // 1. Try Nostr relay query (enclosureUrl only, no full metadata)
-  const nostrResult = await queryNostrForEpisode(guid);
+  // Parallel: Nostr bookmark query + API metadata fetch
+  const [nostrResult, apiResult] = await Promise.all([
+    queryNostrForEpisode(guid),
+    resolveByApi(feedUrl)
+  ]);
 
-  // 2. API call for full metadata (also serves as fallback for enclosureUrl)
-  const apiResult = await resolveByApi(feedUrl);
   const feedTitle = apiResult.feed?.title;
   const image = apiResult.feed?.image;
 
@@ -30,7 +33,8 @@ export async function resolveEpisode(
         enclosureUrl: match.enclosureUrl,
         title: match.title,
         feedTitle,
-        image
+        image,
+        description: nostrResult?.description ?? match.description
       };
     }
   }
@@ -39,19 +43,23 @@ export async function resolveEpisode(
       enclosureUrl: apiResult.episode.enclosureUrl,
       title: apiResult.episode.title,
       feedTitle,
-      image
+      image,
+      description: nostrResult?.description ?? apiResult.episode.description
     };
   }
 
-  // Nostr-only result (no metadata)
+  // Nostr-only result (no full metadata from API)
   if (nostrResult) {
-    return { enclosureUrl: nostrResult };
+    return {
+      enclosureUrl: nostrResult.enclosureUrl,
+      description: nostrResult.description
+    };
   }
 
   return null;
 }
 
-async function queryNostrForEpisode(guid: string): Promise<string | null> {
+async function queryNostrForEpisode(guid: string): Promise<DTagResult | null> {
   try {
     const pubkey = await getSystemPubkey();
     if (!pubkey) return null;
@@ -63,8 +71,8 @@ async function queryNostrForEpisode(guid: string): Promise<string | null> {
       const cached = await db.getByTagValue(`i:podcast:item:guid:${guid}`, 39701);
       for (const ev of cached) {
         if (ev.pubkey === pubkey) {
-          const result = parseDTagEvent({ kind: 39701, tags: ev.tags });
-          if (result) return result.enclosureUrl;
+          const result = parseDTagEvent({ kind: 39701, tags: ev.tags, content: ev.content });
+          if (result) return result;
         }
       }
     } catch {
@@ -121,8 +129,11 @@ async function queryNostrForEpisode(guid: string): Promise<string | null> {
       // DB not available
     }
 
-    const result = parseDTagEvent({ kind: 39701, tags: packet.event.tags });
-    return result?.enclosureUrl ?? null;
+    return parseDTagEvent({
+      kind: 39701,
+      tags: packet.event.tags,
+      content: packet.event.content
+    });
   } catch {
     return null;
   }
