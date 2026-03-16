@@ -118,7 +118,7 @@
     height="120"
     scrolling="no"
     frameborder="no"
-    allow="autoplay"
+    allow="autoplay; encrypted-media"
     title="Mixcloud Player"
   ></iframe>
   {#if error}
