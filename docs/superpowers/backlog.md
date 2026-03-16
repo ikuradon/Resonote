@@ -16,11 +16,13 @@
 | ~~10~~ | ~~**Vimeo Web 埋め込み**~~ | ~~実装済み~~ | ~~完了~~ | |
 | ~~11~~ | ~~**Mixcloud Web 埋め込み**~~ | ~~実装済み~~ | ~~完了~~ | |
 | ~~12~~ | ~~**ニコニコ動画 Web 埋め込み**~~ | ~~実装済み~~ | ~~完了~~ | |
-| 13 | **Podbean Web 埋め込み** | Widget API (`api.js` + `PB`)。seekTo(ms)/getPosition(cb)。SoundCloud/Spotify と同一パターン | 中 | Podcast ホスティング大手 |
+| ~~13~~ | ~~**Podbean Web 埋め込み**~~ | ~~実装済み~~ | ~~完了~~ | |
 | ~~14~~ | ~~**Spreaker Web 埋め込み**~~ | ~~実装済み~~ | ~~完了~~ | |
 | 15 | **Podigee Web 埋め込み** | playerjs.io 準拠。setCurrentTime()/getCurrentTime()。標準プロトコル | 低 | ニッチだが実装容易 |
 | ~~16~~ | ~~**汎用音声/Podcast 再生 (AudioProvider)**~~ | ~~実装済み~~ | ~~完了~~ | |
 | 17 | **Spotify エピソード一覧 API** | Spotify Web API (Client Credentials) で `GET /v1/shows/{id}/episodes` → エピソード一覧表示。PodcastEpisodeList と同等の UI | 中 | Spotify API が Premium 必須になったため保留。無料化待ち or 代替手段検討 |
+| 18 | **Podcast エピソード詳細表示** | RSS description をエピソードページに表示（YouTube の description と同等）。API が RSS の `<description>` を返却、AudioEmbed の下に展開表示 | 中 | |
+| 19 | **音声 Waveform 表示** | AudioEmbed のシークバーを waveform 表示に置換。API で音声ファイルの波形データを生成（ffmpeg/audiowaveform）するか、Spreaker の waveform_url のような既存データを活用 | 中 | 実装コスト大（波形生成のサーバーサイド処理 or クライアントサイド Web Audio API） |
 
 ## 明示的に除外
 
@@ -62,3 +64,14 @@
 - SoundCloud/Mixcloud i タグ正規化 (platform:type:id 形式統一)
 - ホームページ UI 刷新 (チップ式入力例 + プレースホルダーローテーション)
 - ニコニコ動画 Web 埋め込み (postMessage API + 再生同期 + sm/so/nico.ms 対応)
+- Podbean Web 埋め込み (PB Widget API + oEmbed 解決 + チャンネル URL リダイレクト)
+- SoundCloud oEmbed 対応 (パーマリンク→api.soundcloud.com 解決)
+- Spreaker JS loader 方式 (widgets.js 再走査 + getState/getPosition ポーリング)
+- 全 embed ローディングタイムアウト + エラー時ソースリンク
+- ブランドローディング画面統一 (全 embed)
+- seek イベントキー統一 (positionMs)
+- プレイヤー状態リセット (ページ遷移時)
+- dev 専用シークパネル
+- Podcast ブックマーク全エピソード署名 (フィード解決時)
+- 音声直 URL → Nostr ブックマーク検索 → 正規 URL 書き換え + コメントマージ
+- IndexedDB キャッシュレイヤー (ブックマーク検索)
