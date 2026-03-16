@@ -136,6 +136,14 @@ Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
 - `emoji-sets.svelte.ts`: Custom emoji set management
 - `extension.svelte.ts`: Browser extension mode state + postMessage listener
 
+### VirtualScrollList
+
+- `src/lib/components/VirtualScrollList.svelte`: 自前仮想スクロール (外部ライブラリは Svelte 5.53 と互換性なし)
+- Prefix sum (累積高さ配列) + binary search で O(log n) の visible range 算出
+- ResizeObserver + 高さキャッシュで動的高さ対応、adaptive frozen estimate で安定性確保
+- `scrollToIndex()` / `isAutoScrolling()` API。CommentList が timed/general 両セクションで使用
+- Playbook (`/playbook`) にデモあり: 再生エミュレーション、auto-add、FPS 表示
+
 ## Testing
 
 - Unit: vitest (`src/**/*.test.ts` + `functions/**/*.test.ts`)
@@ -168,6 +176,8 @@ Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
 
 ## Gotchas
 
+- `static/_headers` は静的アセットにのみ適用される。Pages Functions のレスポンスヘッダーは関数内で制御
+- `/_app/immutable/` のチャンクはコンテンツハッシュ付き → immutable キャッシュ設定済み。Resonote 側コード変更でもハッシュが変わりうる
 - 新しい embed プロバイダー追加時は `static/_headers` の CSP `frame-src` / `script-src` も更新すること
 - Nostr イベント由来の画像 URL は `sanitizeImageUrl()` (`src/lib/utils/url.ts`) でスキーム検証すること
 - `pnpm dev` では Pages Functions が動かない。API 必要時は `pnpm dev:full`
@@ -180,3 +190,5 @@ Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
 - `@noble/hashes` は pnpm でホイストされない → `nostr-tools/utils` 経由で `hexToBytes` を使用
 - Svelte 5 の `$effect` 内で `store` を読むと依存追跡される → `untrack()` で回避
 - rx-nostr の `send()`/`cast()` は署名済みイベント (id+sig 存在) をそのまま通す → `rxNostr.cast()` で pre-signed publish 可能
+- Svelte 5.53 では npm の `.svelte` ソース配布ライブラリが `$props is not defined` で失敗する場合あり (svelte-virtuallists, @josesan9/svelte-virtual-scroll-list, @tanstack/svelte-virtual で確認)
+- `player.position` は再生中 250-500ms ごとに更新される → `$effect` 内で直接使う場合、同一結果のガード (前回値比較) を入れないと下流の処理が毎秒 2-4 回無駄に走る
