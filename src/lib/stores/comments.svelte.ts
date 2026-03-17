@@ -101,6 +101,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
 
   let prevDeletedSize = 0;
   let destroyed = false;
+  let loadingTimeout: ReturnType<typeof setTimeout> | undefined;
 
   // NIP-09 pubkey verification: maps event ID → pubkey
   const eventPubkeys = new Map<string, string>();
@@ -373,7 +374,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     });
 
     // Show cached comments immediately instead of spinner
-    if (commentIds.size > 0) {
+    if (newComments.length > 0) {
       loading = false;
     }
 
@@ -451,6 +452,11 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       ? baseFilters.map((f) => ({ ...f, since: maxCreatedAt + 1 }))
       : baseFilters;
 
+    // Fallback timeout: clear loading if EOSE never arrives
+    loadingTimeout = setTimeout(() => {
+      loading = false;
+    }, 10_000);
+
     // Track backward completion to clear loading state
     const backwardSub = rxNostr
       .use(backward)
@@ -458,9 +464,11 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       .subscribe({
         next: (packet) => dispatchPacket(packet.event),
         complete: () => {
+          clearTimeout(loadingTimeout);
           loading = false;
         },
         error: () => {
+          clearTimeout(loadingTimeout);
           loading = false;
         }
       });
@@ -551,6 +559,10 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
   function destroy() {
     log.info('Destroying comment subscriptions');
     destroyed = true;
+    if (loadingTimeout) {
+      clearTimeout(loadingTimeout);
+      loadingTimeout = undefined;
+    }
     for (const sub of subscriptions) sub.unsubscribe();
     subscriptions = [];
     if (reconcileSub) {
