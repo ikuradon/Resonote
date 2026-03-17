@@ -281,6 +281,29 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
   }
 
   async function subscribe() {
+    try {
+      await subscribeInner();
+    } catch (err) {
+      log.error('Failed to subscribe to comments', err);
+      for (const sub of subscriptions) sub.unsubscribe();
+      subscriptions = [];
+      if (reconcileSub) {
+        reconcileSub.unsubscribe();
+        reconcileSub = undefined;
+      }
+      if (reconcileTimeout) {
+        clearTimeout(reconcileTimeout);
+        reconcileTimeout = undefined;
+      }
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+        loadingTimeout = undefined;
+      }
+      loading = false;
+    }
+  }
+
+  async function subscribeInner() {
     log.info('Subscribing to comments', {
       contentId: `${contentId.platform}:${contentId.type}:${contentId.id}`
     });
