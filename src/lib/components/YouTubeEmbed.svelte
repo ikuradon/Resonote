@@ -14,7 +14,7 @@
     }
 
     log.info('Loading YouTube IFrame API...');
-    apiPromise = new Promise((resolve) => {
+    apiPromise = new Promise((resolve, reject) => {
       window.onYouTubeIframeAPIReady = () => {
         resolve();
       };
@@ -22,6 +22,12 @@
       const script = document.createElement('script');
       script.src = 'https://www.youtube.com/iframe_api';
       script.async = true;
+      script.onerror = () => {
+        apiPromise = undefined;
+        script.remove();
+        delete (window as unknown as Record<string, unknown>).onYouTubeIframeAPIReady;
+        reject(new Error('Failed to load YouTube API'));
+      };
       document.head.appendChild(script);
     });
 

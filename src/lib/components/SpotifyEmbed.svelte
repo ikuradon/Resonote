@@ -21,7 +21,7 @@
     }
 
     log.info('Loading Spotify IFrame API...');
-    apiPromise = new Promise((resolve) => {
+    apiPromise = new Promise((resolve, reject) => {
       window.onSpotifyIframeApiReady = (api) => {
         (window as unknown as Record<string, SpotifyIFrameAPI>).SpotifyIframeApi = api;
         resolve(api);
@@ -30,6 +30,12 @@
       const script = document.createElement('script');
       script.src = 'https://open.spotify.com/embed-podcast/iframe-api/v1';
       script.async = true;
+      script.onerror = () => {
+        apiPromise = undefined;
+        script.remove();
+        delete (window as unknown as Record<string, unknown>).onSpotifyIframeApiReady;
+        reject(new Error('Failed to load Spotify API'));
+      };
       document.head.appendChild(script);
     });
 
