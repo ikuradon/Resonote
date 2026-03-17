@@ -23,7 +23,7 @@
 | `src/lib/components/NoteInput.svelte` | Modify | MobileOverlay でオートコンプリート |
 | `src/lib/components/ShareButton.svelte` | Modify | max-w マージン修正 |
 | `src/lib/components/ConfirmDialog.svelte` | Modify | max-w + mx マージン修正 |
-| `src/lib/components/CommentList.svelte` | Modify | font-mono truncate |
+| ~~`src/lib/components/CommentList.svelte`~~ | No change | font-mono は短い数値のみ、truncate 不要 |
 | `e2e/responsive.test.ts` | Modify | tablet viewport テスト更新 |
 
 ---
@@ -133,12 +133,14 @@
   </div>
 {/if}
 
-{#snippet children()}
-  <slot />
-{/snippet}
 ```
 
-Note: Svelte 5 uses `{@render children()}` with `let { children } = $props()` for slots. Adjust the slot pattern to match the project's Svelte 5 conventions. Check existing components like `ConfirmDialog.svelte` for the slot pattern used.
+**Important**: The code above uses `{#snippet children()} <slot />` which is incorrect for Svelte 5. The correct pattern is:
+- Props: `let { open, onclose, title, children }: { ...; children: Snippet } = $props();` (import `Snippet` from `'svelte'`)
+- Template: Use `{@render children()}` directly (no `{#snippet}` or `<slot>`)
+- Callers use `{#snippet children()}...{/snippet}` to pass content
+
+Check existing components like `+layout.svelte` for the `Snippet` pattern used in this codebase.
 
 - [ ] **Step 2: Run lint + check**
 
@@ -416,6 +418,12 @@ Closes #31"
 ```
 
 ---
+
+## Parallelization
+
+- **Task 3** (モーダルマージン修正) と **Task 7** (font-mono) は Task 1 に依存しない → Task 1 と並列実行可能
+- **Task 4, 5, 6** は全て Task 1 に依存するが互いに独立 → Task 1 完了後に並列実行可能
+- **Task 8** (E2E) は Task 2 に依存 → 最後に実行
 
 ## Pre-commit checks (MUST run before every commit)
 
