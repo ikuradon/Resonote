@@ -142,6 +142,31 @@ describe('nip05', () => {
     expect(result.valid).toBeNull();
   });
 
+  it('should evict oldest entry when cache exceeds MAX_CACHE_SIZE', async () => {
+    const pubkey = 'deadbeef'.repeat(8);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ names: { user: pubkey } }), { status: 200 })
+    );
+
+    const { verifyNip05 } = await import('./nip05.js');
+
+    // Insert 501 entries to exceed MAX_CACHE_SIZE (500), triggering eviction
+    for (let i = 0; i < 501; i++) {
+      await verifyNip05(`user@domain${i}.com`, pubkey);
+    }
+
+    // First entry should have been evicted, so re-fetching it should call fetch again
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ names: { user: pubkey } }), { status: 200 })
+      );
+    fetchSpy.mockClear();
+
+    await verifyNip05('user@domain0.com', pubkey);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('clearNip05Cache should allow re-fetching after clearing', async () => {
     const pubkey = 'deadbeef'.repeat(8);
     const fetchSpy = vi
