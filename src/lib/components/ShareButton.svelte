@@ -145,11 +145,16 @@
 
 <!-- Modal overlay -->
 {#if modalState !== 'closed'}
-  <div class="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="share-dialog-title"
+  >
     <!-- Backdrop -->
     <button
       type="button"
-      class="absolute inset-0 bg-black/50 backdrop-blur-sm"
+      class="absolute inset-0 border-0 bg-black/50 backdrop-blur-sm"
       onclick={closeModal}
       aria-label={t('dialog.close')}
       tabindex="-1"
@@ -160,12 +165,13 @@
     >
       <!-- Modal header -->
       <div class="flex items-center justify-between border-b border-border px-5 py-4">
-        <h3 class="font-display text-base font-semibold text-text-primary">
+        <h3 id="share-dialog-title" class="font-display text-base font-semibold text-text-primary">
           {modalState === 'post' ? t('share.title') : t('share.button')}
         </h3>
         <button
           type="button"
           onclick={closeModal}
+          aria-label={t('dialog.close')}
           class="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-text-secondary"
           title={t('dialog.close')}
         >

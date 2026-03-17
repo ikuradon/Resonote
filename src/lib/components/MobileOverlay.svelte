@@ -44,7 +44,7 @@
 
     if (e.key === 'Tab') {
       const focusable = overlayEl.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
       );
       if (focusable.length === 0) return;
 
