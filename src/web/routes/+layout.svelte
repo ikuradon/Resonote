@@ -129,7 +129,7 @@
         </a>
 
         <!-- Desktop nav -->
-        <div class="hidden items-center gap-3 lg:flex">
+        <nav aria-label="Main navigation" class="hidden items-center gap-3 lg:flex">
           <LanguageSwitcher />
           {#if auth.loggedIn}
             <RelayStatus />
@@ -146,6 +146,7 @@
                 stroke-width="2"
                 stroke-linecap="round"
                 stroke-linejoin="round"
+                aria-hidden="true"
               >
                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
               </svg>
@@ -175,7 +176,7 @@
             <NotificationBell />
           {/if}
           <LoginButton />
-        </div>
+        </nav>
 
         <!-- Mobile nav -->
         <div class="flex items-center gap-3 lg:hidden">
@@ -200,6 +201,7 @@
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
+              aria-hidden="true"
             >
               <line x1="3" y1="6" x2="21" y2="6"></line>
               <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -290,6 +292,7 @@
           fill="none"
           stroke="currentColor"
           stroke-width="2"
+          aria-hidden="true"
         >
           <path
             d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
