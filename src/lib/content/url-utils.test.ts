@@ -109,6 +109,14 @@ describe('fromBase64url', () => {
     const original = 'https://Example.COM/Feed.xml';
     expect(fromBase64url(toBase64url(original))).toBe(original);
   });
+
+  it('should return empty string for invalid base64', () => {
+    expect(fromBase64url('!!!invalid!!!')).toBe('');
+  });
+
+  it('should return empty string for empty input', () => {
+    expect(fromBase64url('')).toBe('');
+  });
 });
 
 describe('extractTimeParam', () => {
