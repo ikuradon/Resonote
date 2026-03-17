@@ -56,25 +56,25 @@
 
   const HIGHLIGHT_THRESHOLD_MS = 5_000;
 
-  // --- Filtered comments ---
+  // --- Filtered comments (single-pass classification) ---
   let filteredComments = $derived(
     comments
       .filter((c) => matchesFilter(c.pubkey, followFilter, auth.pubkey))
       .filter((c) => !isMuted(c.pubkey) && !isWordMuted(c.content))
   );
 
-  /** Top-level comments only (exclude replies) */
-  let topLevelComments = $derived(filteredComments.filter((c) => c.replyTo === null));
-
-  let timedComments = $derived(
-    topLevelComments
-      .filter((c) => c.positionMs !== null)
-      .sort((a, b) => a.positionMs! - b.positionMs!)
-  );
-
-  let generalComments = $derived(
-    topLevelComments.filter((c) => c.positionMs === null).sort((a, b) => b.createdAt - a.createdAt)
-  );
+  let { timedComments, generalComments } = $derived.by(() => {
+    const timed: Comment[] = [];
+    const general: Comment[] = [];
+    for (const c of filteredComments) {
+      if (c.replyTo !== null) continue;
+      if (c.positionMs !== null) timed.push(c);
+      else general.push(c);
+    }
+    timed.sort((a, b) => a.positionMs! - b.positionMs!);
+    general.sort((a, b) => b.createdAt - a.createdAt);
+    return { timedComments: timed, generalComments: general };
+  });
 
   // --- Virtual scroll auto-scroll ---
   let timedVirtualList = $state<VirtualScrollList<Comment> | undefined>();
