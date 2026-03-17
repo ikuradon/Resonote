@@ -42,6 +42,11 @@ describe('assertSafeUrl', () => {
     expect(() => assertSafeUrl('http://[::]/')).toThrow('blocked');
   });
 
+  it('should block 6to4 tunnel addresses', () => {
+    expect(() => assertSafeUrl('http://[2002:7f00:1::]/')).toThrow('blocked');
+    expect(() => assertSafeUrl('http://[2002:a00:1::]/')).toThrow('blocked');
+  });
+
   it('should block IPv4-mapped IPv6 addresses', () => {
     expect(() => assertSafeUrl('http://[::ffff:127.0.0.1]/')).toThrow('blocked');
     expect(() => assertSafeUrl('http://[::ffff:10.0.0.1]/')).toThrow('blocked');
