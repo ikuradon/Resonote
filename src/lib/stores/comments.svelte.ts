@@ -285,6 +285,8 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       await subscribeInner();
     } catch (err) {
       log.error('Failed to subscribe to comments', err);
+      for (const sub of subscriptions) sub.unsubscribe();
+      subscriptions = [];
       if (reconcileSub) {
         reconcileSub.unsubscribe();
         reconcileSub = undefined;
