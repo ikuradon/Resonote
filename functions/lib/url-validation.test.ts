@@ -38,6 +38,42 @@ describe('assertSafeUrl', () => {
     expect(() => assertSafeUrl('http://[fe80::1]/')).toThrow('blocked');
   });
 
+  it('should block IPv6 unspecified address', () => {
+    expect(() => assertSafeUrl('http://[::]/')).toThrow('blocked');
+  });
+
+  it('should block 6to4 tunnel addresses', () => {
+    expect(() => assertSafeUrl('http://[2002:7f00:1::]/')).toThrow('blocked');
+    expect(() => assertSafeUrl('http://[2002:a00:1::]/')).toThrow('blocked');
+  });
+
+  it('should block Teredo tunnel addresses', () => {
+    expect(() => assertSafeUrl('http://[2001:0:4136:e378:8000:63bf:3fff:fdd2]/')).toThrow(
+      'blocked'
+    );
+    // :: compressed form (server_high = 0x0000)
+    expect(() => assertSafeUrl('http://[2001::101:8000:63bf:3fff:fdd2]/')).toThrow('blocked');
+  });
+
+  it('should block IPv4-compatible addresses (deprecated ::/96)', () => {
+    expect(() => assertSafeUrl('http://[::7f00:1]/')).toThrow('blocked');
+    expect(() => assertSafeUrl('http://[::a00:1]/')).toThrow('blocked');
+  });
+
+  it('should block IPv4-mapped IPv6 addresses', () => {
+    expect(() => assertSafeUrl('http://[::ffff:127.0.0.1]/')).toThrow('blocked');
+    expect(() => assertSafeUrl('http://[::ffff:10.0.0.1]/')).toThrow('blocked');
+    expect(() => assertSafeUrl('http://[::ffff:192.168.1.1]/')).toThrow('blocked');
+    expect(() => assertSafeUrl('http://[::ffff:172.16.0.1]/')).toThrow('blocked');
+    expect(() => assertSafeUrl('http://[::ffff:169.254.169.254]/')).toThrow('blocked');
+    expect(() => assertSafeUrl('http://[::ffff:0.0.0.0]/')).toThrow('blocked');
+  });
+
+  it('should allow public IPv4-mapped IPv6 addresses', () => {
+    expect(() => assertSafeUrl('http://[::ffff:8.8.8.8]/')).not.toThrow();
+    expect(() => assertSafeUrl('http://[::ffff:172.32.0.1]/')).not.toThrow();
+  });
+
   it('should block non-http(s) protocols', () => {
     expect(() => assertSafeUrl('ftp://example.com/file')).toThrow('blocked');
     expect(() => assertSafeUrl('file:///etc/passwd')).toThrow('blocked');

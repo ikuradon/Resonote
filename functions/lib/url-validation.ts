@@ -2,12 +2,12 @@ const BLOCKED_HOSTNAMES = new Set(['localhost', '0.0.0.0']);
 
 const IPV4_RE = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
 
-const PRIVATE_IPV4_RANGES: [RegExp, string][] = [
-  [/^127\./, 'loopback'],
-  [/^10\./, 'private (10.x)'],
-  [/^192\.168\./, 'private (192.168.x)'],
-  [/^169\.254\./, 'link-local'],
-  [/^0\./, 'unspecified']
+const PRIVATE_IPV4_RANGES: RegExp[] = [
+  /^127\./, // loopback
+  /^10\./, // private (10.x)
+  /^192\.168\./, // private (192.168.x)
+  /^169\.254\./, // link-local
+  /^0\./ // unspecified
 ];
 
 function isPrivate172(ip: string): boolean {
@@ -17,12 +17,33 @@ function isPrivate172(ip: string): boolean {
   return second >= 16 && second <= 31;
 }
 
-const BLOCKED_IPV6_PREFIXES = ['::1', 'fc', 'fd', 'fe80'];
+function isPrivateIPv4(ip: string): boolean {
+  for (const pattern of PRIVATE_IPV4_RANGES) {
+    if (pattern.test(ip)) return true;
+  }
+  return isPrivate172(ip);
+}
+
+// Match IPv4-mapped (::ffff:HHHH:HHHH) and IPv4-compatible (::HHHH:HHHH)
+const IPV4_EMBEDDED_IPV6_RE = /^::(?:ffff:)?([0-9a-f]{1,4}):([0-9a-f]{1,4})$/;
+
+function ipv6MappedToIPv4(bare: string): string | null {
+  const match = bare.match(IPV4_EMBEDDED_IPV6_RE);
+  if (!match) return null;
+  const hi = parseInt(match[1], 16);
+  const lo = parseInt(match[2], 16);
+  return `${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`;
+}
+
+const BLOCKED_IPV6_PREFIXES = ['::1', 'fc', 'fd', 'fe80', '2002:', '2001:'];
 
 function isBlockedIPv6(hostname: string): boolean {
   const bare = hostname.replace(/^\[|\]$/g, '').toLowerCase();
-  if (bare === '::1') return true;
-  return BLOCKED_IPV6_PREFIXES.some((p) => bare.startsWith(p));
+  if (bare === '::') return true;
+  if (BLOCKED_IPV6_PREFIXES.some((p) => bare.startsWith(p))) return true;
+  const mapped = ipv6MappedToIPv4(bare);
+  if (mapped && isPrivateIPv4(mapped)) return true;
+  return false;
 }
 
 /**
@@ -52,14 +73,7 @@ export function assertSafeUrl(url: string): void {
 
   // IPv4 range checks — only apply to actual IP addresses, not domain names
   // (e.g. "10.example.com" should NOT be blocked)
-  if (IPV4_RE.test(hostname)) {
-    for (const [pattern, label] of PRIVATE_IPV4_RANGES) {
-      if (pattern.test(hostname)) {
-        throw new Error(`URL blocked: ${label}`);
-      }
-    }
-    if (isPrivate172(hostname)) {
-      throw new Error(`URL blocked: private (172.16-31.x)`);
-    }
+  if (IPV4_RE.test(hostname) && isPrivateIPv4(hostname)) {
+    throw new Error(`URL blocked: private IPv4 address`);
   }
 }
