@@ -35,6 +35,7 @@
   import NoteInput from './NoteInput.svelte';
   import ConfirmDialog from './ConfirmDialog.svelte';
   import VirtualScrollList from './VirtualScrollList.svelte';
+  import { toastSuccess, toastError } from '../stores/toast.svelte.js';
 
   const log = createLogger('CommentList');
 
@@ -181,8 +182,10 @@
       );
       await castSigned(params);
       log.info('Reaction sent', { targetId: shortHex(comment.id) });
+      toastSuccess(t('toast.reaction_sent'));
     } catch (err) {
       log.error('Failed to send reaction', err);
+      toastError(t('toast.reaction_failed'));
     } finally {
       acting = null;
     }
@@ -201,8 +204,10 @@
       const params = buildDeletion([comment.id], contentId, provider, COMMENT_KIND);
       await castSigned(params);
       log.info('Comment deleted', { commentId: shortHex(comment.id) });
+      toastSuccess(t('toast.delete_sent'));
     } catch (err) {
       log.error('Failed to delete comment', err);
+      toastError(t('toast.delete_failed'));
     } finally {
       acting = null;
     }
@@ -254,9 +259,11 @@
       log.info('Sending reply', { parentId: shortHex(replyTarget.id) });
       await castSigned(params);
       log.info('Reply sent successfully');
+      toastSuccess(t('toast.reply_sent'));
       cancelReply();
     } catch (err) {
       log.error('Failed to send reply', err);
+      toastError(t('toast.reply_failed'));
     } finally {
       replySending = false;
     }

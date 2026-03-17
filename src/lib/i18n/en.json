@@ -196,5 +196,14 @@
   "relay.disconnected.title": "All relays disconnected",
   "relay.disconnected.message": "Comments and reactions cannot be sent or received",
   "episode.description": "Description",
-  "episode.show_more": "Show more"
+  "episode.show_more": "Show more",
+  "toast.comment_sent": "Comment sent",
+  "toast.comment_failed": "Failed to send comment",
+  "toast.reply_sent": "Reply sent",
+  "toast.reply_failed": "Failed to send reply",
+  "toast.reaction_sent": "Reaction sent",
+  "toast.reaction_failed": "Failed to send reaction",
+  "toast.delete_sent": "Comment deleted",
+  "toast.delete_failed": "Failed to delete comment",
+  "toast.dismiss": "Dismiss"
 }
