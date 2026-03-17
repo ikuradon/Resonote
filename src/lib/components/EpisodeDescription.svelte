@@ -31,6 +31,7 @@
       </span>
       {#if isLong}
         <svg
+          aria-hidden="true"
           class="h-4 w-4 text-text-muted transition-transform {expanded ? 'rotate-180' : ''}"
           viewBox="0 0 24 24"
           fill="none"

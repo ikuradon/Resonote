@@ -226,7 +226,13 @@
       style="min-height: 150px"
     >
       <div class="flex items-center gap-3">
-        <svg class="h-8 w-8" style="color: #3db56a;" viewBox="0 0 24 24" fill="currentColor">
+        <svg
+          aria-hidden="true"
+          class="h-8 w-8"
+          style="color: #3db56a;"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+        >
           <path
             d="M12 1a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4zm0 18a7 7 0 0 0 7-7h-2a5 5 0 0 1-10 0H5a7 7 0 0 0 7 7zm-1 2v2h2v-2h-2z"
           />

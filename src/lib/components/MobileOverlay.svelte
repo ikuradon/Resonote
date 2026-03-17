@@ -92,6 +92,7 @@
         aria-label="Close"
       >
         <svg
+          aria-hidden="true"
           class="h-5 w-5"
           viewBox="0 0 24 24"
           fill="none"

@@ -36,6 +36,7 @@
       class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-xs font-medium text-text-secondary transition-all duration-200 hover:bg-surface-3 hover:text-text-primary"
     >
       <svg
+        aria-hidden="true"
         class="h-3.5 w-3.5"
         viewBox="0 0 24 24"
         fill="none"

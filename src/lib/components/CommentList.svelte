@@ -294,6 +294,7 @@
 
 {#snippet heartIcon(filled: boolean)}
   <svg
+    aria-hidden="true"
     class="h-4 w-4"
     viewBox="0 0 24 24"
     fill={filled ? 'currentColor' : 'none'}
@@ -372,6 +373,7 @@
         class="flex items-center gap-2 rounded-lg bg-surface-2 px-3 py-2 text-sm text-text-muted"
       >
         <svg
+          aria-hidden="true"
           class="h-4 w-4 shrink-0"
           viewBox="0 0 24 24"
           fill="none"
@@ -461,6 +463,7 @@
           title={t('reply.title')}
         >
           <svg
+            aria-hidden="true"
             class="h-4 w-4"
             viewBox="0 0 24 24"
             fill="none"
@@ -481,6 +484,7 @@
           title={t('mute.user')}
         >
           <svg
+            aria-hidden="true"
             class="h-4 w-4"
             viewBox="0 0 24 24"
             fill="none"
@@ -502,6 +506,7 @@
         >
           {#if acting === comment.id}
             <svg
+              aria-hidden="true"
               class="h-4 w-4 animate-spin"
               viewBox="0 0 24 24"
               fill="none"
@@ -512,6 +517,7 @@
             </svg>
           {:else}
             <svg
+              aria-hidden="true"
               class="h-4 w-4"
               viewBox="0 0 24 24"
               fill="none"
@@ -553,6 +559,7 @@
               >
                 {#if replySending}
                   <svg
+                    aria-hidden="true"
                     class="h-3.5 w-3.5 animate-spin"
                     viewBox="0 0 24 24"
                     fill="none"

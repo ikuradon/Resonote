@@ -21,6 +21,7 @@
 <div class="relative">
   {#if flying}
     <svg
+      aria-hidden="true"
       class="plane-fly pointer-events-none absolute bottom-full left-3 h-5 w-5 text-accent"
       viewBox="0 0 24 24"
       fill="currentColor"
@@ -37,6 +38,7 @@
   >
     {#if sending}
       <svg
+        aria-hidden="true"
         class="h-4 w-4 animate-spin"
         viewBox="0 0 24 24"
         fill="none"
@@ -48,6 +50,7 @@
       {t('send.sending')}
     {:else}
       <svg
+        aria-hidden="true"
         class="h-4 w-4 {flying ? 'btn-icon-fade-out' : ''}"
         viewBox="0 0 24 24"
         fill="none"
