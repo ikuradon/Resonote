@@ -30,7 +30,8 @@ pnpm run build:ext:firefox # build extension for Firefox → dist-extension/
 pnpm format:check && pnpm lint && pnpm check && pnpm test && pnpm test:e2e
 ```
 
-This matches the CI pipeline order. Do not skip any step:
+This matches the CI pipeline order. Do not skip any step.
+`.gitignore` を無視して `git add -f` で強制コミットしないこと。
 
 - `pnpm lint` — `pnpm check` (svelte-check) only covers types, not ESLint rules like `no-unused-vars`, `no-undef`, or `svelte/require-each-key`
 - `pnpm test:e2e` — E2E tests catch UI/navigation regressions that unit tests miss (e.g., resolve fallback breaking "Unsupported URL" expectations)
