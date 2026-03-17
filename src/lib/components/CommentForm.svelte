@@ -113,6 +113,7 @@
           : 'bg-surface-3 text-text-muted hover:text-text-secondary'} disabled:cursor-not-allowed disabled:opacity-40"
       >
         <svg
+          aria-hidden="true"
           class="h-3.5 w-3.5"
           viewBox="0 0 24 24"
           fill="none"
@@ -128,6 +129,7 @@
           type="text"
           bind:value={cwReason}
           disabled={busy}
+          aria-label={t('cw.reason_placeholder')}
           placeholder={t('cw.reason_placeholder')}
           class="flex-1 rounded-lg border border-border bg-surface-1 px-2 py-1 text-xs text-text-primary placeholder:text-text-muted/50 focus:border-accent focus:outline-none disabled:opacity-40"
         />

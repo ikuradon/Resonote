@@ -264,6 +264,7 @@
         composing = false;
         handleInput();
       }}
+      aria-label={placeholder}
       {placeholder}
       {disabled}
       {rows}

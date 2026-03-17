@@ -75,6 +75,7 @@
       type="text"
       bind:value={url}
       placeholder={placeholders[placeholderIndex]}
+      aria-label={placeholders[placeholderIndex]}
       data-testid="track-url-input"
       class="flex-1 rounded-xl border border-border bg-surface-1 px-4 py-3 text-sm text-text-primary transition-all duration-200 focus:border-accent focus:ring-1 focus:ring-accent/30 focus:outline-none"
       style="--placeholder-opacity: {placeholderVisible ? 1 : 0}"
@@ -89,7 +90,7 @@
     </button>
   </div>
   {#if error}
-    <p class="animate-fade-in text-sm text-error">{error}</p>
+    <p role="alert" class="animate-fade-in text-sm text-error">{error}</p>
   {/if}
 </form>
 

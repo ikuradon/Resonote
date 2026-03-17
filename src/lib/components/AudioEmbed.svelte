@@ -150,13 +150,19 @@
       {#if image}
         <button
           onclick={togglePlayPause}
+          aria-label={isPaused ? 'Play' : 'Pause'}
           class="group relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl"
         >
           <img src={image} alt={title ?? ''} class="h-full w-full object-cover" />
           <div
             class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100"
           >
-            <svg class="h-8 w-8 text-white" viewBox="0 0 24 24" fill="currentColor">
+            <svg
+              aria-hidden="true"
+              class="h-8 w-8 text-white"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
               {#if isPaused}
                 <path d="M8 5v14l11-7z" />
               {:else}
@@ -209,11 +215,16 @@
               aria-label={isPaused ? 'Play' : 'Pause'}
             >
               {#if isPaused}
-                <svg class="h-5 w-5 translate-x-0.5" viewBox="0 0 24 24" fill="currentColor">
+                <svg
+                  aria-hidden="true"
+                  class="h-5 w-5 translate-x-0.5"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
                   <path d="M8 5v14l11-7z" />
                 </svg>
               {:else}
-                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
                 </svg>
               {/if}
@@ -223,6 +234,7 @@
           <!-- Volume slider -->
           <div class="flex min-w-0 flex-1 items-center gap-2">
             <svg
+              aria-hidden="true"
               class="h-4 w-4 flex-shrink-0 text-zinc-400"
               viewBox="0 0 24 24"
               fill="currentColor"
