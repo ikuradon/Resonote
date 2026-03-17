@@ -9,6 +9,7 @@ export interface Nip05Result {
 }
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const MAX_CACHE_SIZE = 500;
 const MAX_CONCURRENT = 5;
 const TIMEOUT_MS = 5000;
 
@@ -95,6 +96,11 @@ export async function verifyNip05(nip05: string, pubkey: string): Promise<Nip05R
   }
 
   const result = await withConcurrencyLimit(() => fetchNip05(nip05, pubkey));
+  if (cache.size >= MAX_CACHE_SIZE) {
+    // Evict oldest entry (Map preserves insertion order)
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) cache.delete(oldest);
+  }
   cache.set(cacheKey, result);
   return result;
 }
