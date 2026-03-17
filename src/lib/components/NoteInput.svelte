@@ -4,6 +4,7 @@
   import { getCustomEmojis } from '../stores/emoji-sets.svelte.js';
   import { addEmojiTag, extractShortcode } from '../utils/emoji.js';
   import EmojiPickerPopover, { allocatePopoverId } from './EmojiPickerPopover.svelte';
+  import MobileOverlay from './MobileOverlay.svelte';
 
   interface Props {
     content: string;
@@ -27,6 +28,17 @@
 
   const pickerId = allocatePopoverId();
   const emojiSets = getCustomEmojis();
+
+  let isDesktop = $state(true);
+  $effect(() => {
+    const mql = window.matchMedia('(min-width: 1024px)');
+    isDesktop = mql.matches;
+    function handler(e: MediaQueryListEvent) {
+      isDesktop = e.matches;
+    }
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  });
 
   let textareaEl = $state<HTMLTextAreaElement | null>(null);
   let composing = $state(false);
@@ -196,29 +208,57 @@
 
 <div class="relative">
   {#if autocomplete && suggestions.length > 0}
-    <div
-      class="absolute bottom-full left-0 z-20 mb-1 w-64 overflow-hidden rounded-lg border border-border bg-surface-0 shadow-lg"
-    >
-      {#each suggestions as item, i (item.label)}
-        <button
-          type="button"
-          class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors {i ===
-          selectedIndex
-            ? 'bg-accent/15 text-accent'
-            : 'text-text-primary hover:bg-surface-2'}"
-          onmousedown={(e) => {
-            e.preventDefault();
-            acceptSuggestion(item);
-          }}
-          onmouseenter={() => (selectedIndex = i)}
-        >
-          {#if autocomplete.type === 'emoji' && item.url}
-            <img src={item.url} alt={item.shortcode} class="h-5 w-5 object-contain" />
-          {/if}
-          <span>{item.label}</span>
-        </button>
-      {/each}
-    </div>
+    {#if isDesktop}
+      <div
+        class="absolute bottom-full left-0 z-20 mb-1 w-64 overflow-hidden rounded-lg border border-border bg-surface-0 shadow-lg"
+      >
+        {#each suggestions as item, i (item.label)}
+          <button
+            type="button"
+            class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors {i ===
+            selectedIndex
+              ? 'bg-accent/15 text-accent'
+              : 'text-text-primary hover:bg-surface-2'}"
+            onmousedown={(e) => {
+              e.preventDefault();
+              acceptSuggestion(item);
+            }}
+            onmouseenter={() => (selectedIndex = i)}
+          >
+            {#if autocomplete.type === 'emoji' && item.url}
+              <img src={item.url} alt={item.shortcode} class="h-5 w-5 object-contain" />
+            {/if}
+            <span>{item.label}</span>
+          </button>
+        {/each}
+      </div>
+    {:else}
+      <MobileOverlay
+        open={true}
+        onclose={() => {
+          autocomplete = null;
+        }}
+        title={autocomplete.type === 'emoji' ? 'Emoji' : 'Hashtag'}
+      >
+        <div class="flex flex-col gap-1">
+          {#each suggestions as item, i (item.label)}
+            <button
+              type="button"
+              class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition-colors {i ===
+              selectedIndex
+                ? 'bg-accent/15 text-accent'
+                : 'text-text-primary hover:bg-surface-2'} rounded-lg"
+              onclick={() => acceptSuggestion(item)}
+            >
+              {#if autocomplete?.type === 'emoji' && item.url}
+                <img src={item.url} alt={item.shortcode} class="h-5 w-5 object-contain" />
+              {/if}
+              <span>{item.label}</span>
+            </button>
+          {/each}
+        </div>
+      </MobileOverlay>
+    {/if}
   {/if}
 
   <div class="flex items-center gap-3">
