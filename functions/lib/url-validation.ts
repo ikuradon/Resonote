@@ -24,17 +24,18 @@ function isPrivateIPv4(ip: string): boolean {
   return isPrivate172(ip);
 }
 
-const IPV4_MAPPED_IPV6_RE = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/;
+// Match IPv4-mapped (::ffff:HHHH:HHHH) and IPv4-compatible (::HHHH:HHHH)
+const IPV4_EMBEDDED_IPV6_RE = /^::(?:ffff:)?([0-9a-f]{1,4}):([0-9a-f]{1,4})$/;
 
 function ipv6MappedToIPv4(bare: string): string | null {
-  const match = bare.match(IPV4_MAPPED_IPV6_RE);
+  const match = bare.match(IPV4_EMBEDDED_IPV6_RE);
   if (!match) return null;
   const hi = parseInt(match[1], 16);
   const lo = parseInt(match[2], 16);
   return `${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`;
 }
 
-const BLOCKED_IPV6_PREFIXES = ['::1', 'fc', 'fd', 'fe80', '2002:'];
+const BLOCKED_IPV6_PREFIXES = ['::1', 'fc', 'fd', 'fe80', '2002:', '2001:0:'];
 
 function isBlockedIPv6(hostname: string): boolean {
   const bare = hostname.replace(/^\[|\]$/g, '').toLowerCase();
