@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { MockPool, type MockRelay, type EventSigner } from '@ikuradon/tsunagiya';
-import { EventBuilder } from '@ikuradon/tsunagiya/testing';
+import { EventBuilder, waitFor } from '@ikuradon/tsunagiya/testing';
 import { generateSecretKey, getPublicKey, finalizeEvent } from 'nostr-tools/pure';
 import { DEFAULT_RELAYS } from './relays.js';
 
@@ -43,6 +43,8 @@ beforeEach(() => {
 afterEach(async () => {
   const { disposeRxNostr } = await import('./client.js');
   disposeRxNostr();
+  // Wait for all WebSocket connections to close before uninstalling mock
+  await waitFor(() => pool.connections.size === 0, { timeout: 3000 });
   pool.uninstall();
   vi.unstubAllGlobals();
 });
@@ -105,7 +107,7 @@ describe('fetchLatestEvent (integration with tsunagiya)', () => {
 });
 
 describe('castSigned (integration with tsunagiya)', () => {
-  it('should publish a signed event to relays', async () => {
+  it('should publish a signed event to relays meeting threshold', async () => {
     const { castSigned } = await import('./client.js');
 
     await castSigned({
@@ -114,9 +116,9 @@ describe('castSigned (integration with tsunagiya)', () => {
       tags: []
     });
 
-    // Verify event was received by at least one relay
-    const hasEvent = relays.some((relay) => relay.countEvents() > 0);
-    expect(hasEvent).toBe(true);
+    // castSigned resolves after ≥50% of relays (≥2 of 4) accept
+    const acceptedCount = relays.filter((relay) => relay.countEvents() > 0).length;
+    expect(acceptedCount).toBeGreaterThanOrEqual(2);
   });
 
   it('should reject when all relays reject', async () => {
@@ -132,6 +134,6 @@ describe('castSigned (integration with tsunagiya)', () => {
         content: 'Should fail',
         tags: []
       })
-    ).rejects.toThrow('All relays rejected');
+    ).rejects.toThrow('All relays rejected the event');
   });
 });
