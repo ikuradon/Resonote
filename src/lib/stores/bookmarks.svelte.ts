@@ -49,7 +49,7 @@ export function isBookmarked(contentId: ContentId): boolean {
 }
 
 /** Parse kind:10003 event tags into BookmarkEntry[] */
-function parseBookmarkTags(tags: string[][]): BookmarkEntry[] {
+export function parseBookmarkTags(tags: string[][]): BookmarkEntry[] {
   const entries: BookmarkEntry[] = [];
   for (const tag of tags) {
     if (tag[0] === 'i' && tag[1]) {
