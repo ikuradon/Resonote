@@ -7,7 +7,7 @@ interface Env {
   SYSTEM_NOSTR_PRIVKEY: string;
 }
 
-interface ParsedEpisode {
+export interface ParsedEpisode {
   title: string;
   guid: string;
   enclosureUrl: string;
@@ -16,7 +16,7 @@ interface ParsedEpisode {
   description: string;
 }
 
-interface ParsedFeed {
+export interface ParsedFeed {
   title: string;
   feedUrl: string;
   podcastGuid: string;
@@ -31,7 +31,7 @@ function jsonResponse(data: unknown, status = 200): Response {
   });
 }
 
-function normalizeForDTag(url: string): string {
+export function normalizeForDTag(url: string): string {
   const parsed = new URL(url);
   const host = parsed.hostname.toLowerCase();
   const port = parsed.port ? `:${parsed.port}` : '';
@@ -40,11 +40,11 @@ function normalizeForDTag(url: string): string {
   return `${host}${port}${path}`;
 }
 
-function domainRoot(url: string): string {
+export function domainRoot(url: string): string {
   return `https://${new URL(url).hostname.toLowerCase()}`;
 }
 
-async function syntheticGuid(feedUrl: string): Promise<string> {
+export async function syntheticGuid(feedUrl: string): Promise<string> {
   const data = new TextEncoder().encode(feedUrl);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = new Uint8Array(hashBuffer);
@@ -85,7 +85,7 @@ function signBookmarkEvent(
   );
 }
 
-function extractTagContent(xml: string, tag: string): string {
+export function extractTagContent(xml: string, tag: string): string {
   const patterns = [
     new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]></${tag}>`, 'i'),
     new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'i')
@@ -97,13 +97,13 @@ function extractTagContent(xml: string, tag: string): string {
   return '';
 }
 
-function extractAttr(xml: string, tag: string, attr: string): string {
+export function extractAttr(xml: string, tag: string, attr: string): string {
   const pattern = new RegExp(`<${tag}[^>]+${attr}=["']([^"']+)["'][^>]*>`, 'i');
   const match = xml.match(pattern);
   return match ? match[1].trim() : '';
 }
 
-async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed | null> {
+export async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed | null> {
   const channelMatch = xml.match(/<channel[^>]*>([\s\S]*?)<\/channel>/i);
   if (!channelMatch) return null;
   const channelXml = channelMatch[1];
@@ -159,7 +159,7 @@ async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed | null
 }
 
 /** Parse itunes:duration value ("HH:MM:SS", "MM:SS", or raw seconds) to seconds */
-function parseDurationToSeconds(raw: string): number {
+export function parseDurationToSeconds(raw: string): number {
   if (!raw) return 0;
   const parts = raw.split(':').map(Number);
   if (parts.some(isNaN)) return 0;
@@ -168,7 +168,7 @@ function parseDurationToSeconds(raw: string): number {
   return parts[0] || 0;
 }
 
-function findRssLink(html: string, baseUrl: string): string | null {
+export function findRssLink(html: string, baseUrl: string): string | null {
   const pattern = /<link[^>]+type=["']application\/rss\+xml["'][^>]*>/gi;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(html)) !== null) {
@@ -375,7 +375,7 @@ const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.ogg', '.wav', '.opus', '.flac', '.aa
 const FEED_EXTENSIONS = ['.rss', '.xml', '.atom', '.json'];
 const FEED_PATH_SEGMENTS = ['/feed', '/rss', '/atom'];
 
-function detectInputType(url: URL): 'audio' | 'feed' | 'site' {
+export function detectInputType(url: URL): 'audio' | 'feed' | 'site' {
   const pathname = url.pathname.toLowerCase();
 
   if (AUDIO_EXTENSIONS.some((ext) => pathname.endsWith(ext))) {
