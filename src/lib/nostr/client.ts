@@ -44,19 +44,25 @@ export async function castSigned(
     let okCount = 0;
     let resolved = false;
 
-    instance.send(params, { signer: nip07Signer() }).subscribe({
+    const sub = instance.send(params, { signer: nip07Signer() }).subscribe({
       next: (packet) => {
         if (packet.ok) okCount++;
         if (!resolved && okCount >= needed) {
           resolved = true;
+          sub.unsubscribe();
           resolve();
         }
       },
       error: (err) => {
-        if (!resolved) reject(err);
+        if (!resolved) {
+          resolved = true;
+          sub.unsubscribe();
+          reject(err);
+        }
       },
       complete: () => {
         if (!resolved) {
+          resolved = true;
           if (okCount > 0) resolve();
           else reject(new Error('All relays rejected the event'));
         }
