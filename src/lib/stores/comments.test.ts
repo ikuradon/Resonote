@@ -75,6 +75,44 @@ describe('applyReaction', () => {
     expect(stats.emojis).toHaveLength(1);
     expect(stats.emojis[0]).toEqual({ content: '🔥', url: undefined, count: 1 });
   });
+
+  it('should increment count for duplicate unicode emoji reactions', () => {
+    const stats = emptyStats();
+    applyReaction(stats, { id: 'r1', pubkey: 'pk1', content: '🔥', targetEventId: 'e1' });
+    applyReaction(stats, { id: 'r2', pubkey: 'pk2', content: '🔥', targetEventId: 'e1' });
+    expect(stats.emojis).toHaveLength(1);
+    expect(stats.emojis[0].count).toBe(2);
+  });
+
+  it('should match custom emoji by URL not content', () => {
+    const stats = emptyStats();
+    applyReaction(stats, {
+      id: 'r1',
+      pubkey: 'pk1',
+      content: ':a:',
+      targetEventId: 'e1',
+      emojiUrl: 'https://example.com/a.png'
+    });
+    applyReaction(stats, {
+      id: 'r2',
+      pubkey: 'pk2',
+      content: ':b:',
+      targetEventId: 'e1',
+      emojiUrl: 'https://example.com/a.png'
+    });
+    // Same URL = same emoji, count should be 2
+    expect(stats.emojis).toHaveLength(1);
+    expect(stats.emojis[0].count).toBe(2);
+  });
+
+  it('should track multiple reactors', () => {
+    const stats = emptyStats();
+    applyReaction(stats, { id: 'r1', pubkey: 'pk1', content: '+', targetEventId: 'e1' });
+    applyReaction(stats, { id: 'r2', pubkey: 'pk2', content: '+', targetEventId: 'e1' });
+    expect(stats.reactors.size).toBe(2);
+    expect(stats.reactors.has('pk1')).toBe(true);
+    expect(stats.reactors.has('pk2')).toBe(true);
+  });
 });
 
 describe('buildReactionIndex', () => {
@@ -116,5 +154,23 @@ describe('buildReactionIndex', () => {
   it('should return empty map for no reactions', () => {
     const index = buildReactionIndex([], new Set());
     expect(index.size).toBe(0);
+  });
+
+  it('should track reactors across grouped reactions', () => {
+    const index = buildReactionIndex(reactions, new Set());
+    expect(index.get('e1')!.reactors.size).toBe(3);
+    expect(index.get('e2')!.reactors.size).toBe(1);
+  });
+
+  it('should sort emojis by count descending with specific order', () => {
+    const emojiReactions: Reaction[] = [
+      { id: 'r1', pubkey: 'pk1', content: '🔥', targetEventId: 'e1' },
+      { id: 'r2', pubkey: 'pk2', content: '🎵', targetEventId: 'e1' },
+      { id: 'r3', pubkey: 'pk3', content: '🎵', targetEventId: 'e1' }
+    ];
+    const index = buildReactionIndex(emojiReactions, new Set());
+    const emojis = index.get('e1')!.emojis;
+    expect(emojis[0].content).toBe('🎵'); // 2 > 1
+    expect(emojis[1].content).toBe('🔥');
   });
 });
