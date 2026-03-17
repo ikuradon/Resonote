@@ -110,12 +110,14 @@
     }
   }
 
-  function handleBackdropClick(e: MouseEvent) {
-    if (e.target === e.currentTarget) {
+  function handleKeydown(e: KeyboardEvent) {
+    if (modalState !== 'closed' && e.key === 'Escape') {
       closeModal();
     }
   }
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <!-- Share trigger button -->
 <button
@@ -124,7 +126,14 @@
   class="inline-flex items-center gap-1.5 rounded-lg bg-surface-2 px-3 py-2 text-sm font-medium text-text-secondary transition-all duration-200 hover:bg-surface-3 hover:text-text-primary"
   title={t('share.title')}
 >
-  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+  <svg
+    class="h-4 w-4"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    aria-hidden="true"
+  >
     <circle cx="18" cy="5" r="3" />
     <circle cx="6" cy="12" r="3" />
     <circle cx="18" cy="19" r="3" />
@@ -136,14 +145,18 @@
 
 <!-- Modal overlay -->
 {#if modalState !== 'closed'}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-    onclick={handleBackdropClick}
-  >
+  <div class="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
+    <!-- Backdrop -->
+    <button
+      type="button"
+      class="absolute inset-0 bg-black/50 backdrop-blur-sm"
+      onclick={closeModal}
+      aria-label={t('dialog.close')}
+      tabindex="-1"
+    ></button>
+
     <div
-      class="mx-4 w-full max-w-[calc(100vw-2rem)] sm:max-w-sm rounded-2xl border border-border bg-surface-0 shadow-xl"
+      class="relative mx-4 w-full max-w-[calc(100vw-2rem)] sm:max-w-sm rounded-2xl border border-border bg-surface-0 shadow-xl"
     >
       <!-- Modal header -->
       <div class="flex items-center justify-between border-b border-border px-5 py-4">
@@ -162,6 +175,7 @@
             fill="none"
             stroke="currentColor"
             stroke-width="2"
+            aria-hidden="true"
           >
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
@@ -189,6 +203,7 @@
                     fill="none"
                     stroke="currentColor"
                     stroke-width="2.5"
+                    aria-hidden="true"
                   >
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
@@ -199,6 +214,7 @@
                     fill="none"
                     stroke="currentColor"
                     stroke-width="2"
+                    aria-hidden="true"
                   >
                     <circle cx="12" cy="12" r="10" />
                     <polyline points="12 6 12 12 16 14" />
@@ -233,6 +249,7 @@
                   fill="none"
                   stroke="currentColor"
                   stroke-width="2.5"
+                  aria-hidden="true"
                 >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
@@ -243,6 +260,7 @@
                   fill="none"
                   stroke="currentColor"
                   stroke-width="2"
+                  aria-hidden="true"
                 >
                   <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                   <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
@@ -273,6 +291,7 @@
                   fill="none"
                   stroke="currentColor"
                   stroke-width="2"
+                  aria-hidden="true"
                 >
                   <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
                   <polyline points="16 6 12 2 8 6" />
@@ -288,6 +307,7 @@
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
+                aria-hidden="true"
               >
                 <polyline points="9 18 15 12 9 6" />
               </svg>
@@ -328,6 +348,7 @@
                   fill="none"
                   stroke="currentColor"
                   stroke-width="2"
+                  aria-hidden="true"
                 >
                   <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                 </svg>
