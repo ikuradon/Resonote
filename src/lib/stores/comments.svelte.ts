@@ -281,6 +281,15 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
   }
 
   async function subscribe() {
+    try {
+      await subscribeInner();
+    } catch (err) {
+      log.error('Failed to subscribe to comments', err);
+      loading = false;
+    }
+  }
+
+  async function subscribeInner() {
     log.info('Subscribing to comments', {
       contentId: `${contentId.platform}:${contentId.type}:${contentId.id}`
     });
