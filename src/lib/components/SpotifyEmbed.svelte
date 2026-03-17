@@ -32,6 +32,7 @@
       script.async = true;
       script.onerror = () => {
         apiPromise = undefined;
+        script.remove();
         delete (window as unknown as Record<string, unknown>).onSpotifyIframeApiReady;
         reject(new Error('Failed to load Spotify API'));
       };

@@ -24,6 +24,7 @@
       script.async = true;
       script.onerror = () => {
         apiPromise = undefined;
+        script.remove();
         delete (window as unknown as Record<string, unknown>).onYouTubeIframeAPIReady;
         reject(new Error('Failed to load YouTube API'));
       };
