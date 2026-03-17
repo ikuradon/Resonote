@@ -23,6 +23,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
+    "build:e2e-helpers": "esbuild node_modules/@ikuradon/tsunagiya/esm/mod.js --bundle --format=iife --global-name=Tsunagiya --outfile=e2e/helpers/tsunagiya-bundle.js --platform=browser && esbuild node_modules/@ikuradon/tsunagiya/esm/testing/mod.js --bundle --format=iife --global-name=TsunagiyaTesting --outfile=e2e/helpers/tsunagiya-testing-bundle.js --platform=browser",
     "build:ext": "vite build --config vite.config.extension.ts && mkdir -p dist-extension/sidepanel dist-extension/icons && cp src/extension/sidepanel/panel.html dist-extension/sidepanel/ && cp src/extension/icons/* dist-extension/icons/",
     "build:ext:chrome": "pnpm build:ext && cp src/extension/manifest.chrome.json dist-extension/manifest.json",
     "build:ext:firefox": "pnpm build:ext && cp src/extension/manifest.firefox.json dist-extension/manifest.json"

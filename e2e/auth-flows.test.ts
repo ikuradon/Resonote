@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
 import { generateSecretKey, getPublicKey, finalizeEvent } from 'nostr-tools/pure';
-import { bytesToHex } from 'nostr-tools/utils';
 import { DEFAULT_RELAYS } from '../src/lib/nostr/relays.js';
 
 const trackUrl = '/spotify/track/4C6zDr6e86HYqLxPAhO8jA';
@@ -9,11 +8,9 @@ const trackUrl = '/spotify/track/4C6zDr6e86HYqLxPAhO8jA';
 // Generate a test keypair for each test run
 const sk = generateSecretKey();
 const testPubkey = getPublicKey(sk);
-const testSecretHex = bytesToHex(sk);
 
 /**
  * Set up window.nostr mock and fire nlAuth login event.
- * Waits for the login button to disappear as confirmation.
  */
 async function simulateLogin(page: import('@playwright/test').Page) {
   await page.evaluate(async (pubkey: string) => {
@@ -42,22 +39,16 @@ test.describe('Authenticated flows', () => {
       pool.install();
     }, DEFAULT_RELAYS);
 
-    // 2. Inject window.nostr mock (NIP-07 compatible)
-    await page.addInitScript((secretHex: string) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).__testSecretHex = secretHex;
-    }, testSecretHex);
-  });
-
-  test('should show comment form after login', async ({ page }) => {
+    // 2. Expose signEvent bridge (Node.js → browser) for all tests
     await page.exposeFunction(
       '__nostrSignEvent',
       (event: { kind: number; content: string; tags: string[][]; created_at: number }) =>
         finalizeEvent(event, sk)
     );
+  });
 
+  test('should show comment form after login', async ({ page }) => {
     await page.goto(trackUrl);
-    // Wait for page to be fully loaded before simulating login
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
@@ -66,12 +57,6 @@ test.describe('Authenticated flows', () => {
   });
 
   test('should show send button when text is entered', async ({ page }) => {
-    await page.exposeFunction(
-      '__nostrSignEvent',
-      (event: { kind: number; content: string; tags: string[][]; created_at: number }) =>
-        finalizeEvent(event, sk)
-    );
-
     await page.goto(trackUrl);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
@@ -98,16 +83,13 @@ test.describe('Authenticated flows', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
-    // Verify logged in
     const logoutButton = page.locator('button:has-text("Logout"), button:has-text("ログアウト")');
     await expect(logoutButton).toBeVisible({ timeout: 10_000 });
 
-    // Trigger logout via nlAuth event
     await page.evaluate(() => {
       document.dispatchEvent(new CustomEvent('nlAuth', { detail: { type: 'logout' } }));
     });
 
-    // Login prompt should reappear
     await expect(
       page.locator('button:has-text("Login with Nostr"), button:has-text("Nostrでログイン")')
     ).toBeVisible({ timeout: 10_000 });
