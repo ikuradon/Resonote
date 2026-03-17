@@ -32,8 +32,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         if (embedHost === 'podbean.com' || embedHost.endsWith('.podbean.com')) {
           return json({ embedSrc: srcMatch[1] });
         }
-      } catch {
-        // invalid or unsafe URL from oEmbed — fall through
+      } catch (err) {
+        console.warn('[podbean/resolve] oEmbed returned unsafe or invalid src URL:', err);
       }
     }
 
