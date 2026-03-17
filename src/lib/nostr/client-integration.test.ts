@@ -43,10 +43,12 @@ beforeEach(() => {
 afterEach(async () => {
   const { disposeRxNostr } = await import('./client.js');
   disposeRxNostr();
-  // Wait for all WebSocket connections to close before uninstalling mock
-  await waitFor(() => pool.connections.size === 0, { timeout: 3000 });
-  pool.uninstall();
-  vi.unstubAllGlobals();
+  try {
+    await waitFor(() => pool.connections.size === 0, { timeout: 3000 });
+  } finally {
+    pool.uninstall();
+    vi.unstubAllGlobals();
+  }
 });
 
 function storeOnAll(event: ReturnType<EventBuilder['build']>) {
