@@ -136,4 +136,16 @@ describe('podbean resolve', () => {
     expect(res.status).toBe(404);
     expect(await parseJson(res)).toEqual({ error: 'embed_not_found' });
   });
+
+  it('should return fetch_failed when fallback page fetch throws network error', async () => {
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({})))
+      .mockRejectedValueOnce(new Error('network error'));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const res = await onRequestGet(makeContext({ url: 'https://www.podbean.com/ew/pb-abc123' }));
+    expect(res.status).toBe(502);
+    expect(await parseJson(res)).toEqual({ error: 'fetch_failed' });
+  });
 });
