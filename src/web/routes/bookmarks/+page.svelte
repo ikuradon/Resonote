@@ -91,7 +91,7 @@
             {:else}
               <span class="shrink-0 text-base text-text-muted">&#9993;</span>
               <div class="min-w-0 flex-1">
-                <span class="text-sm font-mono text-text-primary">
+                <span class="truncate text-sm font-mono text-text-primary" title={entry.value}>
                   {truncate(entry.value, 24)}
                 </span>
                 {#if entry.hint}
