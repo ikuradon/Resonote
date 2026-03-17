@@ -372,6 +372,11 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       maxCreatedAt
     });
 
+    // Show cached comments immediately instead of spinner
+    if (commentIds.size > 0) {
+      loading = false;
+    }
+
     // --- Purge deleted events from DB (from cached deletions) ---
     if (deletedIds.size > 0) {
       const idsToPurge = [...deletedIds].filter((id) => commentIds.has(id) || reactionIds.has(id));
@@ -453,6 +458,9 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       .subscribe({
         next: (packet) => dispatchPacket(packet.event),
         complete: () => {
+          loading = false;
+        },
+        error: () => {
           loading = false;
         }
       });
