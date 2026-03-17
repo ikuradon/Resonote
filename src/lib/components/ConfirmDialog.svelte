@@ -23,8 +23,45 @@
     onCancel
   }: Props = $props();
 
+  let dialogEl: HTMLDivElement | undefined = $state();
+  let cancelBtn: HTMLButtonElement | undefined = $state();
+
+  // Focus trap: focus cancel button when dialog opens
+  $effect(() => {
+    if (open && cancelBtn) {
+      cancelBtn.focus();
+    }
+  });
+
   function handleKeydown(e: KeyboardEvent) {
-    if (open && e.key === 'Escape') onCancel();
+    if (!open) return;
+
+    if (e.key === 'Escape') {
+      onCancel();
+      return;
+    }
+
+    if (e.key === 'Tab' && dialogEl) {
+      const focusable = dialogEl.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    }
   }
 </script>
 
@@ -32,6 +69,7 @@
 
 {#if open}
   <div
+    bind:this={dialogEl}
     class="fixed inset-0 z-50 flex items-center justify-center"
     role="dialog"
     aria-modal="true"
@@ -54,6 +92,7 @@
       <p class="mb-6 text-sm leading-relaxed text-text-secondary">{message}</p>
       <div class="flex justify-end gap-3">
         <button
+          bind:this={cancelBtn}
           type="button"
           onclick={onCancel}
           class="rounded-lg px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:text-text-secondary"
