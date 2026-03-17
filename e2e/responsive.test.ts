@@ -9,7 +9,8 @@ test.describe('Responsive layout', () => {
     await expect(page.locator('h1')).toHaveText('Resonote');
     await expect(page.locator('[data-testid="track-url-input"]')).toBeVisible();
     await expect(page.locator('[data-testid="track-submit-button"]')).toBeVisible();
-    await expect(page.locator('[data-testid="login-button"]')).toBeVisible();
+    // Login button is inside hamburger menu on mobile
+    await expect(page.locator('[data-testid="hamburger-menu-button"]')).toBeVisible();
   });
 
   test('should navigate on mobile viewport', async ({ page }) => {
@@ -42,6 +43,8 @@ test.describe('Responsive layout', () => {
     await page.goto('/');
     await expect(page.locator('h1')).toHaveText('Resonote');
     await expect(page.locator('[data-testid="track-url-input"]')).toBeVisible();
+    // Tablet gets mobile layout (< lg breakpoint)
+    await expect(page.locator('[data-testid="hamburger-menu-button"]')).toBeVisible();
   });
 
   test('should handle keyboard navigation', async ({ page }) => {
