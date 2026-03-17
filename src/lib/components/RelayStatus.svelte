@@ -8,17 +8,29 @@
     type ConnectionState
   } from '../stores/relays.svelte.js';
   import { t, type TranslationKey } from '../i18n/t.js';
+  import MobileOverlay from './MobileOverlay.svelte';
 
   let open = $state(false);
   let relays = $derived(getRelays());
   let containerEl: HTMLDivElement | undefined;
+
+  let isDesktop = $state(true);
+  $effect(() => {
+    const mql = window.matchMedia('(min-width: 1024px)');
+    isDesktop = mql.matches;
+    function handler(e: MediaQueryListEvent) {
+      isDesktop = e.matches;
+    }
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  });
 
   onMount(() => {
     initRelayStatus();
   });
 
   $effect(() => {
-    if (!open) return;
+    if (!open || !isDesktop) return;
     const handler = (e: MouseEvent) => {
       if (!containerEl?.contains(e.target as Node)) {
         open = false;
@@ -68,7 +80,7 @@
     {connectedCount}/{relays.length}
   </button>
 
-  {#if open}
+  {#if open && isDesktop}
     <div
       class="absolute top-full right-0 z-50 mt-2 w-64 rounded-xl border border-border bg-surface-1 p-3 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
     >
@@ -92,3 +104,22 @@
     </div>
   {/if}
 </div>
+
+{#if !isDesktop}
+  <MobileOverlay {open} onclose={() => (open = false)} title={t('relay.heading')}>
+    <div class="mb-3 text-sm text-text-muted">
+      {t('relay.connected', { count: connectedCount })}
+    </div>
+    <div class="space-y-2">
+      {#each relays as relay (relay.url)}
+        <div
+          class="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-surface-2"
+        >
+          <span class="h-2 w-2 flex-shrink-0 rounded-full {stateColor(relay.state)}"></span>
+          <span class="flex-1 truncate text-sm text-text-primary">{shortUrl(relay.url)}</span>
+          <span class="text-xs text-text-muted">{stateLabel(relay.state)}</span>
+        </div>
+      {/each}
+    </div>
+  </MobileOverlay>
+{/if}
