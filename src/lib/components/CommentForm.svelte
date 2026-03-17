@@ -3,6 +3,7 @@
   import { castSigned } from '../nostr/client.js';
   import { getAuth } from '../stores/auth.svelte.js';
   import { getPlayer } from '../stores/player.svelte.js';
+  import { toastSuccess, toastError } from '../stores/toast.svelte.js';
   import type { ContentId, ContentProvider } from '../content/types.js';
   import { createLogger } from '../utils/logger.js';
   import { t } from '../i18n/t.js';
@@ -54,12 +55,14 @@
       flying = false;
       await castSigned(params);
       log.info('Comment sent successfully');
+      toastSuccess(t('toast.comment_sent'));
       content = '';
       emojiTags = [];
       cwEnabled = false;
       cwReason = '';
     } catch (err) {
       log.error('Failed to send comment', err);
+      toastError(t('toast.comment_failed'));
     } finally {
       sending = false;
       flying = false;

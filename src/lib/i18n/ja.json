@@ -196,5 +196,13 @@
   "relay.disconnected.title": "全リレーが切断されています",
   "relay.disconnected.message": "コメントやリアクションの送受信ができません",
   "episode.description": "概要",
-  "episode.show_more": "もっと見る"
+  "episode.show_more": "もっと見る",
+  "toast.comment_sent": "コメントを送信しました",
+  "toast.comment_failed": "コメントの送信に失敗しました",
+  "toast.reply_sent": "返信を送信しました",
+  "toast.reply_failed": "返信の送信に失敗しました",
+  "toast.reaction_sent": "リアクションを送信しました",
+  "toast.reaction_failed": "リアクションの送信に失敗しました",
+  "toast.delete_sent": "コメントを削除しました",
+  "toast.delete_failed": "コメントの削除に失敗しました"
 }

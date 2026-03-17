@@ -19,6 +19,7 @@
   import { t } from '$lib/i18n/t.js';
   import { getLocale, setLocale } from '$lib/stores/locale.svelte.js';
   import { LOCALES, type Locale } from '$lib/i18n/locales.js';
+  import ToastContainer from '$lib/components/ToastContainer.svelte';
   import '../app.css';
 
   let { children }: { children: Snippet } = $props();
@@ -311,4 +312,6 @@
   <main class="relative mx-auto max-w-7xl px-5 py-6 lg:py-8">
     {@render children()}
   </main>
+
+  <ToastContainer />
 </div>
