@@ -13,12 +13,16 @@
   import { initExtensionListener, isExtensionMode } from '$lib/stores/extension.svelte.js';
   import { retryPendingPublishes } from '$lib/nostr/publish-signed.js';
   import LanguageSwitcher from '$lib/components/LanguageSwitcher.svelte';
+  import MobileOverlay from '$lib/components/MobileOverlay.svelte';
   import { getRelays, isTransitionalState } from '$lib/stores/relays.svelte.js';
   import { t } from '$lib/i18n/t.js';
-  import { getLocale } from '$lib/stores/locale.svelte.js';
+  import { getLocale, setLocale } from '$lib/stores/locale.svelte.js';
+  import { LOCALES, type Locale } from '$lib/i18n/locales.js';
   import '../app.css';
 
   let { children }: { children: Snippet } = $props();
+
+  let menuOpen = $state(false);
 
   const auth = getAuth();
 
@@ -117,7 +121,9 @@
           </svg>
           Resonote
         </a>
-        <div class="flex items-center gap-3">
+
+        <!-- Desktop nav -->
+        <div class="hidden items-center gap-3 lg:flex">
           <LanguageSwitcher />
           {#if auth.loggedIn}
             <RelayStatus />
@@ -164,8 +170,106 @@
           {/if}
           <LoginButton />
         </div>
+
+        <!-- Mobile nav -->
+        <div class="flex items-center gap-3 lg:hidden">
+          {#if auth.loggedIn}
+            <NotificationBell />
+          {/if}
+          <button
+            type="button"
+            onclick={() => {
+              menuOpen = true;
+            }}
+            class="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-surface-1 hover:text-text-secondary lg:hidden"
+            aria-label="Menu"
+            data-testid="hamburger-menu-button"
+          >
+            <svg
+              class="h-5 w-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+        </div>
       </div>
     </header>
+
+    <MobileOverlay
+      open={menuOpen}
+      onclose={() => {
+        menuOpen = false;
+      }}
+      title="Menu"
+    >
+      <nav class="flex flex-col gap-1">
+        <div class="py-3">
+          <p class="mb-2 text-xs font-medium uppercase text-text-muted">Language</p>
+          <div class="flex gap-2">
+            {#each LOCALES as locale (locale.code)}
+              <button
+                type="button"
+                onclick={() => {
+                  setLocale(locale.code as Locale);
+                  menuOpen = false;
+                }}
+                class="rounded-lg px-3 py-1.5 text-sm transition-colors {locale.code === getLocale()
+                  ? 'bg-accent/10 text-accent'
+                  : 'text-text-secondary hover:bg-surface-1'}"
+              >
+                <span>{locale.flag}</span>
+                <span>{locale.label}</span>
+              </button>
+            {/each}
+          </div>
+        </div>
+
+        <hr class="border-border-subtle" />
+
+        {#if auth.loggedIn}
+          <div class="flex items-center gap-3 rounded-lg px-2 py-3 text-text-secondary">
+            <span class="text-lg">📡</span>
+            <span>Relays ({relayConnectedCount}/{relayList.length})</span>
+          </div>
+
+          <a
+            href="/bookmarks"
+            onclick={() => {
+              menuOpen = false;
+            }}
+            class="flex items-center gap-3 rounded-lg px-2 py-3 text-text-secondary transition-colors hover:bg-surface-1"
+          >
+            <span class="text-lg">🔖</span>
+            <span>Bookmarks</span>
+          </a>
+
+          <a
+            href="/settings"
+            onclick={() => {
+              menuOpen = false;
+            }}
+            class="flex items-center gap-3 rounded-lg px-2 py-3 text-text-secondary transition-colors hover:bg-surface-1"
+          >
+            <span class="text-lg">⚙️</span>
+            <span>Settings</span>
+          </a>
+        {/if}
+
+        <hr class="border-border-subtle" />
+
+        <div class="py-3">
+          <LoginButton />
+        </div>
+      </nav>
+    </MobileOverlay>
   {/if}
 
   {#if showRelayWarning}
