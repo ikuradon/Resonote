@@ -125,6 +125,7 @@ Comments use rx-nostr's dual-request pattern:
 - **Forward**: Real-time subscription for new events
 - Merged with `uniq()` + `timeline()` operators
 - `addSubscription()` で追加タグの並行購読をマージ可能
+- rx-nostr `emit()` は `LazyFilter[]` を受け付ける — 1 REQ に複数フィルタ = 1 subscription slot (NIP-11 `max_subscriptions` 節約)
 
 ### State Management
 
@@ -200,3 +201,5 @@ Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
 - Svelte 5.53 では npm の `.svelte` ソース配布ライブラリが `$props is not defined` で失敗する場合あり (svelte-virtuallists, @josesan9/svelte-virtual-scroll-list, @tanstack/svelte-virtual で確認)
 - `player.position` は再生中 250-500ms ごとに更新される → `$effect` 内で直接使う場合、同一結果のガード (前回値比較) を入れないと下流の処理が毎秒 2-4 回無駄に走る
 - コメント/リアクション/削除のサブスクリプションは `#I` (大文字) フィルタを使用。他クライアントの `I` タグなしイベントは取得しない設計 (Resonote 独自のコンテンツスコープ)
+- Svelte 5 `$state<Set>` は in-place `.add()`/`.delete()` で reactivity がトリガーされない → `deletedIds = new Set(deletedIds)` で再代入が必要
+- `getFollows().follows` は `Set<string>` → `.length` ではなく `.size` を使う

@@ -206,6 +206,12 @@
   });
 </script>
 
+{#snippet embedLoading()}
+  <div class="flex h-40 items-center justify-center rounded-2xl bg-surface-1">
+    <div class="h-5 w-32 animate-pulse rounded bg-surface-2"></div>
+  </div>
+{/snippet}
+
 {#if isValid && provider}
   {#if isCollection}
     <div class="mx-auto max-w-3xl space-y-8">
@@ -295,57 +301,43 @@
             <SpotifyEmbed {contentId} openUrl={provider.openUrl(contentId)} />
           {:else if showPlayer && platform === 'youtube'}
             {#await import('$lib/components/YouTubeEmbed.svelte')}
-              <div class="flex h-40 items-center justify-center rounded-2xl bg-surface-1">
-                <div class="h-5 w-32 animate-pulse rounded bg-surface-2"></div>
-              </div>
+              {@render embedLoading()}
             {:then { default: YouTubeEmbed }}
               <YouTubeEmbed {contentId} openUrl={provider.openUrl(contentId)} />
             {/await}
           {:else if showPlayer && platform === 'soundcloud'}
             {#await import('$lib/components/SoundCloudEmbed.svelte')}
-              <div class="flex h-40 items-center justify-center rounded-2xl bg-surface-1">
-                <div class="h-5 w-32 animate-pulse rounded bg-surface-2"></div>
-              </div>
+              {@render embedLoading()}
             {:then { default: SoundCloudEmbed }}
               <SoundCloudEmbed {contentId} openUrl={provider.openUrl(contentId)} />
             {/await}
           {:else if showPlayer && platform === 'vimeo'}
             {#await import('$lib/components/VimeoEmbed.svelte')}
-              <div class="flex h-40 items-center justify-center rounded-2xl bg-surface-1">
-                <div class="h-5 w-32 animate-pulse rounded bg-surface-2"></div>
-              </div>
+              {@render embedLoading()}
             {:then { default: VimeoEmbed }}
               <VimeoEmbed {contentId} openUrl={provider.openUrl(contentId)} />
             {/await}
           {:else if showPlayer && platform === 'mixcloud'}
             {#await import('$lib/components/MixcloudEmbed.svelte')}
-              <div class="flex h-40 items-center justify-center rounded-2xl bg-surface-1">
-                <div class="h-5 w-32 animate-pulse rounded bg-surface-2"></div>
-              </div>
+              {@render embedLoading()}
             {:then { default: MixcloudEmbed }}
               <MixcloudEmbed {contentId} openUrl={provider.openUrl(contentId)} />
             {/await}
           {:else if showPlayer && platform === 'spreaker'}
             {#await import('$lib/components/SpreakerEmbed.svelte')}
-              <div class="flex h-40 items-center justify-center rounded-2xl bg-surface-1">
-                <div class="h-5 w-32 animate-pulse rounded bg-surface-2"></div>
-              </div>
+              {@render embedLoading()}
             {:then { default: SpreakerEmbed }}
               <SpreakerEmbed {contentId} openUrl={provider.openUrl(contentId)} />
             {/await}
           {:else if showPlayer && platform === 'niconico'}
             {#await import('$lib/components/NiconicoEmbed.svelte')}
-              <div class="flex h-40 items-center justify-center rounded-2xl bg-surface-1">
-                <div class="h-5 w-32 animate-pulse rounded bg-surface-2"></div>
-              </div>
+              {@render embedLoading()}
             {:then { default: NiconicoEmbed }}
               <NiconicoEmbed {contentId} openUrl={provider.openUrl(contentId)} />
             {/await}
           {:else if showPlayer && platform === 'podbean'}
             {#await import('$lib/components/PodbeanEmbed.svelte')}
-              <div class="flex h-40 items-center justify-center rounded-2xl bg-surface-1">
-                <div class="h-5 w-32 animate-pulse rounded bg-surface-2"></div>
-              </div>
+              {@render embedLoading()}
             {:then { default: PodbeanEmbed }}
               <PodbeanEmbed {contentId} openUrl={provider.openUrl(contentId)} />
             {/await}

@@ -4,6 +4,7 @@ import { isShortcode, extractShortcode } from '../utils/emoji.js';
 
 export const COMMENT_KIND = 1111;
 export const REACTION_KIND = 7;
+export const DELETION_KIND = 5;
 export const FOLLOW_KIND = 3;
 export const MUTE_KIND = 10000;
 export const RELAY_LIST_KIND = 10002;

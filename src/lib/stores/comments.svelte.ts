@@ -1,5 +1,11 @@
 import type { ContentId, ContentProvider } from '../content/types.js';
-import { parsePosition, extractDeletionTargets } from '../nostr/events.js';
+import {
+  parsePosition,
+  extractDeletionTargets,
+  COMMENT_KIND,
+  REACTION_KIND,
+  DELETION_KIND
+} from '../nostr/events.js';
 import { isEmojiTag } from '../utils/emoji.js';
 import { createLogger, shortHex } from '../utils/logger.js';
 
@@ -240,6 +246,38 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     log.debug('Deletion event received', { deletedIds: verified.map(shortHex) });
   }
 
+  /** Build the 3-filter array for unified subscription on a given tag value. */
+  function buildContentFilters(idValue: string) {
+    return [
+      { kinds: [COMMENT_KIND], '#I': [idValue] },
+      { kinds: [REACTION_KIND], '#I': [idValue] },
+      { kinds: [DELETION_KIND], '#I': [idValue] }
+    ];
+  }
+
+  /** Dispatch a received event to the appropriate handler by kind. */
+  function dispatchPacket(event: {
+    id: string;
+    pubkey: string;
+    content: string;
+    created_at: number;
+    tags: string[][];
+    kind: number;
+  }) {
+    eventsDBRef?.put(event);
+    switch (event.kind) {
+      case COMMENT_KIND:
+        handleCommentPacket(event);
+        break;
+      case REACTION_KIND:
+        handleReactionPacket(event);
+        break;
+      case DELETION_KIND:
+        handleDeletionPacket(event);
+        break;
+    }
+  }
+
   async function subscribe() {
     log.info('Subscribing to comments', {
       contentId: `${contentId.platform}:${contentId.type}:${contentId.id}`
@@ -275,13 +313,13 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
         maxCreatedAt = event.created_at;
       }
       switch (event.kind) {
-        case 5:
+        case DELETION_KIND:
           cachedDeletions.push(event);
           break;
-        case 1111:
+        case COMMENT_KIND:
           cachedComments.push(event);
           break;
-        case 7:
+        case REACTION_KIND:
           cachedReactions.push(event);
           break;
       }
@@ -402,11 +440,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     const backward = createRxBackwardReq();
     const forward = createRxForwardReq();
 
-    const baseFilters = [
-      { kinds: [1111], '#I': [idValue] },
-      { kinds: [7], '#I': [idValue] },
-      { kinds: [5], '#I': [idValue] }
-    ];
+    const baseFilters = buildContentFilters(idValue);
     const backwardFilters = maxCreatedAt
       ? baseFilters.map((f) => ({ ...f, since: maxCreatedAt + 1 }))
       : baseFilters;
@@ -415,18 +449,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       rxNostr.use(backward).pipe(uniq()),
       rxNostr.use(forward).pipe(uniq())
     ).subscribe((packet) => {
-      eventsDB.put(packet.event);
-      switch (packet.event.kind) {
-        case 1111:
-          handleCommentPacket(packet.event);
-          break;
-        case 7:
-          handleReactionPacket(packet.event);
-          break;
-        case 5:
-          handleDeletionPacket(packet.event);
-          break;
-      }
+      dispatchPacket(packet.event);
     });
 
     backward.emit(backwardFilters);
@@ -449,7 +472,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     // Pass 1: process kind:5 deletions FIRST
     let addedDeletions = false;
     for (const ev of cachedEvents) {
-      if (ev.kind === 5) {
+      if (ev.kind === DELETION_KIND) {
         for (const id of extractDeletionTargets(ev)) {
           const originalPubkey = eventPubkeys.get(id);
           if (!originalPubkey || originalPubkey === ev.pubkey) {
@@ -467,12 +490,12 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     // Pass 2: restore comments and reactions (skipping deleted)
     const newComments: Comment[] = [];
     for (const ev of cachedEvents) {
-      if (ev.kind === 1111 && !commentIds.has(ev.id) && !deletedIds.has(ev.id)) {
+      if (ev.kind === COMMENT_KIND && !commentIds.has(ev.id) && !deletedIds.has(ev.id)) {
         commentIds.add(ev.id);
         eventPubkeys.set(ev.id, ev.pubkey);
         newComments.push(buildCommentFromEvent(ev));
       }
-      if (ev.kind === 7 && !reactionIds.has(ev.id) && !deletedIds.has(ev.id)) {
+      if (ev.kind === REACTION_KIND && !reactionIds.has(ev.id) && !deletedIds.has(ev.id)) {
         const reaction = buildReactionFromEvent(ev);
         if (reaction) {
           addReaction(reaction);
@@ -488,39 +511,14 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     const backward = createRxBackwardReq();
     const forward = createRxForwardReq();
 
-    const filters = [
-      { kinds: [1111], '#I': [idValue] },
-      { kinds: [7], '#I': [idValue] },
-      { kinds: [5], '#I': [idValue] }
-    ];
+    const filters = buildContentFilters(idValue);
 
     const sub = merge(
       rxNostrRef.use(backward).pipe(uniq()),
       rxNostrRef.use(forward).pipe(uniq())
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ).subscribe((rawPacket: any) => {
-      const packet = rawPacket as {
-        event: {
-          id: string;
-          pubkey: string;
-          content: string;
-          created_at: number;
-          tags: string[][];
-          kind: number;
-        };
-      };
-      eventsDBRef?.put(packet.event);
-      switch (packet.event.kind) {
-        case 1111:
-          handleCommentPacket(packet.event);
-          break;
-        case 7:
-          handleReactionPacket(packet.event);
-          break;
-        case 5:
-          handleDeletionPacket(packet.event);
-          break;
-      }
+      dispatchPacket(rawPacket.event);
     });
 
     backward.emit(filters);
