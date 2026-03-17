@@ -44,9 +44,10 @@
 
 <div class="flex min-h-[200px] items-center justify-center">
   {#if status === 'loading'}
-    <div class="flex flex-col items-center gap-3">
+    <div class="flex flex-col items-center gap-3" role="status">
       <div
         class="h-8 w-8 animate-spin rounded-full border-2 border-amber-500 border-t-transparent"
+        aria-hidden="true"
       ></div>
       <p class="text-text-secondary">{t('resolve.loading')}</p>
     </div>

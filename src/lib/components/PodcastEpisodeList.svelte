@@ -92,9 +92,10 @@
 <div class="rounded-2xl border border-border-subtle bg-surface-secondary">
   {#if status === 'loading'}
     <div class="flex min-h-[200px] items-center justify-center p-6">
-      <div class="flex flex-col items-center gap-3">
+      <div class="flex flex-col items-center gap-3" role="status">
         <div
           class="h-8 w-8 animate-spin rounded-full border-2 border-amber-500 border-t-transparent"
+          aria-hidden="true"
         ></div>
         <p class="text-text-secondary">エピソード一覧を読み込み中...</p>
       </div>
@@ -132,7 +133,12 @@
             <div
               class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-amber-600 text-white"
             >
-              <svg class="h-4 w-4 translate-x-0.5" viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                class="h-4 w-4 translate-x-0.5"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+              >
                 <path d="M8 5v14l11-7z" />
               </svg>
             </div>

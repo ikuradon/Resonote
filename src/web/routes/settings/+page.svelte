@@ -456,6 +456,7 @@
             bind:value={addUrl}
             onkeydown={handleAddKeydown}
             placeholder={t('settings.relays.placeholder')}
+            aria-label="Relay URL"
             class="flex-1 rounded-xl border border-border bg-surface-0 px-4 py-2.5 text-sm text-text-primary placeholder-text-muted outline-none transition-colors focus:border-accent focus:ring-1 focus:ring-accent/40"
           />
           <button
@@ -467,7 +468,7 @@
           </button>
         </div>
         {#if addError}
-          <p class="text-xs text-error">{addError}</p>
+          <p class="text-xs text-error" role="alert">{addError}</p>
         {/if}
       </div>
 
@@ -589,6 +590,7 @@
           bind:value={newMuteWord}
           onkeydown={handleMuteWordKeydown}
           placeholder={t('mute.word_placeholder')}
+          aria-label="Mute word"
           disabled={!hasNip44Support()}
           class="flex-1 rounded-xl border border-border bg-surface-0 px-4 py-2.5 text-sm text-text-primary placeholder-text-muted outline-none transition-colors focus:border-accent focus:ring-1 focus:ring-accent/40 disabled:opacity-30"
         />
