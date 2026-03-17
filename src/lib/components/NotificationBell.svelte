@@ -12,23 +12,15 @@
   import { cachedFetchById } from '../nostr/cached-nostr.svelte.js';
   import { untrack } from 'svelte';
   import MobileOverlay from './MobileOverlay.svelte';
+  import { createMediaQuery } from '../utils/media-query.svelte.js';
 
   const notifs = getNotifications();
+  const desktop = createMediaQuery('(min-width: 1024px)');
 
   let open = $state(false);
-  let isDesktop = $state(true);
+  let isDesktop = $derived(desktop.matches);
   let containerEl: HTMLDivElement | undefined;
   let targetTexts = $state<Map<string, string>>(new Map());
-
-  $effect(() => {
-    const mql = window.matchMedia('(min-width: 1024px)');
-    isDesktop = mql.matches;
-    function handler(e: MediaQueryListEvent) {
-      isDesktop = e.matches;
-    }
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
-  });
 
   // Fetch target comment texts for visible notifications.
   // untrack(targetTexts) to avoid infinite loop.
@@ -94,6 +86,7 @@
     onclick={() => (open = !open)}
     class="relative flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-surface-1 hover:text-text-secondary"
     title={t('notification.title')}
+    aria-expanded={open}
   >
     <svg
       xmlns="http://www.w3.org/2000/svg"

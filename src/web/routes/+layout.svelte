@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
+  import { afterNavigate } from '$app/navigation';
   import type { Snippet } from 'svelte';
   import LoginButton from '$lib/components/LoginButton.svelte';
   import NotificationBell from '$lib/components/NotificationBell.svelte';
@@ -23,6 +24,11 @@
   let { children }: { children: Snippet } = $props();
 
   let menuOpen = $state(false);
+
+  // Close hamburger menu on SPA navigation (back/forward)
+  afterNavigate(() => {
+    menuOpen = false;
+  });
 
   const auth = getAuth();
 
@@ -183,6 +189,7 @@
             }}
             class="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-surface-1 hover:text-text-secondary lg:hidden"
             aria-label="Menu"
+            aria-expanded={menuOpen}
             data-testid="hamburger-menu-button"
           >
             <svg

@@ -9,21 +9,14 @@
   } from '../stores/relays.svelte.js';
   import { t, type TranslationKey } from '../i18n/t.js';
   import MobileOverlay from './MobileOverlay.svelte';
+  import { createMediaQuery } from '../utils/media-query.svelte.js';
+
+  const desktop = createMediaQuery('(min-width: 1024px)');
 
   let open = $state(false);
   let relays = $derived(getRelays());
   let containerEl: HTMLDivElement | undefined;
-
-  let isDesktop = $state(true);
-  $effect(() => {
-    const mql = window.matchMedia('(min-width: 1024px)');
-    isDesktop = mql.matches;
-    function handler(e: MediaQueryListEvent) {
-      isDesktop = e.matches;
-    }
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
-  });
+  let isDesktop = $derived(desktop.matches);
 
   onMount(() => {
     initRelayStatus();
@@ -64,6 +57,7 @@
     onclick={() => (open = !open)}
     class="flex items-center gap-1.5 min-h-11 rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-text-secondary"
     title={t('relay.title')}
+    aria-expanded={open}
   >
     <span class="relative flex h-2 w-2">
       {#if connectedCount > 0}

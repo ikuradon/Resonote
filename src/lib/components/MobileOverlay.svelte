@@ -73,7 +73,7 @@
     bind:this={overlayEl}
     role="dialog"
     aria-modal="true"
-    aria-labelledby={titleId}
+    aria-labelledby={title ? titleId : undefined}
     class="fixed inset-0 z-50 flex flex-col bg-surface-0/95 backdrop-blur-sm"
   >
     <!-- Header -->

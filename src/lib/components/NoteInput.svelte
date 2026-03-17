@@ -5,6 +5,7 @@
   import { addEmojiTag, extractShortcode } from '../utils/emoji.js';
   import EmojiPickerPopover, { allocatePopoverId } from './EmojiPickerPopover.svelte';
   import MobileOverlay from './MobileOverlay.svelte';
+  import { createMediaQuery } from '../utils/media-query.svelte.js';
 
   interface Props {
     content: string;
@@ -28,17 +29,8 @@
 
   const pickerId = allocatePopoverId();
   const emojiSets = getCustomEmojis();
-
-  let isDesktop = $state(true);
-  $effect(() => {
-    const mql = window.matchMedia('(min-width: 1024px)');
-    isDesktop = mql.matches;
-    function handler(e: MediaQueryListEvent) {
-      isDesktop = e.matches;
-    }
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
-  });
+  const desktop = createMediaQuery('(min-width: 1024px)');
+  let isDesktop = $derived(desktop.matches);
 
   let textareaEl = $state<HTMLTextAreaElement | null>(null);
   let composing = $state(false);
