@@ -61,11 +61,9 @@ describe('player store', () => {
       expect(getPlayer().duration).toBe(0);
     });
 
-    it('should skip update when values are identical', () => {
+    it('should not error when called with identical values', () => {
       updatePlayback(5000, 180000, false);
-      // Call again with same values — should be a no-op
       updatePlayback(5000, 180000, false);
-      // No way to directly test no-op, but ensures no error
       expect(getPlayer().position).toBe(5000);
     });
   });

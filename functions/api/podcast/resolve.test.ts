@@ -246,7 +246,7 @@ describe('parseRss', () => {
 
   it('should limit to 100 episodes', async () => {
     const items = Array.from(
-      { length: 150 },
+      { length: 101 },
       (_, i) =>
         `<item><title>Ep ${i}</title><guid>g${i}</guid><enclosure url="https://example.com/${i}.mp3"/></item>`
     ).join('');

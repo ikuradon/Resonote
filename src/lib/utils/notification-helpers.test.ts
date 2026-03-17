@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { parseReactionDisplay, typeIcon, relativeTime } from './notification-helpers.js';
 
 describe('parseReactionDisplay', () => {
@@ -57,23 +57,30 @@ describe('typeIcon', () => {
 });
 
 describe('relativeTime', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-15T12:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const NOW_SEC = Math.floor(new Date('2026-01-15T12:00:00Z').getTime() / 1000);
+
   it('should format seconds', () => {
-    const now = Math.floor(Date.now() / 1000);
-    expect(relativeTime(now - 30)).toBe('30s');
+    expect(relativeTime(NOW_SEC - 30)).toBe('30s');
   });
 
   it('should format minutes', () => {
-    const now = Math.floor(Date.now() / 1000);
-    expect(relativeTime(now - 300)).toBe('5m');
+    expect(relativeTime(NOW_SEC - 300)).toBe('5m');
   });
 
   it('should format hours', () => {
-    const now = Math.floor(Date.now() / 1000);
-    expect(relativeTime(now - 7200)).toBe('2h');
+    expect(relativeTime(NOW_SEC - 7200)).toBe('2h');
   });
 
   it('should format days', () => {
-    const now = Math.floor(Date.now() / 1000);
-    expect(relativeTime(now - 172800)).toBe('2d');
+    expect(relativeTime(NOW_SEC - 172800)).toBe('2d');
   });
 });
