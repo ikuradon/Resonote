@@ -285,6 +285,10 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       await subscribeInner();
     } catch (err) {
       log.error('Failed to subscribe to comments', err);
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+        loadingTimeout = undefined;
+      }
       loading = false;
     }
   }
