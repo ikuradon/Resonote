@@ -40,7 +40,8 @@ export function fromBase64url(encoded: string): string {
   let binary: string;
   try {
     binary = atob(padded);
-  } catch {
+  } catch (e) {
+    console.warn('[fromBase64url] Failed to decode:', e);
     return '';
   }
 

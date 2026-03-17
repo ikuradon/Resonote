@@ -114,7 +114,7 @@ describe('fromBase64url', () => {
     expect(fromBase64url('!!!invalid!!!')).toBe('');
   });
 
-  it('should return empty string for empty input', () => {
+  it('should return empty string for empty input (normal path, atob succeeds)', () => {
     expect(fromBase64url('')).toBe('');
   });
 });
