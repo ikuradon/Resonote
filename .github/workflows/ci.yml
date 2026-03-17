@@ -116,9 +116,6 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
 
-      - name: Build E2E helpers
-        run: pnpm build:e2e-helpers
-
       - name: E2E tests
         run: pnpm test:e2e
 
