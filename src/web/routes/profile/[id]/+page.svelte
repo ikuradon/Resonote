@@ -228,6 +228,10 @@
   }
 </script>
 
+<svelte:head>
+  <title>{displayName || 'Profile'} - Resonote</title>
+</svelte:head>
+
 {#if error}
   <div class="flex flex-col items-center gap-6 pt-20">
     <p class="font-display text-lg text-text-secondary">{t('profile.no_profile')}</p>

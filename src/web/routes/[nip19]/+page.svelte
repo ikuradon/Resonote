@@ -153,6 +153,10 @@
   }
 </script>
 
+<svelte:head>
+  <title>Resonote</title>
+</svelte:head>
+
 {#if loading}
   <div class="flex flex-col items-center gap-6 pt-20">
     <p class="font-display text-lg text-text-secondary">{t('nip19.loading')}</p>

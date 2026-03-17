@@ -212,6 +212,14 @@
   </div>
 {/snippet}
 
+<svelte:head>
+  {#if isValid && provider}
+    <title>{provider.displayName} - Resonote</title>
+  {:else}
+    <title>Resonote</title>
+  {/if}
+</svelte:head>
+
 {#if isValid && provider}
   {#if isCollection}
     <div class="mx-auto max-w-3xl space-y-8">

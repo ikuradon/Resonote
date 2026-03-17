@@ -6,7 +6,7 @@
 </script>
 
 <svelte:head>
-  <title>URL 解析中... | Resonote</title>
+  <title>URL 解析中... - Resonote</title>
 </svelte:head>
 
 <div class="mx-auto max-w-2xl px-4 py-8">

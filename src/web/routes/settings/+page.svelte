@@ -338,6 +338,10 @@
   }
 </script>
 
+<svelte:head>
+  <title>{t('settings.title')} - Resonote</title>
+</svelte:head>
+
 <div class="mx-auto max-w-3xl space-y-8 py-4">
   <!-- Page heading -->
   <div>
