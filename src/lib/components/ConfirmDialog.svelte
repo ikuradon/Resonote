@@ -48,7 +48,7 @@
 
     <!-- Dialog -->
     <div
-      class="animate-slide-up relative w-full max-w-sm rounded-2xl border border-border bg-surface-1 p-6 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+      class="animate-slide-up relative mx-3 w-full max-w-[calc(100vw-1.5rem)] sm:max-w-sm rounded-2xl border border-border bg-surface-1 p-6 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
     >
       <h3 id="confirm-title" class="mb-2 text-sm font-semibold text-text-primary">{title}</h3>
       <p class="mb-6 text-sm leading-relaxed text-text-secondary">{message}</p>

@@ -142,7 +142,9 @@
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
     onclick={handleBackdropClick}
   >
-    <div class="mx-4 w-full max-w-sm rounded-2xl border border-border bg-surface-0 shadow-xl">
+    <div
+      class="mx-4 w-full max-w-[calc(100vw-2rem)] sm:max-w-sm rounded-2xl border border-border bg-surface-0 shadow-xl"
+    >
       <!-- Modal header -->
       <div class="flex items-center justify-between border-b border-border px-5 py-4">
         <h3 class="font-display text-base font-semibold text-text-primary">
