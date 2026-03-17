@@ -11,12 +11,24 @@
   import { getContentPathFromTags } from '../nostr/content-link.js';
   import { cachedFetchById } from '../nostr/cached-nostr.svelte.js';
   import { untrack } from 'svelte';
+  import MobileOverlay from './MobileOverlay.svelte';
 
   const notifs = getNotifications();
 
   let open = $state(false);
+  let isDesktop = $state(true);
   let containerEl: HTMLDivElement | undefined;
   let targetTexts = $state<Map<string, string>>(new Map());
+
+  $effect(() => {
+    const mql = window.matchMedia('(min-width: 1024px)');
+    isDesktop = mql.matches;
+    function handler(e: MediaQueryListEvent) {
+      isDesktop = e.matches;
+    }
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  });
 
   // Fetch target comment texts for visible notifications.
   // untrack(targetTexts) to avoid infinite loop.
@@ -49,9 +61,9 @@
     });
   });
 
-  // Close on outside click
+  // Close on outside click (desktop dropdown only)
   $effect(() => {
-    if (!open) return;
+    if (!open || !isDesktop) return;
     const handler = (e: MouseEvent) => {
       if (!containerEl?.contains(e.target as Node)) {
         open = false;
@@ -106,7 +118,108 @@
     {/if}
   </button>
 
-  {#if open}
+  {#snippet notificationList()}
+    {#if latest5.length === 0}
+      <div class="px-4 py-8 text-center text-sm text-text-muted">
+        {t('notification.empty')}
+      </div>
+    {:else}
+      <div class="max-h-80 overflow-y-auto lg:max-h-80">
+        {#each latest5 as notif (notif.id)}
+          {@const path = getContentPathFromTags(notif.tags)}
+          {#if path}
+            <a
+              href={path}
+              onclick={() => (open = false)}
+              class="flex gap-3 px-4 py-3 transition-colors hover:bg-surface-2"
+            >
+              <span class="mt-0.5 text-sm">{typeIcon(notif.type)}</span>
+              <div class="min-w-0 flex-1">
+                <p class="text-xs text-text-primary">
+                  <span class="font-medium text-accent">{getDisplayName(notif.pubkey)}</span>
+                  {typeLabel(notif.type)}
+                </p>
+                {#if notif.type === 'reaction' && notif.content}
+                  {@const rx = parseReactionDisplay(notif.content, notif.tags)}
+                  <p class="mt-0.5 flex items-center gap-1 text-xs text-text-muted">
+                    {#if rx.type === 'heart'}
+                      <span>❤️</span>
+                    {:else if rx.type === 'emoji_image' && rx.url}
+                      <img src={rx.url} alt={rx.content} class="inline h-4 w-4" loading="lazy" />
+                    {:else}
+                      <span>{rx.content}</span>
+                    {/if}
+                  </p>
+                {:else if notif.content && notif.type !== 'reaction'}
+                  <p class="mt-0.5 truncate text-xs text-text-muted">
+                    {contentPreview(notif.content)}
+                  </p>
+                {/if}
+                {#if notif.targetEventId && targetTexts.has(notif.targetEventId)}
+                  <p class="mt-0.5 truncate text-xs text-text-muted/70 italic">
+                    {t('notification.your_comment', {
+                      text: targetTexts.get(notif.targetEventId) ?? ''
+                    })}
+                  </p>
+                {/if}
+              </div>
+              <span class="shrink-0 text-[10px] text-text-muted"
+                >{relativeTime(notif.createdAt)}</span
+              >
+            </a>
+          {:else}
+            <div class="flex gap-3 px-4 py-3">
+              <span class="mt-0.5 text-sm">{typeIcon(notif.type)}</span>
+              <div class="min-w-0 flex-1">
+                <p class="text-xs text-text-primary">
+                  <span class="font-medium text-accent">{getDisplayName(notif.pubkey)}</span>
+                  {typeLabel(notif.type)}
+                </p>
+                {#if notif.type === 'reaction' && notif.content}
+                  {@const rx = parseReactionDisplay(notif.content, notif.tags)}
+                  <p class="mt-0.5 flex items-center gap-1 text-xs text-text-muted">
+                    {#if rx.type === 'heart'}
+                      <span>❤️</span>
+                    {:else if rx.type === 'emoji_image' && rx.url}
+                      <img src={rx.url} alt={rx.content} class="inline h-4 w-4" loading="lazy" />
+                    {:else}
+                      <span>{rx.content}</span>
+                    {/if}
+                  </p>
+                {:else if notif.content && notif.type !== 'reaction'}
+                  <p class="mt-0.5 truncate text-xs text-text-muted">
+                    {contentPreview(notif.content)}
+                  </p>
+                {/if}
+                {#if notif.targetEventId && targetTexts.has(notif.targetEventId)}
+                  <p class="mt-0.5 truncate text-xs text-text-muted/70 italic">
+                    {t('notification.your_comment', {
+                      text: targetTexts.get(notif.targetEventId) ?? ''
+                    })}
+                  </p>
+                {/if}
+              </div>
+              <span class="shrink-0 text-[10px] text-text-muted"
+                >{relativeTime(notif.createdAt)}</span
+              >
+            </div>
+          {/if}
+        {/each}
+      </div>
+    {/if}
+
+    <div class="border-t border-border-subtle px-4 py-2">
+      <a
+        href="/notifications"
+        onclick={() => (open = false)}
+        class="block text-center text-xs font-medium text-accent transition-colors hover:text-accent-hover"
+      >
+        {t('notification.view_all')}
+      </a>
+    </div>
+  {/snippet}
+
+  {#if open && isDesktop}
     <div
       class="absolute top-full right-0 z-50 mt-2 w-80 rounded-xl border border-border bg-surface-1 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
     >
@@ -114,104 +227,19 @@
         <span class="text-sm font-medium text-text-secondary">{t('notification.title')}</span>
       </div>
 
-      {#if latest5.length === 0}
-        <div class="px-4 py-8 text-center text-sm text-text-muted">
-          {t('notification.empty')}
-        </div>
-      {:else}
-        <div class="max-h-80 overflow-y-auto">
-          {#each latest5 as notif (notif.id)}
-            {@const path = getContentPathFromTags(notif.tags)}
-            {#if path}
-              <a
-                href={path}
-                onclick={() => (open = false)}
-                class="flex gap-3 px-4 py-3 transition-colors hover:bg-surface-2"
-              >
-                <span class="mt-0.5 text-sm">{typeIcon(notif.type)}</span>
-                <div class="min-w-0 flex-1">
-                  <p class="text-xs text-text-primary">
-                    <span class="font-medium text-accent">{getDisplayName(notif.pubkey)}</span>
-                    {typeLabel(notif.type)}
-                  </p>
-                  {#if notif.type === 'reaction' && notif.content}
-                    {@const rx = parseReactionDisplay(notif.content, notif.tags)}
-                    <p class="mt-0.5 flex items-center gap-1 text-xs text-text-muted">
-                      {#if rx.type === 'heart'}
-                        <span>❤️</span>
-                      {:else if rx.type === 'emoji_image' && rx.url}
-                        <img src={rx.url} alt={rx.content} class="inline h-4 w-4" loading="lazy" />
-                      {:else}
-                        <span>{rx.content}</span>
-                      {/if}
-                    </p>
-                  {:else if notif.content && notif.type !== 'reaction'}
-                    <p class="mt-0.5 truncate text-xs text-text-muted">
-                      {contentPreview(notif.content)}
-                    </p>
-                  {/if}
-                  {#if notif.targetEventId && targetTexts.has(notif.targetEventId)}
-                    <p class="mt-0.5 truncate text-xs text-text-muted/70 italic">
-                      {t('notification.your_comment', {
-                        text: targetTexts.get(notif.targetEventId) ?? ''
-                      })}
-                    </p>
-                  {/if}
-                </div>
-                <span class="shrink-0 text-[10px] text-text-muted"
-                  >{relativeTime(notif.createdAt)}</span
-                >
-              </a>
-            {:else}
-              <div class="flex gap-3 px-4 py-3">
-                <span class="mt-0.5 text-sm">{typeIcon(notif.type)}</span>
-                <div class="min-w-0 flex-1">
-                  <p class="text-xs text-text-primary">
-                    <span class="font-medium text-accent">{getDisplayName(notif.pubkey)}</span>
-                    {typeLabel(notif.type)}
-                  </p>
-                  {#if notif.type === 'reaction' && notif.content}
-                    {@const rx = parseReactionDisplay(notif.content, notif.tags)}
-                    <p class="mt-0.5 flex items-center gap-1 text-xs text-text-muted">
-                      {#if rx.type === 'heart'}
-                        <span>❤️</span>
-                      {:else if rx.type === 'emoji_image' && rx.url}
-                        <img src={rx.url} alt={rx.content} class="inline h-4 w-4" loading="lazy" />
-                      {:else}
-                        <span>{rx.content}</span>
-                      {/if}
-                    </p>
-                  {:else if notif.content && notif.type !== 'reaction'}
-                    <p class="mt-0.5 truncate text-xs text-text-muted">
-                      {contentPreview(notif.content)}
-                    </p>
-                  {/if}
-                  {#if notif.targetEventId && targetTexts.has(notif.targetEventId)}
-                    <p class="mt-0.5 truncate text-xs text-text-muted/70 italic">
-                      {t('notification.your_comment', {
-                        text: targetTexts.get(notif.targetEventId) ?? ''
-                      })}
-                    </p>
-                  {/if}
-                </div>
-                <span class="shrink-0 text-[10px] text-text-muted"
-                  >{relativeTime(notif.createdAt)}</span
-                >
-              </div>
-            {/if}
-          {/each}
-        </div>
-      {/if}
-
-      <div class="border-t border-border-subtle px-4 py-2">
-        <a
-          href="/notifications"
-          onclick={() => (open = false)}
-          class="block text-center text-xs font-medium text-accent transition-colors hover:text-accent-hover"
-        >
-          {t('notification.view_all')}
-        </a>
-      </div>
+      {@render notificationList()}
     </div>
+  {/if}
+
+  {#if !isDesktop}
+    <MobileOverlay
+      {open}
+      onclose={() => {
+        open = false;
+      }}
+      title={t('notification.title')}
+    >
+      {@render notificationList()}
+    </MobileOverlay>
   {/if}
 </div>
