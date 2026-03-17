@@ -150,7 +150,7 @@ describe('nip05', () => {
 
     const { verifyNip05 } = await import('./nip05.js');
 
-    // Fill cache to the limit (500 entries)
+    // Insert 501 entries to exceed MAX_CACHE_SIZE (500), triggering eviction
     for (let i = 0; i < 501; i++) {
       await verifyNip05(`user@domain${i}.com`, pubkey);
     }
