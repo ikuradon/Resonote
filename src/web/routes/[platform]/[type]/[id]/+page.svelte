@@ -463,6 +463,7 @@
             <CommentList
               comments={store.comments}
               reactionIndex={store.reactionIndex}
+              loading={store.loading}
               {contentId}
               {provider}
             />

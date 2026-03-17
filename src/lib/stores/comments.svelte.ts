@@ -96,10 +96,12 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
   let reactionIndex = $state<Map<string, ReactionStats>>(new Map());
 
   let deletedIds = $state<Set<string>>(new Set());
+  let loading = $state(true);
   let subscriptions: { unsubscribe: () => void }[] = [];
 
   let prevDeletedSize = 0;
   let destroyed = false;
+  let loadingTimeout: ReturnType<typeof setTimeout> | undefined;
 
   // NIP-09 pubkey verification: maps event ID → pubkey
   const eventPubkeys = new Map<string, string>();
@@ -371,6 +373,11 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       maxCreatedAt
     });
 
+    // Show cached comments immediately instead of spinner
+    if (newComments.length > 0) {
+      loading = false;
+    }
+
     // --- Purge deleted events from DB (from cached deletions) ---
     if (deletedIds.size > 0) {
       const idsToPurge = [...deletedIds].filter((id) => commentIds.has(id) || reactionIds.has(id));
@@ -445,18 +452,39 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       ? baseFilters.map((f) => ({ ...f, since: maxCreatedAt + 1 }))
       : baseFilters;
 
-    const sub = merge(
-      rxNostr.use(backward).pipe(uniq()),
-      rxNostr.use(forward).pipe(uniq())
-    ).subscribe((packet) => {
-      dispatchPacket(packet.event);
-    });
+    // Fallback timeout: clear loading if EOSE never arrives
+    loadingTimeout = setTimeout(() => {
+      loading = false;
+    }, 10_000);
+
+    // Track backward completion to clear loading state
+    const backwardSub = rxNostr
+      .use(backward)
+      .pipe(uniq())
+      .subscribe({
+        next: (packet) => dispatchPacket(packet.event),
+        complete: () => {
+          clearTimeout(loadingTimeout);
+          loading = false;
+        },
+        error: () => {
+          clearTimeout(loadingTimeout);
+          loading = false;
+        }
+      });
+
+    const forwardSub = rxNostr
+      .use(forward)
+      .pipe(uniq())
+      .subscribe((packet) => {
+        dispatchPacket(packet.event);
+      });
 
     backward.emit(backwardFilters);
     backward.over();
     forward.emit(baseFilters);
 
-    subscriptions = [sub];
+    subscriptions = [backwardSub, forwardSub];
   }
 
   async function addSubscription(idValue: string): Promise<void> {
@@ -531,6 +559,10 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
   function destroy() {
     log.info('Destroying comment subscriptions');
     destroyed = true;
+    if (loadingTimeout) {
+      clearTimeout(loadingTimeout);
+      loadingTimeout = undefined;
+    }
     for (const sub of subscriptions) sub.unsubscribe();
     subscriptions = [];
     if (reconcileSub) {
@@ -560,6 +592,9 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     },
     get deletedIds() {
       return deletedIds;
+    },
+    get loading() {
+      return loading;
     },
     subscribe,
     addSubscription,
