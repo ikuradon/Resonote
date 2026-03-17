@@ -63,6 +63,7 @@ export async function castSigned(
       complete: () => {
         if (!resolved) {
           resolved = true;
+          sub.unsubscribe();
           if (okCount > 0) resolve();
           else reject(new Error('All relays rejected the event'));
         }
