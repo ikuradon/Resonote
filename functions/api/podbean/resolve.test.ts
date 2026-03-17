@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { onRequestGet } from './resolve.js';
 
 function makeContext(params: Record<string, string>) {
@@ -24,6 +24,10 @@ async function parseJson(response: Response) {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe('podbean resolve', () => {
@@ -114,6 +118,18 @@ describe('podbean resolve', () => {
       .fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({})))
       .mockResolvedValueOnce(new Response('<html>nothing useful</html>'));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const res = await onRequestGet(makeContext({ url: 'https://www.podbean.com/ew/pb-abc123' }));
+    expect(res.status).toBe(404);
+    expect(await parseJson(res)).toEqual({ error: 'embed_not_found' });
+  });
+
+  it('should return embed_not_found when fallback page fetch returns error status', async () => {
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({})))
+      .mockResolvedValueOnce(new Response('', { status: 503 }));
     vi.stubGlobal('fetch', mockFetch);
 
     const res = await onRequestGet(makeContext({ url: 'https://www.podbean.com/ew/pb-abc123' }));
