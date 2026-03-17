@@ -43,9 +43,10 @@
     reactionIndex: Map<string, ReactionStats>;
     contentId: ContentId;
     provider: ContentProvider;
+    loading?: boolean;
   }
 
-  let { comments, reactionIndex, contentId, provider }: Props = $props();
+  let { comments, reactionIndex, contentId, provider, loading = false }: Props = $props();
 
   const player = getPlayer();
   const auth = getAuth();
@@ -640,7 +641,14 @@
 </div>
 
 <div class="space-y-6">
-  {#if filteredComments.length === 0}
+  {#if loading}
+    <div class="flex items-center justify-center gap-2 py-8" role="status" aria-live="polite">
+      <div
+        class="h-4 w-4 animate-spin rounded-full border-2 border-text-muted border-t-accent"
+      ></div>
+      <span class="text-sm text-text-muted">{t('loading')}</span>
+    </div>
+  {:else if filteredComments.length === 0}
     <p class="py-8 text-center text-sm text-text-muted">
       {#if followFilter !== 'all'}
         {followFilter === 'follows' ? t('comment.none.follows') : t('comment.none.wot')}

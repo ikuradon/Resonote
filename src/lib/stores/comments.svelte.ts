@@ -96,6 +96,7 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
   let reactionIndex = $state<Map<string, ReactionStats>>(new Map());
 
   let deletedIds = $state<Set<string>>(new Set());
+  let loading = $state(true);
   let subscriptions: { unsubscribe: () => void }[] = [];
 
   let prevDeletedSize = 0;
@@ -445,18 +446,29 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
       ? baseFilters.map((f) => ({ ...f, since: maxCreatedAt + 1 }))
       : baseFilters;
 
-    const sub = merge(
-      rxNostr.use(backward).pipe(uniq()),
-      rxNostr.use(forward).pipe(uniq())
-    ).subscribe((packet) => {
-      dispatchPacket(packet.event);
-    });
+    // Track backward completion to clear loading state
+    const backwardSub = rxNostr
+      .use(backward)
+      .pipe(uniq())
+      .subscribe({
+        next: (packet) => dispatchPacket(packet.event),
+        complete: () => {
+          loading = false;
+        }
+      });
+
+    const forwardSub = rxNostr
+      .use(forward)
+      .pipe(uniq())
+      .subscribe((packet) => {
+        dispatchPacket(packet.event);
+      });
 
     backward.emit(backwardFilters);
     backward.over();
     forward.emit(baseFilters);
 
-    subscriptions = [sub];
+    subscriptions = [backwardSub, forwardSub];
   }
 
   async function addSubscription(idValue: string): Promise<void> {
@@ -560,6 +572,9 @@ export function createCommentsStore(contentId: ContentId, provider: ContentProvi
     },
     get deletedIds() {
       return deletedIds;
+    },
+    get loading() {
+      return loading;
     },
     subscribe,
     addSubscription,

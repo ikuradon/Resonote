@@ -29,8 +29,8 @@ test.describe('Content page (track)', () => {
     // Block WebSocket connections to prevent loading real comments
     await page.route('wss://**', (route) => route.abort());
     await page.goto(trackUrl);
-    // Wait for the comments section to load
-    await expect(page.locator('text=No comments yet')).toBeVisible({ timeout: 10_000 });
+    // Wait for loading to complete, then expect empty state
+    await expect(page.locator('text=No comments yet')).toBeVisible({ timeout: 15_000 });
   });
 
   test('should show header with logo navigation back to home', async ({ page }) => {
