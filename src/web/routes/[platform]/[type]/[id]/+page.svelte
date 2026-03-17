@@ -275,11 +275,11 @@
     </div>
   {:else}
     <!-- Two-column layout: Player left, Comments right (desktop) -->
-    <div class="flex flex-col lg:flex-row lg:gap-8">
-      <!-- Player column — sticky on desktop -->
-      <div class="lg:w-[55%] xl:w-[58%] lg:flex-shrink-0">
+    <div class="flex flex-col md:flex-row md:gap-6 lg:gap-8">
+      <!-- Player column — sticky on tablet+ -->
+      <div class="md:w-1/2 lg:w-[55%] xl:w-[58%] md:flex-shrink-0">
         <div
-          class="lg:sticky lg:top-[var(--header-height)] lg:max-h-[calc(100vh-var(--header-height)-2rem)] lg:overflow-y-auto lg:scrollbar-hide"
+          class="md:sticky md:top-[var(--header-height)] md:max-h-[calc(100vh-var(--header-height)-2rem)] md:overflow-y-auto md:scrollbar-hide"
         >
           {#if platform === 'podcast' && contentType === 'feed'}
             <PodcastEpisodeList {contentId} />
@@ -386,7 +386,7 @@
       </div>
 
       <!-- Comments column — scrollable -->
-      <div class="mt-6 min-w-0 flex-1 lg:mt-0">
+      <div class="mt-6 min-w-0 flex-1 md:mt-0">
         <section class="animate-slide-up stagger-2 space-y-5">
           <div class="flex items-center gap-3">
             <h2 class="font-display text-lg font-semibold text-text-primary">
