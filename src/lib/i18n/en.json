@@ -204,5 +204,6 @@
   "toast.reaction_sent": "Reaction sent",
   "toast.reaction_failed": "Failed to send reaction",
   "toast.delete_sent": "Comment deleted",
-  "toast.delete_failed": "Failed to delete comment"
+  "toast.delete_failed": "Failed to delete comment",
+  "toast.dismiss": "Dismiss"
 }
