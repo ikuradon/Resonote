@@ -35,7 +35,7 @@ function ipv6MappedToIPv4(bare: string): string | null {
   return `${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`;
 }
 
-const BLOCKED_IPV6_PREFIXES = ['::1', 'fc', 'fd', 'fe80', '2002:', '2001:0:'];
+const BLOCKED_IPV6_PREFIXES = ['::1', 'fc', 'fd', 'fe80', '2002:', '2001:'];
 
 function isBlockedIPv6(hostname: string): boolean {
   const bare = hostname.replace(/^\[|\]$/g, '').toLowerCase();

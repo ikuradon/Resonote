@@ -51,6 +51,8 @@ describe('assertSafeUrl', () => {
     expect(() => assertSafeUrl('http://[2001:0:4136:e378:8000:63bf:3fff:fdd2]/')).toThrow(
       'blocked'
     );
+    // :: compressed form (server_high = 0x0000)
+    expect(() => assertSafeUrl('http://[2001::101:8000:63bf:3fff:fdd2]/')).toThrow('blocked');
   });
 
   it('should block IPv4-compatible addresses (deprecated ::/96)', () => {
