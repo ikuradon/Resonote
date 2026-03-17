@@ -99,7 +99,7 @@ export function markAllAsRead(): void {
   log.info('Marked all notifications as read', { timestamp: now });
 }
 
-function classifyEvent(
+export function classifyEvent(
   event: {
     id: string;
     pubkey: string;
