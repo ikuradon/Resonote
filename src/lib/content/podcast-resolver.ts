@@ -14,9 +14,8 @@ export function getSystemPubkey(): Promise<string> {
           pubkeyPromise = undefined;
           return '';
         }
-        return res.json();
+        return res.json().then((data) => (data.pubkey as string) ?? '');
       })
-      .then((data) => (typeof data === 'string' ? data : ((data.pubkey as string) ?? '')))
       .catch(() => {
         pubkeyPromise = undefined;
         return '';
