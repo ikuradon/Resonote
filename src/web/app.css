@@ -71,6 +71,16 @@
   }
 }
 
+@keyframes waveform {
+  0%,
+  100% {
+    transform: scaleY(0.1);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
 @keyframes shimmer {
   0% {
     background-position: -400px 0;
