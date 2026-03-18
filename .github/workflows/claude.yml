@@ -30,6 +30,7 @@ jobs:
       issues: write
       id-token: write
       actions: read
+      checks: read
     steps:
       - name: Check actor permissions
         id: check-permission
@@ -365,7 +366,10 @@ jobs:
           CAN_MODIFY=$(echo "$PR_JSON" | jq -r '.maintainerCanModify')
           if [[ "$IS_FORK" == "true" && "$CAN_MODIFY" != "true" ]]; then
             echo "writable=false" >> "$GITHUB_OUTPUT"
-            gh pr comment "$PR_NUMBER" --body "This PR is from a fork without maintainer edit access. Please enable **Allow edits from maintainers** so Claude can push fixes."
+            EXISTING=$(gh pr view "$PR_NUMBER" --json comments --jq '[.comments[].body | select(contains("fork without maintainer edit access"))] | length')
+            if [[ "$EXISTING" == "0" ]]; then
+              gh pr comment "$PR_NUMBER" --body "This PR is from a fork without maintainer edit access. Please enable **Allow edits from maintainers** so Claude can push fixes."
+            fi
           else
             echo "writable=true" >> "$GITHUB_OUTPUT"
           fi
