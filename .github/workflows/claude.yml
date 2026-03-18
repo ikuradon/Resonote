@@ -182,6 +182,11 @@ jobs:
         with:
           app-id: ${{ secrets.CLAUDE_APP_ID }}
           private-key: ${{ secrets.CLAUDE_APP_PRIVATE_KEY }}
+          permissions: >-
+            contents:write,
+            issues:write,
+            pull_requests:write,
+            workflows:write
 
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
