@@ -62,6 +62,17 @@ NIP-73 (External Content IDs) + NIP-22 (Comments, kind:1111) + NIP-25 (Reactions
 | NIP-73 | 外部コンテンツ ID (`i` タグ)                |
 | NIP-B0 | Web ブックマーク (kind:39701, Podcast 解決) |
 
+## 前提条件
+
+- Node.js >= 22.0.0
+- pnpm (package.json の `packageManager` フィールドで自動管理)
+
+[Corepack](https://nodejs.org/api/corepack.html) を有効化すると、`packageManager` フィールドに基づいて正しいバージョンの pnpm が自動的にインストールされます:
+
+```bash
+corepack enable
+```
+
 ## セットアップ
 
 ```bash

@@ -18,7 +18,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
-    "pretest:e2e": "pnpm build:e2e-helpers",
+    "pretest:e2e": "esbuild node_modules/@ikuradon/tsunagiya/esm/mod.js --bundle --format=iife --global-name=Tsunagiya --outfile=e2e/helpers/tsunagiya-bundle.js --platform=browser",
     "test:e2e": "playwright test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -26,8 +26,8 @@
     "lint:fix": "eslint --fix .",
     "build:e2e-helpers": "esbuild node_modules/@ikuradon/tsunagiya/esm/mod.js --bundle --format=iife --global-name=Tsunagiya --outfile=e2e/helpers/tsunagiya-bundle.js --platform=browser",
     "build:ext": "vite build --config vite.config.extension.ts && mkdir -p dist-extension/sidepanel dist-extension/icons && cp src/extension/sidepanel/panel.html dist-extension/sidepanel/ && cp src/extension/icons/* dist-extension/icons/",
-    "build:ext:chrome": "pnpm build:ext && cp src/extension/manifest.chrome.json dist-extension/manifest.json",
-    "build:ext:firefox": "pnpm build:ext && cp src/extension/manifest.firefox.json dist-extension/manifest.json"
+    "build:ext:chrome": "vite build --config vite.config.extension.ts && mkdir -p dist-extension/sidepanel dist-extension/icons && cp src/extension/sidepanel/panel.html dist-extension/sidepanel/ && cp src/extension/icons/* dist-extension/icons/ && cp src/extension/manifest.chrome.json dist-extension/manifest.json",
+    "build:ext:firefox": "vite build --config vite.config.extension.ts && mkdir -p dist-extension/sidepanel dist-extension/icons && cp src/extension/sidepanel/panel.html dist-extension/sidepanel/ && cp src/extension/icons/* dist-extension/icons/ && cp src/extension/manifest.firefox.json dist-extension/manifest.json"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
