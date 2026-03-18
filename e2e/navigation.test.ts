@@ -111,14 +111,18 @@ test.describe('URL input navigation', () => {
     await expect(page).toHaveURL(/\/resolve\//);
   });
 
-  test('should navigate to resolve page and show loading for unknown URL', async ({ page }) => {
+  test('should navigate to resolve page and show loading then error for unknown URL', async ({
+    page
+  }) => {
     await page.goto('/');
     const input = page.locator('[data-testid="track-url-input"]');
     await input.fill('https://www.example.com/unknown-content');
     await page.locator('[data-testid="track-submit-button"]').click();
     await expect(page).toHaveURL(/\/resolve\//);
-    // Resolve page should show loading or error state (no external API in tests)
-    await expect(page.locator('header a[href="/"]')).toBeVisible();
+    // With wrangler pages dev, API is available — should show error after resolve attempt
+    await expect(
+      page.locator('text=No podcast found at this URL').or(page.locator('text=Failed to resolve'))
+    ).toBeVisible({ timeout: 15_000 });
   });
 
   test('should navigate to podcast feed page for RSS feed URL', async ({ page }) => {

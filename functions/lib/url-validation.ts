@@ -1,3 +1,13 @@
+/**
+ * WARNING: NEVER enable in production. Only for E2E testing with localhost mock servers.
+ * Set via UNSAFE_ALLOW_PRIVATE_IPS env var in wrangler pages dev.
+ */
+let _unsafeAllowPrivateIPs = false;
+
+export function unsafeSetAllowPrivateIPs(allow: boolean): void {
+  _unsafeAllowPrivateIPs = allow;
+}
+
 const BLOCKED_HOSTNAMES = new Set(['localhost', '0.0.0.0']);
 
 const IPV4_RE = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
@@ -82,6 +92,8 @@ export function assertSafeUrl(url: string): void {
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
     throw new Error(`URL blocked: unsupported protocol ${parsed.protocol}`);
   }
+
+  if (_unsafeAllowPrivateIPs) return;
 
   const hostname = parsed.hostname.toLowerCase();
 

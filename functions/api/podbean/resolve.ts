@@ -1,9 +1,13 @@
 import { assertSafeUrl, safeFetch } from '../../lib/url-validation.js';
+import { withSsrfBypass } from '../../lib/with-ssrf-bypass.js';
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface Env {}
+interface Env {
+  UNSAFE_ALLOW_PRIVATE_IPS?: string;
+}
 
-export const onRequestGet: PagesFunction<Env> = async (context) => {
+export const onRequestGet: PagesFunction<Env> = withSsrfBypass(handleRequest);
+
+async function handleRequest(context: EventContext<Env, string, unknown>): Promise<Response> {
   const url = new URL(context.request.url);
   const targetUrl = url.searchParams.get('url');
   if (!targetUrl) {
@@ -51,7 +55,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   } catch {
     return json({ error: 'fetch_failed' }, 502);
   }
-};
+}
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {

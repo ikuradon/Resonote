@@ -2,9 +2,11 @@ import { finalizeEvent } from 'nostr-tools/pure';
 import { hexToBytes } from 'nostr-tools/utils';
 import { fetchAudioMetadata } from '../../lib/audio-metadata.js';
 import { assertSafeUrl, safeFetch } from '../../lib/url-validation.js';
+import { withSsrfBypass } from '../../lib/with-ssrf-bypass.js';
 
 interface Env {
   SYSTEM_NOSTR_PRIVKEY: string;
+  UNSAFE_ALLOW_PRIVATE_IPS?: string;
 }
 
 export interface ParsedEpisode {
@@ -389,7 +391,9 @@ export function detectInputType(url: URL): 'audio' | 'feed' | 'site' {
   return 'site';
 }
 
-export const onRequestGet: PagesFunction<Env> = async (context) => {
+export const onRequestGet: PagesFunction<Env> = withSsrfBypass(handleRequest);
+
+async function handleRequest(context: EventContext<Env, string, unknown>): Promise<Response> {
   const { searchParams } = new URL(context.request.url);
   const urlParam = searchParams.get('url');
 
@@ -439,4 +443,4 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   } catch {
     return jsonResponse({ error: 'internal_error' }, 500);
   }
-};
+}
