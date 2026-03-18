@@ -1,6 +1,7 @@
 <script lang="ts">
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import VirtualScrollList from '$lib/components/VirtualScrollList.svelte';
+  import { onMount, onDestroy } from 'svelte';
 
   // --- Toggle states ---
   let sending = $state(false);
@@ -269,8 +270,6 @@
 
   // Highlight threshold
   const HIGHLIGHT_MS = 5_000;
-
-  import { onMount, onDestroy } from 'svelte';
 
   onMount(() => {
     fpsLastTime = performance.now();
