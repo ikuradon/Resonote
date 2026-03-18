@@ -18,11 +18,14 @@ export async function resolveEpisode(
   const feedUrl = fromBase64url(feedBase64);
 
   // Parallel: Nostr bookmark query + API metadata fetch
-  // queryNostrForEpisode has internal try-catch (never rejects)
+  // queryNostrForEpisode has internal try-catch, but add catch for safety/symmetry
   // resolveByApi may throw on network/server errors → catch to null
   const [nostrResult, apiResult] = await Promise.all([
-    queryNostrForEpisode(guid),
-    resolveByApi(feedUrl).catch(() => null)
+    queryNostrForEpisode(guid).catch(() => null),
+    resolveByApi(feedUrl).catch((err) => {
+      console.error('[episode-resolver] resolveByApi failed:', err);
+      return null;
+    })
   ]);
 
   if (apiResult) {
