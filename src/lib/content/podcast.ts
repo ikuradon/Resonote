@@ -34,13 +34,13 @@ export class PodcastProvider implements ContentProvider {
       const colonIndex = contentId.id.indexOf(':');
       const encodedFeed = contentId.id.slice(0, colonIndex);
       const encodedGuid = contentId.id.slice(colonIndex + 1);
-      const feedUrl = fromBase64url(encodedFeed);
-      const guid = fromBase64url(encodedGuid);
+      const feedUrl = fromBase64url(encodedFeed) ?? '';
+      const guid = fromBase64url(encodedGuid) ?? '';
       return [`podcast:item:guid:${guid}`, feedUrl];
     }
 
     // feed type
-    const feedUrl = fromBase64url(contentId.id);
+    const feedUrl = fromBase64url(contentId.id) ?? '';
     return [`podcast:feed:${feedUrl}`, feedUrl];
   }
 
@@ -59,9 +59,9 @@ export class PodcastProvider implements ContentProvider {
     if (contentId.type === 'episode') {
       const colonIndex = contentId.id.indexOf(':');
       const encodedFeed = contentId.id.slice(0, colonIndex);
-      return fromBase64url(encodedFeed);
+      return fromBase64url(encodedFeed) ?? '';
     }
-    return fromBase64url(contentId.id);
+    return fromBase64url(contentId.id) ?? '';
   }
 }
 

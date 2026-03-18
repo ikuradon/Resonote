@@ -4,6 +4,7 @@
   import { fromBase64url, toBase64url } from '$lib/content/url-utils.js';
   import { resolveByApi } from '$lib/content/podcast-resolver.js';
   import { publishSignedEvents } from '$lib/nostr/publish-signed.js';
+  import { t } from '$lib/i18n/t.js';
 
   interface Props {
     contentId: ContentId;
@@ -46,12 +47,18 @@
 
   function selectEpisode(ep: { guid: string }) {
     const feedUrl = fromBase64url(contentId.id);
+    if (!feedUrl) return;
     const id = `${toBase64url(feedUrl)}:${toBase64url(ep.guid)}`;
     goto(`/podcast/episode/${id}`);
   }
 
   $effect(() => {
     const feedUrl = fromBase64url(contentId.id);
+    if (!feedUrl) {
+      status = 'error';
+      errorMessage = t('resolve.error.parse_failed');
+      return;
+    }
     load(feedUrl);
   });
 

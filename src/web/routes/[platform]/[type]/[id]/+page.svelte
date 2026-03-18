@@ -110,7 +110,7 @@
     episodeDescription = undefined;
 
     if (platform === 'audio') {
-      resolvedEnclosureUrl = fromBase64url(contentIdParam);
+      resolvedEnclosureUrl = fromBase64url(contentIdParam) ?? undefined;
     } else if (platform === 'podcast' && contentType === 'episode') {
       const parts = contentIdParam.split(':');
       if (parts.length === 2) {
@@ -136,6 +136,7 @@
   $effect(() => {
     if (platform !== 'audio') return;
     const audioUrl = fromBase64url(contentIdParam);
+    if (!audioUrl) return;
     let cancelled = false;
 
     function applyResolution(guid: string, feedUrl: string) {

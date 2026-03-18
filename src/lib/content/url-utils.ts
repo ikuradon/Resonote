@@ -32,7 +32,9 @@ export function toBase64url(str: string): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-export function fromBase64url(encoded: string): string {
+export function fromBase64url(encoded: string): string | null {
+  if (!encoded) return null;
+
   const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
   // Add padding if needed
   const padded = base64 + '=='.slice(0, (4 - (base64.length % 4)) % 4);
@@ -40,9 +42,8 @@ export function fromBase64url(encoded: string): string {
   let binary: string;
   try {
     binary = atob(padded);
-  } catch (e) {
-    console.warn('[fromBase64url] Failed to decode:', e);
-    return '';
+  } catch {
+    return null;
   }
 
   const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
