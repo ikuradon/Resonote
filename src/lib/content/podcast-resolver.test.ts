@@ -1,10 +1,82 @@
-import { describe, it, expect } from 'vitest';
-import { parseDTagEvent, getSystemPubkey } from './podcast-resolver.js';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { parseDTagEvent } from './podcast-resolver.js';
 
 describe('podcast-resolver', () => {
   describe('getSystemPubkey', () => {
-    it('should be an async function', () => {
-      expect(typeof getSystemPubkey).toBe('function');
+    beforeEach(() => {
+      vi.resetModules();
+      vi.restoreAllMocks();
+    });
+
+    it('should return pubkey on success', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ pubkey: 'abc123' })
+        })
+      );
+      const { getSystemPubkey } = await import('./podcast-resolver.js');
+      const result = await getSystemPubkey();
+      expect(result).toBe('abc123');
+      vi.unstubAllGlobals();
+    });
+
+    it('should return empty string and allow retry on 5xx error', async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce({ ok: false, status: 500 })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ pubkey: 'recovered' })
+        });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const { getSystemPubkey } = await import('./podcast-resolver.js');
+
+      const result1 = await getSystemPubkey();
+      expect(result1).toBe('');
+
+      const result2 = await getSystemPubkey();
+      expect(result2).toBe('recovered');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      vi.unstubAllGlobals();
+    });
+
+    it('should return empty string and allow retry on network error', async () => {
+      const fetchMock = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('network error'))
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ pubkey: 'recovered' })
+        });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const { getSystemPubkey } = await import('./podcast-resolver.js');
+
+      const result1 = await getSystemPubkey();
+      expect(result1).toBe('');
+
+      const result2 = await getSystemPubkey();
+      expect(result2).toBe('recovered');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      vi.unstubAllGlobals();
+    });
+
+    it('should cache successful result', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ pubkey: 'cached' })
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const { getSystemPubkey } = await import('./podcast-resolver.js');
+
+      await getSystemPubkey();
+      await getSystemPubkey();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      vi.unstubAllGlobals();
     });
   });
 
