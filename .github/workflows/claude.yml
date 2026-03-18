@@ -284,7 +284,6 @@ jobs:
           github_token: ${{ steps.app-token.outputs.token }}
           bot_id: ${{ steps.bot.outputs.id }}
           bot_name: ${{ steps.bot.outputs.name }}
-          show_full_output: true
           prompt: |
             リポジトリ: ${{ github.repository }}
             Issue番号: #${{ github.event.issue.number }}
