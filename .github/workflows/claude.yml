@@ -440,9 +440,14 @@ jobs:
           # Get last commit date on PR
           LAST_COMMIT=$(gh pr view "$PR_NUMBER" --json commits --jq '.commits[-1].committedDate')
 
-          # Get review comments after last commit (inline code comments)
+          # Get IDs of review comments that already have replies
+          REPLIED_IDS=$(gh api "repos/$REPO/pulls/$PR_NUMBER/comments" \
+            --jq '[.[] | select(.in_reply_to_id != null) | .in_reply_to_id] | unique' 2>/dev/null || echo "[]")
+
+          # Get review comments after last commit, excluding already-replied ones
           REVIEW_COMMENTS=$(gh api "repos/$REPO/pulls/$PR_NUMBER/comments" \
-            --jq "[.[] | select(.created_at > \"$LAST_COMMIT\")] | map({path, line: (.line // .original_line), body}) | .[]" 2>/dev/null || echo "No new review comments.")
+            --jq --argjson replied "$REPLIED_IDS" \
+            "[.[] | select(.created_at > \"$LAST_COMMIT\" and .in_reply_to_id == null and ([.id] | inside(\$replied) | not))] | map({path, line: (.line // .original_line), body}) | .[]" 2>/dev/null || echo "No new review comments.")
 
           # Get review submissions after last commit (Approve/Request Changes body)
           REVIEWS=$(gh api "repos/$REPO/pulls/$PR_NUMBER/reviews" \
@@ -495,14 +500,16 @@ jobs:
           prompt: |
             /tmp/fix-context.md を読み、その内容に基づいてコードを修正してください。
             PRの全コメントを読む必要はありません。このファイルに記載されたコメントのみに対応してください。
+            既に返信済みのコメントは抽出から除外されていますが、もし対応済みと判断できるものがあればスキップしてください。
 
             手順:
             1. /tmp/fix-context.md を読んでレビュー指摘を把握
-            2. 指摘に対してコードを修正
+            2. 未対応の指摘に対してのみコードを修正（対応済みはスキップ）
             3. CLAUDE.mdのPre-commit Validationに従い、コミット前に以下を必ず実行:
                pnpm format:check && pnpm lint && pnpm check && pnpm test && pnpm test:e2e
             4. 変更をコミットしてPRブランチにpush
             5. 修正したレビューコメントそれぞれに返信（修正内容 + コミットハッシュ）
+            6. 修正すべきコメントが無かった場合は何もせず終了
           claude_args: |
             --max-turns 200
             --allowedTools "Read,Glob,Grep,Edit,Write,WebFetch,WebSearch,Bash(pnpm:*),Bash(npx:*),Bash(node:*),Bash(jq:*),Bash(git:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr edit:*),Bash(gh api:*),Bash(gh issue view:*),Bash(gh issue comment:*),mcp__context7__*"
