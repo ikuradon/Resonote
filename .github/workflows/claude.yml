@@ -558,3 +558,143 @@ jobs:
           elif [[ "$EVENT_NAME" == "pull_request_review" ]]; then
             gh api "repos/$REPO/pulls/$PR_NUMBER/reviews/$REVIEW_ID/reactions" -f content='+1' --silent
           fi
+
+      - name: Post completion report
+        if: always() && steps.scan.outputs.suspicious != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          IS_PR_ISSUE: ${{ github.event.issue.pull_request != null && github.event.issue.pull_request != '' }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PLAN_CONCLUSION: ${{ steps.claude-plan.outputs.conclusion }}
+          PLAN_OUTCOME: ${{ steps.claude-plan.outcome }}
+          IMPL_CONCLUSION: ${{ steps.claude-impl.outputs.conclusion }}
+          IMPL_OUTCOME: ${{ steps.claude-impl.outcome }}
+          CHAT_CONCLUSION: ${{ steps.claude-issue-chat.outputs.conclusion }}
+          CHAT_OUTCOME: ${{ steps.claude-issue-chat.outcome }}
+          FIX_CONCLUSION: ${{ steps.claude-fix.outputs.conclusion }}
+          FIX_OUTCOME: ${{ steps.claude-fix.outcome }}
+          PR_CONCLUSION: ${{ steps.claude-pr.outputs.conclusion }}
+          PR_OUTCOME: ${{ steps.claude-pr.outcome }}
+          EXECUTION_FILE: ${{ runner.temp }}/claude-execution-output.json
+        run: |
+          # Determine which step ran and its result
+          COMMAND=""
+          CONCLUSION=""
+          OUTCOME=""
+          for step in PLAN IMPL CHAT FIX PR; do
+            eval "outcome=\$${step}_OUTCOME"
+            eval "conclusion=\$${step}_CONCLUSION"
+            if [[ "$outcome" == "success" || "$outcome" == "failure" ]]; then
+              case $step in
+                PLAN) COMMAND="/plan" ;;
+                IMPL) COMMAND="/impl" ;;
+                CHAT) COMMAND="@claude" ;;
+                FIX)  COMMAND="/fix" ;;
+                PR)   COMMAND="@claude (PR)" ;;
+              esac
+              CONCLUSION="$conclusion"
+              OUTCOME="$outcome"
+              break
+            fi
+          done
+
+          # Skip if no step ran
+          if [[ -z "$COMMAND" ]]; then
+            echo "No Claude step executed, skipping report"
+            exit 0
+          fi
+
+          # Parse token usage from execution file
+          USAGE_LINE=""
+          if [[ -f "$EXECUTION_FILE" ]]; then
+            USAGE_LINE=$(python3 << 'PYEOF'
+          import json, os, sys
+
+          PRICING = {
+            'claude-opus-4-6': {'input': 15.0, 'output': 75.0},
+            'claude-sonnet-4-6': {'input': 3.0, 'output': 15.0},
+            'claude-haiku-4-5': {'input': 0.80, 'output': 4.0},
+          }
+
+          try:
+              with open(os.environ['EXECUTION_FILE']) as f:
+                  messages = json.load(f)
+
+              model = ''
+              input_tokens = 0
+              output_tokens = 0
+              cache_read = 0
+              cache_create = 0
+
+              for msg in messages:
+                  if msg.get('subtype') == 'init':
+                      model = msg.get('model', '')
+                  usage = None
+                  if isinstance(msg.get('message'), dict):
+                      usage = msg['message'].get('usage')
+                  if not usage and isinstance(msg.get('usage'), dict):
+                      usage = msg['usage']
+                  if usage:
+                      input_tokens += usage.get('input_tokens', 0)
+                      output_tokens += usage.get('output_tokens', 0)
+                      cache_read += usage.get('cache_read_input_tokens', 0)
+                      cache_create += usage.get('cache_creation_input_tokens', 0)
+
+              # Determine pricing
+              prices = None
+              for key in PRICING:
+                  if key in model:
+                      prices = PRICING[key]
+                      break
+              if not prices:
+                  prices = PRICING.get('claude-sonnet-4-6')
+
+              # Calculate cost
+              billable_input = input_tokens - cache_read - cache_create
+              cost = (
+                  max(0, billable_input) * prices['input'] / 1_000_000 +
+                  output_tokens * prices['output'] / 1_000_000 +
+                  cache_read * prices['input'] * 0.1 / 1_000_000 +
+                  cache_create * prices['input'] * 1.25 / 1_000_000
+              )
+
+              total_input = input_tokens + cache_read + cache_create
+              parts = [f"📊 **Tokens**: {total_input:,} input / {output_tokens:,} output"]
+              if cache_read or cache_create:
+                  parts.append(f"(cache: {cache_read:,} read, {cache_create:,} create)")
+              parts.append(f"| 💰 **Cost**: ${cost:.2f}")
+              if model:
+                  short_model = model.split('-202')[0] if '-202' in model else model
+                  parts.append(f"| 🤖 **Model**: {short_model}")
+              print(' '.join(parts))
+          except Exception as e:
+              print(f"⚠️ Token usage unavailable: {e}", file=sys.stderr)
+              print("")
+          PYEOF
+          )
+          fi
+
+          # Build comment
+          if [[ "$CONCLUSION" == "success" && "$OUTCOME" == "success" ]]; then
+            STATUS="✅ \`${COMMAND}\` completed successfully"
+          else
+            STATUS="❌ \`${COMMAND}\` failed"
+          fi
+
+          BODY="<!-- claude-report -->
+          ${STATUS}
+          ${USAGE_LINE}
+          🔗 [Workflow run](${RUN_URL})"
+
+          # Post to the right place
+          if [[ "$EVENT_NAME" == "issue_comment" && "$IS_PR_ISSUE" != "true" ]]; then
+            gh issue comment "$ISSUE_NUMBER" --body "$BODY" --repo "$REPO"
+          else
+            NUMBER="${PR_NUMBER:-$ISSUE_NUMBER}"
+            gh pr comment "$NUMBER" --body "$BODY" --repo "$REPO" 2>/dev/null || \
+            gh issue comment "$ISSUE_NUMBER" --body "$BODY" --repo "$REPO"
+          fi
