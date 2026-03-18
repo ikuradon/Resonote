@@ -20,6 +20,7 @@ pnpm run test:e2e     # E2E tests (Playwright)
 pnpm run lint:fix     # ESLint auto-fix
 pnpm run build:ext:chrome  # build extension for Chrome → dist-extension/
 pnpm run build:ext:firefox # build extension for Firefox → dist-extension/
+pnpm run build:e2e-helpers  # build tsunagiya browser bundle for E2E
 ```
 
 ## Pre-commit Validation
@@ -84,7 +85,7 @@ Web embed 対応: Spotify, YouTube, Vimeo, SoundCloud, Mixcloud, Spreaker, Nicon
 - `updatePlayback(positionMs, durationMs, isPaused)` で player store 同期
 - `resonote:seek` イベント (`detail.positionMs`) でシーク受信
 - `setContent(contentId)` で現在再生中コンテンツを登録
-- ブランドローディング画面 (アイコン + シマーバー)
+- ブランドローディング画面: `EmbedLoading` コンポーネント (アイコン snippet + `WaveformLoader` 波形アニメーション + 時間ベース進捗)
 - ローディングタイムアウト (15-20秒) → エラー + ソースリンク
 - SoundCloud/Podbean: oEmbed API で embed URL 解決 (CORS プロキシ経由)
 - Spreaker: widgets.js を毎回 remove+re-add (SPA 再ナビゲーション対応)
@@ -95,7 +96,7 @@ Web embed 対応: Spotify, YouTube, Vimeo, SoundCloud, Mixcloud, Spreaker, Nicon
 - `functions/api/podbean/resolve.ts`: Podbean oEmbed プロキシ
 - `functions/api/system/pubkey.ts`: システム鍵の pubkey 公開
 - `functions/lib/audio-metadata.ts`: ID3v2/Vorbis/FLAC メタデータパーサー
-- `functions/lib/url-validation.ts`: SSRF 防御 — 全 server-side fetch() の前に `assertSafeUrl()` を呼ぶ
+- `functions/lib/url-validation.ts`: SSRF 防御 — `safeFetch()` で全 server-side fetch を行う (リダイレクト各ホップで `assertSafeUrl()` 検証)
 - 環境変数: `SYSTEM_NOSTR_PRIVKEY` (hex) — `.dev.vars` (ローカル) / `wrangler pages secret` (本番)
 
 ### Nostr Layer
@@ -155,17 +156,19 @@ Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
 - E2E: Playwright (`e2e/*.test.ts`, Chromium, build+preview on :4173)
 - IndexedDB テストは `fake-indexeddb/auto` を import
 - rx-nostr/client は `vi.mock()` でモック
+- rx-nostr 統合テスト: `@ikuradon/tsunagiya` MockPool で WebSocket モック + `nostr-tools/pure` finalizeEvent で有効署名生成
+- E2E 認証フロー: tsunagiya ブラウザバンドル (`pretest:e2e` で自動生成) + `window.nostr` mock + `nlAuth` DOM イベント
+- `client.ts` の `disposeRxNostr()` でテスト間のシングルトンリセット
 
 ## Deployment
 
 - **Hosting**: Cloudflare Pages (wrangler CLI)
-- **CI**: GitHub Actions (`ci.yml`) — lint-and-check + audit + test + e2e + build-extension (parallel) → deploy
-- **Deploy trigger**: Push to `main` → staging, `v*` tag → production
+- **CI**: GitHub Actions (`ci.yml`) — lint-and-check + audit + test + e2e + build-extension (parallel) → deploy。Node.js 24
+- **Deploy trigger**: Push to `main` → staging, `v*` tag → production (`--branch=main` 必須、なしだと preview 扱い)
 
 ## Issue Tracking
 
-- GitHub Issues で管理。ラベル: `security`, `performance`, `a11y`, `ux`, `testing`, `code-quality`, `bundle-size`, `feature`
-- 旧 `docs/superpowers/backlog.md` は GitHub Issues に移行済み (削除済み)
+- GitHub Issues + マイルストーン (v0.0.1, v0.0.2 等) で管理。ラベル: `security`, `performance`, `a11y`, `ux`, `testing`, `code-quality`, `bundle-size`, `feature`
 
 ## Key Decisions
 
@@ -204,3 +207,6 @@ Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
 - コメント/リアクション/削除のサブスクリプションは `#I` (大文字) フィルタを使用。他クライアントの `I` タグなしイベントは取得しない設計 (Resonote 独自のコンテンツスコープ)
 - Svelte 5 `$state<Set>` は in-place `.add()`/`.delete()` で reactivity がトリガーされない → `deletedIds = new Set(deletedIds)` で再代入が必要
 - `getFollows().follows` は `Set<string>` → `.length` ではなく `.size` を使う
+- `static/icon.svg` がマスター SVG。PNG は `rsvg-convert -w 512 -h 512 static/icon.svg -o static/icon-512.png` で再生成 (ImageMagick はグラデーション非対応)
+- `app.html` のスプラッシュ SVG は `icon.svg` の inline 埋め込み。アイコン変更時は両方更新すること
+- OGP の `og:url` / `og:image` は `resonote.pages.dev` を使用。独自ドメイン取得時に `app.html` を更新すること
