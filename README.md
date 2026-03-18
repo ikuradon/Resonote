@@ -133,7 +133,7 @@ pnpm run dev:full
 - NIP-B0 (kind:39701) ブックマークで URL→guid マッピング
 - フィード解決時に全エピソードの署名済みブックマークを生成
 - 音声直 URL: IndexedDB → Nostr d タグ検索 → API auto-discovery の 3 段フォールバック
-- guid 解決時: `history.replaceState` で URL 書き換え + コメントマージ
+- guid 解決時: SvelteKit `replaceState` (`$app/navigation`) で URL 書き換え + コメントマージ
 
 ### ブラウザ拡張機能
 
