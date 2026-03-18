@@ -191,10 +191,10 @@ jobs:
         id: bot
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ vars.CLAUDE_APP_SLUG }}
         run: |
-          BOT_NAME=$(gh api app --jq '.slug')
-          echo "name=${BOT_NAME}[bot]" >> "$GITHUB_OUTPUT"
-          BOT_ID=$(gh api "users/${BOT_NAME}[bot]" --jq '.id')
+          echo "name=${APP_SLUG}[bot]" >> "$GITHUB_OUTPUT"
+          BOT_ID=$(gh api "users/${APP_SLUG}[bot]" --jq '.id')
           echo "id=$BOT_ID" >> "$GITHUB_OUTPUT"
 
       - name: Checkout repository
