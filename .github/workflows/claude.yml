@@ -446,6 +446,17 @@ jobs:
           $ISSUE_COMMENTS
           CTXEOF
 
+      - name: Checkout PR branch for /fix
+        if: |
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/fix') &&
+          steps.fork-check.outputs.writable == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+        run: gh pr checkout "$PR_NUMBER"
+
       - name: Run Claude Code (/fix on PR)
         if: |
           github.event_name == 'issue_comment' &&
