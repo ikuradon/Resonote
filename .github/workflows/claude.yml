@@ -399,6 +399,9 @@ jobs:
           PR_NUMBER: ${{ github.event.issue.number }}
           REPO: ${{ github.repository }}
         run: |
+          # Get PR title and body
+          PR_INFO=$(gh pr view "$PR_NUMBER" --json title,body --jq '"## PR: " + .title + "\n\n" + (.body // "")')
+
           # Get Greptile summary (latest one)
           GREPTILE=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" \
             --jq '[.[] | select(.user.login == "greptile-apps[bot]")] | last | .body // "No Greptile summary found."')
@@ -406,20 +409,29 @@ jobs:
           # Get last commit date on PR
           LAST_COMMIT=$(gh pr view "$PR_NUMBER" --json commits --jq '.commits[-1].committedDate')
 
-          # Get review comments after last commit
+          # Get review comments after last commit (inline code comments)
           REVIEW_COMMENTS=$(gh api "repos/$REPO/pulls/$PR_NUMBER/comments" \
             --jq "[.[] | select(.created_at > \"$LAST_COMMIT\")] | map({path, line: (.line // .original_line), body}) | .[]" 2>/dev/null || echo "No new review comments.")
+
+          # Get review submissions after last commit (Approve/Request Changes body)
+          REVIEWS=$(gh api "repos/$REPO/pulls/$PR_NUMBER/reviews" \
+            --jq "[.[] | select(.submitted_at > \"$LAST_COMMIT\" and .body != \"\")] | map({user: .user.login, state: .state, body}) | .[]" 2>/dev/null || echo "No new reviews.")
 
           # Get issue comments after last commit (excluding bots and /fix itself)
           ISSUE_COMMENTS=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" \
             --jq "[.[] | select(.created_at > \"$LAST_COMMIT\" and (.user.type != \"Bot\") and (.body | contains(\"/fix\") | not))] | map({user: .user.login, body}) | .[]" 2>/dev/null || echo "No new issue comments.")
 
           cat > /tmp/fix-context.md << CTXEOF
+          $PR_INFO
+
           ## Greptile Summary
           $GREPTILE
 
           ## Review Comments (since $LAST_COMMIT)
           $REVIEW_COMMENTS
+
+          ## Reviews (since $LAST_COMMIT)
+          $REVIEWS
 
           ## Discussion Comments (since $LAST_COMMIT)
           $ISSUE_COMMENTS
