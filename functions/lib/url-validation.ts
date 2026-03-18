@@ -48,7 +48,7 @@ function isBlockedIPv6(hostname: string): boolean {
 
 const MAX_REDIRECTS = 5;
 
-const SENSITIVE_HEADERS = ['authorization', 'cookie', 'proxy-authorization'] as const;
+const SENSITIVE_HEADERS = ['authorization', 'cookie', 'cookie2', 'proxy-authorization'] as const;
 
 function stripSensitiveHeaders(options: RequestInit): RequestInit {
   if (!options.headers) return options;
@@ -80,6 +80,7 @@ export async function safeFetch(url: string, options?: RequestInit): Promise<Res
       const currentOrigin = new URL(currentUrl).origin;
       const nextParsed = new URL(location, currentUrl);
 
+      // クロスオリジン後は同一オリジンに戻っても機密ヘッダは復元しない（Fetch spec 4.4 準拠）
       if (currentOptions && currentOrigin !== nextParsed.origin) {
         currentOptions = stripSensitiveHeaders(currentOptions);
       }
