@@ -16,6 +16,7 @@ export async function resolveEpisode(
 ): Promise<EpisodeInfo | null> {
   const guid = fromBase64url(guidBase64);
   const feedUrl = fromBase64url(feedBase64);
+  if (!guid || !feedUrl) return null;
 
   // Parallel: Nostr bookmark query + API metadata fetch
   // queryNostrForEpisode has internal try-catch, but add catch for safety/symmetry

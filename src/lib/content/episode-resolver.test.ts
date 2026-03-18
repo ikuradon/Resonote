@@ -382,8 +382,6 @@ describe('episode-resolver', () => {
 
     it('should handle empty guid gracefully', async () => {
       const emptyGuidB64 = toBase64url('');
-      mockGetSystemPubkey.mockResolvedValue('');
-      mockResolveByApi.mockResolvedValue({ type: 'episode' });
 
       const result = await resolveEpisode(FEED_BASE64, emptyGuidB64);
 
@@ -392,13 +390,11 @@ describe('episode-resolver', () => {
 
     it('should handle empty feedUrl gracefully', async () => {
       const emptyFeedB64 = toBase64url('');
-      mockGetSystemPubkey.mockResolvedValue('');
-      mockResolveByApi.mockResolvedValue({ type: 'episode' });
 
       const result = await resolveEpisode(emptyFeedB64, GUID_BASE64);
 
       expect(result).toBeNull();
-      expect(mockResolveByApi).toHaveBeenCalledWith('');
+      expect(mockResolveByApi).not.toHaveBeenCalled();
     });
 
     it('should return feedTitle and image from API feed even with Nostr-only episode match', async () => {

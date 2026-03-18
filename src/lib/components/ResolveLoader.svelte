@@ -16,6 +16,11 @@
 
   $effect(() => {
     const url = fromBase64url(encodedUrl);
+    if (!url) {
+      status = 'error';
+      errorMessage = t('resolve.error.parse_failed');
+      return;
+    }
     resolve(url);
   });
 

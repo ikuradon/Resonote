@@ -49,12 +49,18 @@
 
   function selectEpisode(ep: { guid: string }) {
     const feedUrl = fromBase64url(contentId.id);
+    if (!feedUrl) return;
     const episodeContentId = buildEpisodeContentId(feedUrl, ep.guid);
     goto(`/podcast/episode/${episodeContentId.id}`);
   }
 
   $effect(() => {
     const feedUrl = fromBase64url(contentId.id);
+    if (!feedUrl) {
+      status = 'error';
+      errorMessage = t('resolve.error.parse_failed');
+      return;
+    }
     load(feedUrl);
   });
 

@@ -26,7 +26,7 @@ export class AudioProvider implements ContentProvider {
   }
 
   toNostrTag(contentId: ContentId): [string, string] {
-    const decodedUrl = fromBase64url(contentId.id);
+    const decodedUrl = fromBase64url(contentId.id) ?? '';
     return [`audio:${decodedUrl}`, decodedUrl];
   }
 
@@ -35,11 +35,11 @@ export class AudioProvider implements ContentProvider {
   }
 
   embedUrl(contentId: ContentId): string {
-    return fromBase64url(contentId.id);
+    return fromBase64url(contentId.id) ?? '';
   }
 
   openUrl(contentId: ContentId): string {
-    return fromBase64url(contentId.id);
+    return fromBase64url(contentId.id) ?? '';
   }
 }
 
