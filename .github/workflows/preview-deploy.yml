@@ -111,16 +111,6 @@ jobs:
           command: pages deploy build --project-name=resonote --branch=${{ steps.branch.outputs.name }}
           wranglerVersion: '4'
 
-      - name: Set preview secret
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages secret put SYSTEM_NOSTR_PRIVKEY --project-name=resonote
-          wranglerVersion: '4'
-        env:
-          VALUE: ${{ secrets.PREVIEW_NOSTR_PRIVKEY }}
-
       - name: Comment preview URL
         env:
           GH_TOKEN: ${{ github.token }}

@@ -29,12 +29,17 @@ jobs:
 
       - name: Delete preview deployment
         if: steps.preview.outputs.branch != ''
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deployment delete --project-name=resonote --branch=${{ steps.preview.outputs.branch }} --yes
-          wranglerVersion: '4'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BRANCH: ${{ steps.preview.outputs.branch }}
+        run: |
+          DEPLOY_ID=$(npx wrangler@4 pages deployment list --project-name=resonote \
+            --json | jq -r --arg branch "$BRANCH" \
+            '[.[] | select(.deployment_trigger.metadata.branch == $branch)] | last | .id // ""')
+          if [[ -n "$DEPLOY_ID" ]]; then
+            npx wrangler@4 pages deployment delete "$DEPLOY_ID" --project-name=resonote --yes
+          fi
 
       - name: Update preview comment
         if: steps.preview.outputs.branch != ''
