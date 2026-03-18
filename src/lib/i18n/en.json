@@ -77,6 +77,7 @@
   "emoji.title": "Emoji",
   "dialog.close": "Close",
   "loading": "Loading...",
+  "podcast.loading": "Loading episodes...",
   "embed.load_failed": "Failed to load player",
   "embed.check_source": "Check original content",
   "content.requires_extension": "This content requires the Resonote extension",

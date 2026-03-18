@@ -77,6 +77,7 @@
   "emoji.title": "絵文字",
   "dialog.close": "閉じる",
   "loading": "読み込み中...",
+  "podcast.loading": "エピソード一覧を読み込み中...",
   "embed.load_failed": "プレイヤーの読み込みに失敗しました",
   "embed.check_source": "元のコンテンツを確認する",
   "content.requires_extension": "このコンテンツにはResonote拡張機能が必要です",

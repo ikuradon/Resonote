@@ -117,7 +117,7 @@ Web embed 対応: Spotify, YouTube, Vimeo, SoundCloud, Mixcloud, Spreaker, Nicon
 - クライアントが `rxNostr.cast()` で publish (署名済みイベントは再署名されずそのまま通る)
 - NIP-B0 bookmark の `content` フィールドにエピソード description を格納 (1000文字上限)
 - 音声直 URL: IndexedDB → Nostr d タグ検索 → API auto-discovery の3段フォールバック
-- guid 解決時: `history.replaceState` で URL 書き換え + `addSubscription` でコメントマージ
+- guid 解決時: SvelteKit `replaceState` (`$app/navigation`) で URL 書き換え + `addSubscription` でコメントマージ
 
 ### Subscription Pattern
 

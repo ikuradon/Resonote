@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { replaceState } from '$app/navigation';
   import { page } from '$app/state';
   import SpotifyEmbed from '$lib/components/SpotifyEmbed.svelte';
   import AudioEmbed from '$lib/components/AudioEmbed.svelte';
@@ -21,6 +22,7 @@
   import { t } from '$lib/i18n/t.js';
   import EpisodeDescription from '$lib/components/EpisodeDescription.svelte';
   import { resolveEpisode } from '$lib/content/episode-resolver.js';
+  import { buildEpisodeContentId } from '$lib/content/podcast.js';
   import { fromBase64url, toBase64url } from '$lib/content/url-utils.js';
   import { resolveByApi, searchBookmarkByUrl } from '$lib/content/podcast-resolver.js';
   import { publishSignedEvents } from '$lib/nostr/publish-signed.js';
@@ -142,8 +144,8 @@
     function applyResolution(guid: string, feedUrl: string) {
       untrack(() => {
         store?.addSubscription(`podcast:item:guid:${guid}`);
-        const episodeId = `${toBase64url(feedUrl)}:${toBase64url(guid)}`;
-        history.replaceState(history.state, '', `/podcast/episode/${episodeId}`);
+        const episodeContentId = buildEpisodeContentId(feedUrl, guid);
+        replaceState(`/podcast/episode/${episodeContentId.id}`, {});
       });
     }
 

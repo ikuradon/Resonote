@@ -1,10 +1,12 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import type { ContentId } from '$lib/content/types.js';
-  import { fromBase64url, toBase64url } from '$lib/content/url-utils.js';
+  import { buildEpisodeContentId } from '$lib/content/podcast.js';
+  import { fromBase64url } from '$lib/content/url-utils.js';
   import { resolveByApi } from '$lib/content/podcast-resolver.js';
-  import { publishSignedEvents } from '$lib/nostr/publish-signed.js';
+  import WaveformLoader from './WaveformLoader.svelte';
   import { t } from '$lib/i18n/t.js';
+  import { publishSignedEvents } from '$lib/nostr/publish-signed.js';
 
   interface Props {
     contentId: ContentId;
@@ -48,8 +50,8 @@
   function selectEpisode(ep: { guid: string }) {
     const feedUrl = fromBase64url(contentId.id);
     if (!feedUrl) return;
-    const id = `${toBase64url(feedUrl)}:${toBase64url(ep.guid)}`;
-    goto(`/podcast/episode/${id}`);
+    const episodeContentId = buildEpisodeContentId(feedUrl, ep.guid);
+    goto(`/podcast/episode/${episodeContentId.id}`);
   }
 
   $effect(() => {
@@ -99,12 +101,21 @@
 <div class="rounded-2xl border border-border-subtle bg-surface-secondary">
   {#if status === 'loading'}
     <div class="flex min-h-[200px] items-center justify-center p-6">
-      <div class="flex flex-col items-center gap-3" role="status">
-        <div
-          class="h-8 w-8 animate-spin rounded-full border-2 border-amber-500 border-t-transparent"
-          aria-hidden="true"
-        ></div>
-        <p class="text-text-secondary">エピソード一覧を読み込み中...</p>
+      <div class="flex flex-col items-center gap-4" role="status">
+        <div class="flex items-center gap-3">
+          <svg
+            aria-hidden="true"
+            class="h-8 w-8 text-accent"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path
+              d="M12 1a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4zm0 18a7 7 0 0 0 7-7h-2a5 5 0 0 1-10 0H5a7 7 0 0 0 7 7zm-1 2v2h2v-2h-2z"
+            />
+          </svg>
+          <span class="text-sm font-medium text-text-muted">{t('podcast.loading')}</span>
+        </div>
+        <WaveformLoader bars={16} />
       </div>
     </div>
   {:else if status === 'error'}

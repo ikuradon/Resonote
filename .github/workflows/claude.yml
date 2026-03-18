@@ -1,0 +1,514 @@
+name: Claude Code
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issue_comment' && !github.event.issue.pull_request && (
+        contains(github.event.comment.body, '/plan') ||
+        contains(github.event.comment.body, '/impl') ||
+        contains(github.event.comment.body, '@claude')
+      )) ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request && (
+        contains(github.event.comment.body, '@claude') ||
+        contains(github.event.comment.body, '/fix')
+      )) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+      checks: read
+    steps:
+      - name: Check actor permissions
+        id: check-permission
+        uses: actions-cool/check-user-permission@7b90a27f92f3961b368376107661682c441f6103 # v2.3.0
+        with:
+          require: 'write'
+
+      - name: Deny external users
+        if: steps.check-permission.outputs.require-result != 'true'
+        run: |
+          echo "::error::Permission denied: only collaborators can use @claude"
+          exit 1
+
+      - name: Add eyes reaction
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+          REVIEW_ID: ${{ github.event.review.id }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [[ "$EVENT_NAME" == "issue_comment" ]]; then
+            gh api "repos/$REPO/issues/comments/$COMMENT_ID/reactions" -f content=eyes --silent
+          elif [[ "$EVENT_NAME" == "pull_request_review_comment" ]]; then
+            gh api "repos/$REPO/pulls/comments/$COMMENT_ID/reactions" -f content=eyes --silent
+          elif [[ "$EVENT_NAME" == "pull_request_review" ]]; then
+            gh api "repos/$REPO/pulls/$PR_NUMBER/reviews/$REVIEW_ID/reactions" -f content=eyes --silent
+          fi
+
+      - name: Scan for suspicious content
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+          REVIEW_ID: ${{ github.event.review.id }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Fetch content via API to avoid expression injection
+          mkdir -p /tmp/scan
+          if [[ "$EVENT_NAME" == "issue_comment" ]]; then
+            gh api "repos/$REPO/issues/comments/$COMMENT_ID" --jq '.body // ""' > /tmp/scan/comment.txt
+            gh api "repos/$REPO/issues/$ISSUE_NUMBER" --jq '.body // ""' > /tmp/scan/issue.txt
+          elif [[ "$EVENT_NAME" == "pull_request_review_comment" ]]; then
+            gh api "repos/$REPO/pulls/comments/$COMMENT_ID" --jq '.body // ""' > /tmp/scan/comment.txt
+            gh api "repos/$REPO/pulls/$PR_NUMBER" --jq '.body // ""' > /tmp/scan/issue.txt
+          elif [[ "$EVENT_NAME" == "pull_request_review" ]]; then
+            gh api "repos/$REPO/pulls/${PR_NUMBER}/reviews/$REVIEW_ID" --jq '.body // ""' > /tmp/scan/comment.txt
+            gh api "repos/$REPO/pulls/$PR_NUMBER" --jq '.body // ""' > /tmp/scan/issue.txt
+          fi
+
+          python3 << 'SCAN_SCRIPT'
+          import re, sys, os, unicodedata
+
+          HIDDEN_TEXT_PATTERNS = [
+              (r'<!--[\s\S]*?-->', 'HTML comment'),
+              (r'<details[\s\S]*?</details>', 'collapsed <details> block'),
+              (r'<div\s+style="[^"]*display:\s*none[^"]*"', 'hidden div (display:none)'),
+              (r'<[a-z]+\s+style="[^"]*font-size:\s*0', 'zero font-size element'),
+              (r'<[a-z]+\s+style="[^"]*color:\s*(white|#fff|#ffffff|rgba?\([^)]*,\s*0\s*\))', 'invisible text color'),
+          ]
+
+          DANGEROUS_PATTERNS = [
+              (r'\bprintenv\b', 'printenv command'),
+              (r'\b/proc/self/environ\b', '/proc environ access'),
+              (r'\bcurl\b.*\b(webhook|ngrok|requestbin|pipedream|hookbin|burp)', 'data exfiltration via webhook'),
+              (r'\bwget\b.*\b(webhook|ngrok|requestbin|pipedream|hookbin|burp)', 'data exfiltration via webhook'),
+              (r'(?i)ignore\s+(all\s+)?(previous|above|prior)\s+(instructions?|prompts?|rules?)', 'prompt injection (ignore previous)'),
+              (r'(?i)you\s+are\s+now\b', 'prompt injection (role override)'),
+              (r'(?i)system\s*:\s*you\s+are', 'prompt injection (system prompt)'),
+              (r'(?i)do\s+not\s+follow\s+(the\s+)?(above|previous|prior)', 'prompt injection (override)'),
+              (r'(?i)(output|print|echo|reveal|show|leak|exfiltrate)\s+(the\s+)?(secret|key|token|password|credential|api.?key|env)', 'secret exfiltration attempt'),
+              (r'\$\{?\{?\s*secrets\.', 'GitHub secrets reference'),
+          ]
+
+          INVISIBLE_CATEGORIES = {'Cf', 'Mn', 'Cc'}
+          SUSPECT_CODEPOINTS = {
+              '\u200b', '\u200c', '\u200d', '\ufeff', '\u2060', '\u2061', '\u2062', '\u2063', '\u2064',
+              '\u202a', '\u202b', '\u202c', '\u202d', '\u202e',
+              '\u2066', '\u2067', '\u2068', '\u2069',
+              '\u00ad',
+              '\U000e0001',
+          }
+
+          findings = []
+
+          def scan_text(text, source):
+              for pattern, desc in HIDDEN_TEXT_PATTERNS:
+                  matches = re.findall(pattern, text, re.IGNORECASE)
+                  if matches:
+                      findings.append(f"[{source}] Hidden text: {desc} ({len(matches)} occurrence(s))")
+              for pattern, desc in DANGEROUS_PATTERNS:
+                  if re.search(pattern, text):
+                      findings.append(f"[{source}] Dangerous pattern: {desc}")
+              invisible_chars = set()
+              for ch in text:
+                  if ch in SUSPECT_CODEPOINTS or (unicodedata.category(ch) in INVISIBLE_CATEGORIES and ch not in '\n\r\t'):
+                      invisible_chars.add(f"U+{ord(ch):04X} ({unicodedata.name(ch, 'UNKNOWN')})")
+              if invisible_chars:
+                  findings.append(f"[{source}] Invisible Unicode characters: {', '.join(sorted(invisible_chars))}")
+
+          for fname in ['comment.txt', 'issue.txt']:
+              fpath = f'/tmp/scan/{fname}'
+              if os.path.exists(fpath):
+                  with open(fpath, 'r', encoding='utf-8', errors='replace') as f:
+                      text = f.read()
+                  if text.strip():
+                      scan_text(text, fname.replace('.txt', ''))
+
+          if findings:
+              print("::warning::Suspicious content detected:")
+              for f in findings:
+                  print(f"  - {f}")
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                  f.write('suspicious=true\n')
+          else:
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                  f.write('suspicious=false\n')
+          SCAN_SCRIPT
+        id: scan
+
+      - name: Warn about suspicious content
+        if: steps.scan.outputs.suspicious == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          IS_PR_ISSUE: ${{ github.event.issue.pull_request != null && github.event.issue.pull_request != '' }}
+          REPO: ${{ github.repository }}
+        run: |
+          MSG="**Warning**: Suspicious content detected in this issue/PR. Claude Code execution has been skipped for safety. A maintainer should review the content before retrying."
+          if [[ "$EVENT_NAME" == "issue_comment" && "$IS_PR_ISSUE" != "true" ]]; then
+            gh issue comment "$ISSUE_NUMBER" --body "$MSG" --repo "$REPO"
+          else
+            gh pr comment "$PR_NUMBER" --body "$MSG" --repo "$REPO"
+          fi
+          echo "::error::Suspicious content detected. Skipping Claude Code execution."
+          exit 1
+
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0
+        with:
+          app-id: ${{ secrets.CLAUDE_APP_ID }}
+          private-key: ${{ secrets.CLAUDE_APP_PRIVATE_KEY }}
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        if: |
+          (github.event_name == 'issue_comment' && !github.event.issue.pull_request &&
+           contains(github.event.comment.body, '/impl') &&
+           !contains(github.event.comment.body, '/plan')) ||
+          github.event_name == 'pull_request_review_comment' ||
+          github.event_name == 'pull_request_review' ||
+          (github.event_name == 'issue_comment' && github.event.issue.pull_request)
+        run: pnpm exec playwright install chromium --with-deps
+
+      - name: Create MCP config
+        env:
+          CONTEXT7_API_KEY: ${{ secrets.CONTEXT7_API_KEY }}
+        run: |
+          python3 -c "
+          import json, os
+          config = {
+            'mcpServers': {
+              'context7': {
+                'command': 'npx',
+                'args': ['-y', '@upstash/context7-mcp'],
+                'env': {'CONTEXT7_API_KEY': os.environ.get('CONTEXT7_API_KEY', '')}
+              }
+            }
+          }
+          with open('/tmp/mcp-config.json', 'w') as f:
+              json.dump(config, f, indent=2)
+          "
+
+      - name: Add planning label
+        if: |
+          github.event_name == 'issue_comment' &&
+          !github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/plan')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh label create "claude:planning" --color "7057ff" --description "Claude is creating an implementation plan" --force --repo "$REPO"
+          gh issue edit "$ISSUE_NUMBER" --add-label "claude:planning" --repo "$REPO"
+
+      - name: Add implementing label
+        if: |
+          github.event_name == 'issue_comment' &&
+          !github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/impl') &&
+          !contains(github.event.comment.body, '/plan')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh label create "claude:implementing" --color "0e8a16" --description "Claude is implementing the plan" --force --repo "$REPO"
+          gh issue edit "$ISSUE_NUMBER" --add-label "claude:implementing" --remove-label "claude:planning" --repo "$REPO" 2>/dev/null || \
+          gh issue edit "$ISSUE_NUMBER" --add-label "claude:implementing" --repo "$REPO"
+
+      - name: Run Claude Code (/plan)
+        if: |
+          github.event_name == 'issue_comment' &&
+          !github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/plan')
+        id: claude-plan
+        uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 # v1.0.73
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          prompt: |
+            このissueの内容を読み、実装方針を作成してください。
+
+            以下を含めてください:
+            - 変更対象のファイルと概要
+            - 実装アプローチの説明
+            - 考慮すべきエッジケースやリスク
+
+            コードは書かないでください。方針のみをissueコメントとして投稿してください。
+            ユーザーが方針を確認し、`/impl` コマンドで実装に進みます。
+          claude_args: |
+            --max-turns 2000
+            --disallowedTools "Edit,Write,NotebookEdit"
+            --mcp-config /tmp/mcp-config.json
+          additional_permissions: |
+            actions: read
+            checks: read
+
+      - name: Remove planning label
+        if: |
+          always() &&
+          github.event_name == 'issue_comment' &&
+          !github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/plan')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --remove-label "claude:planning" --repo "$REPO" 2>/dev/null || true
+
+      - name: Run Claude Code (/impl)
+        if: |
+          github.event_name == 'issue_comment' &&
+          !github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/impl') &&
+          !contains(github.event.comment.body, '/plan')
+        id: claude-impl
+        uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 # v1.0.73
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          prompt: |
+            このissueとコメント欄の議論を確認し、合意された実装方針に基づいてコードを実装してください。
+
+            手順:
+            1. issueのコメント欄から最新の実装方針を確認
+            2. 方針に従ってコードを実装
+            3. /simplify を実行してコードを整理
+            4. CLAUDE.mdのPre-commit Validationに従い、コミット前に以下を必ず実行:
+               pnpm format:check && pnpm lint && pnpm check && pnpm test && pnpm test:e2e
+            5. .github/PULL_REQUEST_TEMPLATE.md のテンプレートに従ってPRを作成し、issueを関連付け
+               - 「関連 Issue」に対象issueの番号を記入
+               - 「テスト」のチェックリストは実行結果に基づいてチェック
+               - UI変更がなければスクリーンショットセクションは削除
+          claude_args: |
+            --max-turns 2000
+            --allowedTools "Read,Glob,Grep,Edit,Write,NotebookEdit,Bash(pnpm:*),Bash(npx:*),Bash(git:*),Bash(gh pr create:*),Bash(gh pr view:*),mcp__context7__*"
+            --mcp-config /tmp/mcp-config.json
+          additional_permissions: |
+            actions: read
+            checks: read
+
+      - name: Remove implementing label
+        if: |
+          always() &&
+          github.event_name == 'issue_comment' &&
+          !github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/impl') &&
+          !contains(github.event.comment.body, '/plan')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --remove-label "claude:implementing" --repo "$REPO" 2>/dev/null || true
+
+      - name: Run Claude Code (@claude on Issue)
+        if: |
+          github.event_name == 'issue_comment' &&
+          !github.event.issue.pull_request &&
+          contains(github.event.comment.body, '@claude') &&
+          !contains(github.event.comment.body, '/plan') &&
+          !contains(github.event.comment.body, '/impl')
+        id: claude-issue-chat
+        uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 # v1.0.73
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          claude_args: |
+            --max-turns 2000
+            --allowedTools "Read,Glob,Grep,Bash(pnpm:*),Bash(git log:*),Bash(git diff:*),Bash(git status:*),mcp__context7__*"
+            --mcp-config /tmp/mcp-config.json
+          additional_permissions: |
+            actions: read
+            checks: read
+
+      - name: Check fork PR write access
+        id: fork-check
+        if: |
+          github.event_name == 'pull_request_review_comment' ||
+          github.event_name == 'pull_request_review' ||
+          (github.event_name == 'issue_comment' && github.event.issue.pull_request)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        run: |
+          PR_JSON=$(gh pr view "$PR_NUMBER" --json headRepositoryOwner,headRepository,maintainerCanModify,isCrossRepository)
+          IS_FORK=$(echo "$PR_JSON" | jq -r '.isCrossRepository')
+          CAN_MODIFY=$(echo "$PR_JSON" | jq -r '.maintainerCanModify')
+          if [[ "$IS_FORK" == "true" && "$CAN_MODIFY" != "true" ]]; then
+            echo "writable=false" >> "$GITHUB_OUTPUT"
+            EXISTING=$(gh pr view "$PR_NUMBER" --json comments --jq '[.comments[].body | select(contains("fork without maintainer edit access"))] | length')
+            if [[ "$EXISTING" == "0" ]]; then
+              gh pr comment "$PR_NUMBER" --body "This PR is from a fork without maintainer edit access. Please enable **Allow edits from maintainers** so Claude can push fixes."
+            fi
+          else
+            echo "writable=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract fix context
+        id: fix-context
+        if: |
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/fix') &&
+          steps.fork-check.outputs.writable == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Get PR title and body
+          PR_INFO=$(gh pr view "$PR_NUMBER" --json title,body --jq '"## PR: " + .title + "\n\n" + (.body // "")')
+
+          # Get Greptile summary (latest one)
+          GREPTILE=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" \
+            --jq '[.[] | select(.user.login == "greptile-apps[bot]")] | last | .body // "No Greptile summary found."')
+
+          # Get last commit date on PR
+          LAST_COMMIT=$(gh pr view "$PR_NUMBER" --json commits --jq '.commits[-1].committedDate')
+
+          # Get review comments after last commit (inline code comments)
+          REVIEW_COMMENTS=$(gh api "repos/$REPO/pulls/$PR_NUMBER/comments" \
+            --jq "[.[] | select(.created_at > \"$LAST_COMMIT\")] | map({path, line: (.line // .original_line), body}) | .[]" 2>/dev/null || echo "No new review comments.")
+
+          # Get review submissions after last commit (Approve/Request Changes body)
+          REVIEWS=$(gh api "repos/$REPO/pulls/$PR_NUMBER/reviews" \
+            --jq "[.[] | select(.submitted_at > \"$LAST_COMMIT\" and .body != \"\")] | map({user: .user.login, state: .state, body}) | .[]" 2>/dev/null || echo "No new reviews.")
+
+          # Get issue comments after last commit (excluding bots and /fix itself)
+          ISSUE_COMMENTS=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" \
+            --jq "[.[] | select(.created_at > \"$LAST_COMMIT\" and (.user.type != \"Bot\") and (.body | contains(\"/fix\") | not))] | map({user: .user.login, body}) | .[]" 2>/dev/null || echo "No new issue comments.")
+
+          cat > /tmp/fix-context.md << CTXEOF
+          $PR_INFO
+
+          ## Greptile Summary
+          $GREPTILE
+
+          ## Review Comments (since $LAST_COMMIT)
+          $REVIEW_COMMENTS
+
+          ## Reviews (since $LAST_COMMIT)
+          $REVIEWS
+
+          ## Discussion Comments (since $LAST_COMMIT)
+          $ISSUE_COMMENTS
+          CTXEOF
+
+      - name: Run Claude Code (/fix on PR)
+        if: |
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/fix') &&
+          steps.fork-check.outputs.writable == 'true'
+        id: claude-fix
+        uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 # v1.0.73
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          prompt: |
+            /tmp/fix-context.md を読み、その内容に基づいてコードを修正してください。
+            PRの全コメントを読む必要はありません。このファイルに記載されたコメントのみに対応してください。
+
+            手順:
+            1. /tmp/fix-context.md を読んでレビュー指摘を把握
+            2. 指摘に対してコードを修正
+            3. CLAUDE.mdのPre-commit Validationに従い、コミット前に以下を必ず実行:
+               pnpm format:check && pnpm lint && pnpm check && pnpm test && pnpm test:e2e
+            4. 修正したレビューコメントそれぞれに返信（修正内容 + コミットハッシュ）
+          claude_args: |
+            --max-turns 200
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(pnpm:*),Bash(npx:*),Bash(git:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh api:*),mcp__context7__*"
+            --mcp-config /tmp/mcp-config.json
+          additional_permissions: |
+            actions: read
+            checks: read
+
+      - name: Run Claude Code (@claude on PR)
+        if: |
+          steps.fork-check.outputs.writable == 'true' && (
+            github.event_name == 'pull_request_review_comment' ||
+            github.event_name == 'pull_request_review' ||
+            (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
+             contains(github.event.comment.body, '@claude') &&
+             !contains(github.event.comment.body, '/fix'))
+          )
+        id: claude-pr
+        uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 # v1.0.73
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          claude_args: |
+            --max-turns 200
+            --allowedTools "Read,Glob,Grep,Bash(pnpm:*),Bash(git log:*),Bash(git diff:*),Bash(git status:*),Bash(gh pr view:*),mcp__context7__*"
+            --mcp-config /tmp/mcp-config.json
+          additional_permissions: |
+            actions: read
+            checks: read
+
+      - name: Add thumbs up reaction
+        if: |
+          success() && (
+            steps.claude-plan.outcome == 'success' ||
+            steps.claude-impl.outcome == 'success' ||
+            steps.claude-issue-chat.outcome == 'success' ||
+            steps.claude-fix.outcome == 'success' ||
+            steps.claude-pr.outcome == 'success'
+          )
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+          REVIEW_ID: ${{ github.event.review.id }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [[ "$EVENT_NAME" == "issue_comment" ]]; then
+            gh api "repos/$REPO/issues/comments/$COMMENT_ID/reactions" -f content='+1' --silent
+          elif [[ "$EVENT_NAME" == "pull_request_review_comment" ]]; then
+            gh api "repos/$REPO/pulls/comments/$COMMENT_ID/reactions" -f content='+1' --silent
+          elif [[ "$EVENT_NAME" == "pull_request_review" ]]; then
+            gh api "repos/$REPO/pulls/$PR_NUMBER/reviews/$REVIEW_ID/reactions" -f content='+1' --silent
+          fi

@@ -93,39 +93,7 @@
           href="/"
           class="flex items-center gap-2 font-display text-xl font-semibold tracking-wide text-accent transition-colors hover:text-accent-hover"
         >
-          <svg
-            class="h-6 w-6"
-            viewBox="0 0 64 64"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <defs>
-              <mask id="logo-cutout">
-                <rect width="64" height="64" fill="white" />
-                <ellipse
-                  cx="27"
-                  cy="31"
-                  rx="8.5"
-                  ry="6"
-                  transform="rotate(-20 27 31)"
-                  fill="black"
-                />
-                <rect x="34" y="11" width="3.5" height="21" rx="1.75" fill="black" />
-                <path
-                  d="M35.75 11.5C39 11 47.5 13.5 47.5 22"
-                  stroke="black"
-                  stroke-width="3.5"
-                  fill="none"
-                  stroke-linecap="round"
-                />
-              </mask>
-            </defs>
-            <path
-              d="M14 4h36c5.5 0 10 4.5 10 10v20c0 5.5-4.5 10-10 10H22L8 56l6-12c-5.5 0-10-4.5-10-10V14C4 8.5 8.5 4 14 4z"
-              fill="currentColor"
-              mask="url(#logo-cutout)"
-            />
-          </svg>
+          <img src="/icon-192.png" class="h-6 w-6" alt="" aria-hidden="true" />
           Resonote
         </a>
 
