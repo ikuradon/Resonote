@@ -18,34 +18,38 @@ export async function resolveEpisode(
   const feedUrl = fromBase64url(feedBase64);
 
   // Parallel: Nostr bookmark query + API metadata fetch
+  // queryNostrForEpisode has internal try-catch (never rejects)
+  // resolveByApi may throw on network/server errors → catch to null
   const [nostrResult, apiResult] = await Promise.all([
     queryNostrForEpisode(guid),
-    resolveByApi(feedUrl)
+    resolveByApi(feedUrl).catch(() => null)
   ]);
 
-  const feedTitle = apiResult.feed?.title;
-  const image = apiResult.feed?.imageUrl;
+  if (apiResult) {
+    const feedTitle = apiResult.feed?.title;
+    const image = apiResult.feed?.imageUrl;
 
-  if (apiResult.episodes) {
-    const match = apiResult.episodes.find((ep) => ep.guid === guid);
-    if (match) {
+    if (apiResult.episodes) {
+      const match = apiResult.episodes.find((ep) => ep.guid === guid);
+      if (match) {
+        return {
+          enclosureUrl: match.enclosureUrl,
+          title: match.title,
+          feedTitle,
+          image,
+          description: nostrResult?.description ?? match.description
+        };
+      }
+    }
+    if (apiResult.episode?.guid === guid) {
       return {
-        enclosureUrl: match.enclosureUrl,
-        title: match.title,
+        enclosureUrl: apiResult.episode.enclosureUrl,
+        title: apiResult.episode.title,
         feedTitle,
         image,
-        description: nostrResult?.description ?? match.description
+        description: nostrResult?.description ?? apiResult.episode.description
       };
     }
-  }
-  if (apiResult.episode?.guid === guid) {
-    return {
-      enclosureUrl: apiResult.episode.enclosureUrl,
-      title: apiResult.episode.title,
-      feedTitle,
-      image,
-      description: nostrResult?.description ?? apiResult.episode.description
-    };
   }
 
   // Nostr-only result (no full metadata from API)

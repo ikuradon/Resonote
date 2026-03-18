@@ -449,5 +449,55 @@ describe('episode-resolver', () => {
       // Nostr-only path does not include feedTitle/image
       expect(result!.feedTitle).toBeUndefined();
     });
+
+    it('should return Nostr result when API throws', async () => {
+      const pubkey = 'abc123pubkey';
+      mockGetSystemPubkey.mockResolvedValue(pubkey);
+      mockGetEventsDB.mockResolvedValue({
+        getByTagValue: vi.fn().mockResolvedValue([
+          {
+            pubkey,
+            tags: [
+              ['i', `podcast:item:guid:${GUID}`, 'https://example.com/ep1-nostr.mp3'],
+              ['i', 'podcast:guid:feed-guid', FEED_URL]
+            ],
+            content: 'Nostr description'
+          }
+        ])
+      });
+      mockParseDTagEvent.mockReturnValue(makeNostrResult());
+
+      // API throws error
+      mockResolveByApi.mockRejectedValue(new Error('503 Service Unavailable'));
+
+      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
+
+      expect(result).not.toBeNull();
+      expect(result!.enclosureUrl).toBe('https://example.com/ep1-nostr.mp3');
+      expect(result!.description).toBe('Nostr description');
+    });
+
+    it('should return API result when Nostr throws', async () => {
+      // Nostr: getSystemPubkey throws
+      mockGetSystemPubkey.mockRejectedValue(new Error('network error'));
+
+      // API: return episodes with matching guid
+      mockResolveByApi.mockResolvedValue(makeApiResponse());
+
+      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
+
+      expect(result).not.toBeNull();
+      expect(result!.enclosureUrl).toBe('https://example.com/ep1.mp3');
+      expect(result!.title).toBe('Episode 1');
+    });
+
+    it('should return null when both throw', async () => {
+      mockGetSystemPubkey.mockRejectedValue(new Error('network error'));
+      mockResolveByApi.mockRejectedValue(new Error('503 Service Unavailable'));
+
+      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
+
+      expect(result).toBeNull();
+    });
   });
 });
