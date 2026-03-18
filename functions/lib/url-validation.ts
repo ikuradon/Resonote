@@ -50,6 +50,32 @@ function isBlockedIPv6(hostname: string): boolean {
  * Throws if the URL targets a private/internal network address.
  * Call before every server-side fetch().
  */
+const MAX_REDIRECTS = 5;
+
+/**
+ * Fetch with SSRF-safe redirect handling.
+ * Validates each redirect hop against assertSafeUrl before following.
+ */
+export async function safeFetch(url: string, options?: RequestInit): Promise<Response> {
+  let currentUrl = url;
+
+  for (let i = 0; i <= MAX_REDIRECTS; i++) {
+    assertSafeUrl(currentUrl);
+    const res = await fetch(currentUrl, { ...options, redirect: 'manual' });
+
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get('location');
+      if (!location) throw new Error('Redirect without Location header');
+      currentUrl = new URL(location, currentUrl).toString();
+      continue;
+    }
+
+    return res;
+  }
+
+  throw new Error('Too many redirects');
+}
+
 export function assertSafeUrl(url: string): void {
   const parsed = new URL(url);
 

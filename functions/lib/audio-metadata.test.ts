@@ -367,7 +367,8 @@ describe('audio-metadata', () => {
 
       await fetchAudioMetadata('https://example.com/test.mp3');
       expect(fetchMock).toHaveBeenCalledWith('https://example.com/test.mp3', {
-        headers: { Range: 'bytes=0-262143' }
+        headers: { Range: 'bytes=0-262143' },
+        redirect: 'manual'
       });
     });
   });

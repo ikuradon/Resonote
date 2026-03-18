@@ -4,7 +4,7 @@
  * Uses Range requests to avoid downloading entire files.
  */
 
-import { assertSafeUrl } from './url-validation.js';
+import { safeFetch } from './url-validation.js';
 
 export interface AudioMetadata {
   title?: string;
@@ -18,8 +18,7 @@ const RANGE_SIZE = 256 * 1024; // 256KB — enough for most ID3v2 + cover art
 
 export async function fetchAudioMetadata(url: string): Promise<AudioMetadata> {
   try {
-    assertSafeUrl(url);
-    const res = await fetch(url, {
+    const res = await safeFetch(url, {
       headers: { Range: `bytes=0-${RANGE_SIZE - 1}` }
     });
     if (!res.ok && res.status !== 206) return {};

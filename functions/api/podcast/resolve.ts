@@ -1,7 +1,7 @@
 import { finalizeEvent } from 'nostr-tools/pure';
 import { hexToBytes } from 'nostr-tools/utils';
 import { fetchAudioMetadata } from '../../lib/audio-metadata.js';
-import { assertSafeUrl } from '../../lib/url-validation.js';
+import { assertSafeUrl, safeFetch } from '../../lib/url-validation.js';
 
 interface Env {
   SYSTEM_NOSTR_PRIVKEY: string;
@@ -185,7 +185,7 @@ export function findRssLink(html: string, baseUrl: string): string | null {
 }
 
 async function handleFeedUrl(feedUrl: string, privkey: Uint8Array): Promise<Response> {
-  const res = await fetch(feedUrl);
+  const res = await safeFetch(feedUrl);
   if (!res.ok) {
     return jsonResponse({ error: 'fetch_failed', status: res.status }, 502);
   }
@@ -243,8 +243,7 @@ async function handleAudioUrl(audioUrl: string, privkey: Uint8Array): Promise<Re
   let feed: ParsedFeed | null = null;
 
   try {
-    assertSafeUrl(rootUrl);
-    const rootRes = await fetch(rootUrl);
+    const rootRes = await safeFetch(rootUrl);
     if (rootRes.ok) {
       const html = await rootRes.text();
       rssUrl = findRssLink(html, rootUrl);
@@ -255,8 +254,7 @@ async function handleAudioUrl(audioUrl: string, privkey: Uint8Array): Promise<Re
 
   if (rssUrl) {
     try {
-      assertSafeUrl(rssUrl);
-      const feedRes = await fetch(rssUrl);
+      const feedRes = await safeFetch(rssUrl);
       if (feedRes.ok) {
         const xml = await feedRes.text();
         feed = await parseRss(xml, rssUrl);
@@ -340,7 +338,7 @@ async function handleAudioUrl(audioUrl: string, privkey: Uint8Array): Promise<Re
 }
 
 async function handleSiteUrl(siteUrl: string): Promise<Response> {
-  const res = await fetch(siteUrl);
+  const res = await safeFetch(siteUrl);
   if (!res.ok) {
     return jsonResponse({ error: 'fetch_failed', status: res.status }, 502);
   }
@@ -354,8 +352,7 @@ async function handleSiteUrl(siteUrl: string): Promise<Response> {
   const rootUrl = domainRoot(siteUrl);
   if (rootUrl !== siteUrl.replace(/\/$/, '')) {
     try {
-      assertSafeUrl(rootUrl);
-      const rootRes = await fetch(rootUrl);
+      const rootRes = await safeFetch(rootUrl);
       if (rootRes.ok) {
         const rootHtml = await rootRes.text();
         const rootRssUrl = findRssLink(rootHtml, rootUrl);

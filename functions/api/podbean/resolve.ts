@@ -1,4 +1,4 @@
-import { assertSafeUrl } from '../../lib/url-validation.js';
+import { assertSafeUrl, safeFetch } from '../../lib/url-validation.js';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface Env {}
@@ -19,7 +19,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   // Use Podbean oEmbed API to get the embed iframe URL
   const oembedUrl = `https://api.podbean.com/v1/oembed?format=json&url=${encodeURIComponent(targetUrl)}`;
   try {
-    const res = await fetch(oembedUrl);
+    const res = await safeFetch(oembedUrl);
     if (!res.ok) {
       return json({ error: 'oembed_failed', status: res.status }, 502);
     }
@@ -38,7 +38,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     // Fallback: fetch page HTML and extract embed ID
-    const pageRes = await fetch(targetUrl);
+    const pageRes = await safeFetch(targetUrl);
     if (pageRes.ok) {
       const html = await pageRes.text();
       const idMatch = html.match(/pb-[a-z0-9]+-[a-z0-9]+/);
