@@ -46,10 +46,6 @@ function isBlockedIPv6(hostname: string): boolean {
   return false;
 }
 
-/**
- * Throws if the URL targets a private/internal network address.
- * Call before every server-side fetch().
- */
 const MAX_REDIRECTS = 5;
 
 /**
@@ -77,6 +73,9 @@ export async function safeFetch(url: string, options?: RequestInit): Promise<Res
   throw new Error('Too many redirects');
 }
 
+/**
+ * Throws if the URL targets a private/internal network address.
+ */
 export function assertSafeUrl(url: string): void {
   const parsed = new URL(url);
 
