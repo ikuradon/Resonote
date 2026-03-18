@@ -48,12 +48,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EVENT_NAME: ${{ github.event_name }}
           COMMENT_ID: ${{ github.event.comment.id }}
+          REVIEW_ID: ${{ github.event.review.id }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
           REPO: ${{ github.repository }}
         run: |
           if [[ "$EVENT_NAME" == "issue_comment" ]]; then
             gh api "repos/$REPO/issues/comments/$COMMENT_ID/reactions" -f content=eyes --silent
           elif [[ "$EVENT_NAME" == "pull_request_review_comment" ]]; then
             gh api "repos/$REPO/pulls/comments/$COMMENT_ID/reactions" -f content=eyes --silent
+          elif [[ "$EVENT_NAME" == "pull_request_review" ]]; then
+            gh api "repos/$REPO/pulls/$PR_NUMBER/reviews/$REVIEW_ID/reactions" -f content=eyes --silent
           fi
 
       - name: Scan for suspicious content
@@ -183,23 +187,33 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
+        if: |
+          (github.event_name == 'issue_comment' && !github.event.issue.pull_request &&
+           contains(github.event.comment.body, '/ok-to-impl') &&
+           !contains(github.event.comment.body, '/ok-to-plan')) ||
+          github.event_name == 'pull_request_review_comment' ||
+          github.event_name == 'pull_request_review' ||
+          (github.event_name == 'issue_comment' && github.event.issue.pull_request)
         run: pnpm exec playwright install chromium --with-deps
 
       - name: Create MCP config
+        env:
+          CONTEXT7_API_KEY: ${{ secrets.CONTEXT7_API_KEY }}
         run: |
-          cat > /tmp/mcp-config.json << 'MCPEOF'
-          {
-            "mcpServers": {
-              "context7": {
-                "command": "npx",
-                "args": ["-y", "@upstash/context7-mcp"],
-                "env": {
-                  "CONTEXT7_API_KEY": "${{ secrets.CONTEXT7_API_KEY }}"
-                }
+          python3 -c "
+          import json, os
+          config = {
+            'mcpServers': {
+              'context7': {
+                'command': 'npx',
+                'args': ['-y', '@upstash/context7-mcp'],
+                'env': {'CONTEXT7_API_KEY': os.environ.get('CONTEXT7_API_KEY', '')}
               }
             }
           }
-          MCPEOF
+          with open('/tmp/mcp-config.json', 'w') as f:
+              json.dump(config, f, indent=2)
+          "
 
       - name: Add planning label
         if: |
@@ -385,10 +399,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EVENT_NAME: ${{ github.event_name }}
           COMMENT_ID: ${{ github.event.comment.id }}
+          REVIEW_ID: ${{ github.event.review.id }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
           REPO: ${{ github.repository }}
         run: |
           if [[ "$EVENT_NAME" == "issue_comment" ]]; then
             gh api "repos/$REPO/issues/comments/$COMMENT_ID/reactions" -f content='+1' --silent
           elif [[ "$EVENT_NAME" == "pull_request_review_comment" ]]; then
             gh api "repos/$REPO/pulls/comments/$COMMENT_ID/reactions" -f content='+1' --silent
+          elif [[ "$EVENT_NAME" == "pull_request_review" ]]; then
+            gh api "repos/$REPO/pulls/$PR_NUMBER/reviews/$REVIEW_ID/reactions" -f content='+1' --silent
           fi
