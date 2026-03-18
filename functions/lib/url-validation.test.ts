@@ -160,4 +160,82 @@ describe('safeFetch', () => {
       expect.objectContaining({ headers: { Range: 'bytes=0-1024' }, redirect: 'manual' })
     );
   });
+
+  it('should strip sensitive headers on cross-origin redirect', async () => {
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(null, {
+          status: 302,
+          headers: { location: 'https://other.com/resource' }
+        })
+      )
+      .mockResolvedValueOnce(new Response('ok', { status: 200 }));
+    vi.stubGlobal('fetch', mockFetch);
+
+    await safeFetch('https://example.com/start', {
+      headers: { Authorization: 'Bearer secret', Cookie: 'session=abc', Range: 'bytes=0-1024' }
+    });
+
+    // First call should have all headers including sensitive ones
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      1,
+      'https://example.com/start',
+      expect.objectContaining({
+        headers: { Authorization: 'Bearer secret', Cookie: 'session=abc', Range: 'bytes=0-1024' },
+        redirect: 'manual'
+      })
+    );
+
+    // Second call (cross-origin) should have sensitive headers stripped
+    const secondCallOptions = mockFetch.mock.calls[1][1];
+    const headers = new Headers(secondCallOptions.headers);
+    expect(headers.has('authorization')).toBe(false);
+    expect(headers.has('cookie')).toBe(false);
+    expect(headers.get('range')).toBe('bytes=0-1024');
+  });
+
+  it('should preserve sensitive headers on same-origin redirect', async () => {
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(null, {
+          status: 301,
+          headers: { location: 'https://example.com/new-path' }
+        })
+      )
+      .mockResolvedValueOnce(new Response('ok', { status: 200 }));
+    vi.stubGlobal('fetch', mockFetch);
+
+    await safeFetch('https://example.com/old-path', {
+      headers: { Authorization: 'Bearer secret', Cookie: 'session=abc' }
+    });
+
+    const secondCallOptions = mockFetch.mock.calls[1][1];
+    expect(secondCallOptions.headers).toEqual({
+      Authorization: 'Bearer secret',
+      Cookie: 'session=abc'
+    });
+  });
+
+  it('should strip Proxy-Authorization on cross-origin redirect', async () => {
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(null, {
+          status: 302,
+          headers: { location: 'https://cdn.other.com/file' }
+        })
+      )
+      .mockResolvedValueOnce(new Response('ok', { status: 200 }));
+    vi.stubGlobal('fetch', mockFetch);
+
+    await safeFetch('https://example.com/proxy', {
+      headers: { 'Proxy-Authorization': 'Basic creds' }
+    });
+
+    const secondCallOptions = mockFetch.mock.calls[1][1];
+    const headers = new Headers(secondCallOptions.headers);
+    expect(headers.has('proxy-authorization')).toBe(false);
+  });
 });

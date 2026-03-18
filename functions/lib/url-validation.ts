@@ -48,22 +48,44 @@ function isBlockedIPv6(hostname: string): boolean {
 
 const MAX_REDIRECTS = 5;
 
+const SENSITIVE_HEADERS = ['authorization', 'cookie', 'cookie2', 'proxy-authorization'] as const;
+
+function stripSensitiveHeaders(options: RequestInit): RequestInit {
+  if (!options.headers) return options;
+  const headers = new Headers(options.headers as HeadersInit);
+  for (const name of SENSITIVE_HEADERS) {
+    headers.delete(name);
+  }
+  return { ...options, headers };
+}
+
 /**
  * Fetch with SSRF-safe redirect handling.
  * Validates each redirect hop against assertSafeUrl before following.
+ * Strips sensitive headers (Authorization, Cookie, Proxy-Authorization)
+ * on cross-origin redirects, matching browser Fetch spec behavior.
  */
 export async function safeFetch(url: string, options?: RequestInit): Promise<Response> {
   let currentUrl = url;
+  let currentOptions = options;
 
   for (let i = 0; i < MAX_REDIRECTS; i++) {
     assertSafeUrl(currentUrl);
-    const res = await fetch(currentUrl, { ...options, redirect: 'manual' });
+    const res = await fetch(currentUrl, { ...currentOptions, redirect: 'manual' });
 
     if (res.status >= 300 && res.status < 400) {
       const location = res.headers.get('location');
       if (!location) throw new Error('Redirect without Location header');
       await res.body?.cancel();
-      currentUrl = new URL(location, currentUrl).toString();
+      const currentOrigin = new URL(currentUrl).origin;
+      const nextParsed = new URL(location, currentUrl);
+
+      // クロスオリジン後は同一オリジンに戻っても機密ヘッダは復元しない（Fetch spec 4.4 準拠）
+      if (currentOptions && currentOrigin !== nextParsed.origin) {
+        currentOptions = stripSensitiveHeaders(currentOptions);
+      }
+
+      currentUrl = nextParsed.href;
       continue;
     }
 
