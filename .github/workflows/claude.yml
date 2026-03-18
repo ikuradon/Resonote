@@ -457,7 +457,8 @@ jobs:
             2. 指摘に対してコードを修正
             3. CLAUDE.mdのPre-commit Validationに従い、コミット前に以下を必ず実行:
                pnpm format:check && pnpm lint && pnpm check && pnpm test && pnpm test:e2e
-            4. 修正したレビューコメントそれぞれに返信（修正内容 + コミットハッシュ）
+            4. 変更をコミットしてPRブランチにpush
+            5. 修正したレビューコメントそれぞれに返信（修正内容 + コミットハッシュ）
           claude_args: |
             --max-turns 200
             --allowedTools "Read,Glob,Grep,Edit,Write,Bash(pnpm:*),Bash(npx:*),Bash(git:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh api:*),mcp__context7__*"
