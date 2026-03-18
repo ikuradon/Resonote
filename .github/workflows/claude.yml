@@ -459,6 +459,7 @@ jobs:
           github_token: ${{ steps.app-token.outputs.token }}
           bot_id: '269176471'
           bot_name: 'resonote-ci-bot[bot]'
+          show_full_output: true
           prompt: |
             /tmp/fix-context.md を読み、その内容に基づいてコードを修正してください。
             PRの全コメントを読む必要はありません。このファイルに記載されたコメントのみに対応してください。
