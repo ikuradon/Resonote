@@ -300,7 +300,7 @@ jobs:
           claude_args: |
             --model claude-opus-4-6
             --max-turns 200
-            --allowedTools "Read,Glob,Grep,Bash(git log:*),Bash(git diff:*),Bash(git status:*),Bash(gh issue view:*),Bash(gh issue comment:*),mcp__context7__*"
+            --allowedTools "Read,Glob,Grep,WebFetch,WebSearch,Bash(git log:*),Bash(git diff:*),Bash(git status:*),Bash(gh issue view:*),Bash(gh issue comment:*),mcp__context7__*"
             --mcp-config /tmp/mcp-config.json
           additional_permissions: |
             actions: read
@@ -352,7 +352,7 @@ jobs:
           claude_args: |
             --model claude-opus-4-6
             --max-turns 200
-            --allowedTools "Read,Glob,Grep,Edit,Write,NotebookEdit,Bash(pnpm:*),Bash(npx:*),Bash(git:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh issue view:*),Bash(gh issue comment:*),mcp__context7__*"
+            --allowedTools "Read,Glob,Grep,Edit,Write,NotebookEdit,WebFetch,WebSearch,Bash(pnpm:*),Bash(npx:*),Bash(node:*),Bash(jq:*),Bash(git:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr comment:*),Bash(gh pr edit:*),Bash(gh api:*),Bash(gh issue view:*),Bash(gh issue comment:*),mcp__context7__*"
             --mcp-config /tmp/mcp-config.json
           additional_permissions: |
             actions: read
@@ -389,7 +389,7 @@ jobs:
           claude_args: |
             --model claude-opus-4-6
             --max-turns 200
-            --allowedTools "Read,Glob,Grep,Bash(pnpm:*),Bash(git log:*),Bash(git diff:*),Bash(git status:*),mcp__context7__*"
+            --allowedTools "Read,Glob,Grep,WebFetch,WebSearch,Bash(pnpm:*),Bash(git log:*),Bash(git diff:*),Bash(git status:*),mcp__context7__*"
             --mcp-config /tmp/mcp-config.json
           additional_permissions: |
             actions: read
@@ -505,7 +505,7 @@ jobs:
             5. 修正したレビューコメントそれぞれに返信（修正内容 + コミットハッシュ）
           claude_args: |
             --max-turns 200
-            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(pnpm:*),Bash(npx:*),Bash(git:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh api:*),mcp__context7__*"
+            --allowedTools "Read,Glob,Grep,Edit,Write,WebFetch,WebSearch,Bash(pnpm:*),Bash(npx:*),Bash(node:*),Bash(jq:*),Bash(git:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr edit:*),Bash(gh api:*),Bash(gh issue view:*),Bash(gh issue comment:*),mcp__context7__*"
             --mcp-config /tmp/mcp-config.json
           additional_permissions: |
             actions: read
@@ -530,7 +530,7 @@ jobs:
           claude_args: |
             --model claude-opus-4-6
             --max-turns 200
-            --allowedTools "Read,Glob,Grep,Bash(pnpm:*),Bash(git log:*),Bash(git diff:*),Bash(git status:*),Bash(gh pr view:*),mcp__context7__*"
+            --allowedTools "Read,Glob,Grep,WebFetch,WebSearch,Bash(pnpm:*),Bash(git log:*),Bash(git diff:*),Bash(git status:*),Bash(gh pr view:*),mcp__context7__*"
             --mcp-config /tmp/mcp-config.json
           additional_permissions: |
             actions: read
