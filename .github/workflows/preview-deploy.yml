@@ -67,6 +67,7 @@ jobs:
     permissions:
       pull-requests: write
       deployments: write
+      actions: read
     steps:
       - name: Download build artifact
         uses: actions/download-artifact@v7
@@ -89,7 +90,7 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           EXISTING=$(gh pr view "$PR_NUMBER" --json comments --repo "$REPO" \
-            --jq '[.comments[] | select(.author.login == "github-actions[bot]" and (.body | contains("<!-- preview-deploy -->"))) | .body | capture("Branch: `(?<id>[a-z-]+)`") | .id] | last // ""')
+            --jq '[.comments[] | select(.author.login == "github-actions[bot]" and (.body | contains("<!-- preview-deploy -->"))) | .body | capture("\\*\\*Branch\\*\\* \\| `(?<id>[a-z-]+)`") | .id] | last // ""')
           if [[ -n "$EXISTING" ]]; then
             echo "id=$EXISTING" >> "$GITHUB_OUTPUT"
           fi
@@ -108,7 +109,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy build --project-name=resonote --branch=${{ steps.branch.outputs.name }}
+          command: pages deploy build --project-name=resonote-preview --branch=${{ steps.branch.outputs.name }}
           wranglerVersion: '4'
 
       - name: Comment preview URL
@@ -119,7 +120,7 @@ jobs:
           BRANCH: ${{ steps.branch.outputs.name }}
           COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          PREVIEW_URL="https://${BRANCH}.resonote.pages.dev"
+          PREVIEW_URL="https://${BRANCH}.resonote-preview.pages.dev"
           SHORT_SHA="${COMMIT_SHA::7}"
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC')
           BODY="<!-- preview-deploy -->
