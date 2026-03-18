@@ -1,7 +1,8 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import type { ContentId } from '$lib/content/types.js';
-  import { fromBase64url, toBase64url } from '$lib/content/url-utils.js';
+  import { buildEpisodeContentId } from '$lib/content/podcast.js';
+  import { fromBase64url } from '$lib/content/url-utils.js';
   import { resolveByApi } from '$lib/content/podcast-resolver.js';
   import { publishSignedEvents } from '$lib/nostr/publish-signed.js';
 
@@ -46,8 +47,8 @@
 
   function selectEpisode(ep: { guid: string }) {
     const feedUrl = fromBase64url(contentId.id);
-    const id = `${toBase64url(feedUrl)}:${toBase64url(ep.guid)}`;
-    goto(`/podcast/episode/${id}`);
+    const episodeContentId = buildEpisodeContentId(feedUrl, ep.guid);
+    goto(`/podcast/episode/${episodeContentId.id}`);
   }
 
   $effect(() => {
