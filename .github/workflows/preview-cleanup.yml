@@ -24,7 +24,7 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           BRANCH=$(gh pr view "$PR_NUMBER" --json comments --repo "$REPO" \
-            --jq '[.comments[] | select(.body | contains("<!-- preview-deploy -->")) | .body | capture("Branch: `(?<id>[a-z-]+)`") | .id] | last // ""')
+            --jq '[.comments[] | select(.author.login == "github-actions[bot]" and (.body | contains("<!-- preview-deploy -->"))) | .body | capture("Branch: `(?<id>[a-z-]+)`") | .id] | last // ""')
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Delete preview deployment
@@ -34,12 +34,12 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           BRANCH: ${{ steps.preview.outputs.branch }}
         run: |
-          DEPLOY_ID=$(npx wrangler@4 pages deployment list --project-name=resonote \
+          DEPLOY_IDS=$(npx wrangler@4 pages deployment list --project-name=resonote \
             --json | jq -r --arg branch "$BRANCH" \
-            '[.[] | select(.deployment_trigger.metadata.branch == $branch)] | last | .id // ""')
-          if [[ -n "$DEPLOY_ID" ]]; then
+            '[.[] | select(.deployment_trigger.metadata.branch == $branch) | .id] | .[]')
+          for DEPLOY_ID in $DEPLOY_IDS; do
             npx wrangler@4 pages deployment delete "$DEPLOY_ID" --project-name=resonote --yes
-          fi
+          done
 
       - name: Update preview comment
         if: steps.preview.outputs.branch != ''
@@ -49,7 +49,7 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           COMMENT_ID=$(gh pr view "$PR_NUMBER" --json comments --repo "$REPO" \
-            --jq '[.comments[] | select(.body | contains("<!-- preview-deploy -->")) | .id] | last // ""')
+            --jq '[.comments[] | select(.author.login == "github-actions[bot]" and (.body | contains("<!-- preview-deploy -->"))) | .id] | last // ""')
           if [[ -n "$COMMENT_ID" ]]; then
             gh api "repos/$REPO/issues/comments/$COMMENT_ID" -X PATCH \
               -f body="<!-- preview-deploy -->
