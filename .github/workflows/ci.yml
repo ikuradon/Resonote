@@ -235,7 +235,7 @@ jobs:
       matrix:
         browser: [chrome, firefox]
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: extension-${{ matrix.browser }}
           path: dist-extension/
