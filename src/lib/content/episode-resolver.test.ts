@@ -382,8 +382,6 @@ describe('episode-resolver', () => {
 
     it('should handle empty guid gracefully', async () => {
       const emptyGuidB64 = toBase64url('');
-      mockGetSystemPubkey.mockResolvedValue('');
-      mockResolveByApi.mockResolvedValue({ type: 'episode' });
 
       const result = await resolveEpisode(FEED_BASE64, emptyGuidB64);
 
