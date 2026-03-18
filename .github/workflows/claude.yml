@@ -278,6 +278,7 @@ jobs:
             コードは書かないでください。方針のみをissueコメントとして投稿してください。
             ユーザーが方針を確認し、`/impl` コマンドで実装に進みます。
           claude_args: |
+            --model claude-opus-4-6-20250904
             --max-turns 200
             --allowedTools "Read,Glob,Grep,Bash(git log:*),Bash(git diff:*),Bash(git status:*),Bash(gh issue comment:*),mcp__context7__*"
             --mcp-config /tmp/mcp-config.json
@@ -324,7 +325,8 @@ jobs:
                - UI変更がなければスクリーンショットセクションは削除
             6. このissueに「PRを作成しました: (PRのURL)」と変更内容の簡易的な要約をコメントとして投稿
           claude_args: |
-            --max-turns 2000
+            --model claude-opus-4-6-20250904
+            --max-turns 200
             --allowedTools "Read,Glob,Grep,Edit,Write,NotebookEdit,Bash(pnpm:*),Bash(npx:*),Bash(git:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh issue comment:*),mcp__context7__*"
             --mcp-config /tmp/mcp-config.json
           additional_permissions: |
@@ -358,7 +360,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ steps.app-token.outputs.token }}
           claude_args: |
-            --max-turns 2000
+            --max-turns 200
             --allowedTools "Read,Glob,Grep,Bash(pnpm:*),Bash(git log:*),Bash(git diff:*),Bash(git status:*),mcp__context7__*"
             --mcp-config /tmp/mcp-config.json
           additional_permissions: |
