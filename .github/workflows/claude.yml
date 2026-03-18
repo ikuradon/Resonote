@@ -385,15 +385,9 @@ jobs:
         uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 # v1.0.73
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: |
-            指摘されたコメントやレビューの内容に従ってコードを修正してください。
-
-            修正後は、対象のレビューコメントそれぞれに対して返信コメントを残してください。
-            返信には以下を含めてください:
-            - 何をどう修正したか
-            - 該当するコミットハッシュ
           claude_args: |
             --max-turns 20
+            --system-prompt "修正後は、対象のレビューコメントそれぞれに対して返信コメントを残してください。返信には何をどう修正したかと該当するコミットハッシュを含めてください。"
             --allowedTools "Read,Glob,Grep,Edit,Write,Bash(pnpm:*),Bash(npx:*),Bash(git:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),mcp__context7__*"
             --mcp-config /tmp/mcp-config.json
           additional_permissions: |
