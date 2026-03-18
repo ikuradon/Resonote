@@ -5,46 +5,282 @@ on:
     types: [created]
   pull_request_review_comment:
     types: [created]
-  issues:
-    types: [opened, assigned]
   pull_request_review:
     types: [submitted]
 
 jobs:
   claude:
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'issue_comment' && !github.event.issue.pull_request && (
+        contains(github.event.comment.body, '/ok-to-plan') ||
+        contains(github.event.comment.body, '/ok-to-impl') ||
+        contains(github.event.comment.body, '@claude')
+      )) ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: false
     permissions:
-      contents: read
-      pull-requests: read
-      issues: read
+      contents: write
+      pull-requests: write
+      issues: write
       id-token: write
-      actions: read # Required for Claude to read CI results on PRs
+      actions: read
     steps:
+      - name: Check actor permissions
+        id: check-permission
+        uses: actions-cool/check-user-permission@7b90a27f92f3961b368376107661682c441f6103 # v2.3.0
+        with:
+          require: 'write'
+
+      - name: Deny external users
+        if: steps.check-permission.outputs.require-result != 'true'
+        run: |
+          echo "::error::Permission denied: only collaborators can use @claude"
+          exit 1
+
+      - name: Add eyes reaction
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [[ "$EVENT_NAME" == "issue_comment" ]]; then
+            gh api "repos/$REPO/issues/comments/$COMMENT_ID/reactions" -f content=eyes --silent
+          elif [[ "$EVENT_NAME" == "pull_request_review_comment" ]]; then
+            gh api "repos/$REPO/pulls/comments/$COMMENT_ID/reactions" -f content=eyes --silent
+          fi
+
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 1
 
-      - name: Run Claude Code
-        id: claude
-        uses: anthropics/claude-code-action@v1
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install chromium --with-deps
+
+      - name: Add planning label
+        if: |
+          github.event_name == 'issue_comment' &&
+          !github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/ok-to-plan')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh label create "claude:planning" --color "7057ff" --description "Claude is creating an implementation plan" --force --repo "$REPO"
+          gh issue edit "$ISSUE_NUMBER" --add-label "claude:planning" --repo "$REPO"
+
+      - name: Add implementing label
+        if: |
+          github.event_name == 'issue_comment' &&
+          !github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/ok-to-impl') &&
+          !contains(github.event.comment.body, '/ok-to-plan')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh label create "claude:implementing" --color "0e8a16" --description "Claude is implementing the plan" --force --repo "$REPO"
+          gh issue edit "$ISSUE_NUMBER" --add-label "claude:implementing" --remove-label "claude:planning" --repo "$REPO" 2>/dev/null || \
+          gh issue edit "$ISSUE_NUMBER" --add-label "claude:implementing" --repo "$REPO"
+
+      - name: Run Claude Code (/ok-to-plan)
+        if: |
+          github.event_name == 'issue_comment' &&
+          !github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/ok-to-plan')
+        id: claude-plan
+        uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 # v1.0.73
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            このissueの内容を読み、実装方針を作成してください。
 
-          # This is an optional setting that allows Claude to read CI results on PRs
+            以下を含めてください:
+            - 変更対象のファイルと概要
+            - 実装アプローチの説明
+            - 考慮すべきエッジケースやリスク
+
+            コードは書かないでください。方針のみをissueコメントとして投稿してください。
+            ユーザーが方針を確認し、`/ok-to-impl` コマンドで実装に進みます。
+          claude_args: '--disallowed-tools "Edit,Write,NotebookEdit"'
           additional_permissions: |
             actions: read
+          mcp_config: |
+            {
+              "mcpServers": {
+                "context7": {
+                  "command": "npx",
+                  "args": ["-y", "@upstash/context7-mcp"]
+                }
+              }
+            }
 
-          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          # prompt: 'Update the pull request description to include a summary of changes.'
+      - name: Remove planning label
+        if: |
+          always() &&
+          github.event_name == 'issue_comment' &&
+          !github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/ok-to-plan')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --remove-label "claude:planning" --repo "$REPO" 2>/dev/null || true
 
-          # Optional: Add claude_args to customize behavior and configuration
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr:*)'
+      - name: Run Claude Code (/ok-to-impl)
+        if: |
+          github.event_name == 'issue_comment' &&
+          !github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/ok-to-impl') &&
+          !contains(github.event.comment.body, '/ok-to-plan')
+        id: claude-impl
+        uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 # v1.0.73
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            このissueとコメント欄の議論を確認し、合意された実装方針に基づいてコードを実装してください。
 
+            手順:
+            1. issueのコメント欄から最新の実装方針を確認
+            2. 方針に従ってコードを実装
+            3. /simplify を実行してコードを整理
+            4. CLAUDE.mdのPre-commit Validationに従い、コミット前に以下を必ず実行:
+               pnpm format:check && pnpm lint && pnpm check && pnpm test && pnpm test:e2e
+            5. .github/PULL_REQUEST_TEMPLATE.md のテンプレートに従ってPRを作成し、issueを関連付け
+               - 「関連 Issue」に対象issueの番号を記入
+               - 「テスト」のチェックリストは実行結果に基づいてチェック
+               - UI変更がなければスクリーンショットセクションは削除
+          additional_permissions: |
+            actions: read
+          mcp_config: |
+            {
+              "mcpServers": {
+                "context7": {
+                  "command": "npx",
+                  "args": ["-y", "@upstash/context7-mcp"]
+                }
+              }
+            }
+
+      - name: Remove implementing label
+        if: |
+          always() &&
+          github.event_name == 'issue_comment' &&
+          !github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/ok-to-impl') &&
+          !contains(github.event.comment.body, '/ok-to-plan')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --remove-label "claude:implementing" --repo "$REPO" 2>/dev/null || true
+
+      - name: Run Claude Code (@claude on Issue)
+        if: |
+          github.event_name == 'issue_comment' &&
+          !github.event.issue.pull_request &&
+          contains(github.event.comment.body, '@claude') &&
+          !contains(github.event.comment.body, '/ok-to-plan') &&
+          !contains(github.event.comment.body, '/ok-to-impl')
+        id: claude-issue-chat
+        uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 # v1.0.73
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          additional_permissions: |
+            actions: read
+          mcp_config: |
+            {
+              "mcpServers": {
+                "context7": {
+                  "command": "npx",
+                  "args": ["-y", "@upstash/context7-mcp"]
+                }
+              }
+            }
+
+      - name: Check fork PR write access
+        id: fork-check
+        if: |
+          github.event_name == 'pull_request_review_comment' ||
+          github.event_name == 'pull_request_review' ||
+          (github.event_name == 'issue_comment' && github.event.issue.pull_request)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        run: |
+          PR_JSON=$(gh pr view "$PR_NUMBER" --json headRepositoryOwner,headRepository,maintainerCanModify,isCrossRepository)
+          IS_FORK=$(echo "$PR_JSON" | jq -r '.isCrossRepository')
+          CAN_MODIFY=$(echo "$PR_JSON" | jq -r '.maintainerCanModify')
+          if [[ "$IS_FORK" == "true" && "$CAN_MODIFY" != "true" ]]; then
+            echo "writable=false" >> "$GITHUB_OUTPUT"
+            gh pr comment "$PR_NUMBER" --body "This PR is from a fork without maintainer edit access. Please enable **Allow edits from maintainers** so Claude can push fixes."
+          else
+            echo "writable=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run Claude Code (PR assist)
+        if: |
+          steps.fork-check.outputs.writable == 'true' && (
+            github.event_name == 'pull_request_review_comment' ||
+            github.event_name == 'pull_request_review' ||
+            (github.event_name == 'issue_comment' && github.event.issue.pull_request)
+          )
+        id: claude-pr
+        uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 # v1.0.73
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            指摘されたコメントやレビューの内容に従ってコードを修正してください。
+
+            修正後は、対象のレビューコメントそれぞれに対して返信コメントを残してください。
+            返信には以下を含めてください:
+            - 何をどう修正したか
+            - 該当するコミットハッシュ
+          additional_permissions: |
+            actions: read
+          mcp_config: |
+            {
+              "mcpServers": {
+                "context7": {
+                  "command": "npx",
+                  "args": ["-y", "@upstash/context7-mcp"]
+                }
+              }
+            }
+
+      - name: Add thumbs up reaction
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [[ "$EVENT_NAME" == "issue_comment" ]]; then
+            gh api "repos/$REPO/issues/comments/$COMMENT_ID/reactions" -f content='+1' --silent
+          elif [[ "$EVENT_NAME" == "pull_request_review_comment" ]]; then
+            gh api "repos/$REPO/pulls/comments/$COMMENT_ID/reactions" -f content='+1' --silent
+          fi

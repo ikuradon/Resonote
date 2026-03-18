@@ -1,0 +1,50 @@
+name: Bug Report
+description: 不具合の報告
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: 概要
+      description: 何が起きたかを簡潔に説明してください
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順
+      description: 不具合を再現するための手順
+      placeholder: |
+        1. '...' に移動
+        2. '...' をクリック
+        3. エラーが発生
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待する動作
+      description: 本来どうなるべきか
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際の動作
+      description: 実際に何が起きたか
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 環境
+      description: ブラウザ、OS など
+      placeholder: |
+        - ブラウザ: Chrome 130
+        - OS: macOS 15
+        - 拡張機能: あり/なし
+  - type: textarea
+    id: additional
+    attributes:
+      label: 補足情報
+      description: スクリーンショット、コンソールログなど

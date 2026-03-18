@@ -1,0 +1,25 @@
+name: Task
+description: リファクタリング、テスト追加、ドキュメントなどの作業タスク
+labels: [code-quality]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: 概要
+      description: 何をするかを説明してください
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: 背景・動機
+      description: なぜこの作業が必要か
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 完了条件
+      description: 何をもって完了とするか
+  - type: textarea
+    id: additional
+    attributes:
+      label: 補足情報
