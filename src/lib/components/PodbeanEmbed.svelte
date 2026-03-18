@@ -222,7 +222,7 @@
       {/if}
     </div>
   {:else if !ready}
-    <EmbedLoading color="bg-[#3db56a]">
+    <EmbedLoading color="bg-[#3db56a]" minHeight="min-h-[150px]">
       {#snippet icon()}
         <svg
           aria-hidden="true"
