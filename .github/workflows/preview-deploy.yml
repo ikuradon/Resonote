@@ -30,7 +30,7 @@ jobs:
   build:
     name: Build Preview
     if: |
-      github.event.pull_request.head.repo.full_name == github.repository ||
+      (github.event.action != 'labeled' && github.event.pull_request.head.repo.full_name == github.repository) ||
       (github.event.action == 'labeled' && github.event.label.name == 'ok-to-test')
     runs-on: ubuntu-latest
     permissions:
