@@ -1,0 +1,50 @@
+name: Preview Cleanup
+
+on:
+  pull_request_target:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  cleanup:
+    name: Delete Preview Deployment
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Find preview branch name
+        id: preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          BRANCH=$(gh pr view "$PR_NUMBER" --json comments --repo "$REPO" \
+            --jq '[.comments[] | select(.body | contains("<!-- preview-deploy -->")) | .body | capture("Branch: `(?<id>[a-z-]+)`") | .id] | last // ""')
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Delete preview deployment
+        if: steps.preview.outputs.branch != ''
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deployment delete --project-name=resonote --branch=${{ steps.preview.outputs.branch }} --yes
+          packageManager: pnpm
+
+      - name: Update preview comment
+        if: steps.preview.outputs.branch != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          COMMENT_ID=$(gh pr view "$PR_NUMBER" --json comments --repo "$REPO" \
+            --jq '[.comments[] | select(.body | contains("<!-- preview-deploy -->")) | .id] | last // ""')
+          if [[ -n "$COMMENT_ID" ]]; then
+            gh api "repos/$REPO/issues/comments/$COMMENT_ID" -X PATCH \
+              -f body="<!-- preview-deploy -->
+          ## Preview Deploy
+
+          Preview deployment has been cleaned up." --silent
+          fi
