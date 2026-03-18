@@ -9,8 +9,14 @@ let pubkeyPromise: Promise<string> | undefined;
 export function getSystemPubkey(): Promise<string> {
   if (!pubkeyPromise) {
     pubkeyPromise = fetch('/api/system/pubkey')
-      .then((res) => (res.ok ? res.json() : { pubkey: '' }))
-      .then((data) => (data.pubkey as string) ?? '')
+      .then((res) => {
+        if (!res.ok) {
+          pubkeyPromise = undefined;
+          return '';
+        }
+        return res.json();
+      })
+      .then((data) => (typeof data === 'string' ? data : ((data.pubkey as string) ?? '')))
       .catch(() => {
         pubkeyPromise = undefined;
         return '';
