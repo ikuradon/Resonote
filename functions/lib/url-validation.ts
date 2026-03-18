@@ -59,13 +59,14 @@ const MAX_REDIRECTS = 5;
 export async function safeFetch(url: string, options?: RequestInit): Promise<Response> {
   let currentUrl = url;
 
-  for (let i = 0; i <= MAX_REDIRECTS; i++) {
+  for (let i = 0; i < MAX_REDIRECTS; i++) {
     assertSafeUrl(currentUrl);
     const res = await fetch(currentUrl, { ...options, redirect: 'manual' });
 
     if (res.status >= 300 && res.status < 400) {
       const location = res.headers.get('location');
       if (!location) throw new Error('Redirect without Location header');
+      await res.body?.cancel();
       currentUrl = new URL(location, currentUrl).toString();
       continue;
     }
