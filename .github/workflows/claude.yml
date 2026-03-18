@@ -12,8 +12,8 @@ jobs:
   claude:
     if: |
       (github.event_name == 'issue_comment' && !github.event.issue.pull_request && (
-        contains(github.event.comment.body, '/ok-to-plan') ||
-        contains(github.event.comment.body, '/ok-to-impl') ||
+        contains(github.event.comment.body, '/plan') ||
+        contains(github.event.comment.body, '/impl') ||
         contains(github.event.comment.body, '@claude')
       )) ||
       (github.event_name == 'issue_comment' && github.event.issue.pull_request && (
@@ -203,8 +203,8 @@ jobs:
       - name: Install Playwright browsers
         if: |
           (github.event_name == 'issue_comment' && !github.event.issue.pull_request &&
-           contains(github.event.comment.body, '/ok-to-impl') &&
-           !contains(github.event.comment.body, '/ok-to-plan')) ||
+           contains(github.event.comment.body, '/impl') &&
+           !contains(github.event.comment.body, '/plan')) ||
           github.event_name == 'pull_request_review_comment' ||
           github.event_name == 'pull_request_review' ||
           (github.event_name == 'issue_comment' && github.event.issue.pull_request)
@@ -233,7 +233,7 @@ jobs:
         if: |
           github.event_name == 'issue_comment' &&
           !github.event.issue.pull_request &&
-          contains(github.event.comment.body, '/ok-to-plan')
+          contains(github.event.comment.body, '/plan')
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -246,8 +246,8 @@ jobs:
         if: |
           github.event_name == 'issue_comment' &&
           !github.event.issue.pull_request &&
-          contains(github.event.comment.body, '/ok-to-impl') &&
-          !contains(github.event.comment.body, '/ok-to-plan')
+          contains(github.event.comment.body, '/impl') &&
+          !contains(github.event.comment.body, '/plan')
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -257,11 +257,11 @@ jobs:
           gh issue edit "$ISSUE_NUMBER" --add-label "claude:implementing" --remove-label "claude:planning" --repo "$REPO" 2>/dev/null || \
           gh issue edit "$ISSUE_NUMBER" --add-label "claude:implementing" --repo "$REPO"
 
-      - name: Run Claude Code (/ok-to-plan)
+      - name: Run Claude Code (/plan)
         if: |
           github.event_name == 'issue_comment' &&
           !github.event.issue.pull_request &&
-          contains(github.event.comment.body, '/ok-to-plan')
+          contains(github.event.comment.body, '/plan')
         id: claude-plan
         uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 # v1.0.73
         with:
@@ -276,7 +276,7 @@ jobs:
             - 考慮すべきエッジケースやリスク
 
             コードは書かないでください。方針のみをissueコメントとして投稿してください。
-            ユーザーが方針を確認し、`/ok-to-impl` コマンドで実装に進みます。
+            ユーザーが方針を確認し、`/impl` コマンドで実装に進みます。
           claude_args: |
             --max-turns 2000
             --disallowedTools "Edit,Write,NotebookEdit"
@@ -290,7 +290,7 @@ jobs:
           always() &&
           github.event_name == 'issue_comment' &&
           !github.event.issue.pull_request &&
-          contains(github.event.comment.body, '/ok-to-plan')
+          contains(github.event.comment.body, '/plan')
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -298,12 +298,12 @@ jobs:
         run: |
           gh issue edit "$ISSUE_NUMBER" --remove-label "claude:planning" --repo "$REPO" 2>/dev/null || true
 
-      - name: Run Claude Code (/ok-to-impl)
+      - name: Run Claude Code (/impl)
         if: |
           github.event_name == 'issue_comment' &&
           !github.event.issue.pull_request &&
-          contains(github.event.comment.body, '/ok-to-impl') &&
-          !contains(github.event.comment.body, '/ok-to-plan')
+          contains(github.event.comment.body, '/impl') &&
+          !contains(github.event.comment.body, '/plan')
         id: claude-impl
         uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 # v1.0.73
         with:
@@ -335,8 +335,8 @@ jobs:
           always() &&
           github.event_name == 'issue_comment' &&
           !github.event.issue.pull_request &&
-          contains(github.event.comment.body, '/ok-to-impl') &&
-          !contains(github.event.comment.body, '/ok-to-plan')
+          contains(github.event.comment.body, '/impl') &&
+          !contains(github.event.comment.body, '/plan')
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -349,8 +349,8 @@ jobs:
           github.event_name == 'issue_comment' &&
           !github.event.issue.pull_request &&
           contains(github.event.comment.body, '@claude') &&
-          !contains(github.event.comment.body, '/ok-to-plan') &&
-          !contains(github.event.comment.body, '/ok-to-impl')
+          !contains(github.event.comment.body, '/plan') &&
+          !contains(github.event.comment.body, '/impl')
         id: claude-issue-chat
         uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 # v1.0.73
         with:
