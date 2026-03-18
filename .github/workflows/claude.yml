@@ -387,6 +387,7 @@ jobs:
           bot_id: ${{ steps.bot.outputs.id }}
           bot_name: ${{ steps.bot.outputs.name }}
           claude_args: |
+            --model claude-opus-4-6
             --max-turns 200
             --allowedTools "Read,Glob,Grep,Bash(pnpm:*),Bash(git log:*),Bash(git diff:*),Bash(git status:*),mcp__context7__*"
             --mcp-config /tmp/mcp-config.json
@@ -527,6 +528,7 @@ jobs:
           bot_id: ${{ steps.bot.outputs.id }}
           bot_name: ${{ steps.bot.outputs.name }}
           claude_args: |
+            --model claude-opus-4-6
             --max-turns 200
             --allowedTools "Read,Glob,Grep,Bash(pnpm:*),Bash(git log:*),Bash(git diff:*),Bash(git status:*),Bash(gh pr view:*),mcp__context7__*"
             --mcp-config /tmp/mcp-config.json
