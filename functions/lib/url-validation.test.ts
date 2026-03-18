@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { assertSafeUrl } from './url-validation.js';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { assertSafeUrl, safeFetch } from './url-validation.js';
 
 describe('assertSafeUrl', () => {
   it('should allow valid public URLs', () => {
@@ -89,5 +89,75 @@ describe('assertSafeUrl', () => {
 
   it('should throw on invalid URLs', () => {
     expect(() => assertSafeUrl('not-a-url')).toThrow();
+  });
+});
+
+describe('safeFetch', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('should fetch a safe URL', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('ok', { status: 200 })));
+    const res = await safeFetch('https://example.com/feed.xml');
+    expect(res.status).toBe(200);
+  });
+
+  it('should follow redirect to safe URL', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(null, {
+            status: 301,
+            headers: { location: 'https://example.com/real-feed' }
+          })
+        )
+        .mockResolvedValueOnce(new Response('feed content', { status: 200 }))
+    );
+    const res = await safeFetch('https://old.example.com/feed');
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('feed content');
+  });
+
+  it('should block redirect to private IP', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(null, {
+          status: 302,
+          headers: { location: 'http://169.254.169.254/metadata' }
+        })
+      )
+    );
+    await expect(safeFetch('https://evil.com/redirect')).rejects.toThrow('blocked');
+  });
+
+  it('should throw on too many redirects', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(null, { status: 301, headers: { location: 'https://example.com/loop' } })
+        )
+    );
+    await expect(safeFetch('https://example.com/loop')).rejects.toThrow('Too many redirects');
+  });
+
+  it('should throw on redirect without Location header', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 302 })));
+    await expect(safeFetch('https://example.com/')).rejects.toThrow('Redirect without Location');
+  });
+
+  it('should pass options through to fetch', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(new Response('ok'));
+    vi.stubGlobal('fetch', mockFetch);
+    await safeFetch('https://example.com/', { headers: { Range: 'bytes=0-1024' } });
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://example.com/',
+      expect.objectContaining({ headers: { Range: 'bytes=0-1024' }, redirect: 'manual' })
+    );
   });
 });
