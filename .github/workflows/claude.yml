@@ -285,6 +285,7 @@ jobs:
           github_token: ${{ steps.app-token.outputs.token }}
           bot_id: ${{ steps.bot.outputs.id }}
           bot_name: ${{ steps.bot.outputs.name }}
+          show_full_output: true
           prompt: |
             このissueの内容を読み、実装方針を作成してください。
 
