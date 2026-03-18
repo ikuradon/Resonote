@@ -77,8 +77,10 @@ jobs:
             gh api "repos/$REPO/issues/$ISSUE_NUMBER" --jq '.body // ""' > /tmp/scan/issue.txt
           elif [[ "$EVENT_NAME" == "pull_request_review_comment" ]]; then
             gh api "repos/$REPO/pulls/comments/$COMMENT_ID" --jq '.body // ""' > /tmp/scan/comment.txt
+            gh api "repos/$REPO/pulls/$PR_NUMBER" --jq '.body // ""' > /tmp/scan/issue.txt
           elif [[ "$EVENT_NAME" == "pull_request_review" ]]; then
             gh api "repos/$REPO/pulls/${PR_NUMBER}/reviews/$REVIEW_ID" --jq '.body // ""' > /tmp/scan/comment.txt
+            gh api "repos/$REPO/pulls/$PR_NUMBER" --jq '.body // ""' > /tmp/scan/issue.txt
           fi
 
           python3 << 'SCAN_SCRIPT'
@@ -158,10 +160,11 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          IS_PR_ISSUE: ${{ github.event.issue.pull_request != null && github.event.issue.pull_request != '' }}
           REPO: ${{ github.repository }}
         run: |
           MSG="**Warning**: Suspicious content detected in this issue/PR. Claude Code execution has been skipped for safety. A maintainer should review the content before retrying."
-          if [[ "$EVENT_NAME" == "issue_comment" && -z "${{ github.event.issue.pull_request }}" ]]; then
+          if [[ "$EVENT_NAME" == "issue_comment" && "$IS_PR_ISSUE" != "true" ]]; then
             gh issue comment "$ISSUE_NUMBER" --body "$MSG" --repo "$REPO"
           else
             gh pr comment "$PR_NUMBER" --body "$MSG" --repo "$REPO"
@@ -394,7 +397,13 @@ jobs:
             checks: read
 
       - name: Add thumbs up reaction
-        if: success()
+        if: |
+          success() && (
+            steps.claude-plan.outcome == 'success' ||
+            steps.claude-impl.outcome == 'success' ||
+            steps.claude-issue-chat.outcome == 'success' ||
+            steps.claude-pr.outcome == 'success'
+          )
         env:
           GH_TOKEN: ${{ github.token }}
           EVENT_NAME: ${{ github.event_name }}
