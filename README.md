@@ -115,6 +115,10 @@ pnpm run dev:full
 - `src/extension/` — ブラウザ拡張機能 (Chrome/Firefox Manifest V3)
 - `functions/` — Cloudflare Pages Functions (API エンドポイント)
 
+### Playbook (dev only)
+
+`/playbook` はコンポーネントの実験場・デモページ。`import.meta.env.DEV` でガードされており、開発サーバー (`pnpm dev`) でのみアクセス可能。staging / production ビルドでは 404 になる。
+
 ### ContentProvider パターン
 
 `src/lib/content/types.ts` で `ContentProvider` インターフェースを定義。

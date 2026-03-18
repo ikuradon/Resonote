@@ -148,7 +148,7 @@ Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
 - Prefix sum (累積高さ配列) + binary search で O(log n) の visible range 算出
 - ResizeObserver + 高さキャッシュで動的高さ対応、adaptive frozen estimate で安定性確保
 - `scrollToIndex()` / `isAutoScrolling()` API。CommentList が timed/general 両セクションで使用
-- Playbook (`/playbook`) にデモあり: 再生エミュレーション、auto-add、FPS 表示
+- Playbook (`/playbook`) にデモあり (dev only — prod では 404): 再生エミュレーション、auto-add、FPS 表示
 
 ## Testing
 
