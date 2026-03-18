@@ -187,6 +187,17 @@ jobs:
           permission-pull-requests: write
           permission-workflows: write
 
+      - name: Resolve bot identity
+        id: bot
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_ID: ${{ secrets.CLAUDE_APP_ID }}
+        run: |
+          BOT_NAME=$(gh api "apps/$APP_ID" --jq '.slug')
+          echo "name=${BOT_NAME}[bot]" >> "$GITHUB_OUTPUT"
+          BOT_ID=$(gh api "users/${BOT_NAME}[bot]" --jq '.id')
+          echo "id=$BOT_ID" >> "$GITHUB_OUTPUT"
+
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -272,8 +283,8 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ steps.app-token.outputs.token }}
-          bot_id: '269176471'
-          bot_name: 'resonote-ci-bot[bot]'
+          bot_id: ${{ steps.bot.outputs.id }}
+          bot_name: ${{ steps.bot.outputs.name }}
           prompt: |
             このissueの内容を読み、実装方針を作成してください。
 
@@ -317,8 +328,8 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ steps.app-token.outputs.token }}
-          bot_id: '269176471'
-          bot_name: 'resonote-ci-bot[bot]'
+          bot_id: ${{ steps.bot.outputs.id }}
+          bot_name: ${{ steps.bot.outputs.name }}
           prompt: |
             このissueとコメント欄の議論を確認し、合意された実装方針に基づいてコードを実装してください。
 
@@ -368,8 +379,8 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ steps.app-token.outputs.token }}
-          bot_id: '269176471'
-          bot_name: 'resonote-ci-bot[bot]'
+          bot_id: ${{ steps.bot.outputs.id }}
+          bot_name: ${{ steps.bot.outputs.name }}
           claude_args: |
             --max-turns 200
             --allowedTools "Read,Glob,Grep,Bash(pnpm:*),Bash(git log:*),Bash(git diff:*),Bash(git status:*),mcp__context7__*"
@@ -473,8 +484,8 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ steps.app-token.outputs.token }}
-          bot_id: '269176471'
-          bot_name: 'resonote-ci-bot[bot]'
+          bot_id: ${{ steps.bot.outputs.id }}
+          bot_name: ${{ steps.bot.outputs.name }}
           prompt: |
             /tmp/fix-context.md を読み、その内容に基づいてコードを修正してください。
             PRの全コメントを読む必要はありません。このファイルに記載されたコメントのみに対応してください。
@@ -508,8 +519,8 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ steps.app-token.outputs.token }}
-          bot_id: '269176471'
-          bot_name: 'resonote-ci-bot[bot]'
+          bot_id: ${{ steps.bot.outputs.id }}
+          bot_name: ${{ steps.bot.outputs.name }}
           claude_args: |
             --max-turns 200
             --allowedTools "Read,Glob,Grep,Bash(pnpm:*),Bash(git log:*),Bash(git diff:*),Bash(git status:*),Bash(gh pr view:*),mcp__context7__*"
