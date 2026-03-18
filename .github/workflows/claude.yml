@@ -185,6 +185,22 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install chromium --with-deps
 
+      - name: Create MCP config
+        run: |
+          cat > /tmp/mcp-config.json << 'MCPEOF'
+          {
+            "mcpServers": {
+              "context7": {
+                "command": "npx",
+                "args": ["-y", "@upstash/context7-mcp"],
+                "env": {
+                  "CONTEXT7_API_KEY": "${{ secrets.CONTEXT7_API_KEY }}"
+                }
+              }
+            }
+          }
+          MCPEOF
+
       - name: Add planning label
         if: |
           github.event_name == 'issue_comment' &&
@@ -232,20 +248,13 @@ jobs:
 
             コードは書かないでください。方針のみをissueコメントとして投稿してください。
             ユーザーが方針を確認し、`/ok-to-impl` コマンドで実装に進みます。
-          claude_args: '--disallowed-tools "Edit,Write,NotebookEdit"'
+          claude_args: |
+            --max-turns 10
+            --disallowedTools "Edit,Write,NotebookEdit"
+            --mcp-config /tmp/mcp-config.json
           additional_permissions: |
             actions: read
-          mcp_config: |
-            {
-              "mcpServers": {
-                "context7": {
-                  "command": "npx",
-                  "args": ["-y", "@upstash/context7-mcp"]
-                }
-              }
-            }
-        env:
-          CONTEXT7_API_KEY: ${{ secrets.CONTEXT7_API_KEY }}
+            checks: read
 
       - name: Remove planning label
         if: |
@@ -283,19 +292,13 @@ jobs:
                - 「関連 Issue」に対象issueの番号を記入
                - 「テスト」のチェックリストは実行結果に基づいてチェック
                - UI変更がなければスクリーンショットセクションは削除
+          claude_args: |
+            --max-turns 30
+            --allowedTools "Read,Glob,Grep,Edit,Write,NotebookEdit,Bash(pnpm:*),Bash(npx:*),Bash(git:*),Bash(gh pr create:*),Bash(gh pr view:*),mcp__context7__*"
+            --mcp-config /tmp/mcp-config.json
           additional_permissions: |
             actions: read
-          mcp_config: |
-            {
-              "mcpServers": {
-                "context7": {
-                  "command": "npx",
-                  "args": ["-y", "@upstash/context7-mcp"]
-                }
-              }
-            }
-        env:
-          CONTEXT7_API_KEY: ${{ secrets.CONTEXT7_API_KEY }}
+            checks: read
 
       - name: Remove implementing label
         if: |
@@ -322,19 +325,13 @@ jobs:
         uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 # v1.0.73
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: |
+            --max-turns 15
+            --allowedTools "Read,Glob,Grep,Bash(pnpm:*),Bash(git log:*),Bash(git diff:*),Bash(git status:*),mcp__context7__*"
+            --mcp-config /tmp/mcp-config.json
           additional_permissions: |
             actions: read
-          mcp_config: |
-            {
-              "mcpServers": {
-                "context7": {
-                  "command": "npx",
-                  "args": ["-y", "@upstash/context7-mcp"]
-                }
-              }
-            }
-        env:
-          CONTEXT7_API_KEY: ${{ secrets.CONTEXT7_API_KEY }}
+            checks: read
 
       - name: Check fork PR write access
         id: fork-check
@@ -374,19 +371,13 @@ jobs:
             返信には以下を含めてください:
             - 何をどう修正したか
             - 該当するコミットハッシュ
+          claude_args: |
+            --max-turns 20
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(pnpm:*),Bash(npx:*),Bash(git:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),mcp__context7__*"
+            --mcp-config /tmp/mcp-config.json
           additional_permissions: |
             actions: read
-          mcp_config: |
-            {
-              "mcpServers": {
-                "context7": {
-                  "command": "npx",
-                  "args": ["-y", "@upstash/context7-mcp"]
-                }
-              }
-            }
-        env:
-          CONTEXT7_API_KEY: ${{ secrets.CONTEXT7_API_KEY }}
+            checks: read
 
       - name: Add thumbs up reaction
         if: success()
