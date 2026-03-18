@@ -223,7 +223,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          command: pages deploy build --project-name=resonote
+          command: pages deploy build --project-name=resonote --branch=main
           packageManager: pnpm
 
   publish-extension:
