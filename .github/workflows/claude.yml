@@ -173,6 +173,13 @@ jobs:
           echo "::error::Suspicious content detected. Skipping Claude Code execution."
           exit 1
 
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0
+        with:
+          app-id: ${{ secrets.CLAUDE_APP_ID }}
+          private-key: ${{ secrets.CLAUDE_APP_PRIVATE_KEY }}
+
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -256,6 +263,7 @@ jobs:
         uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 # v1.0.73
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
           prompt: |
             このissueの内容を読み、実装方針を作成してください。
 
@@ -297,6 +305,7 @@ jobs:
         uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 # v1.0.73
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
           prompt: |
             このissueとコメント欄の議論を確認し、合意された実装方針に基づいてコードを実装してください。
 
@@ -343,6 +352,7 @@ jobs:
         uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 # v1.0.73
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
           claude_args: |
             --max-turns 2000
             --allowedTools "Read,Glob,Grep,Bash(pnpm:*),Bash(git log:*),Bash(git diff:*),Bash(git status:*),mcp__context7__*"
@@ -385,6 +395,7 @@ jobs:
         uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 # v1.0.73
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
           claude_args: |
             --max-turns 200
             --system-prompt "修正後は、対象のレビューコメントそれぞれに対して返信コメントを残してください。返信には何をどう修正したかと該当するコミットハッシュを含めてください。"
