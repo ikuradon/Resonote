@@ -48,7 +48,8 @@ export default ts.config(
       'node_modules/',
       'test-results/',
       'playwright-report/',
-      'coverage/'
+      'coverage/',
+      'e2e/helpers/'
     ]
   }
 );

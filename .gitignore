@@ -34,3 +34,4 @@ vite.config.ts.timestamp-*
 docs/superpowers/
 .worktrees/
 .serena/
+e2e/helpers/*.js
