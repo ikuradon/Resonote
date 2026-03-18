@@ -79,7 +79,7 @@
 
   function buildResonoteUrl(withTime = false): string {
     const encoded = encodeContentLink(contentId, DEFAULT_RELAYS);
-    const base = `https://resonote.pages.dev/${encoded}`;
+    const base = `${window.location.origin}/${encoded}`;
     return withTime ? `${base}?t=${positionSec}` : base;
   }
 
