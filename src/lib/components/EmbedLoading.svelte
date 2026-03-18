@@ -18,7 +18,7 @@
 
   let { color, icon, bars = 16, duration = 15000, maxProgress = 0.8 }: Props = $props();
 
-  let progress = $state(0);
+  let progress = $state<number | undefined>(undefined);
 
   $effect(() => {
     const start = Date.now();

@@ -4,6 +4,7 @@
   import { fromBase64url, toBase64url } from '$lib/content/url-utils.js';
   import { resolveByApi } from '$lib/content/podcast-resolver.js';
   import WaveformLoader from './WaveformLoader.svelte';
+  import { t } from '$lib/i18n/t.js';
   import { publishSignedEvents } from '$lib/nostr/publish-signed.js';
 
   interface Props {
@@ -105,7 +106,7 @@
               d="M12 1a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4zm0 18a7 7 0 0 0 7-7h-2a5 5 0 0 1-10 0H5a7 7 0 0 0 7 7zm-1 2v2h2v-2h-2z"
             />
           </svg>
-          <span class="text-sm font-medium text-text-muted">エピソード一覧を読み込み中...</span>
+          <span class="text-sm font-medium text-text-muted">{t('podcast.loading')}</span>
         </div>
         <WaveformLoader bars={16} />
       </div>

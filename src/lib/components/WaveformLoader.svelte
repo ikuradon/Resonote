@@ -15,7 +15,7 @@
   const delays = $derived(Array.from({ length: bars }, (_, i) => (i * 0.8) / bars));
 </script>
 
-<div class="flex items-center gap-[2px] {height}" role="progressbar" aria-hidden="true">
+<div class="flex items-center gap-[2px] {height}" aria-hidden="true">
   {#each delays as delay, i (i)}
     {@const active = progress === undefined || i / bars < progress}
     <span
