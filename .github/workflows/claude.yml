@@ -608,17 +608,11 @@ jobs:
             exit 0
           fi
 
-          # Parse token usage from execution file
+          # Parse token usage and cost from execution file
           USAGE_LINE=""
           if [[ -f "$EXECUTION_FILE" ]]; then
             USAGE_LINE=$(python3 << 'PYEOF'
           import json, os, sys
-
-          PRICING = {
-            'claude-opus-4-6': {'input': 15.0, 'output': 75.0},
-            'claude-sonnet-4-6': {'input': 3.0, 'output': 15.0},
-            'claude-haiku-4-5': {'input': 0.80, 'output': 4.0},
-          }
 
           try:
               with open(os.environ['EXECUTION_FILE']) as f:
@@ -629,10 +623,19 @@ jobs:
               output_tokens = 0
               cache_read = 0
               cache_create = 0
+              total_cost = None
+              num_turns = None
+              duration_ms = None
 
               for msg in messages:
                   if msg.get('subtype') == 'init':
                       model = msg.get('model', '')
+                  # Result message has authoritative cost from SDK
+                  if msg.get('type') == 'result':
+                      total_cost = msg.get('total_cost_usd')
+                      num_turns = msg.get('num_turns')
+                      duration_ms = msg.get('duration_ms')
+                  # Sum per-message usage for token breakdown
                   usage = None
                   if isinstance(msg.get('message'), dict):
                       usage = msg['message'].get('usage')
@@ -644,33 +647,35 @@ jobs:
                       cache_read += usage.get('cache_read_input_tokens', 0)
                       cache_create += usage.get('cache_creation_input_tokens', 0)
 
-              # Determine pricing
-              prices = None
-              for key in PRICING:
-                  if key in model:
-                      prices = PRICING[key]
-                      break
-              if not prices:
-                  prices = PRICING.get('claude-sonnet-4-6')
+              parts = []
 
-              # Calculate cost
-              billable_input = input_tokens - cache_read - cache_create
-              cost = (
-                  max(0, billable_input) * prices['input'] / 1_000_000 +
-                  output_tokens * prices['output'] / 1_000_000 +
-                  cache_read * prices['input'] * 0.1 / 1_000_000 +
-                  cache_create * prices['input'] * 1.25 / 1_000_000
-              )
-
-              total_input = input_tokens + cache_read + cache_create
-              parts = [f"📊 **Tokens**: {total_input:,} input / {output_tokens:,} output"]
-              if cache_read or cache_create:
-                  parts.append(f"(cache: {cache_read:,} read, {cache_create:,} create)")
-              parts.append(f"| 💰 **Cost**: ${cost:.2f}")
+              # Model
               if model:
                   short_model = model.split('-202')[0] if '-202' in model else model
-                  parts.append(f"| 🤖 **Model**: {short_model}")
-              print(' '.join(parts))
+                  parts.append(f"🤖 **Model**: {short_model}")
+
+              # Tokens
+              total_input = input_tokens + cache_read + cache_create
+              token_str = f"📊 **Tokens**: {total_input:,} input / {output_tokens:,} output"
+              if cache_read or cache_create:
+                  token_str += f" (cache: {cache_read:,} read, {cache_create:,} create)"
+              parts.append(token_str)
+
+              # Cost (from SDK, includes all sub-agents)
+              if total_cost is not None:
+                  parts.append(f"💰 **Cost**: ${total_cost:.4f}")
+
+              # Duration and turns
+              extras = []
+              if duration_ms is not None:
+                  mins, secs = divmod(duration_ms // 1000, 60)
+                  extras.append(f"⏱ {mins}m{secs}s")
+              if num_turns is not None:
+                  extras.append(f"🔄 {num_turns} turns")
+              if extras:
+                  parts.append(' | '.join(extras))
+
+              print('\n'.join(parts))
           except Exception as e:
               print(f"⚠️ Token usage unavailable: {e}", file=sys.stderr)
               print("")
