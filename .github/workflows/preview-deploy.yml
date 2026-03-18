@@ -27,19 +27,14 @@ jobs:
         run: |
           gh pr edit "$PR_NUMBER" --remove-label "ok-to-test" --repo "$REPO" 2>/dev/null || true
 
-  deploy-preview:
-    name: Deploy Preview
+  build:
+    name: Build Preview
     if: |
-      (github.event.action != 'labeled' || github.event.label.name == 'ok-to-test') &&
-      (
-        github.event.pull_request.head.repo.full_name == github.repository ||
-        contains(github.event.pull_request.labels.*.name, 'ok-to-test')
-      )
+      github.event.pull_request.head.repo.full_name == github.repository ||
+      (github.event.action == 'labeled' && github.event.label.name == 'ok-to-test')
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write
-      deployments: write
     steps:
       - name: Checkout PR head
         uses: actions/checkout@v6
@@ -57,6 +52,27 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: preview-build-${{ github.event.pull_request.number }}
+          path: build/
+          retention-days: 1
+
+  deploy-preview:
+    name: Deploy Preview
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      deployments: write
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: preview-build-${{ github.event.pull_request.number }}
+          path: build/
 
       - name: Generate preview ID
         id: preview-id
@@ -93,9 +109,17 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy build --project-name=resonote --branch=${{ steps.branch.outputs.name }}
-          packageManager: pnpm
+          wranglerVersion: '4'
+
+      - name: Set preview secret
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages secret put SYSTEM_NOSTR_PRIVKEY --project-name=resonote
+          wranglerVersion: '4'
         env:
-          SYSTEM_NOSTR_PRIVKEY: ${{ secrets.PREVIEW_NOSTR_PRIVKEY }}
+          VALUE: ${{ secrets.PREVIEW_NOSTR_PRIVKEY }}
 
       - name: Comment preview URL
         env:
@@ -127,4 +151,3 @@ jobs:
           else
             gh pr comment "$PR_NUMBER" --body "$BODY" --repo "$REPO"
           fi
-

@@ -5,6 +5,10 @@ on:
     types: [closed]
     branches: [main]
 
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   cleanup:
     name: Delete Preview Deployment
@@ -30,7 +34,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deployment delete --project-name=resonote --branch=${{ steps.preview.outputs.branch }} --yes
-          packageManager: pnpm
+          wranglerVersion: '4'
 
       - name: Update preview comment
         if: steps.preview.outputs.branch != ''
