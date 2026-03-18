@@ -3,6 +3,7 @@
   import { fromBase64url, toBase64url } from '$lib/content/url-utils.js';
   import { resolveByApi } from '$lib/content/podcast-resolver.js';
   import { t } from '../i18n/t.js';
+  import WaveformLoader from './WaveformLoader.svelte';
 
   interface Props {
     encodedUrl: string;
@@ -45,10 +46,7 @@
 <div class="flex min-h-[200px] items-center justify-center">
   {#if status === 'loading'}
     <div class="flex flex-col items-center gap-3" role="status">
-      <div
-        class="h-8 w-8 animate-spin rounded-full border-2 border-amber-500 border-t-transparent"
-        aria-hidden="true"
-      ></div>
+      <WaveformLoader height="h-8" />
       <p class="text-text-secondary">{t('resolve.loading')}</p>
     </div>
   {:else}

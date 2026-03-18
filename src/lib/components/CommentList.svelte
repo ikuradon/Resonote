@@ -1,5 +1,6 @@
 <script lang="ts">
   import { emptyStats, type Comment, type ReactionStats } from '../stores/comments.svelte.js';
+  import WaveformLoader from './WaveformLoader.svelte';
   import {
     formatPosition,
     buildComment,
@@ -649,10 +650,8 @@
 
 <div class="space-y-6">
   {#if loading}
-    <div class="flex items-center justify-center gap-2 py-8" role="status" aria-live="polite">
-      <div
-        class="h-4 w-4 animate-spin rounded-full border-2 border-text-muted border-t-accent"
-      ></div>
+    <div class="flex items-center justify-center gap-3 py-8" role="status" aria-live="polite">
+      <WaveformLoader />
       <span class="text-sm text-text-muted">{t('loading')}</span>
     </div>
   {:else if filteredComments.length === 0}
