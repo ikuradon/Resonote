@@ -16,7 +16,10 @@ jobs:
         contains(github.event.comment.body, '/ok-to-impl') ||
         contains(github.event.comment.body, '@claude')
       )) ||
-      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request && (
+        contains(github.event.comment.body, '@claude') ||
+        contains(github.event.comment.body, '/fix')
+      )) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
     runs-on: ubuntu-latest
@@ -384,12 +387,81 @@ jobs:
             echo "writable=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Run Claude Code (PR assist)
+      - name: Extract fix context
+        id: fix-context
+        if: |
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/fix') &&
+          steps.fork-check.outputs.writable == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Get Greptile summary (latest one)
+          GREPTILE=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" \
+            --jq '[.[] | select(.user.login == "greptile-apps[bot]")] | last | .body // "No Greptile summary found."')
+
+          # Get last commit date on PR
+          LAST_COMMIT=$(gh pr view "$PR_NUMBER" --json commits --jq '.commits[-1].committedDate')
+
+          # Get review comments after last commit
+          REVIEW_COMMENTS=$(gh api "repos/$REPO/pulls/$PR_NUMBER/comments" \
+            --jq "[.[] | select(.created_at > \"$LAST_COMMIT\")] | map({path, line: (.line // .original_line), body}) | .[]" 2>/dev/null || echo "No new review comments.")
+
+          # Get issue comments after last commit (excluding bots and /fix itself)
+          ISSUE_COMMENTS=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" \
+            --jq "[.[] | select(.created_at > \"$LAST_COMMIT\" and (.user.type != \"Bot\") and (.body | contains(\"/fix\") | not))] | map({user: .user.login, body}) | .[]" 2>/dev/null || echo "No new issue comments.")
+
+          cat > /tmp/fix-context.md << CTXEOF
+          ## Greptile Summary
+          $GREPTILE
+
+          ## Review Comments (since $LAST_COMMIT)
+          $REVIEW_COMMENTS
+
+          ## Discussion Comments (since $LAST_COMMIT)
+          $ISSUE_COMMENTS
+          CTXEOF
+
+      - name: Run Claude Code (/fix on PR)
+        if: |
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/fix') &&
+          steps.fork-check.outputs.writable == 'true'
+        id: claude-fix
+        uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 # v1.0.73
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          prompt: |
+            /tmp/fix-context.md を読み、その内容に基づいてコードを修正してください。
+            PRの全コメントを読む必要はありません。このファイルに記載されたコメントのみに対応してください。
+
+            手順:
+            1. /tmp/fix-context.md を読んでレビュー指摘を把握
+            2. 指摘に対してコードを修正
+            3. CLAUDE.mdのPre-commit Validationに従い、コミット前に以下を必ず実行:
+               pnpm format:check && pnpm lint && pnpm check && pnpm test && pnpm test:e2e
+            4. 修正したレビューコメントそれぞれに返信（修正内容 + コミットハッシュ）
+          claude_args: |
+            --max-turns 200
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(pnpm:*),Bash(npx:*),Bash(git:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh api:*),mcp__context7__*"
+            --mcp-config /tmp/mcp-config.json
+          additional_permissions: |
+            actions: read
+            checks: read
+
+      - name: Run Claude Code (@claude on PR)
         if: |
           steps.fork-check.outputs.writable == 'true' && (
             github.event_name == 'pull_request_review_comment' ||
             github.event_name == 'pull_request_review' ||
-            (github.event_name == 'issue_comment' && github.event.issue.pull_request)
+            (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
+             contains(github.event.comment.body, '@claude') &&
+             !contains(github.event.comment.body, '/fix'))
           )
         id: claude-pr
         uses: anthropics/claude-code-action@1b422b3517b51140e4484faab676c5e68b914866 # v1.0.73
@@ -398,8 +470,7 @@ jobs:
           github_token: ${{ steps.app-token.outputs.token }}
           claude_args: |
             --max-turns 200
-            --system-prompt "修正後は、対象のレビューコメントそれぞれに対して返信コメントを残してください。返信には何をどう修正したかと該当するコミットハッシュを含めてください。"
-            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(pnpm:*),Bash(npx:*),Bash(git:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),mcp__context7__*"
+            --allowedTools "Read,Glob,Grep,Bash(pnpm:*),Bash(git log:*),Bash(git diff:*),Bash(git status:*),Bash(gh pr view:*),mcp__context7__*"
             --mcp-config /tmp/mcp-config.json
           additional_permissions: |
             actions: read
@@ -411,6 +482,7 @@ jobs:
             steps.claude-plan.outcome == 'success' ||
             steps.claude-impl.outcome == 'success' ||
             steps.claude-issue-chat.outcome == 'success' ||
+            steps.claude-fix.outcome == 'success' ||
             steps.claude-pr.outcome == 'success'
           )
         env:
