@@ -29,7 +29,8 @@ export async function startMockServer(): Promise<MockServer> {
         res.end(htmlWithRss(serverUrl));
         break;
 
-      case '/audio.mp3': {
+      case '/audio.mp3':
+      case '/audio/ep1.mp3': {
         const rangeHeader = req.headers['range'];
         if (rangeHeader) {
           const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);

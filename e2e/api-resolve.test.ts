@@ -47,16 +47,40 @@ test.describe('API integration: /api/podcast/resolve', () => {
     }
   });
 
-  test('should resolve audio URL and return episode metadata', async ({ request }) => {
+  test('should resolve audio URL and return episode metadata via ID3v2 fallback', async ({
+    request
+  }) => {
+    // /audio.mp3 does not match any RSS enclosure URL, so falls back to ID3v2 parsing
     const audioUrl = `${mock.url}/audio.mp3`;
     const res = await request.get(`/api/podcast/resolve?url=${encodeURIComponent(audioUrl)}`);
     expect(res.ok()).toBe(true);
     const data = await res.json();
 
     expect(data.type).toBe('episode');
-    // Audio metadata extracted from ID3v2 header
+    expect(data.feed).toBeNull();
+    expect(data.signedEvents).toHaveLength(0);
     expect(data.metadata.title).toBe('Test Track Title');
     expect(data.metadata.artist).toBe('Test Artist');
+  });
+
+  test('should resolve audio URL via RSS discovery when enclosure matches', async ({ request }) => {
+    // /audio/ep1.mp3 matches the RSS feed enclosure URL, triggering RSS discovery path
+    const audioUrl = `${mock.url}/audio/ep1.mp3`;
+    const res = await request.get(`/api/podcast/resolve?url=${encodeURIComponent(audioUrl)}`);
+    expect(res.ok()).toBe(true);
+    const data = await res.json();
+
+    expect(data.type).toBe('episode');
+    expect(data.feed).not.toBeNull();
+    expect(data.feed.title).toBe('Test Podcast');
+    expect(data.feed.podcastGuid).toBe('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
+    expect(data.episode.title).toBe('Episode 1: Hello World');
+    expect(data.signedEvents.length).toBeGreaterThanOrEqual(2);
+    for (const ev of data.signedEvents) {
+      expect(ev).toHaveProperty('id');
+      expect(ev).toHaveProperty('sig');
+      expect(ev.kind).toBe(39701);
+    }
   });
 
   test('should redirect site URL with RSS link to feed', async ({ request }) => {
@@ -69,12 +93,15 @@ test.describe('API integration: /api/podcast/resolve', () => {
     expect(data.feedUrl).toContain('/feed.xml');
   });
 
-  test('should return 404 for site without RSS', async ({ request }) => {
+  test('should find RSS at domain root when page itself has no RSS', async ({ request }) => {
+    // /site-no-rss has no RSS link, but the domain root (/) does
     const siteUrl = `${mock.url}/site-no-rss`;
     const res = await request.get(`/api/podcast/resolve?url=${encodeURIComponent(siteUrl)}`);
-    expect(res.status()).toBe(404);
+    expect(res.ok()).toBe(true);
     const data = await res.json();
-    expect(data.error).toBe('rss_not_found');
+
+    expect(data.type).toBe('redirect');
+    expect(data.feedUrl).toContain('/feed.xml');
   });
 
   test('should return 400 for missing url parameter', async ({ request }) => {
@@ -123,16 +150,16 @@ test.describe('API integration: UI flow', () => {
     await expect(page.locator('text=Episode 2: Testing')).toBeVisible();
   });
 
-  test('should show error for site without RSS on resolve page', async ({ page }) => {
+  test('should resolve site without RSS via domain root fallback on resolve page', async ({
+    page
+  }) => {
     await page.goto('/');
     const input = page.locator('[data-testid="track-url-input"]');
     await input.fill(`${mock.url}/site-no-rss`);
     await page.locator('[data-testid="track-submit-button"]').click();
 
-    await expect(page).toHaveURL(/\/resolve\//);
-    // API returns 404 → resolveByApi maps to fetch_failed → "Failed to resolve URL"
-    await expect(page.locator('text=Failed to resolve URL')).toBeVisible({
-      timeout: 15_000
-    });
+    // Domain root has RSS → redirects to feed page
+    await expect(page).toHaveURL(/\/podcast\/feed\//, { timeout: 15_000 });
+    await expect(page.locator('text=Test Podcast')).toBeVisible({ timeout: 10_000 });
   });
 });

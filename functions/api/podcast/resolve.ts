@@ -42,7 +42,9 @@ export function normalizeForDTag(url: string): string {
 }
 
 export function domainRoot(url: string): string {
-  return `https://${new URL(url).hostname.toLowerCase()}`;
+  const parsed = new URL(url);
+  const port = parsed.port ? `:${parsed.port}` : '';
+  return `${parsed.protocol}//${parsed.hostname.toLowerCase()}${port}`;
 }
 
 export async function syntheticGuid(feedUrl: string): Promise<string> {
