@@ -3,7 +3,8 @@
  * Minimal data that satisfies the parsers while including UI-visible fields.
  */
 
-export const RSS_FEED_XML = `<?xml version="1.0" encoding="UTF-8"?>
+/** @internal Use rssFeedXml(mockServerUrl) instead of this template directly */
+const RSS_FEED_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
   xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
   xmlns:podcast="https://podcastindex.org/namespace/1.0">

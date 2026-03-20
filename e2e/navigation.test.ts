@@ -131,7 +131,7 @@ test.describe('URL input navigation', () => {
     await input.fill(`${mock.url}/unknown-content`);
     await page.locator('[data-testid="track-submit-button"]').click();
     await expect(page).toHaveURL(/\/resolve\//);
-    // Mock server returns 404 for unknown paths → API returns fetch_failed or rss_not_found
+    // Mock server returns 404 for unknown paths → API returns fetch_failed (non-OK response)
     await expect(
       page.locator('text=No podcast found at this URL').or(page.locator('text=Failed to resolve'))
     ).toBeVisible({ timeout: 15_000 });
