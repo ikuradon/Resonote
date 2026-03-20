@@ -62,6 +62,15 @@ NIP-73 (External Content IDs) + NIP-22 (Comments, kind:1111) + NIP-25 (Reactions
 | NIP-73 | 外部コンテンツ ID (`i` タグ)                |
 | NIP-B0 | Web ブックマーク (kind:39701, Podcast 解決) |
 
+## 前提条件
+
+- Node.js >= 24.0.0 (Corepack 同梱)
+- pnpm (`corepack enable` で有効化、バージョンは `packageManager` フィールドで自動管理)
+
+```bash
+corepack enable
+```
+
 ## セットアップ
 
 ```bash

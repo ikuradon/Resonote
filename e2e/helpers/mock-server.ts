@@ -30,7 +30,8 @@ export async function startMockServer(): Promise<MockServer> {
         break;
 
       case '/audio.mp3':
-      case '/audio/ep1.mp3': {
+      case '/audio/ep1.mp3':
+      case '/audio/ep2.mp3': {
         const rangeHeader = req.headers['range'];
         if (rangeHeader) {
           const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
@@ -85,7 +86,7 @@ export async function startMockServer(): Promise<MockServer> {
       serverUrl = `http://127.0.0.1:${addr.port}`;
       resolve({
         url: serverUrl,
-        close: () => new Promise<void>((r) => server.close(() => r()))
+        close: () => new Promise<void>((r, j) => server.close((err) => (err ? j(err) : r())))
       });
     });
   });
