@@ -3,9 +3,12 @@ import { defineConfig } from '@playwright/test';
 // Test-only fixed key for signing NIP-B0 bookmarks in E2E tests.
 // This is NOT a real key — it is used only in the local test environment.
 // Override via TEST_NOSTR_PRIVKEY env var if needed.
-const TEST_NOSTR_PRIVKEY =
-  process.env.TEST_NOSTR_PRIVKEY ??
-  'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2';
+const DEFAULT_TEST_PRIVKEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2';
+const envKey = process.env.TEST_NOSTR_PRIVKEY;
+if (envKey && !/^[0-9a-f]{64}$/i.test(envKey)) {
+  throw new Error('TEST_NOSTR_PRIVKEY must be a 64-character hex string');
+}
+const TEST_NOSTR_PRIVKEY = envKey ?? DEFAULT_TEST_PRIVKEY;
 
 export default defineConfig({
   testDir: 'e2e',
