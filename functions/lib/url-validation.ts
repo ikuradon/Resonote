@@ -1,13 +1,3 @@
-/**
- * WARNING: NEVER enable in production. Only for E2E testing with localhost mock servers.
- * Set via UNSAFE_ALLOW_PRIVATE_IPS env var in wrangler pages dev.
- */
-let _unsafeAllowPrivateIPs = false;
-
-export function unsafeSetAllowPrivateIPs(allow: boolean): void {
-  _unsafeAllowPrivateIPs = allow;
-}
-
 const BLOCKED_HOSTNAMES = new Set(['localhost', '0.0.0.0']);
 
 const IPV4_RE = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
@@ -58,16 +48,21 @@ function isBlockedIPv6(hostname: string): boolean {
 
 const MAX_REDIRECTS = 5;
 
+export interface SafeFetchOptions extends RequestInit {
+  allowPrivateIPs?: boolean;
+}
+
 /**
  * Fetch with SSRF-safe redirect handling.
  * Validates each redirect hop against assertSafeUrl before following.
  */
-export async function safeFetch(url: string, options?: RequestInit): Promise<Response> {
+export async function safeFetch(url: string, options?: SafeFetchOptions): Promise<Response> {
+  const { allowPrivateIPs, ...fetchOptions } = options ?? {};
   let currentUrl = url;
 
   for (let i = 0; i < MAX_REDIRECTS; i++) {
-    assertSafeUrl(currentUrl);
-    const res = await fetch(currentUrl, { ...options, redirect: 'manual' });
+    assertSafeUrl(currentUrl, !!allowPrivateIPs);
+    const res = await fetch(currentUrl, { ...fetchOptions, redirect: 'manual' });
 
     if (res.status >= 300 && res.status < 400) {
       const location = res.headers.get('location');
@@ -86,14 +81,14 @@ export async function safeFetch(url: string, options?: RequestInit): Promise<Res
 /**
  * Throws if the URL targets a private/internal network address.
  */
-export function assertSafeUrl(url: string): void {
+export function assertSafeUrl(url: string, allowPrivateIPs = false): void {
   const parsed = new URL(url);
 
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
     throw new Error(`URL blocked: unsupported protocol ${parsed.protocol}`);
   }
 
-  if (_unsafeAllowPrivateIPs) return;
+  if (allowPrivateIPs) return;
 
   const hostname = parsed.hostname.toLowerCase();
 

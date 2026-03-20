@@ -29,8 +29,24 @@ export async function startMockServer(): Promise<MockServer> {
         res.end(htmlWithRss(serverUrl));
         break;
 
-      case '/audio.mp3':
-        // Support Range requests like the real fetchAudioMetadata does
+      case '/audio.mp3': {
+        const rangeHeader = req.headers['range'];
+        if (rangeHeader) {
+          const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
+          if (match) {
+            const start = parseInt(match[1], 10);
+            const end = match[2] ? parseInt(match[2], 10) : audioBinary.length - 1;
+            const chunk = audioBinary.slice(start, end + 1);
+            res.writeHead(206, {
+              'Content-Type': 'audio/mpeg',
+              'Content-Range': `bytes ${start}-${end}/${audioBinary.length}`,
+              'Content-Length': String(chunk.length),
+              'Accept-Ranges': 'bytes'
+            });
+            res.end(chunk);
+            break;
+          }
+        }
         res.writeHead(200, {
           'Content-Type': 'audio/mpeg',
           'Content-Length': String(audioBinary.length),
@@ -38,6 +54,7 @@ export async function startMockServer(): Promise<MockServer> {
         });
         res.end(audioBinary);
         break;
+      }
 
       case '/site-no-rss':
         res.writeHead(200, { 'Content-Type': 'text/html' });

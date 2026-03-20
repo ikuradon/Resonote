@@ -2,7 +2,6 @@ import { finalizeEvent } from 'nostr-tools/pure';
 import { hexToBytes } from 'nostr-tools/utils';
 import { fetchAudioMetadata } from '../../lib/audio-metadata.js';
 import { assertSafeUrl, safeFetch } from '../../lib/url-validation.js';
-import { withSsrfBypass } from '../../lib/with-ssrf-bypass.js';
 
 interface Env {
   SYSTEM_NOSTR_PRIVKEY: string;
@@ -186,8 +185,12 @@ export function findRssLink(html: string, baseUrl: string): string | null {
   return null;
 }
 
-async function handleFeedUrl(feedUrl: string, privkey: Uint8Array): Promise<Response> {
-  const res = await safeFetch(feedUrl);
+async function handleFeedUrl(
+  feedUrl: string,
+  privkey: Uint8Array,
+  allowPrivateIPs = false
+): Promise<Response> {
+  const res = await safeFetch(feedUrl, { allowPrivateIPs });
   if (!res.ok) {
     return jsonResponse({ error: 'fetch_failed', status: res.status }, 502);
   }
@@ -239,13 +242,17 @@ async function handleFeedUrl(feedUrl: string, privkey: Uint8Array): Promise<Resp
   });
 }
 
-async function handleAudioUrl(audioUrl: string, privkey: Uint8Array): Promise<Response> {
+async function handleAudioUrl(
+  audioUrl: string,
+  privkey: Uint8Array,
+  allowPrivateIPs = false
+): Promise<Response> {
   const rootUrl = domainRoot(audioUrl);
   let rssUrl: string | null = null;
   let feed: ParsedFeed | null = null;
 
   try {
-    const rootRes = await safeFetch(rootUrl);
+    const rootRes = await safeFetch(rootUrl, { allowPrivateIPs });
     if (rootRes.ok) {
       const html = await rootRes.text();
       rssUrl = findRssLink(html, rootUrl);
@@ -256,7 +263,7 @@ async function handleAudioUrl(audioUrl: string, privkey: Uint8Array): Promise<Re
 
   if (rssUrl) {
     try {
-      const feedRes = await safeFetch(rssUrl);
+      const feedRes = await safeFetch(rssUrl, { allowPrivateIPs });
       if (feedRes.ok) {
         const xml = await feedRes.text();
         feed = await parseRss(xml, rssUrl);
@@ -316,7 +323,7 @@ async function handleAudioUrl(audioUrl: string, privkey: Uint8Array): Promise<Re
   }
 
   // No RSS match — try extracting metadata from audio file headers
-  const audioMeta = await fetchAudioMetadata(audioUrl);
+  const audioMeta = await fetchAudioMetadata(audioUrl, allowPrivateIPs);
 
   return jsonResponse({
     type: 'episode',
@@ -339,8 +346,8 @@ async function handleAudioUrl(audioUrl: string, privkey: Uint8Array): Promise<Re
   });
 }
 
-async function handleSiteUrl(siteUrl: string): Promise<Response> {
-  const res = await safeFetch(siteUrl);
+async function handleSiteUrl(siteUrl: string, allowPrivateIPs = false): Promise<Response> {
+  const res = await safeFetch(siteUrl, { allowPrivateIPs });
   if (!res.ok) {
     return jsonResponse({ error: 'fetch_failed', status: res.status }, 502);
   }
@@ -354,7 +361,7 @@ async function handleSiteUrl(siteUrl: string): Promise<Response> {
   const rootUrl = domainRoot(siteUrl);
   if (rootUrl !== siteUrl.replace(/\/$/, '')) {
     try {
-      const rootRes = await safeFetch(rootUrl);
+      const rootRes = await safeFetch(rootUrl, { allowPrivateIPs });
       if (rootRes.ok) {
         const rootHtml = await rootRes.text();
         const rootRssUrl = findRssLink(rootHtml, rootUrl);
@@ -391,11 +398,12 @@ export function detectInputType(url: URL): 'audio' | 'feed' | 'site' {
   return 'site';
 }
 
-export const onRequestGet: PagesFunction<Env> = withSsrfBypass(handleRequest);
+export const onRequestGet: PagesFunction<Env> = handleRequest;
 
 async function handleRequest(context: EventContext<Env, string, unknown>): Promise<Response> {
   const { searchParams } = new URL(context.request.url);
   const urlParam = searchParams.get('url');
+  const allowPrivateIPs = !!context.env.UNSAFE_ALLOW_PRIVATE_IPS;
 
   if (!urlParam) {
     return jsonResponse({ error: 'missing_url' }, 400);
@@ -413,7 +421,7 @@ async function handleRequest(context: EventContext<Env, string, unknown>): Promi
   }
 
   try {
-    assertSafeUrl(urlParam);
+    assertSafeUrl(urlParam, allowPrivateIPs);
   } catch {
     return jsonResponse({ error: 'url_blocked' }, 400);
   }
@@ -434,11 +442,11 @@ async function handleRequest(context: EventContext<Env, string, unknown>): Promi
 
   try {
     if (inputType === 'audio') {
-      return await handleAudioUrl(urlParam, privkey);
+      return await handleAudioUrl(urlParam, privkey, allowPrivateIPs);
     } else if (inputType === 'feed') {
-      return await handleFeedUrl(urlParam, privkey);
+      return await handleFeedUrl(urlParam, privkey, allowPrivateIPs);
     } else {
-      return await handleSiteUrl(urlParam);
+      return await handleSiteUrl(urlParam, allowPrivateIPs);
     }
   } catch {
     return jsonResponse({ error: 'internal_error' }, 500);

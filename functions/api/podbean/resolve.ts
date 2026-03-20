@@ -1,21 +1,21 @@
 import { assertSafeUrl, safeFetch } from '../../lib/url-validation.js';
-import { withSsrfBypass } from '../../lib/with-ssrf-bypass.js';
 
 interface Env {
   UNSAFE_ALLOW_PRIVATE_IPS?: string;
 }
 
-export const onRequestGet: PagesFunction<Env> = withSsrfBypass(handleRequest);
+export const onRequestGet: PagesFunction<Env> = handleRequest;
 
 async function handleRequest(context: EventContext<Env, string, unknown>): Promise<Response> {
   const url = new URL(context.request.url);
   const targetUrl = url.searchParams.get('url');
+  const allowPrivateIPs = !!context.env.UNSAFE_ALLOW_PRIVATE_IPS;
   if (!targetUrl) {
     return json({ error: 'missing_url' }, 400);
   }
 
   try {
-    assertSafeUrl(targetUrl);
+    assertSafeUrl(targetUrl, allowPrivateIPs);
   } catch {
     return json({ error: 'url_blocked' }, 400);
   }
@@ -23,7 +23,7 @@ async function handleRequest(context: EventContext<Env, string, unknown>): Promi
   // Use Podbean oEmbed API to get the embed iframe URL
   const oembedUrl = `https://api.podbean.com/v1/oembed?format=json&url=${encodeURIComponent(targetUrl)}`;
   try {
-    const res = await safeFetch(oembedUrl);
+    const res = await safeFetch(oembedUrl, { allowPrivateIPs });
     if (!res.ok) {
       return json({ error: 'oembed_failed', status: res.status }, 502);
     }
@@ -31,7 +31,7 @@ async function handleRequest(context: EventContext<Env, string, unknown>): Promi
     const srcMatch = data.html?.match(/src="([^"]+)"/);
     if (srcMatch?.[1]) {
       try {
-        assertSafeUrl(srcMatch[1]);
+        assertSafeUrl(srcMatch[1], allowPrivateIPs);
         const embedHost = new URL(srcMatch[1]).hostname;
         if (embedHost === 'podbean.com' || embedHost.endsWith('.podbean.com')) {
           return json({ embedSrc: srcMatch[1] });
@@ -42,7 +42,7 @@ async function handleRequest(context: EventContext<Env, string, unknown>): Promi
     }
 
     // Fallback: fetch page HTML and extract embed ID
-    const pageRes = await safeFetch(targetUrl);
+    const pageRes = await safeFetch(targetUrl, { allowPrivateIPs });
     if (pageRes.ok) {
       const html = await pageRes.text();
       const idMatch = html.match(/pb-[a-z0-9]+-[a-z0-9]+/);
