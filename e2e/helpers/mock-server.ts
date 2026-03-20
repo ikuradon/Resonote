@@ -37,7 +37,10 @@ export async function startMockServer(): Promise<MockServer> {
           const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
           if (match) {
             const start = parseInt(match[1], 10);
-            const end = match[2] ? parseInt(match[2], 10) : audioBinary.length - 1;
+            const end = Math.min(
+              match[2] ? parseInt(match[2], 10) : audioBinary.length - 1,
+              audioBinary.length - 1
+            );
             const chunk = audioBinary.slice(start, end + 1);
             res.writeHead(206, {
               'Content-Type': 'audio/mpeg',
