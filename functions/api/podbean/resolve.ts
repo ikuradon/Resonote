@@ -1,17 +1,21 @@
 import { assertSafeUrl, safeFetch } from '../../lib/url-validation.js';
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface Env {}
+interface Env {
+  UNSAFE_ALLOW_PRIVATE_IPS?: string;
+}
 
-export const onRequestGet: PagesFunction<Env> = async (context) => {
+export const onRequestGet: PagesFunction<Env> = handleRequest;
+
+async function handleRequest(context: EventContext<Env, string, unknown>): Promise<Response> {
   const url = new URL(context.request.url);
   const targetUrl = url.searchParams.get('url');
+  const allowPrivateIPs = !!context.env.UNSAFE_ALLOW_PRIVATE_IPS;
   if (!targetUrl) {
     return json({ error: 'missing_url' }, 400);
   }
 
   try {
-    assertSafeUrl(targetUrl);
+    assertSafeUrl(targetUrl, allowPrivateIPs);
   } catch {
     return json({ error: 'url_blocked' }, 400);
   }
@@ -19,7 +23,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   // Use Podbean oEmbed API to get the embed iframe URL
   const oembedUrl = `https://api.podbean.com/v1/oembed?format=json&url=${encodeURIComponent(targetUrl)}`;
   try {
-    const res = await safeFetch(oembedUrl);
+    const res = await safeFetch(oembedUrl, { allowPrivateIPs });
     if (!res.ok) {
       return json({ error: 'oembed_failed', status: res.status }, 502);
     }
@@ -27,7 +31,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const srcMatch = data.html?.match(/src="([^"]+)"/);
     if (srcMatch?.[1]) {
       try {
-        assertSafeUrl(srcMatch[1]);
+        assertSafeUrl(srcMatch[1], allowPrivateIPs);
         const embedHost = new URL(srcMatch[1]).hostname;
         if (embedHost === 'podbean.com' || embedHost.endsWith('.podbean.com')) {
           return json({ embedSrc: srcMatch[1] });
@@ -38,7 +42,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     // Fallback: fetch page HTML and extract embed ID
-    const pageRes = await safeFetch(targetUrl);
+    const pageRes = await safeFetch(targetUrl, { allowPrivateIPs });
     if (pageRes.ok) {
       const html = await pageRes.text();
       const idMatch = html.match(/pb-[a-z0-9]+-[a-z0-9]+/);
@@ -51,7 +55,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   } catch {
     return json({ error: 'fetch_failed' }, 502);
   }
-};
+}
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {

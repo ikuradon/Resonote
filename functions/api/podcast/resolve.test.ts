@@ -44,6 +44,19 @@ describe('domainRoot', () => {
   it('should lowercase', () => {
     expect(domainRoot('https://EXAMPLE.COM/path')).toBe('https://example.com');
   });
+
+  it('should preserve protocol', () => {
+    expect(domainRoot('http://example.com/feed.xml')).toBe('http://example.com');
+  });
+
+  it('should preserve non-standard port', () => {
+    expect(domainRoot('http://127.0.0.1:3000/audio.mp3')).toBe('http://127.0.0.1:3000');
+  });
+
+  it('should omit standard ports', () => {
+    expect(domainRoot('https://example.com:443/feed')).toBe('https://example.com');
+    expect(domainRoot('http://example.com:80/feed')).toBe('http://example.com');
+  });
 });
 
 describe('extractTagContent', () => {

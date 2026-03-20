@@ -16,10 +16,14 @@ export interface AudioMetadata {
 
 const RANGE_SIZE = 256 * 1024; // 256KB — enough for most ID3v2 + cover art
 
-export async function fetchAudioMetadata(url: string): Promise<AudioMetadata> {
+export async function fetchAudioMetadata(
+  url: string,
+  allowPrivateIPs = false
+): Promise<AudioMetadata> {
   try {
     const res = await safeFetch(url, {
-      headers: { Range: `bytes=0-${RANGE_SIZE - 1}` }
+      headers: { Range: `bytes=0-${RANGE_SIZE - 1}` },
+      allowPrivateIPs
     });
     if (!res.ok && res.status !== 206) return {};
     const buf = await res.arrayBuffer();

@@ -48,6 +48,10 @@ function isBlockedIPv6(hostname: string): boolean {
 
 const MAX_REDIRECTS = 5;
 
+export interface SafeFetchOptions extends RequestInit {
+  allowPrivateIPs?: boolean;
+}
+
 const SENSITIVE_HEADERS = ['authorization', 'cookie', 'cookie2', 'proxy-authorization'] as const;
 
 function stripSensitiveHeaders(options: RequestInit): RequestInit {
@@ -65,12 +69,13 @@ function stripSensitiveHeaders(options: RequestInit): RequestInit {
  * Strips sensitive headers (Authorization, Cookie, Proxy-Authorization)
  * on cross-origin redirects, matching browser Fetch spec behavior.
  */
-export async function safeFetch(url: string, options?: RequestInit): Promise<Response> {
+export async function safeFetch(url: string, options?: SafeFetchOptions): Promise<Response> {
+  const { allowPrivateIPs, ...fetchInit } = options ?? {};
   let currentUrl = url;
-  let currentOptions = options;
+  let currentOptions: RequestInit = fetchInit;
 
   for (let i = 0; i < MAX_REDIRECTS; i++) {
-    assertSafeUrl(currentUrl);
+    assertSafeUrl(currentUrl, !!allowPrivateIPs);
     const res = await fetch(currentUrl, { ...currentOptions, redirect: 'manual' });
 
     if (res.status >= 300 && res.status < 400) {
@@ -98,12 +103,14 @@ export async function safeFetch(url: string, options?: RequestInit): Promise<Res
 /**
  * Throws if the URL targets a private/internal network address.
  */
-export function assertSafeUrl(url: string): void {
+export function assertSafeUrl(url: string, allowPrivateIPs = false): void {
   const parsed = new URL(url);
 
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
     throw new Error(`URL blocked: unsupported protocol ${parsed.protocol}`);
   }
+
+  if (allowPrivateIPs) return;
 
   const hostname = parsed.hostname.toLowerCase();
 

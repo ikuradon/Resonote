@@ -154,15 +154,13 @@ test.describe('Content page (podcast feed)', () => {
   // Base64url-encoded "https://example.com/feed/rss"
   const feedUrl = '/podcast/feed/aHR0cHM6Ly9leGFtcGxlLmNvbS9mZWVkL3Jzcw';
 
-  test('should render podcast feed page without crashing', async ({ page }) => {
+  test('should render podcast feed page with header', async ({ page }) => {
     await page.goto(feedUrl);
-    // The page should render the app shell (API won't be available in E2E without dev:full)
     await expect(page.locator('header a[href="/"]')).toBeVisible();
   });
 
   test('should display Comments heading for podcast feed', async ({ page }) => {
     await page.goto(feedUrl);
-    // Feed page still renders the comments UI layout
     await expect(page.locator('h2:has-text("Comments")')).toBeVisible();
   });
 });
