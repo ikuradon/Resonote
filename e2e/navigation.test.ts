@@ -1,4 +1,15 @@
 import { test, expect } from '@playwright/test';
+import { startMockServer, type MockServer } from './helpers/mock-server.js';
+
+let mock: MockServer;
+
+test.beforeAll(async () => {
+  mock = await startMockServer();
+});
+
+test.afterAll(async () => {
+  await mock.close();
+});
 
 test.describe('URL input navigation', () => {
   test('should navigate to track page on valid Spotify track URL', async ({ page }) => {
@@ -116,10 +127,11 @@ test.describe('URL input navigation', () => {
   }) => {
     await page.goto('/');
     const input = page.locator('[data-testid="track-url-input"]');
-    await input.fill('https://www.example.com/unknown-content');
+    // Use mock server with unknown path to avoid external network dependency
+    await input.fill(`${mock.url}/unknown-content`);
     await page.locator('[data-testid="track-submit-button"]').click();
     await expect(page).toHaveURL(/\/resolve\//);
-    // With wrangler pages dev, API is available — should show error after resolve attempt
+    // Mock server returns 404 for unknown paths → API returns fetch_failed or rss_not_found
     await expect(
       page.locator('text=No podcast found at this URL').or(page.locator('text=Failed to resolve'))
     ).toBeVisible({ timeout: 15_000 });
