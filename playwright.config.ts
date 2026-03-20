@@ -25,7 +25,7 @@ export default defineConfig({
     command: `pnpm run build && pnpm run preview:e2e --binding SYSTEM_NOSTR_PRIVKEY=${TEST_NOSTR_PRIVKEY} --binding UNSAFE_ALLOW_PRIVATE_IPS=1`,
     port: 4173,
     reuseExistingServer: !process.env.CI,
-    timeout: 60_000
+    timeout: 120_000
   },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }]
 });
