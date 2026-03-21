@@ -10,7 +10,7 @@ const {
   resolvePodcastEpisodeMock,
   resolveAudioUrlMock,
   fromBase64urlMock,
-  createCommentViewModelMock,
+  createCommentViewModelMock
 } = vi.hoisted(() => ({
   isBookmarkedMock: vi.fn(() => false),
   addBookmarkMock: vi.fn(async () => {}),
@@ -20,47 +20,47 @@ const {
   replaceStateMock: vi.fn(),
   resolvePodcastEpisodeMock: vi.fn(async () => ({
     metadata: {},
-    additionalSubscriptions: [],
+    additionalSubscriptions: []
   })),
   resolveAudioUrlMock: vi.fn(async () => ({
     metadata: {},
     additionalSubscriptions: [],
-    resolvedPath: null,
+    resolvedPath: null
   })),
   fromBase64urlMock: vi.fn((s: string) => `decoded:${s}`),
   createCommentViewModelMock: vi.fn(() => ({
     subscribe: vi.fn(),
     destroy: vi.fn(),
-    addSubscription: vi.fn(),
-  })),
+    addSubscription: vi.fn()
+  }))
 }));
 
 vi.mock('$app/navigation', () => ({
-  replaceState: replaceStateMock,
+  replaceState: replaceStateMock
 }));
 
 vi.mock('$shared/content/url-utils.js', () => ({
-  fromBase64url: fromBase64urlMock,
+  fromBase64url: fromBase64urlMock
 }));
 
 vi.mock('../application/resolve-content.js', () => ({
   resolvePodcastEpisode: resolvePodcastEpisodeMock,
-  resolveAudioUrl: resolveAudioUrlMock,
+  resolveAudioUrl: resolveAudioUrlMock
 }));
 
 vi.mock('$features/comments/ui/comment-view-model.svelte.js', () => ({
-  createCommentViewModel: createCommentViewModelMock,
+  createCommentViewModel: createCommentViewModelMock
 }));
 
 vi.mock('$shared/browser/bookmarks.js', () => ({
   isBookmarked: isBookmarkedMock,
   addBookmark: addBookmarkMock,
-  removeBookmark: removeBookmarkMock,
+  removeBookmark: removeBookmarkMock
 }));
 
 vi.mock('$shared/browser/player.js', () => ({
   requestSeek: requestSeekMock,
-  resetPlayer: resetPlayerMock,
+  resetPlayer: resetPlayerMock
 }));
 
 import { createResolvedContentViewModel } from './resolved-content-view-model.svelte.js';
@@ -74,17 +74,19 @@ const provider = {
   toNostrTag: (): [string, string] => ['spotify:track:track-1', ''],
   contentKind: () => 'spotify:track',
   embedUrl: () => null,
-  openUrl: () => 'https://open.spotify.com/track/track-1',
+  openUrl: () => 'https://open.spotify.com/track/track-1'
 };
 
-function makeVm(overrides: {
-  platform?: string;
-  contentType?: string;
-  contentIdParam?: string;
-  isValid?: boolean;
-  isCollection?: boolean;
-  initialTimeSec?: number;
-} = {}) {
+function makeVm(
+  overrides: {
+    platform?: string;
+    contentType?: string;
+    contentIdParam?: string;
+    isValid?: boolean;
+    isCollection?: boolean;
+    initialTimeSec?: number;
+  } = {}
+) {
   const platform = overrides.platform ?? 'spotify';
   const contentType = overrides.contentType ?? 'track';
   const contentIdParam = overrides.contentIdParam ?? 'track-1';
@@ -100,7 +102,7 @@ function makeVm(overrides: {
     () => contentType,
     () => contentIdParam,
     () => platform,
-    () => initialTimeSec,
+    () => initialTimeSec
   );
 }
 
@@ -114,18 +116,18 @@ describe('createResolvedContentViewModel', () => {
     replaceStateMock.mockReset();
     resolvePodcastEpisodeMock.mockReset().mockResolvedValue({
       metadata: {},
-      additionalSubscriptions: [],
+      additionalSubscriptions: []
     });
     resolveAudioUrlMock.mockReset().mockResolvedValue({
       metadata: {},
       additionalSubscriptions: [],
-      resolvedPath: null,
+      resolvedPath: null
     });
     fromBase64urlMock.mockImplementation((s: string) => `decoded:${s}`);
     createCommentViewModelMock.mockReturnValue({
       subscribe: vi.fn(),
       destroy: vi.fn(),
-      addSubscription: vi.fn(),
+      addSubscription: vi.fn()
     });
   });
 
@@ -196,7 +198,7 @@ describe('createResolvedContentViewModel', () => {
         () => 'track',
         () => 'track-1',
         () => 'spotify',
-        () => 0,
+        () => 0
       );
       await vmNoProvider.toggleBookmark();
       expect(addBookmarkMock).not.toHaveBeenCalled();

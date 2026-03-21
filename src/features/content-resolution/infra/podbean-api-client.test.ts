@@ -16,7 +16,10 @@ describe('resolvePodbeanEmbed', () => {
     const mockFetch = vi.mocked(fetch);
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ embedSrc: 'https://www.podbean.com/player-v2/?i=xyz', embedId: undefined })
+      json: async () => ({
+        embedSrc: 'https://www.podbean.com/player-v2/?i=xyz',
+        embedId: undefined
+      })
     } as Response);
 
     const result = await resolvePodbeanEmbed(SOURCE_URL);

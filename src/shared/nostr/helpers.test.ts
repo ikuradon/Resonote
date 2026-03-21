@@ -36,7 +36,10 @@ describe('getContentPathFromTags', () => {
   });
 
   it('returns null when no I tag present', () => {
-    const tags = [['p', 'somepubkey'], ['e', 'someeventid']];
+    const tags = [
+      ['p', 'somepubkey'],
+      ['e', 'someeventid']
+    ];
     expect(getContentPathFromTags(tags)).toBeNull();
   });
 

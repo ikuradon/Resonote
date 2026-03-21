@@ -7,11 +7,11 @@ const {
   muteWordMock,
   unmuteUserMock,
   unmuteWordMock,
-  getProfileDisplayMock,
+  getProfileDisplayMock
 } = vi.hoisted(() => {
   const muteListState = {
     mutedPubkeys: new Set<string>(['pubkey1', 'pubkey2']),
-    mutedWords: ['spam', 'bad'],
+    mutedWords: ['spam', 'bad']
   };
   return {
     getMuteListMock: vi.fn(() => muteListState),
@@ -23,8 +23,8 @@ const {
     getProfileDisplayMock: vi.fn((pubkey: string) => ({
       displayName: `User ${pubkey}`,
       profileHref: `/profile/${pubkey}`,
-      formattedNip05: null,
-    })),
+      formattedNip05: null
+    }))
   };
 });
 
@@ -33,18 +33,18 @@ vi.mock('$shared/browser/mute.js', () => ({
   hasNip44Support: hasNip44SupportMock,
   muteWord: muteWordMock,
   unmuteUser: unmuteUserMock,
-  unmuteWord: unmuteWordMock,
+  unmuteWord: unmuteWordMock
 }));
 
 vi.mock('$shared/browser/profile.js', () => ({
-  getProfileDisplay: getProfileDisplayMock,
+  getProfileDisplay: getProfileDisplayMock
 }));
 
 vi.mock('$shared/i18n/t.js', () => ({
   t: (key: string, params?: Record<string, unknown>) => {
     if (params) return `${key}:${JSON.stringify(params)}`;
     return key;
-  },
+  }
 }));
 
 import { createMuteSettingsViewModel } from './mute-settings-view-model.svelte.js';

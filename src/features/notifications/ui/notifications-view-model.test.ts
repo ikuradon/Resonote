@@ -6,7 +6,7 @@ const { localStorageStore, isMutedMock, isWordMutedMock, matchesFilterMock, logI
     isMutedMock: vi.fn(() => false),
     isWordMutedMock: vi.fn(() => false),
     matchesFilterMock: vi.fn((_pubkey: string, filter: string) => filter === 'all'),
-    logInfoMock: vi.fn(),
+    logInfoMock: vi.fn()
   }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -14,31 +14,31 @@ vi.mock('$shared/utils/logger.js', () => ({
     info: logInfoMock,
     debug: vi.fn(),
     warn: vi.fn(),
-    error: vi.fn(),
+    error: vi.fn()
   }),
-  shortHex: (s: string) => s.slice(0, 8),
+  shortHex: (s: string) => s.slice(0, 8)
 }));
 
 vi.mock('$shared/nostr/events.js', () => ({
   COMMENT_KIND: 1111,
-  REACTION_KIND: 7,
+  REACTION_KIND: 7
 }));
 
 vi.mock('$shared/nostr/gateway.js', () => ({
-  getRxNostr: vi.fn(),
+  getRxNostr: vi.fn()
 }));
 
 vi.mock('$shared/browser/mute.js', () => ({
   isMuted: isMutedMock,
-  isWordMuted: isWordMutedMock,
+  isWordMuted: isWordMutedMock
 }));
 
 vi.mock('$shared/browser/follows.js', () => ({
-  matchesFilter: matchesFilterMock,
+  matchesFilter: matchesFilterMock
 }));
 
 vi.mock('../domain/notification-classifier.js', () => ({
-  classifyNotificationEvent: vi.fn(() => null),
+  classifyNotificationEvent: vi.fn(() => null)
 }));
 
 // localStorage mock
@@ -46,7 +46,7 @@ const localStorageMock = {
   getItem: vi.fn((key: string) => localStorageStore.get(key) ?? null),
   setItem: vi.fn((key: string, value: string) => localStorageStore.set(key, value)),
   removeItem: vi.fn((key: string) => localStorageStore.delete(key)),
-  clear: vi.fn(() => localStorageStore.clear()),
+  clear: vi.fn(() => localStorageStore.clear())
 };
 Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true });
 
@@ -56,7 +56,7 @@ import {
   getLastRead,
   getNotifications,
   markAllAsRead,
-  destroyNotifications,
+  destroyNotifications
 } from './notifications-view-model.svelte.js';
 
 describe('notifications-view-model', () => {
@@ -96,10 +96,7 @@ describe('notifications-view-model', () => {
     it('setNotifFilter updates filter and persists to localStorage', () => {
       setNotifFilter('follows');
       expect(getNotifFilter()).toBe('follows');
-      expect(localStorageMock.setItem).toHaveBeenCalledWith(
-        'resonote-notif-filter',
-        'follows',
-      );
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('resonote-notif-filter', 'follows');
     });
 
     it('setNotifFilter to wot works', () => {
@@ -133,7 +130,7 @@ describe('notifications-view-model', () => {
       markAllAsRead();
       expect(logInfoMock).toHaveBeenCalledWith(
         'Marked all notifications as read',
-        expect.any(Object),
+        expect.any(Object)
       );
     });
   });

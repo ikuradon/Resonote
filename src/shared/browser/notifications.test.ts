@@ -4,12 +4,7 @@
  * verifying that the public API surface is reachable from the barrel path.
  */
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  parseReactionDisplay,
-  typeIcon,
-  typeLabel,
-  relativeTime
-} from './notifications.js';
+import { parseReactionDisplay, typeIcon, typeLabel, relativeTime } from './notifications.js';
 
 describe('notifications barrel: parseReactionDisplay', () => {
   it('returns heart for "+"', () => {

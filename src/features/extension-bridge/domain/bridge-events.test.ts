@@ -93,9 +93,9 @@ describe('isExtensionFrameMessage', () => {
 
   describe('resonote:navigate', () => {
     it('returns true for valid navigate message with / path', () => {
-      expect(isExtensionFrameMessage({ type: 'resonote:navigate', path: '/spotify/track/abc' })).toBe(
-        true
-      );
+      expect(
+        isExtensionFrameMessage({ type: 'resonote:navigate', path: '/spotify/track/abc' })
+      ).toBe(true);
     });
 
     it('returns false when path does not start with /', () => {
@@ -113,9 +113,7 @@ describe('isExtensionFrameMessage', () => {
 
   describe('resonote:seek-request', () => {
     it('returns true for valid seek-request message', () => {
-      expect(isExtensionFrameMessage({ type: 'resonote:seek-request', position: 5000 })).toBe(
-        true
-      );
+      expect(isExtensionFrameMessage({ type: 'resonote:seek-request', position: 5000 })).toBe(true);
     });
 
     it('returns true when position is 0', () => {

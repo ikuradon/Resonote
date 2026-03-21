@@ -51,7 +51,12 @@ vi.mock('$features/relays/application/relay-actions.js', () => ({
   publishRelayList: publishRelayListMock
 }));
 
-import { fetchRelayList, publishRelayList, getRelays, destroyRelayStatus } from './relays.svelte.js';
+import {
+  fetchRelayList,
+  publishRelayList,
+  getRelays,
+  destroyRelayStatus
+} from './relays.svelte.js';
 
 type Observer = {
   next: (p: unknown) => void;
@@ -99,9 +104,7 @@ describe('fetchRelayList', () => {
   });
 
   it('returns kind10002 entries when kind:10002 has relay tags', async () => {
-    const rxNostr = makeBackwardReqMock([
-      { event: { tags: [['r', 'wss://relay.example.com']] } }
-    ]);
+    const rxNostr = makeBackwardReqMock([{ event: { tags: [['r', 'wss://relay.example.com']] } }]);
     getRxNostrMock.mockResolvedValue(rxNostr);
 
     const result = await fetchRelayList(PUBKEY);
@@ -135,7 +138,9 @@ describe('fetchRelayList', () => {
               obs.next({
                 event: {
                   tags: [],
-                  content: JSON.stringify({ 'wss://fallback.relay.com': { read: true, write: true } })
+                  content: JSON.stringify({
+                    'wss://fallback.relay.com': { read: true, write: true }
+                  })
                 }
               });
               obs.complete();
