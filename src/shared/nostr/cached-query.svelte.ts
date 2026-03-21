@@ -11,16 +11,36 @@ export interface FetchedEventFull {
   kind: number;
 }
 
+const NULL_CACHE_TTL_MS = 30_000;
+
 const fetchByIdCache = new Map<string, FetchedEventFull | null>();
+const nullCacheTimestamps = new Map<string, number>();
 const inflight = new Map<string, Promise<FetchedEventFull | null>>();
 
 /** Invalidate a cached entry (e.g. when a deletion event is received). */
 export function invalidateFetchByIdCache(eventId: string): void {
   fetchByIdCache.delete(eventId);
+  nullCacheTimestamps.delete(eventId);
+}
+
+/** Reset cache state (for tests). */
+export function resetFetchByIdCache(): void {
+  fetchByIdCache.clear();
+  nullCacheTimestamps.clear();
+  inflight.clear();
 }
 
 export async function cachedFetchById(eventId: string): Promise<FetchedEventFull | null> {
-  if (fetchByIdCache.has(eventId)) return fetchByIdCache.get(eventId)!;
+  if (fetchByIdCache.has(eventId)) {
+    const cached = fetchByIdCache.get(eventId)!;
+    if (cached !== null) return cached;
+    // Null entry — check TTL
+    const ts = nullCacheTimestamps.get(eventId);
+    if (ts !== undefined && Date.now() - ts < NULL_CACHE_TTL_MS) return null;
+    // Expired — evict and re-fetch
+    fetchByIdCache.delete(eventId);
+    nullCacheTimestamps.delete(eventId);
+  }
 
   // Dedup: if another call for the same eventId is already in flight, await it
   const pending = inflight.get(eventId);
@@ -43,6 +63,7 @@ async function cachedFetchByIdInner(eventId: string): Promise<FetchedEventFull |
     if (event) {
       const result = event as FetchedEventFull;
       fetchByIdCache.set(eventId, result);
+      nullCacheTimestamps.delete(eventId);
       return result;
     }
   } catch {
@@ -94,10 +115,14 @@ async function cachedFetchByIdInner(eventId: string): Promise<FetchedEventFull |
     fetchByIdCache.set(eventId, result);
     if (result) {
       log.debug('Fetched target event from relay', { id: shortHex(eventId) });
+      nullCacheTimestamps.delete(eventId);
+    } else {
+      nullCacheTimestamps.set(eventId, Date.now());
     }
     return result;
   } catch {
     fetchByIdCache.set(eventId, null);
+    nullCacheTimestamps.set(eventId, Date.now());
     return null;
   }
 }
