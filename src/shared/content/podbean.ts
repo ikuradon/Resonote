@@ -31,7 +31,7 @@ export class PodbeanProvider implements ContentProvider {
 
   toNostrTag(contentId: ContentId): [string, string] {
     return [
-      `podbean:episode:${contentId.id}`,
+      `${contentId.platform}:${contentId.type}:${contentId.id}`,
       `https://www.podbean.com/media/share/${contentId.id}`
     ];
   }

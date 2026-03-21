@@ -47,6 +47,7 @@ export function getAuth() {
 
 export async function initAuth(): Promise<void> {
   if (state.initialized) return;
+  state.initialized = true;
 
   log.info('Initializing nostr-login...');
 
@@ -67,7 +68,6 @@ export async function initAuth(): Promise<void> {
   await initNostrLogin();
 
   log.info('nostr-login initialized');
-  state.initialized = true;
 }
 
 export async function loginNostr(): Promise<void> {

@@ -17,7 +17,10 @@ export class FountainFmProvider implements ContentProvider {
   }
 
   toNostrTag(contentId: ContentId): [string, string] {
-    return [`fountain:episode:${contentId.id}`, `https://fountain.fm/episode/${contentId.id}`];
+    return [
+      `${contentId.platform}:${contentId.type}:${contentId.id}`,
+      `https://fountain.fm/episode/${contentId.id}`
+    ];
   }
 
   contentKind(): string {

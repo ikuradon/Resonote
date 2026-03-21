@@ -1,7 +1,7 @@
 <script lang="ts">
   import { useCommentProfilePreload } from '$features/comments/ui/comment-profile-preload.svelte.js';
   import type { Comment, ReactionStats } from '$features/comments/domain/comment-model.js';
-  import { createCommentListViewModel } from './comment-list-view-model.svelte.js';
+  import { createCommentListViewModel } from '$features/comments/ui/comment-list-view-model.svelte.js';
   import { allocateEmojiPopoverId } from './emoji-popover-id.js';
   import WaveformLoader from './WaveformLoader.svelte';
   import type { ContentId, ContentProvider } from '$shared/content/types.js';

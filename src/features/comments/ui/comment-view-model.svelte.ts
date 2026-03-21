@@ -18,12 +18,8 @@ import {
   buildReactionIndex,
   isLikeReaction
 } from '../domain/reaction-rules.js';
-import {
-  extractDeletionTargets,
-  COMMENT_KIND,
-  REACTION_KIND,
-  DELETION_KIND
-} from '$shared/nostr/events.js';
+import { verifyDeletionTargets } from '../domain/deletion-rules.js';
+import { COMMENT_KIND, REACTION_KIND, DELETION_KIND } from '$shared/nostr/events.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 import {
   buildContentFilters,
@@ -31,16 +27,14 @@ import {
   startSubscription,
   startMergedSubscription,
   startDeletionReconcile,
-  type SubscriptionRefs,
-  type SubscriptionHandle
-} from '../application/comment-subscription.js';
-import {
   getCommentRepository,
   restoreFromCache,
   purgeDeletedFromCache,
+  type SubscriptionRefs,
+  type SubscriptionHandle,
   type EventsDB,
   type CachedEvent
-} from '../infra/comment-repository.js';
+} from '../application/comment-subscription.js';
 
 const log = createLogger('comment-vm');
 
@@ -111,12 +105,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   }
 
   function handleDeletionPacket(event: { id: string; pubkey: string; tags: string[][] }) {
-    const eTags = extractDeletionTargets(event);
-    if (eTags.length === 0) return;
-    const verified = eTags.filter((id) => {
-      const originalPubkey = eventPubkeys.get(id);
-      return !originalPubkey || originalPubkey === event.pubkey;
-    });
+    const verified = verifyDeletionTargets(event, eventPubkeys);
     if (verified.length === 0) return;
     const next = new Set(deletedIds);
     for (const id of verified) next.add(id);
@@ -191,14 +180,14 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
 
     // Process deletions with pubkey verification
     for (const event of cachedDeletions) {
-      for (const id of extractDeletionTargets(event)) {
-        const originalPubkey = eventPubkeys.get(id);
-        if (!originalPubkey || originalPubkey === event.pubkey) {
-          deletedIds.add(id);
-        }
+      for (const id of verifyDeletionTargets(event, eventPubkeys)) {
+        deletedIds.add(id);
       }
     }
-    if (deletedIds.size > 0) deletedIds = new Set(deletedIds);
+    if (deletedIds.size > 0) {
+      deletedIds = new Set(deletedIds);
+      rebuildReactionIndex();
+    }
     prevDeletedSize = deletedIds.size;
 
     log.info('Restored from DB', {
@@ -244,11 +233,8 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
           cachedIds,
           (event) => {
             eventsDB?.put(event);
-            for (const id of extractDeletionTargets(event)) {
-              const originalPubkey = eventPubkeys.get(id);
-              if (!originalPubkey || originalPubkey === event.pubkey) {
-                newDeletions.add(id);
-              }
+            for (const id of verifyDeletionTargets(event, eventPubkeys)) {
+              newDeletions.add(id);
             }
           },
           () => {
@@ -312,17 +298,15 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     // DB cache restore
     const tagQuery = `I:${idValue}`;
     const cachedEvents = await restoreFromCache(eventsDB, tagQuery);
+    if (destroyed) return;
 
     // Process deletions first
     let addedDeletions = false;
     for (const ev of cachedEvents) {
       if (ev.kind === DELETION_KIND) {
-        for (const id of extractDeletionTargets(ev)) {
-          const originalPubkey = eventPubkeys.get(id);
-          if (!originalPubkey || originalPubkey === ev.pubkey) {
-            deletedIds.add(id);
-            addedDeletions = true;
-          }
+        for (const id of verifyDeletionTargets(ev, eventPubkeys)) {
+          deletedIds.add(id);
+          addedDeletions = true;
         }
       }
     }

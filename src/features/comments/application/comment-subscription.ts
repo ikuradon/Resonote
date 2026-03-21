@@ -185,3 +185,12 @@ export function startDeletionReconcile(
 
   return { sub, timeout };
 }
+
+// Re-export infra repository for application-layer consumers (UI should not import infra directly)
+export {
+  getCommentRepository,
+  restoreFromCache,
+  purgeDeletedFromCache,
+  type EventsDB,
+  type CachedEvent
+} from '../infra/comment-repository.js';

@@ -221,7 +221,8 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
 - `client.ts` の `disposeRxNostr()` でテスト間のシングルトンリセット
 - component-local helper でも壊れやすい orchestration は単体テストを持つ
   - `src/lib/components/audio-embed-view-model.test.ts`
-  - `src/lib/components/comment-list-view-model.test.ts`
+- feature UI の view model テスト:
+  - `src/features/comments/ui/comment-list-view-model.test.ts`
 
 ## Deployment
 

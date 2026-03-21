@@ -92,18 +92,23 @@ export function createResolvedContentViewModel(
     if (platform === 'audio') {
       resolvedEnclosureUrl = fromBase64url(contentIdParam) ?? undefined;
     } else if (platform === 'podcast' && contentType === 'episode') {
-      resolvePodcastEpisode(contentIdParam).then((result) => {
-        resolvedEnclosureUrl = result.metadata.enclosureUrl;
-        episodeTitle = result.metadata.title;
-        episodeFeedTitle = result.metadata.feedTitle;
-        episodeImage = result.metadata.image;
-        episodeDescription = result.metadata.description;
-        untrack(() => {
-          for (const sub of result.additionalSubscriptions) {
-            store?.addSubscription(sub);
-          }
+      resolvePodcastEpisode(contentIdParam)
+        .then((result) => {
+          resolvedEnclosureUrl = result.metadata.enclosureUrl;
+          episodeTitle = result.metadata.title;
+          episodeFeedTitle = result.metadata.feedTitle;
+          episodeImage = result.metadata.image;
+          episodeDescription = result.metadata.description;
+          untrack(() => {
+            for (const sub of result.additionalSubscriptions) {
+              store?.addSubscription(sub);
+            }
+          });
+        })
+        .catch((err: unknown) => {
+          console.error('[resolved-content-vm] resolvePodcastEpisode failed:', err);
+          resolvedEnclosureUrl = '';
         });
-      });
     }
   });
 
@@ -112,24 +117,29 @@ export function createResolvedContentViewModel(
     if (getPlatform() !== 'audio') return;
     const signal = { cancelled: false };
 
-    resolveAudioUrl(getContentIdParam(), signal).then((result) => {
-      if (signal.cancelled) return;
-      if (result.metadata.title && !episodeTitle) episodeTitle = result.metadata.title;
-      if (result.metadata.feedTitle && !episodeFeedTitle)
-        episodeFeedTitle = result.metadata.feedTitle;
-      if (result.metadata.image && !episodeImage) episodeImage = result.metadata.image;
-      if (result.metadata.description && !episodeDescription)
-        episodeDescription = result.metadata.description;
+    resolveAudioUrl(getContentIdParam(), signal)
+      .then((result) => {
+        if (signal.cancelled) return;
+        if (result.metadata.title && !episodeTitle) episodeTitle = result.metadata.title;
+        if (result.metadata.feedTitle && !episodeFeedTitle)
+          episodeFeedTitle = result.metadata.feedTitle;
+        if (result.metadata.image && !episodeImage) episodeImage = result.metadata.image;
+        if (result.metadata.description && !episodeDescription)
+          episodeDescription = result.metadata.description;
 
-      untrack(() => {
-        for (const sub of result.additionalSubscriptions) {
-          store?.addSubscription(sub);
-        }
-        if (result.resolvedPath) {
-          replaceState(result.resolvedPath, {});
-        }
+        untrack(() => {
+          for (const sub of result.additionalSubscriptions) {
+            store?.addSubscription(sub);
+          }
+          if (result.resolvedPath) {
+            replaceState(result.resolvedPath, {});
+          }
+        });
+      })
+      .catch((err: unknown) => {
+        if (signal.cancelled) return;
+        console.error('[resolved-content-vm] resolveAudioUrl failed:', err);
       });
-    });
 
     return () => {
       signal.cancelled = true;
