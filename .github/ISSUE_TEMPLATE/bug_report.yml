@@ -44,6 +44,11 @@ body:
         - OS: macOS 15
         - 拡張機能: あり/なし
   - type: textarea
+    id: performance
+    attributes:
+      label: 性能退行の有無
+      description: 体感で遅くなった、初期表示が重い、再生開始が遅い等があれば記載してください
+  - type: textarea
     id: additional
     attributes:
       label: 補足情報

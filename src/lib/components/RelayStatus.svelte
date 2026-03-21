@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import {
     getRelays,
-    initRelayStatus,
+    relayStateLabelKey,
     shortUrl,
     stateColor,
     type ConnectionState
-  } from '../stores/relays.svelte.js';
-  import { t, type TranslationKey } from '../i18n/t.js';
+  } from '$shared/browser/relays.js';
+  import { isNodeInsideElements, manageClickOutside } from '$shared/browser/click-outside.js';
+  import { createMediaQuery } from '$shared/browser/media-query.js';
+  import { t } from '$shared/i18n/t.js';
   import MobileOverlay from './MobileOverlay.svelte';
-  import { createMediaQuery } from '../utils/media-query.svelte.js';
 
   const desktop = createMediaQuery('(min-width: 1024px)');
 
@@ -18,35 +18,16 @@
   let containerEl: HTMLDivElement | undefined;
   let isDesktop = $derived(desktop.matches);
 
-  onMount(() => {
-    initRelayStatus();
+  manageClickOutside({
+    active: () => open && isDesktop,
+    isInside: (target) => isNodeInsideElements(target, [containerEl]),
+    onOutside: () => {
+      open = false;
+    }
   });
-
-  $effect(() => {
-    if (!open || !isDesktop) return;
-    const handler = (e: MouseEvent) => {
-      if (!containerEl?.contains(e.target as Node)) {
-        open = false;
-      }
-    };
-    document.addEventListener('click', handler, true);
-    return () => document.removeEventListener('click', handler, true);
-  });
-
-  const stateKeys: Record<ConnectionState, TranslationKey> = {
-    connected: 'relay.state.connected',
-    connecting: 'relay.state.connecting',
-    retrying: 'relay.state.retrying',
-    'waiting-for-retrying': 'relay.state.waiting',
-    dormant: 'relay.state.dormant',
-    initialized: 'relay.state.ready',
-    error: 'relay.state.error',
-    rejected: 'relay.state.rejected',
-    terminated: 'relay.state.closed'
-  };
 
   function stateLabel(state: ConnectionState): string {
-    return t(stateKeys[state]);
+    return t(relayStateLabelKey(state));
   }
 
   let connectedCount = $derived(relays.filter((r) => r.state === 'connected').length);

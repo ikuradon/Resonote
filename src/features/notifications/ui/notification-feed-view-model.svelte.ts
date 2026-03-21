@@ -1,0 +1,136 @@
+import { fetchProfiles } from '$shared/browser/profile.js';
+import { cachedFetchById } from '$shared/nostr/cached-query.js';
+import { untrack } from 'svelte';
+import type { Notification, NotificationType } from '../domain/notification-model.js';
+import { getLastRead, markAllAsRead } from './notifications-view-model.svelte.js';
+
+export type NotificationFeedFilter = 'all' | NotificationType;
+
+export interface NotificationFeedSource {
+  readonly items: Notification[];
+  readonly lastReadTs?: number;
+}
+
+export interface NotificationFeedOptions {
+  pageSize?: number;
+  initialLimit?: number;
+  initialFilter?: NotificationFeedFilter;
+  contentPreviewLength?: number;
+  targetPreviewLength?: number;
+  active?: () => boolean;
+}
+
+function truncateText(content: string, maxLength: number): string {
+  return content.length > maxLength ? content.slice(0, maxLength - 2) + '\u2026' : content;
+}
+
+export function createNotificationFeedViewModel(
+  notifications: NotificationFeedSource,
+  options: NotificationFeedOptions = {}
+) {
+  const pageSize = options.pageSize ?? 30;
+  const contentPreviewLength = options.contentPreviewLength ?? 80;
+  const targetPreviewLength = options.targetPreviewLength ?? 40;
+  const isActive = options.active ?? (() => true);
+
+  let filter = $state<NotificationFeedFilter>(options.initialFilter ?? 'all');
+  let limit = $state(options.initialLimit ?? pageSize);
+  let lastReadTs = $state(notifications.lastReadTs ?? getLastRead());
+  let targetTexts = $state<Map<string, string>>(new Map());
+
+  let filteredItems = $derived(
+    filter === 'all' ? notifications.items : notifications.items.filter((n) => n.type === filter)
+  );
+  let visibleItems = $derived(filteredItems.slice(0, limit));
+  let remaining = $derived(Math.max(0, filteredItems.length - limit));
+
+  $effect(() => {
+    const active = isActive();
+    if (!active) return;
+
+    const pubkeys = [...new Set(visibleItems.map((n) => n.pubkey))];
+    if (pubkeys.length === 0) return;
+
+    untrack(() => fetchProfiles(pubkeys));
+  });
+
+  // Keep reply/reaction target previews in one place so all notification consumers share it.
+  $effect(() => {
+    const active = isActive();
+    if (!active) return;
+
+    const items = visibleItems;
+    untrack(() => {
+      const targetIds = items
+        .filter((n) => n.targetEventId && (n.type === 'reply' || n.type === 'reaction'))
+        .map((n) => n.targetEventId!)
+        .filter((id) => !targetTexts.has(id));
+
+      if (targetIds.length === 0) return;
+
+      void Promise.all(
+        targetIds.map(async (id) => {
+          const event = await cachedFetchById(id);
+          return { id, event };
+        })
+      ).then((results) => {
+        const next = new Map(targetTexts);
+        for (const { id, event } of results) {
+          if (!event) continue;
+          next.set(id, truncateText(event.content, targetPreviewLength));
+        }
+        targetTexts = next;
+      });
+    });
+  });
+
+  function setFilter(nextFilter: NotificationFeedFilter): void {
+    filter = nextFilter;
+    limit = pageSize;
+  }
+
+  function loadMore(): void {
+    limit += pageSize;
+  }
+
+  function markReadNow(timestamp = Math.floor(Date.now() / 1000)): void {
+    lastReadTs = timestamp;
+  }
+
+  function markAllRead(): void {
+    markAllAsRead();
+    markReadNow();
+  }
+
+  function isUnread(createdAt: number): boolean {
+    return createdAt > lastReadTs;
+  }
+
+  function contentPreview(content: string): string {
+    return truncateText(content, contentPreviewLength);
+  }
+
+  return {
+    get filter() {
+      return filter;
+    },
+    get items() {
+      return visibleItems;
+    },
+    get remaining() {
+      return remaining;
+    },
+    get targetTexts() {
+      return targetTexts;
+    },
+    get lastReadTs() {
+      return lastReadTs;
+    },
+    setFilter,
+    loadMore,
+    markReadNow,
+    markAllRead,
+    isUnread,
+    contentPreview
+  };
+}

@@ -1,4 +1,11 @@
-import type { ContentId } from '../../lib/content/types.js';
+import type { ContentId } from '$shared/content/types.js';
+export type {
+  ExtensionModeMessage,
+  UpdatePlaybackMessage,
+  NavigateContentMessage,
+  SeekRequestMessage,
+  ExtensionFrameMessage as PostMessage
+} from '$features/extension-bridge/domain/bridge-events.js';
 
 export type SiteDetectedMessage = {
   type: 'resonote:site-detected';
@@ -34,31 +41,3 @@ export type ExtensionMessage =
   | SiteLostMessage
   | SeekMessage
   | OpenContentMessage;
-
-// Side Panel ↔ iframe (Resonote Web) via postMessage
-export type ExtensionModeMessage = {
-  type: 'resonote:extension-mode';
-};
-
-export type UpdatePlaybackMessage = {
-  type: 'resonote:update-playback';
-  position: number;
-  duration: number;
-  isPaused: boolean;
-};
-
-export type NavigateContentMessage = {
-  type: 'resonote:navigate';
-  path: string;
-};
-
-export type SeekRequestMessage = {
-  type: 'resonote:seek-request';
-  position: number;
-};
-
-export type PostMessage =
-  | ExtensionModeMessage
-  | UpdatePlaybackMessage
-  | NavigateContentMessage
-  | SeekRequestMessage;

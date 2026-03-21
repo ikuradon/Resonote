@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from '../i18n/t.js';
+  import { t } from '$shared/i18n/t.js';
 
   interface Props {
     open: boolean;

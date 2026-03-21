@@ -1,219 +1,49 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
-  import { replaceState } from '$app/navigation';
   import { page } from '$app/state';
-  import SpotifyEmbed from '$lib/components/SpotifyEmbed.svelte';
-  import AudioEmbed from '$lib/components/AudioEmbed.svelte';
-  import PodcastEpisodeList from '$lib/components/PodcastEpisodeList.svelte';
   import CommentList from '$lib/components/CommentList.svelte';
   import CommentForm from '$lib/components/CommentForm.svelte';
   import ShareButton from '$lib/components/ShareButton.svelte';
-  import { getProvider } from '$lib/content/registry.js';
-  import { createCommentsStore } from '$lib/stores/comments.svelte.js';
-  import {
-    isExtensionMode,
-    detectExtension,
-    requestOpenContent
-  } from '$lib/stores/extension.svelte.js';
-  import { getAuth } from '$lib/stores/auth.svelte.js';
-  import { isBookmarked, addBookmark, removeBookmark } from '$lib/stores/bookmarks.svelte.js';
-  import { getPlayer, requestSeek, resetPlayer } from '$lib/stores/player.svelte.js';
-  import type { ContentId } from '$lib/content/types.js';
-  import { t } from '$lib/i18n/t.js';
-  import EpisodeDescription from '$lib/components/EpisodeDescription.svelte';
-  import { resolveEpisode } from '$lib/content/episode-resolver.js';
-  import { buildEpisodeContentId } from '$lib/content/podcast.js';
-  import { fromBase64url, toBase64url } from '$lib/content/url-utils.js';
-  import { resolveByApi, searchBookmarkByUrl } from '$lib/content/podcast-resolver.js';
-  import { publishSignedEvents } from '$lib/nostr/publish-signed.js';
+  import { getProvider } from '$shared/content/registry.js';
+  import { getAuth } from '$shared/browser/auth.js';
+  import { getPlayer, requestSeek } from '$shared/browser/player.js';
+  import type { ContentId } from '$shared/content/types.js';
+  import { t } from '$shared/i18n/t.js';
+  import PlayerColumn from './PlayerColumn.svelte';
+  import { createResolvedContentViewModel } from '$features/content-resolution/ui/resolved-content-view-model.svelte.js';
+  import { createPlayerColumnViewModel } from '$features/content-resolution/ui/player-column-view-model.svelte.js';
 
+  // --- Route params ---
   let platform = $derived(page.params.platform ?? '');
   let contentType = $derived(page.params.type ?? '');
   let contentIdParam = $derived(page.params.id ?? '');
-
   let provider = $derived(getProvider(platform));
   let contentId = $derived<ContentId>({ platform, type: contentType, id: contentIdParam });
   let isValid = $derived(provider !== undefined && contentType !== '' && contentIdParam !== '');
-
   let isCollection = $derived(contentType === 'show');
-  let requiresExt = $derived(provider?.requiresExtension ?? false);
-  let extAvailable = $derived(detectExtension());
-  let showPlayer = $derived(!isExtensionMode() && !requiresExt);
-  let showInstallPrompt = $derived(!isExtensionMode() && requiresExt && !extAvailable);
-  let showPlayButton = $derived(!isExtensionMode() && requiresExt && extAvailable);
+  let initialTimeSec = $derived(Number(page.url.searchParams.get('t')) || 0);
+
+  // --- View model (single facade for all content page logic) ---
+  const vm = createResolvedContentViewModel(
+    () => contentId,
+    () => provider,
+    () => isValid,
+    () => isCollection,
+    () => contentType,
+    () => contentIdParam,
+    () => platform,
+    () => initialTimeSec
+  );
+
+  // --- UI-only state ---
   const auth = getAuth();
   const isDev = import.meta.env.DEV;
   const player = isDev ? getPlayer() : undefined;
   let devSeekSec = $state(0);
-  let bookmarked = $derived(isBookmarked(contentId));
-  let bookmarkBusy = $state(false);
-
-  async function toggleBookmark() {
-    if (!provider || bookmarkBusy) return;
-    bookmarkBusy = true;
-    try {
-      if (bookmarked) {
-        await removeBookmark(contentId);
-      } else {
-        await addBookmark(contentId, provider);
-      }
-    } finally {
-      bookmarkBusy = false;
-    }
-  }
-
-  // Reset player state when navigating to a new content page
-  $effect(() => {
-    // Track contentId to re-run on navigation
-    void contentId;
-    return () => resetPlayer();
-  });
-
-  // Read initial time from URL ?t= parameter
-  let initialTimeSec = $derived(Number(page.url.searchParams.get('t')) || 0);
-  let seekDispatched = $state(false);
-
-  $effect(() => {
-    if (initialTimeSec > 0 && !seekDispatched) {
-      // Delay to let embed initialize
-      const timer = setTimeout(() => {
-        requestSeek(initialTimeSec * 1000);
-        seekDispatched = true;
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  });
-
-  let store: ReturnType<typeof createCommentsStore> | undefined = $state();
-
-  $effect(() => {
-    if (!isValid || !provider || isCollection || contentType === 'feed') return;
-
-    const s = createCommentsStore(contentId, provider);
-    s.subscribe();
-    store = s;
-
-    return () => {
-      s.destroy();
-    };
-  });
-
-  let resolvedEnclosureUrl = $state<string | undefined>();
-  let episodeTitle = $state<string | undefined>();
-  let episodeFeedTitle = $state<string | undefined>();
-  let episodeImage = $state<string | undefined>();
-  let episodeDescription = $state<string | undefined>();
-
-  $effect(() => {
-    resolvedEnclosureUrl = undefined;
-    episodeTitle = undefined;
-    episodeFeedTitle = undefined;
-    episodeImage = undefined;
-    episodeDescription = undefined;
-
-    if (platform === 'audio') {
-      resolvedEnclosureUrl = fromBase64url(contentIdParam) ?? undefined;
-    } else if (platform === 'podcast' && contentType === 'episode') {
-      const parts = contentIdParam.split(':');
-      if (parts.length === 2) {
-        resolveEpisode(parts[0], parts[1]).then((info) => {
-          if (!info) return;
-          resolvedEnclosureUrl = info.enclosureUrl;
-          episodeTitle = info.title;
-          episodeFeedTitle = info.feedTitle;
-          episodeImage = info.image;
-          episodeDescription = info.description;
-          // Also subscribe to audio:<enclosureUrl> for comments posted via direct URL
-          untrack(() => {
-            store?.addSubscription(`audio:${info.enclosureUrl}`);
-          });
-        });
-      }
-    }
-  });
-
-  // Background guid resolution for audio direct URLs
-  // 1. Search Nostr relays for existing bookmark (d-tag)
-  // 2. Fallback: call API for auto-discovery
-  $effect(() => {
-    if (platform !== 'audio') return;
-    const audioUrl = fromBase64url(contentIdParam);
-    if (!audioUrl) return;
-    let cancelled = false;
-
-    function applyResolution(guid: string, feedUrl: string) {
-      untrack(() => {
-        store?.addSubscription(`podcast:item:guid:${guid}`);
-        const episodeContentId = buildEpisodeContentId(feedUrl, guid);
-        replaceState(`/podcast/episode/${episodeContentId.id}`, {});
-      });
-    }
-
-    // Step 1: Search Nostr relays for bookmark
-    searchBookmarkByUrl(audioUrl)
-      .then((bookmark) => {
-        if (cancelled) return;
-        if (bookmark) {
-          // Bookmark found — apply immediately
-          if (!episodeTitle) episodeTitle = undefined; // will be resolved by episode-resolver
-          applyResolution(bookmark.guid, bookmark.feedUrl);
-          // Also resolve metadata via episode-resolver
-          const feedBase64 = toBase64url(bookmark.feedUrl);
-          const guidBase64 = toBase64url(bookmark.guid);
-          resolveEpisode(feedBase64, guidBase64).then((info) => {
-            if (cancelled || !info) return;
-            if (info.title && !episodeTitle) episodeTitle = info.title;
-            if (info.feedTitle && !episodeFeedTitle) episodeFeedTitle = info.feedTitle;
-            if (info.image && !episodeImage) episodeImage = info.image;
-            if (info.description && !episodeDescription) episodeDescription = info.description;
-          });
-          return;
-        }
-
-        // Step 2: Bookmark not found — fallback to API
-        return resolveByApi(audioUrl).then((data) => {
-          if (cancelled) return;
-
-          // Extract metadata from API response
-          if (data.episode?.title && !episodeTitle) episodeTitle = data.episode.title;
-          if (data.episode?.description && !episodeDescription)
-            episodeDescription = data.episode.description;
-          if (data.feed?.title && !episodeFeedTitle) episodeFeedTitle = data.feed.title;
-          if (data.feed?.imageUrl && !episodeImage) episodeImage = data.feed.imageUrl;
-          // Fallback to audio file metadata (ID3 tags etc.)
-          if (data.metadata) {
-            if (data.metadata.title && !episodeTitle) episodeTitle = data.metadata.title;
-            if (data.metadata.artist && !episodeFeedTitle) episodeFeedTitle = data.metadata.artist;
-            if (data.metadata.image && !episodeImage) episodeImage = data.metadata.image;
-          }
-
-          untrack(() => {
-            if (data.signedEvents) {
-              publishSignedEvents(data.signedEvents).catch(() => {});
-            }
-            if (data.episode?.guid && data.feed?.feedUrl) {
-              applyResolution(data.episode.guid, data.feed.feedUrl);
-            } else if (data.episode?.guid) {
-              store?.addSubscription(`podcast:item:guid:${data.episode.guid}`);
-            }
-          });
-        });
-      })
-      .catch(() => {
-        // Both searches failed — stay on audio:<url>
-      });
-
-    return () => {
-      cancelled = true;
-    };
+  const collectionVm = createPlayerColumnViewModel({
+    getContentId: () => contentId,
+    getProvider: () => provider!
   });
 </script>
-
-{#snippet embedLoading()}
-  <div class="flex h-40 items-center justify-center rounded-2xl bg-surface-1">
-    <div class="h-5 w-32 animate-pulse rounded bg-surface-2"></div>
-  </div>
-{/snippet}
 
 <svelte:head>
   {#if isValid && provider}
@@ -226,17 +56,21 @@
 {#if isValid && provider}
   {#if isCollection}
     <div class="mx-auto max-w-3xl space-y-8">
-      {#if showPlayer && platform === 'spotify'}
-        <SpotifyEmbed {contentId} openUrl={provider.openUrl(contentId)} />
+      {#if collectionVm.surfaceKind === 'embed' && collectionVm.embedLoader}
+        {#await collectionVm.embedLoader()}
+          <div class="flex h-40 items-center justify-center rounded-2xl bg-surface-1">
+            <div class="h-5 w-32 animate-pulse rounded bg-surface-2"></div>
+          </div>
+        {:then { default: EmbedComponent }}
+          <EmbedComponent {contentId} openUrl={collectionVm.openUrl} />
+        {/await}
       {/if}
 
-      {#if showInstallPrompt}
+      {#if collectionVm.surfaceKind === 'install-extension'}
         <div
           class="flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface-1 p-8 text-center"
         >
-          <p class="font-display text-lg text-text-primary">
-            {t('content.requires_extension')}
-          </p>
+          <p class="font-display text-lg text-text-primary">{t('content.requires_extension')}</p>
           <div class="flex gap-3">
             <button
               type="button"
@@ -254,13 +88,9 @@
         </div>
       {/if}
 
-      {#if showPlayButton}
+      {#if collectionVm.surfaceKind === 'open-extension'}
         <button
-          onclick={() => {
-            if (provider) {
-              requestOpenContent(contentId, provider.openUrl(contentId));
-            }
-          }}
+          onclick={collectionVm.requestOpen}
           class="flex w-full items-center justify-center gap-3 rounded-2xl border border-border bg-surface-1 p-8 text-center transition-colors hover:bg-surface-2"
         >
           <span class="text-2xl">&#9654;</span>
@@ -271,7 +101,7 @@
 
       <div class="animate-slide-up stagger-2 space-y-3 text-center">
         <a
-          href={provider.openUrl(contentId)}
+          href={collectionVm.openUrl}
           target="_blank"
           rel="noopener noreferrer"
           data-testid="show-episodes-link"
@@ -285,118 +115,19 @@
       </div>
     </div>
   {:else}
-    <!-- Two-column layout: Player left, Comments right (desktop) -->
     <div class="flex flex-col md:flex-row md:gap-6 lg:gap-8">
-      <!-- Player column — sticky on tablet+ -->
       <div class="md:w-1/2 lg:w-[55%] xl:w-[58%] md:flex-shrink-0">
-        <div
-          class="md:sticky md:top-[var(--header-height)] md:max-h-[calc(100vh-var(--header-height)-2rem)] md:overflow-y-auto md:scrollbar-hide"
-        >
-          {#if platform === 'podcast' && contentType === 'feed'}
-            <PodcastEpisodeList {contentId} />
-          {:else if platform === 'audio' || (platform === 'podcast' && contentType === 'episode')}
-            <AudioEmbed
-              {contentId}
-              enclosureUrl={resolvedEnclosureUrl}
-              title={episodeTitle}
-              feedTitle={episodeFeedTitle}
-              image={episodeImage}
-              openUrl={provider.openUrl(contentId)}
-            />
-            {#if episodeDescription}
-              <div class="mt-3">
-                <EpisodeDescription description={episodeDescription} />
-              </div>
-            {/if}
-          {:else if showPlayer && platform === 'spotify'}
-            <SpotifyEmbed {contentId} openUrl={provider.openUrl(contentId)} />
-          {:else if showPlayer && platform === 'youtube'}
-            {#await import('$lib/components/YouTubeEmbed.svelte')}
-              {@render embedLoading()}
-            {:then { default: YouTubeEmbed }}
-              <YouTubeEmbed {contentId} openUrl={provider.openUrl(contentId)} />
-            {/await}
-          {:else if showPlayer && platform === 'soundcloud'}
-            {#await import('$lib/components/SoundCloudEmbed.svelte')}
-              {@render embedLoading()}
-            {:then { default: SoundCloudEmbed }}
-              <SoundCloudEmbed {contentId} openUrl={provider.openUrl(contentId)} />
-            {/await}
-          {:else if showPlayer && platform === 'vimeo'}
-            {#await import('$lib/components/VimeoEmbed.svelte')}
-              {@render embedLoading()}
-            {:then { default: VimeoEmbed }}
-              <VimeoEmbed {contentId} openUrl={provider.openUrl(contentId)} />
-            {/await}
-          {:else if showPlayer && platform === 'mixcloud'}
-            {#await import('$lib/components/MixcloudEmbed.svelte')}
-              {@render embedLoading()}
-            {:then { default: MixcloudEmbed }}
-              <MixcloudEmbed {contentId} openUrl={provider.openUrl(contentId)} />
-            {/await}
-          {:else if showPlayer && platform === 'spreaker'}
-            {#await import('$lib/components/SpreakerEmbed.svelte')}
-              {@render embedLoading()}
-            {:then { default: SpreakerEmbed }}
-              <SpreakerEmbed {contentId} openUrl={provider.openUrl(contentId)} />
-            {/await}
-          {:else if showPlayer && platform === 'niconico'}
-            {#await import('$lib/components/NiconicoEmbed.svelte')}
-              {@render embedLoading()}
-            {:then { default: NiconicoEmbed }}
-              <NiconicoEmbed {contentId} openUrl={provider.openUrl(contentId)} />
-            {/await}
-          {:else if showPlayer && platform === 'podbean'}
-            {#await import('$lib/components/PodbeanEmbed.svelte')}
-              {@render embedLoading()}
-            {:then { default: PodbeanEmbed }}
-              <PodbeanEmbed {contentId} openUrl={provider.openUrl(contentId)} />
-            {/await}
-          {/if}
-
-          {#if showInstallPrompt}
-            <div
-              class="flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface-1 p-8 text-center"
-            >
-              <p class="font-display text-lg text-text-primary">
-                {t('content.requires_extension')}
-              </p>
-              <div class="flex gap-3">
-                <button
-                  type="button"
-                  class="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-surface-0 transition-colors hover:bg-accent-hover"
-                >
-                  {t('content.install_chrome')}
-                </button>
-                <button
-                  type="button"
-                  class="rounded-xl border border-accent px-5 py-2.5 text-sm font-semibold text-accent transition-colors hover:bg-accent-muted"
-                >
-                  {t('content.install_firefox')}
-                </button>
-              </div>
-            </div>
-          {/if}
-
-          {#if showPlayButton}
-            <button
-              onclick={() => {
-                if (provider) {
-                  requestOpenContent(contentId, provider.openUrl(contentId));
-                }
-              }}
-              class="flex w-full items-center justify-center gap-3 rounded-2xl border border-border bg-surface-1 p-8 text-center transition-colors hover:bg-surface-2"
-            >
-              <span class="text-2xl">&#9654;</span>
-              <span class="font-display text-lg text-text-primary"
-                >{t('content.open_and_comment')}</span
-              >
-            </button>
-          {/if}
-        </div>
+        <PlayerColumn
+          {contentId}
+          {provider}
+          resolvedEnclosureUrl={vm.resolvedEnclosureUrl}
+          episodeTitle={vm.episodeTitle}
+          episodeFeedTitle={vm.episodeFeedTitle}
+          episodeImage={vm.episodeImage}
+          episodeDescription={vm.episodeDescription}
+        />
       </div>
 
-      <!-- Comments column — scrollable -->
       <div class="mt-6 min-w-0 flex-1 md:mt-0">
         <section class="animate-slide-up stagger-2 space-y-5">
           <div class="flex items-center gap-3">
@@ -408,16 +139,16 @@
             {#if auth.loggedIn}
               <button
                 type="button"
-                onclick={toggleBookmark}
-                disabled={bookmarkBusy}
+                onclick={vm.toggleBookmark}
+                disabled={vm.bookmarkBusy}
                 class="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 disabled:opacity-50
-                  {bookmarked
+                  {vm.bookmarked
                   ? 'bg-accent/10 text-accent hover:bg-accent/20'
                   : 'bg-surface-2 text-text-secondary hover:bg-surface-3 hover:text-text-primary'}"
-                title={bookmarked ? t('bookmark.remove') : t('bookmark.add')}
+                title={vm.bookmarked ? t('bookmark.remove') : t('bookmark.add')}
               >
-                {bookmarked ? '\u2605' : '\u2606'}
-                {bookmarked ? t('bookmark.remove') : t('bookmark.add')}
+                {vm.bookmarked ? '\u2605' : '\u2606'}
+                {vm.bookmarked ? t('bookmark.remove') : t('bookmark.add')}
               </button>
             {/if}
           </div>
@@ -462,11 +193,11 @@
             </div>
           {/if}
           <CommentForm {contentId} {provider} />
-          {#if store}
+          {#if vm.store}
             <CommentList
-              comments={store.comments}
-              reactionIndex={store.reactionIndex}
-              loading={store.loading}
+              comments={vm.store.comments}
+              reactionIndex={vm.store.reactionIndex}
+              loading={vm.store.loading}
               {contentId}
               {provider}
             />
@@ -478,8 +209,8 @@
 {:else}
   <div class="flex flex-col items-center gap-6 pt-20">
     <p class="font-display text-lg text-text-secondary">{t('content.unsupported')}</p>
-    <a href="/" class="text-sm text-accent transition-colors hover:text-accent-hover">
-      {t('content.back_home')}
-    </a>
+    <a href="/" class="text-sm text-accent transition-colors hover:text-accent-hover"
+      >{t('content.back_home')}</a
+    >
   </div>
 {/if}

@@ -1,9 +1,12 @@
 <script lang="ts">
-  import type { ContentId } from '../content/types.js';
-  import { VimeoProvider } from '../content/vimeo.js';
-  import { updatePlayback } from '../stores/player.svelte.js';
-  import { t } from '../i18n/t.js';
-  import { createLogger } from '../utils/logger.js';
+  import { createAsyncReadyTimeout } from '$shared/browser/async-ready-timeout.js';
+  import { loadExternalScript } from '$shared/browser/script-loader.js';
+  import type { ContentId } from '$shared/content/types.js';
+  import { VimeoProvider } from '$shared/content/vimeo.js';
+  import { updatePlayback } from '$shared/browser/player.js';
+  import { onSeek } from '../../shared/browser/seek-bridge.js';
+  import { t } from '$shared/i18n/t.js';
+  import { createLogger } from '$shared/utils/logger.js';
   import EmbedLoading from './EmbedLoading.svelte';
 
   const log = createLogger('VimeoEmbed');
@@ -21,51 +24,38 @@
   let ready = $state(false);
   let error = $state(false);
 
-  let apiPromise: Promise<void> | undefined;
-
   function loadApi(): Promise<void> {
-    if (apiPromise) return apiPromise;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (typeof window !== 'undefined' && (window as any).Vimeo?.Player) {
-      apiPromise = Promise.resolve();
-      return apiPromise;
-    }
     log.info('Loading Vimeo Player API...');
-    apiPromise = new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = 'https://player.vimeo.com/api/player.js';
-      script.async = true;
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Failed to load Vimeo API'));
-      document.head.appendChild(script);
+    return loadExternalScript({
+      src: 'https://player.vimeo.com/api/player.js',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      isReady: () => typeof window !== 'undefined' && !!(window as any).Vimeo?.Player
     });
-    return apiPromise;
   }
 
-  function handleSeek(e: Event) {
-    const detail = (e as CustomEvent<{ positionMs: number }>).detail;
-    if (player && detail.positionMs >= 0) {
-      log.debug('Seeking to position', { positionMs: detail.positionMs });
-      player.setCurrentTime(detail.positionMs / 1000);
+  function handleSeek(posMs: number) {
+    if (player && posMs >= 0) {
+      log.debug('Seeking to position', { positionMs: posMs });
+      player.setCurrentTime(posMs / 1000);
     }
   }
 
   $effect(() => {
     if (!iframeEl) return;
 
-    window.addEventListener('resonote:seek', handleSeek);
+    const cleanupSeek = onSeek(handleSeek);
     let cancelled = false;
-
-    const readyTimeout = setTimeout(() => {
-      if (!ready && !error) {
+    const readyTimeout = createAsyncReadyTimeout({
+      timeoutMs: 15000,
+      onTimeout: () => {
         log.error('Player initialization timed out');
         error = true;
       }
-    }, 15000);
+    });
 
     loadApi()
       .then(() => {
-        if (cancelled) return;
+        if (cancelled || readyTimeout.hasTimedOut()) return;
         // eslint-disable-next-line no-undef
         const p = new Vimeo.Player(iframeEl!);
         let cachedPaused = true;
@@ -91,25 +81,25 @@
         });
 
         p.on('loaded', () => {
-          if (cancelled) {
+          if (cancelled || !readyTimeout.succeed()) {
             p.destroy();
             return;
           }
           player = p;
           ready = true;
-          clearTimeout(readyTimeout);
           log.info('Vimeo player ready');
         });
       })
       .catch((err) => {
+        readyTimeout.cancel();
         log.error('Failed to initialize Vimeo player', err);
         error = true;
       });
 
     return () => {
       cancelled = true;
-      clearTimeout(readyTimeout);
-      window.removeEventListener('resonote:seek', handleSeek);
+      readyTimeout.cancel();
+      cleanupSeek();
       if (player) {
         try {
           player.off('play');

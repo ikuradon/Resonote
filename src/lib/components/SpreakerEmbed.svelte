@@ -1,5 +1,6 @@
 <script lang="ts" module>
-  import { createLogger } from '../utils/logger.js';
+  import { reloadExternalScript } from '$shared/browser/script-loader.js';
+  import { createLogger } from '$shared/utils/logger.js';
 
   const log = createLogger('SpreakerEmbed');
 
@@ -8,19 +9,17 @@
    * the script so it re-scans for new .spreaker-player anchors.
    */
   function loadWidgetsScript(): void {
-    const existing = document.querySelector('script[src*="widget.spreaker.com/widgets.js"]');
-    if (existing) existing.remove();
-    const script = document.createElement('script');
-    script.src = 'https://widget.spreaker.com/widgets.js';
-    script.async = true;
-    document.head.appendChild(script);
+    reloadExternalScript('https://widget.spreaker.com/widgets.js');
   }
 </script>
 
 <script lang="ts">
-  import type { ContentId } from '../content/types.js';
-  import { setContent, updatePlayback } from '../stores/player.svelte.js';
-  import { t } from '../i18n/t.js';
+  import { createAsyncReadyTimeout } from '$shared/browser/async-ready-timeout.js';
+  import { startIntervalTask, type IntervalTaskHandle } from '$shared/browser/interval-task.js';
+  import type { ContentId } from '$shared/content/types.js';
+  import { setContent, updatePlayback } from '$shared/browser/player.js';
+  import { onSeek } from '../../shared/browser/seek-bridge.js';
+  import { t } from '$shared/i18n/t.js';
   import EmbedLoading from './EmbedLoading.svelte';
 
   const POLL_INTERVAL_MS = 500;
@@ -37,14 +36,11 @@
   let containerEl: HTMLDivElement | undefined = $state();
   // eslint-disable-next-line no-undef
   let widget: SP.SpreakerWidget | undefined;
-  let pollTimer: ReturnType<typeof setInterval> | undefined;
+  let pollTimer: IntervalTaskHandle | undefined;
   let ready = $state(false);
   let error = $state(false);
 
-  function handleSeek(e: Event) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const detail = (e as CustomEvent).detail as any;
-    const posMs: number = detail.position ?? detail.positionMs ?? -1;
+  function handleSeek(posMs: number) {
     if (widget && posMs >= 0) {
       log.debug('Seeking to position', { posMs });
       widget.seek(posMs);
@@ -54,10 +50,11 @@
   $effect(() => {
     if (!containerEl) return;
 
-    window.addEventListener('resonote:seek', handleSeek);
+    const cleanupSeek = onSeek(handleSeek);
 
     let cancelled = false;
-    let spReadyTimer: ReturnType<typeof setInterval> | undefined;
+    let spReadyTimer: IntervalTaskHandle | undefined;
+    let positionSyncDelay: ReturnType<typeof setTimeout> | undefined;
 
     // Create anchor element for widgets.js to convert to iframe
     const anchor = document.createElement('a');
@@ -73,24 +70,24 @@
     // Re-add script to trigger re-scan of .spreaker-player anchors
     loadWidgetsScript();
 
-    const startTime = Date.now();
-    spReadyTimer = setInterval(() => {
-      if (cancelled) {
-        clearInterval(spReadyTimer);
-        return;
-      }
-      if (Date.now() - startTime > SP_READY_TIMEOUT_MS) {
-        clearInterval(spReadyTimer);
+    const readyTimeout = createAsyncReadyTimeout({
+      timeoutMs: SP_READY_TIMEOUT_MS,
+      onTimeout: () => {
+        spReadyTimer?.stop();
         log.error('Spreaker SP.getWidget not available after timeout');
         error = true;
-        return;
       }
+    });
+
+    spReadyTimer = startIntervalTask(() => {
+      if (cancelled || readyTimeout.hasTimedOut()) return;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const SP = (window as any).SP;
       if (!SP?.getWidget) return;
       const iframe = containerEl?.querySelector('iframe');
       if (!iframe) return;
-      clearInterval(spReadyTimer);
+      if (!readyTimeout.succeed()) return;
+      spReadyTimer?.stop();
       initWidget(SP.getWidget(iframe));
     }, SP_READY_POLL_MS);
 
@@ -104,20 +101,23 @@
 
         let cachedPaused = true;
 
-        pollTimer = setInterval(() => {
+        pollTimer = startIntervalTask(() => {
           w.getState((_episode, _state, isPlaying) => {
             if (typeof isPlaying === 'boolean') {
               cachedPaused = !isPlaying;
             }
           });
           // Delay getPosition slightly so getState resolves first
-          setTimeout(() => {
+          clearTimeout(positionSyncDelay);
+          positionSyncDelay = setTimeout(() => {
+            positionSyncDelay = undefined;
             w.getPosition((position, _progress, duration) => {
               updatePlayback(position, duration, cachedPaused);
             });
           }, 50);
         }, POLL_INTERVAL_MS);
       } catch (err) {
+        readyTimeout.cancel();
         log.error('Failed to initialize Spreaker widget', err);
         error = true;
       }
@@ -125,12 +125,13 @@
 
     return () => {
       cancelled = true;
-      if (spReadyTimer) clearInterval(spReadyTimer);
-      window.removeEventListener('resonote:seek', handleSeek);
-      if (pollTimer !== undefined) {
-        clearInterval(pollTimer);
-        pollTimer = undefined;
-      }
+      readyTimeout.cancel();
+      spReadyTimer?.stop();
+      cleanupSeek();
+      pollTimer?.stop();
+      pollTimer = undefined;
+      clearTimeout(positionSyncDelay);
+      positionSyncDelay = undefined;
       widget = undefined;
       ready = false;
       error = false;

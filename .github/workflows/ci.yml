@@ -39,6 +39,22 @@ jobs:
       - name: svelte-check
         run: pnpm check
 
+      - name: Structure check
+        run: pnpm check:structure
+
+      - name: Generate import graph artifacts
+        run: |
+          mkdir -p artifacts
+          pnpm graph:imports:summary > artifacts/import-graph-summary.txt
+          pnpm graph:imports > artifacts/import-graph.dot
+
+      - name: Upload import graph artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: import-graph
+          path: artifacts/import-graph-*
+          retention-days: 7
+
   audit:
     name: Security Audit
     runs-on: ubuntu-latest
@@ -81,6 +97,37 @@ jobs:
         with:
           name: coverage
           path: coverage/
+          retention-days: 7
+
+  bundle-profile:
+    name: Bundle Profile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build app
+        run: pnpm build
+
+      - name: Generate bundle profile
+        run: |
+          mkdir -p artifacts
+          node scripts/print-bundle-summary.mjs --summary > artifacts/bundle-summary.txt
+          node scripts/print-bundle-summary.mjs > artifacts/bundle-files.txt
+
+      - name: Upload bundle profile
+        uses: actions/upload-artifact@v7
+        with:
+          name: bundle-profile
+          path: artifacts/bundle-*
           retention-days: 7
 
   e2e:
@@ -156,7 +203,7 @@ jobs:
 
   deploy-staging:
     name: Deploy to Staging
-    needs: [lint-and-check, audit, test, e2e, build-extension]
+    needs: [lint-and-check, audit, test, bundle-profile, e2e, build-extension]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
@@ -192,7 +239,7 @@ jobs:
 
   deploy-production:
     name: Deploy to Production
-    needs: [lint-and-check, audit, test, e2e, build-extension]
+    needs: [lint-and-check, audit, test, bundle-profile, e2e, build-extension]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:

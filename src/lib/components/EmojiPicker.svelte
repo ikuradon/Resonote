@@ -1,9 +1,9 @@
 <script lang="ts">
   import type { Action } from 'svelte/action';
-  import { getCustomEmojis, type EmojiCategory } from '../stores/emoji-sets.svelte.js';
-  import { getEmojiMartModules } from '../stores/emoji-mart-preload.svelte.js';
-  import { extractShortcode } from '../utils/emoji.js';
-  import { getLocale } from '../stores/locale.svelte.js';
+  import { getCustomEmojis, type EmojiCategory } from '$shared/browser/emoji-sets.js';
+  import { getLocale } from '$shared/browser/locale.js';
+  import { getEmojiMartModules } from '$shared/browser/emoji-mart.js';
+  import { extractShortcode } from '$shared/utils/emoji.js';
 
   interface Props {
     onSelect: (reaction: string, emojiUrl?: string) => void;

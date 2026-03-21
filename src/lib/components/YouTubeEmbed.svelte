@@ -1,44 +1,27 @@
 <script lang="ts" module>
-  import { createLogger } from '../utils/logger.js';
+  import { loadWindowCallbackScript } from '$shared/browser/script-loader.js';
+  import { createLogger } from '$shared/utils/logger.js';
 
   const log = createLogger('YouTubeEmbed');
 
-  let apiPromise: Promise<void> | undefined;
-
   function loadApi(): Promise<void> {
-    if (apiPromise) return apiPromise;
-
-    if (typeof YT !== 'undefined' && YT.Player) {
-      apiPromise = Promise.resolve();
-      return apiPromise;
-    }
-
     log.info('Loading YouTube IFrame API...');
-    apiPromise = new Promise((resolve, reject) => {
-      window.onYouTubeIframeAPIReady = () => {
-        resolve();
-      };
-
-      const script = document.createElement('script');
-      script.src = 'https://www.youtube.com/iframe_api';
-      script.async = true;
-      script.onerror = () => {
-        apiPromise = undefined;
-        script.remove();
-        delete (window as unknown as Record<string, unknown>).onYouTubeIframeAPIReady;
-        reject(new Error('Failed to load YouTube API'));
-      };
-      document.head.appendChild(script);
+    return loadWindowCallbackScript<void>({
+      src: 'https://www.youtube.com/iframe_api',
+      callbackName: 'onYouTubeIframeAPIReady',
+      isReady: () => typeof YT !== 'undefined' && !!YT.Player,
+      getResolvedValue: () => undefined
     });
-
-    return apiPromise;
   }
 </script>
 
 <script lang="ts">
-  import type { ContentId } from '../content/types.js';
-  import { t } from '../i18n/t.js';
-  import { updatePlayback } from '../stores/player.svelte.js';
+  import { createAsyncReadyTimeout } from '$shared/browser/async-ready-timeout.js';
+  import { startIntervalTask, type IntervalTaskHandle } from '$shared/browser/interval-task.js';
+  import type { ContentId } from '$shared/content/types.js';
+  import { t } from '$shared/i18n/t.js';
+  import { updatePlayback } from '$shared/browser/player.js';
+  import { onSeek } from '../../shared/browser/seek-bridge.js';
   import EmbedLoading from './EmbedLoading.svelte';
 
   const POLL_INTERVAL_MS = 250;
@@ -52,7 +35,7 @@
 
   let containerEl: HTMLDivElement | undefined = $state();
   let player: YT.Player | undefined;
-  let pollTimer: ReturnType<typeof setInterval> | undefined;
+  let pollTimer: IntervalTaskHandle | undefined;
   let ready = $state(false);
   let error = $state(false);
 
@@ -63,14 +46,12 @@
 
   function startPolling(p: YT.Player) {
     stopPolling();
-    pollTimer = setInterval(() => syncPlayback(p), POLL_INTERVAL_MS);
+    pollTimer = startIntervalTask(() => syncPlayback(p), POLL_INTERVAL_MS);
   }
 
   function stopPolling() {
-    if (pollTimer !== undefined) {
-      clearInterval(pollTimer);
-      pollTimer = undefined;
-    }
+    pollTimer?.stop();
+    pollTimer = undefined;
   }
 
   async function initPlayer(el: HTMLDivElement, videoId: string) {
@@ -105,11 +86,10 @@
     });
   }
 
-  function handleSeek(e: Event) {
-    const detail = (e as CustomEvent<{ positionMs: number }>).detail;
-    if (player && detail.positionMs >= 0) {
-      log.debug('Seeking to position', { positionMs: detail.positionMs });
-      player.seekTo(detail.positionMs / 1000, true);
+  function handleSeek(posMs: number) {
+    if (player && posMs >= 0) {
+      log.debug('Seeking to position', { positionMs: posMs });
+      player.seekTo(posMs / 1000, true);
       player.playVideo();
     }
   }
@@ -119,43 +99,43 @@
 
     const videoId = contentId.id;
 
-    window.addEventListener('resonote:seek', handleSeek);
+    const cleanupSeek = onSeek(handleSeek);
 
     if (player) {
       player.loadVideoById(videoId);
       return () => {
-        window.removeEventListener('resonote:seek', handleSeek);
+        cleanupSeek();
       };
     }
 
     let cancelled = false;
-
-    const readyTimeout = setTimeout(() => {
-      if (!ready && !error) {
+    const readyTimeout = createAsyncReadyTimeout({
+      timeoutMs: 15000,
+      onTimeout: () => {
         log.error('Player initialization timed out');
         error = true;
       }
-    }, 15000);
+    });
 
     initPlayer(containerEl, videoId)
       .then((p) => {
-        if (cancelled) {
+        if (cancelled || !readyTimeout.succeed()) {
           p.destroy();
           return;
         }
         player = p;
         ready = true;
-        clearTimeout(readyTimeout);
       })
       .catch((err) => {
+        readyTimeout.cancel();
         log.error('Failed to initialize YouTube player', err);
         error = true;
       });
 
     return () => {
       cancelled = true;
-      clearTimeout(readyTimeout);
-      window.removeEventListener('resonote:seek', handleSeek);
+      readyTimeout.cancel();
+      cleanupSeek();
       stopPolling();
       player?.destroy();
       player = undefined;

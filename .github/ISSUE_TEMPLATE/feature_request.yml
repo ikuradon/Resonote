@@ -22,6 +22,16 @@ body:
       label: 提案する解決策
       description: どのように実現するか、アイデアがあれば
   - type: textarea
+    id: ownership
+    attributes:
+      label: 想定配置 / ownership
+      description: 実装するなら `shared` / `features` / `app` / `web` / `lib` のどこに置くべきか
+  - type: textarea
+    id: performance
+    attributes:
+      label: 性能・bundle 影響
+      description: 初期表示、lazy load、bundle size への影響見込みがあれば書いてください
+  - type: textarea
     id: alternatives
     attributes:
       label: 代替案

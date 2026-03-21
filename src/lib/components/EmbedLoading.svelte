@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { startIntervalTask } from '$shared/browser/interval-task.js';
   import WaveformLoader from './WaveformLoader.svelte';
-  import { t } from '../i18n/t.js';
+  import { t } from '$shared/i18n/t.js';
   import type { Snippet } from 'svelte';
 
   interface Props {
@@ -24,13 +25,13 @@
 
   $effect(() => {
     const start = Date.now();
-    const interval = setInterval(() => {
+    const progressTask = startIntervalTask(() => {
       const elapsed = Date.now() - start;
       const ratio = Math.min(elapsed / duration, 1);
       // Ease-out: fast start, slows near max
       progress = maxProgress * (1 - Math.pow(1 - ratio, 3));
     }, 500);
-    return () => clearInterval(interval);
+    return () => progressTask.stop();
   });
 </script>
 

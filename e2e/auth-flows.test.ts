@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
 import { generateSecretKey, getPublicKey, finalizeEvent } from 'nostr-tools/pure';
-import { DEFAULT_RELAYS } from '../src/lib/nostr/relays.js';
+import { DEFAULT_RELAYS } from '../src/shared/nostr/relays.js';
 
 const trackUrl = '/spotify/track/4C6zDr6e86HYqLxPAhO8jA';
 

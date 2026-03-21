@@ -6,6 +6,12 @@ const config = {
     adapter: adapter({
       fallback: 'index.html'
     }),
+    alias: {
+      $shared: 'src/shared',
+      $features: 'src/features',
+      $appcore: 'src/app',
+      $extension: 'src/extension'
+    },
     files: {
       routes: 'src/web/routes',
       appTemplate: 'src/web/app.html'

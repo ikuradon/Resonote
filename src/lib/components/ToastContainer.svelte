@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { getToasts, dismiss, type ToastType } from '$lib/stores/toast.svelte.js';
-  import { t } from '$lib/i18n/t.js';
+  import { getToasts, dismiss, type ToastType } from '$shared/browser/toast.js';
+  import { t } from '$shared/i18n/t.js';
 
   const TOAST_STYLE: Record<
     ToastType,

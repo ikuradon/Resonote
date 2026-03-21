@@ -1,36 +1,11 @@
-<script lang="ts" module>
-  import { createLogger } from '../utils/logger.js';
-
-  const log = createLogger('PodbeanEmbed');
-
-  let apiLoaded = false;
-
-  function loadPbApi(): Promise<void> {
-    if (apiLoaded) return Promise.resolve();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (typeof window !== 'undefined' && (window as any).PB) {
-      apiLoaded = true;
-      return Promise.resolve();
-    }
-    log.info('Loading Podbean Widget API...');
-    return new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = 'https://pbcdn1.podbean.com/fs1/player/api.js';
-      script.async = true;
-      script.onload = () => {
-        apiLoaded = true;
-        resolve();
-      };
-      script.onerror = () => reject(new Error('Failed to load Podbean API'));
-      document.head.appendChild(script);
-    });
-  }
-</script>
-
 <script lang="ts">
-  import type { ContentId } from '../content/types.js';
-  import { setContent, updatePlayback } from '../stores/player.svelte.js';
-  import { t } from '../i18n/t.js';
+  import { createAsyncReadyTimeout } from '$shared/browser/async-ready-timeout.js';
+  import { mountPodbeanWidget, type PodbeanWidgetHandle } from '$shared/browser/podbean-widget.js';
+  import type { ContentId } from '$shared/content/types.js';
+  import { setContent, updatePlayback } from '$shared/browser/player.js';
+  import { createLogger } from '$shared/utils/logger.js';
+  import { onSeek } from '../../shared/browser/seek-bridge.js';
+  import { t } from '$shared/i18n/t.js';
   import EmbedLoading from './EmbedLoading.svelte';
 
   interface Props {
@@ -41,20 +16,16 @@
   let { contentId, openUrl }: Props = $props();
 
   let iframeEl: HTMLIFrameElement | undefined = $state();
-  // eslint-disable-next-line no-undef
-  let widget: PB | undefined;
+  let widgetHandle: PodbeanWidgetHandle | undefined;
   let ready = $state(false);
   let error = $state(false);
   let embedSrc = $state('');
+  const log = createLogger('PodbeanEmbed');
 
-  function handleSeek(e: Event) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const detail = (e as CustomEvent).detail as any;
-    const posMs: number = detail.position ?? detail.positionMs ?? -1;
-    if (widget && posMs >= 0) {
-      log.debug('Seeking to position', { posMs });
-      widget.seekTo(posMs / 1000); // PB.seekTo takes seconds despite docs saying ms
-    }
+  function handleSeek(posMs: number) {
+    if (!widgetHandle || posMs < 0) return;
+    log.debug('Seeking to position', { posMs });
+    widgetHandle.seekTo(posMs);
   }
 
   // Resolve embed URL via Podbean oEmbed API
@@ -72,20 +43,10 @@
       sourceUrl = `https://${parts[0]}.podbean.com/e/${parts[1]}`;
     }
 
-    fetch(`/api/podbean/resolve?url=${encodeURIComponent(sourceUrl)}`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`resolve ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
-        const d = data as { embedSrc?: string; embedId?: string };
-        if (d.embedSrc) {
-          embedSrc = d.embedSrc;
-        } else if (d.embedId) {
-          embedSrc = `https://www.podbean.com/player-v2/?i=${d.embedId}`;
-        } else {
-          throw new Error('No embed URL resolved');
-        }
+    import('../../features/content-resolution/infra/podbean-api-client.js')
+      .then(({ resolvePodbeanEmbed }) => resolvePodbeanEmbed(sourceUrl))
+      .then((src) => {
+        embedSrc = src;
       })
       .catch((err) => {
         log.error('Failed to resolve Podbean oEmbed', err);
@@ -97,93 +58,61 @@
   $effect(() => {
     if (!iframeEl || !embedSrc) return;
 
-    window.addEventListener('resonote:seek', handleSeek);
+    const cleanupSeek = onSeek(handleSeek);
 
     let cancelled = false;
     let cachedDuration = 0;
     let cachedPaused = true;
-
-    const readyTimeout = setTimeout(() => {
-      if (!ready && !error) {
+    const readyTimeout = createAsyncReadyTimeout({
+      timeoutMs: 20000,
+      onTimeout: () => {
         log.error('Player initialization timed out');
         error = true;
       }
-    }, 20000);
+    });
 
-    // Wait for both iframe load and API script
-    const initWidget = () => {
-      loadPbApi()
-        .then(() => {
-          if (cancelled || !iframeEl) return;
-
-          // eslint-disable-next-line no-undef, @typescript-eslint/no-explicit-any
-          const pb = new (window as any).PB(iframeEl) as PB;
-          widget = pb;
-
-          pb.bind('PB.Widget.Events.READY', () => {
-            if (cancelled) return;
-            setContent(contentId);
-            ready = true;
-            clearTimeout(readyTimeout);
-            log.info('Podbean widget ready');
-          });
-
-          pb.bind('PB.Widget.Events.PLAY', () => {
-            cachedPaused = false;
-            // getDuration returns NaN before playback starts
-            if (!cachedDuration || isNaN(cachedDuration)) {
-              pb.getDuration((d) => {
-                if (typeof d === 'number' && !isNaN(d) && d > 0) {
-                  cachedDuration = d;
-                }
-              });
+    widgetHandle = mountPodbeanWidget(iframeEl, {
+      onReady: () => {
+        if (cancelled || !readyTimeout.succeed()) return;
+        setContent(contentId);
+        ready = true;
+        log.info('Podbean widget ready');
+      },
+      onPlay: (widget) => {
+        cachedPaused = false;
+        if (!cachedDuration || isNaN(cachedDuration)) {
+          widget.getDuration((duration) => {
+            if (typeof duration === 'number' && !isNaN(duration) && duration > 0) {
+              cachedDuration = duration;
             }
           });
-
-          pb.bind('PB.Widget.Events.PAUSE', () => {
-            cachedPaused = true;
-          });
-
-          pb.bind('PB.Widget.Events.PLAY_PROGRESS', (e?: unknown) => {
-            const ev = e as {
-              data?: { currentPosition?: number; relativePosition?: number };
-            };
-            const pos = ev?.data?.currentPosition;
-            const rel = ev?.data?.relativePosition;
-            if (pos !== undefined) {
-              // Derive duration from currentPosition / relativePosition
-              if (rel && rel > 0) {
-                cachedDuration = pos / rel;
-              }
-              updatePlayback(pos * 1000, cachedDuration * 1000, cachedPaused);
-            }
-          });
-        })
-        .catch((err) => {
-          log.error('Failed to initialize Podbean widget', err);
-          error = true;
-        });
-    };
-
-    // If iframe is already loaded, init immediately; otherwise wait for load event
-    if (iframeEl.contentDocument?.readyState === 'complete') {
-      initWidget();
-    } else {
-      iframeEl.addEventListener('load', initWidget, { once: true });
-    }
+        }
+      },
+      onPause: () => {
+        cachedPaused = true;
+      },
+      onProgress: (event) => {
+        const pos = event.data?.currentPosition;
+        const rel = event.data?.relativePosition;
+        if (pos === undefined) return;
+        if (rel && rel > 0) {
+          cachedDuration = pos / rel;
+        }
+        updatePlayback(pos * 1000, cachedDuration * 1000, cachedPaused);
+      },
+      onError: (err) => {
+        readyTimeout.cancel();
+        log.error('Failed to initialize Podbean widget', err);
+        error = true;
+      }
+    });
 
     return () => {
       cancelled = true;
-      clearTimeout(readyTimeout);
-      iframeEl?.removeEventListener('load', initWidget);
-      window.removeEventListener('resonote:seek', handleSeek);
-      if (widget) {
-        widget.unbind('PB.Widget.Events.READY');
-        widget.unbind('PB.Widget.Events.PLAY');
-        widget.unbind('PB.Widget.Events.PAUSE');
-        widget.unbind('PB.Widget.Events.PLAY_PROGRESS');
-      }
-      widget = undefined;
+      readyTimeout.cancel();
+      cleanupSeek();
+      widgetHandle?.destroy();
+      widgetHandle = undefined;
       ready = false;
     };
   });

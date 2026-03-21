@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { ContentId } from '$lib/content/types.js';
-  import { fromBase64url } from '$lib/content/url-utils.js';
-  import { setContent, updatePlayback } from '$lib/stores/player.svelte.js';
-  import { t } from '$lib/i18n/t.js';
+  import { createAudioEmbedViewModel } from './audio-embed-view-model.svelte.js';
+  import type { ContentId } from '$shared/content/types.js';
+  import { formatDuration } from '$shared/utils/format.js';
+  import { t } from '$shared/i18n/t.js';
 
   interface Props {
     contentId: ContentId;
@@ -14,113 +14,9 @@
   }
 
   let { contentId, enclosureUrl, title, feedTitle, image, openUrl }: Props = $props();
-
-  let audioEl: HTMLAudioElement | undefined = $state();
-  let currentTime = $state(0);
-  let duration = $state(0);
-  let isPaused = $state(true);
-  let volume = $state(1);
-  let error = $state(false);
-
-  let audioSrc = $derived(
-    enclosureUrl ?? (contentId.platform === 'audio' ? fromBase64url(contentId.id) : null)
-  );
-
-  function formatTime(seconds: number): string {
-    if (!isFinite(seconds) || isNaN(seconds)) return '0:00';
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  }
-
-  function togglePlayPause() {
-    if (!audioEl) return;
-    if (audioEl.paused) {
-      audioEl.play();
-    } else {
-      audioEl.pause();
-    }
-  }
-
-  function handleSeekInput(e: Event) {
-    if (!audioEl) return;
-    const value = parseFloat((e.target as HTMLInputElement).value);
-    audioEl.currentTime = value;
-  }
-
-  function handleVolumeInput(e: Event) {
-    if (!audioEl) return;
-    const value = parseFloat((e.target as HTMLInputElement).value);
-    audioEl.volume = value;
-    volume = value;
-  }
-
-  function handleSeekEvent(e: Event) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const detail = (e as CustomEvent).detail as any;
-    const posMs: number = detail.positionMs ?? detail.position ?? -1;
-    if (audioEl && posMs >= 0) {
-      audioEl.currentTime = posMs / 1000;
-    }
-  }
-
-  $effect(() => {
-    const audio = audioEl;
-    if (!audio) return;
-
-    window.addEventListener('resonote:seek', handleSeekEvent);
-
-    const onTimeUpdate = () => {
-      currentTime = audio.currentTime;
-      updatePlayback(audio.currentTime * 1000, audio.duration * 1000, audio.paused);
-    };
-
-    const onDurationChange = () => {
-      duration = audio.duration;
-    };
-
-    const onPlay = () => {
-      isPaused = false;
-      updatePlayback(audio.currentTime * 1000, audio.duration * 1000, false);
-    };
-
-    const onPause = () => {
-      isPaused = true;
-      updatePlayback(audio.currentTime * 1000, audio.duration * 1000, true);
-    };
-
-    const onLoadedMetadata = () => {
-      duration = audio.duration;
-      error = false;
-      setContent(contentId);
-    };
-
-    const onError = () => {
-      error = true;
-    };
-
-    const onVolumeChange = () => {
-      volume = audio.volume;
-    };
-
-    audio.addEventListener('timeupdate', onTimeUpdate);
-    audio.addEventListener('durationchange', onDurationChange);
-    audio.addEventListener('play', onPlay);
-    audio.addEventListener('pause', onPause);
-    audio.addEventListener('loadedmetadata', onLoadedMetadata);
-    audio.addEventListener('error', onError);
-    audio.addEventListener('volumechange', onVolumeChange);
-
-    return () => {
-      window.removeEventListener('resonote:seek', handleSeekEvent);
-      audio.removeEventListener('timeupdate', onTimeUpdate);
-      audio.removeEventListener('durationchange', onDurationChange);
-      audio.removeEventListener('play', onPlay);
-      audio.removeEventListener('pause', onPause);
-      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
-      audio.removeEventListener('error', onError);
-      audio.removeEventListener('volumechange', onVolumeChange);
-    };
+  const vm = createAudioEmbedViewModel({
+    getContentId: () => contentId,
+    getEnclosureUrl: () => enclosureUrl
   });
 </script>
 
@@ -128,9 +24,10 @@
   data-testid="audio-embed"
   class="animate-fade-in w-full overflow-hidden rounded-2xl border border-border-subtle bg-zinc-800 shadow-[0_4px_24px_rgba(0,0,0,0.4)]"
 >
-  <audio bind:this={audioEl} src={audioSrc ?? undefined} preload="metadata" class="hidden"></audio>
+  <audio use:vm.bindAudioElement src={vm.audioSrc ?? undefined} preload="metadata" class="hidden"
+  ></audio>
 
-  {#if error}
+  {#if vm.error}
     <div class="flex flex-col items-center justify-center gap-3 px-4 py-6">
       <p class="text-sm text-zinc-400">{t('embed.load_failed')}</p>
       {#if openUrl}
@@ -149,8 +46,8 @@
       <!-- Artwork -->
       {#if image}
         <button
-          onclick={togglePlayPause}
-          aria-label={isPaused ? 'Play' : 'Pause'}
+          onclick={vm.togglePlayPause}
+          aria-label={vm.isPaused ? 'Play' : 'Pause'}
           class="group relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl"
         >
           <img src={image} alt={title ?? ''} class="h-full w-full object-cover" />
@@ -163,7 +60,7 @@
               viewBox="0 0 24 24"
               fill="currentColor"
             >
-              {#if isPaused}
+              {#if vm.isPaused}
                 <path d="M8 5v14l11-7z" />
               {:else}
                 <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
@@ -192,16 +89,16 @@
           <input
             type="range"
             min="0"
-            max={isFinite(duration) && duration > 0 ? duration : 100}
+            max={isFinite(vm.duration) && vm.duration > 0 ? vm.duration : 100}
             step="0.1"
-            value={currentTime}
-            oninput={handleSeekInput}
+            value={vm.currentTime}
+            oninput={vm.handleSeekInput}
             class="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-zinc-600 accent-amber-500"
             aria-label="Seek"
           />
           <div class="flex justify-between text-xs text-zinc-400">
-            <span>{formatTime(currentTime)}</span>
-            <span>{formatTime(duration)}</span>
+            <span>{formatDuration(vm.currentTime)}</span>
+            <span>{formatDuration(vm.duration)}</span>
           </div>
         </div>
 
@@ -210,11 +107,11 @@
           {#if !image}
             <!-- Play/Pause button (shown when no artwork) -->
             <button
-              onclick={togglePlayPause}
+              onclick={vm.togglePlayPause}
               class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-amber-600 text-white hover:bg-amber-500 active:scale-95"
-              aria-label={isPaused ? 'Play' : 'Pause'}
+              aria-label={vm.isPaused ? 'Play' : 'Pause'}
             >
-              {#if isPaused}
+              {#if vm.isPaused}
                 <svg
                   aria-hidden="true"
                   class="h-5 w-5 translate-x-0.5"
@@ -248,8 +145,8 @@
               min="0"
               max="1"
               step="0.01"
-              value={volume}
-              oninput={handleVolumeInput}
+              value={vm.volume}
+              oninput={vm.handleVolumeInput}
               class="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-zinc-600 accent-amber-500"
               aria-label="Volume"
             />

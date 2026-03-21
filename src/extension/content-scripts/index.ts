@@ -1,4 +1,4 @@
-import { parseContentUrl } from '../../lib/content/registry.js';
+import { parseContentUrl } from '$shared/content/registry.js';
 import { findAdapter } from './adapters/registry.js';
 import type { SiteAdapter } from './adapters/types.js';
 import type {

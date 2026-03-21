@@ -1,39 +1,15 @@
 <script lang="ts" module>
   /** Globally tracks the active popover so only one picker is open at a time. */
   let activePopoverId = $state<string | null>(null);
-
-  let nextId = 0;
-  export function allocatePopoverId(): string {
-    return `emoji-popover-${nextId++}`;
-  }
-
-  /** Registry of mounted popovers for the global click-outside handler. */
-  const registry = new Map<string, { trigger: HTMLElement; popover: HTMLElement | null }>();
-  let listenerAttached = false;
-
-  function handleGlobalClick(e: MouseEvent) {
-    if (!activePopoverId) return;
-    const entry = registry.get(activePopoverId);
-    if (!entry) return;
-    const target = e.target as Node;
-    if (entry.trigger.contains(target)) return;
-    if (entry.popover?.contains(target)) return;
-    activePopoverId = null;
-  }
-
-  function ensureGlobalListener() {
-    if (listenerAttached) return;
-    document.addEventListener('click', handleGlobalClick, true);
-    listenerAttached = true;
-  }
 </script>
 
 <script lang="ts">
   import EmojiPicker from './EmojiPicker.svelte';
-  import { preloadEmojiMart } from '../stores/emoji-mart-preload.svelte.js';
-  import { t } from '../i18n/t.js';
+  import { preloadEmojiMart } from '$shared/browser/emoji-mart.js';
+  import { t } from '$shared/i18n/t.js';
   import { onMount } from 'svelte';
   import type { Action } from 'svelte/action';
+  import { isNodeInsideElements, manageClickOutside } from '$shared/browser/click-outside.js';
 
   interface Props {
     id: string;
@@ -94,16 +70,16 @@
   };
 
   onMount(() => {
-    ensureGlobalListener();
     return () => {
-      registry.delete(id);
       if (activePopoverId === id) activePopoverId = null;
     };
   });
 
-  $effect(() => {
-    if (triggerEl) {
-      registry.set(id, { trigger: triggerEl, popover: popoverEl });
+  manageClickOutside({
+    active: () => isOpen,
+    isInside: (target) => isNodeInsideElements(target, [triggerEl, popoverEl]),
+    onOutside: () => {
+      activePopoverId = null;
     }
   });
 </script>

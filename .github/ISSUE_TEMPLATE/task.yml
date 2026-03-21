@@ -15,10 +15,24 @@ body:
       label: 背景・動機
       description: なぜこの作業が必要か
   - type: textarea
+    id: ownership
+    attributes:
+      label: 想定配置 / ownership
+      description: 新しいコードをどこに置くか、既存のどの ownership に寄せるか
+  - type: textarea
     id: acceptance
     attributes:
       label: 完了条件
       description: 何をもって完了とするか
+  - type: checkboxes
+    id: verification
+    attributes:
+      label: 検証方針
+      description: 必要なものにチェックしてください
+      options:
+        - label: 'pnpm check:structure を確認する'
+        - label: 'pnpm graph:imports:summary を確認する'
+        - label: 'pnpm perf:bundle:summary を確認する'
   - type: textarea
     id: additional
     attributes:
