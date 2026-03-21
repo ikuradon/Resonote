@@ -150,6 +150,8 @@ Web embed 対応: Spotify, YouTube, Vimeo, SoundCloud, Mixcloud, Spreaker, Nicon
 - `src/shared/nostr/relays.ts`: Default relay list
 - `src/shared/nostr/user-relays.ts`: Per-user relay discovery
 - `src/shared/nostr/publish-signed.ts`: Pre-signed event publish via `rxNostr.cast()` + pending queue
+- `src/shared/nostr/cached-query.svelte.ts`: IndexedDB → リレーの2段フォールバック単一イベント取得 (`cachedFetchById`)。`FetchedEventFull` 型、null TTL キャッシュ、`invalidateFetchByIdCache()` (削除時キャッシュ無効化)、`invalidatedDuringFetch` (fetch 中削除のキャッシュ再汚染防止)
+- `src/shared/nostr/gateway.ts`: Nostr インフラへの単一エントリポイント (re-export facade)
 - Signing: `nip07Signer()` from rx-nostr (delegates to `window.nostr`)
 
 ### Podcast/Audio Resolution Flow
@@ -182,7 +184,8 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
 - `src/shared/browser/relays.svelte.ts`: Relay connection status
 - `src/shared/browser/emoji-sets.svelte.ts`: Custom emoji set management
 - `src/shared/browser/extension.svelte.ts`: Browser extension mode state + postMessage listener
-- `src/features/comments/ui/comment-view-model.svelte.ts`: Per-content comment subscription + additional tag merge
+- `src/features/comments/ui/comment-view-model.svelte.ts`: Per-content comment subscription + additional tag merge + orphan parent fetch (`fetchOrphanParent`, `placeholders`)
+- `src/features/comments/ui/comment-profile-preload.svelte.ts`: CommentList の profile preload helper
 - `src/lib/stores/`: 削除済み
 
 ### Residual Policy
@@ -229,6 +232,7 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
 - **Hosting**: Cloudflare Pages (wrangler CLI)
 - **CI**: GitHub Actions (`ci.yml`) — lint-and-check + audit + test + e2e + build-extension (parallel) → deploy。Node.js 24
 - **Deploy trigger**: Push to `main` → staging, `v*` tag → production (`--branch=main` 必須、なしだと preview 扱い)
+- **Preview deploy**: `preview-deploy.yml` — PR ごとにプレビュー環境を自動デプロイ。内部 PR は自動、fork PR は `ok-to-test` ラベル付与で許可。`preview-cleanup.yml` で PR クローズ時に自動削除
 
 ## Issue Tracking
 
@@ -275,3 +279,6 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
 - `static/icon.svg` がマスター SVG。PNG は `rsvg-convert -w 512 -h 512 static/icon.svg -o static/icon-512.png` で再生成 (ImageMagick はグラデーション非対応)
 - `app.html` のスプラッシュ SVG は `icon.svg` の inline 埋め込み。アイコン変更時は両方更新すること
 - OGP の `og:url` / `og:image` は `resonote.pages.dev` を使用。独自ドメイン取得時に `app.html` を更新すること
+- `cachedFetchById` は fetch 中に `invalidateFetchByIdCache` が呼ばれると `invalidatedDuringFetch` Set でキャッシュ書き込みをスキップする。新規キャッシュ利用コードを書く際はこのパターンを維持すること
+- `$effect` 内で `options.getComments()` 等のリアクティブ getter を呼ぶと二重追跡される → `untrack()` でラップして依存を限定する
+- Svelte 5 `{@const}` は `{#snippet}` / `{#if}` / `{#each}` 等のブロック直下にしか置けない。`<div>` 内に置くとコンパイルエラー
