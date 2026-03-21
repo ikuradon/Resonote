@@ -112,7 +112,7 @@ describe('cachedFetchById', () => {
     expect(result).toEqual({ content: 'from relay', kind: 1 });
     // DB was queried (miss), then relay provided the event
     expect(dbGetByIdMock).toHaveBeenCalledTimes(1);
-    expect(dbGetByIdMock).toHaveReturnedWith(Promise.resolve(null));
+    await expect(dbGetByIdMock.mock.results[0].value).resolves.toBeNull();
   });
 
   it('re-caches null after TTL expires and retry still returns null', async () => {
