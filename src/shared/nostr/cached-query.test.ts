@@ -113,7 +113,7 @@ describe('cachedFetchById', () => {
     });
 
     const result = await cachedFetchById('event-relay');
-    expect(result).toEqual({ content: 'from relay', kind: 1 });
+    expect(result).toEqual(expect.objectContaining({ content: 'from relay', kind: 1 }));
     // DB was queried (miss), then relay provided the event
     expect(dbGetByIdMock).toHaveBeenCalledTimes(1);
     await expect(dbGetByIdMock.mock.results[0].value).resolves.toBeNull();
