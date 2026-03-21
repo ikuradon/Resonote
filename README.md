@@ -120,9 +120,9 @@ pnpm run dev:full
 ### ディレクトリ構成
 
 - `src/app/` — app shell / bootstrap
-- `src/lib/` — presentational component と component-local helper のみ
-- `src/shared/` — 公開 runtime boundary (browser / nostr / content / utils)
-- `src/features/` — feature slice (domain / application / infra / ui)
+- `src/lib/` — presentational component と component-local helper のみ (`src/lib/components/` のみ残存)
+- `src/shared/` — 公開 runtime boundary (browser / nostr / content / i18n / utils)
+- `src/features/` — feature slice (domain / application / infra / ui) — comments, content-resolution, notifications, profiles, bookmarks, follows, relays, mute, sharing, auth, playback, extension-bridge, nip19-resolver
 - `src/web/` — SvelteKit エントリーポイント (routes, app.html, app.css)
 - `src/extension/` — ブラウザ拡張機能 (Chrome/Firefox Manifest V3)
 - `functions/` — Cloudflare Pages Functions (API エンドポイント)
@@ -136,7 +136,7 @@ pnpm run dev:full
 - `src/lib/*` は presentation / component-local helper のみ
 
 新しい business logic や infra ownership は `src/lib/*` に追加しない。
-route / component / feature / app は direct store import を避け、`$shared/browser/*` と `$shared/i18n/*` の公開面を使う。`src/lib/stores/*` は残さない。
+route / component / feature / app は direct store import を避け、`$shared/browser/*` と `$shared/i18n/*` の公開面を使う。`src/lib/stores/` は削除済み。
 
 ### 新機能の配置ガイド
 
@@ -161,7 +161,7 @@ rg -n '\$lib/stores/.*svelte|../stores/.*svelte' src --glob '!**/*.test.*'
 rg -n '\$lib/i18n/(t|locales)\.js|\.\./i18n/(t|locales)\.js' src --glob '!**/*.test.*'
 ```
 
-現行の設計文書は [docs/refactoring-roadmap-endgame.md](/root/src/github.com/ikuradon/Resonote/docs/refactoring-roadmap-endgame.md) です。過去の計画書は `docs/archive/` に退避しています。
+設計方針は `CLAUDE.md` の Architecture セクションを正とする。
 
 ### PR / CI 運用
 

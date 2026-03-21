@@ -72,7 +72,7 @@ export default ts.config(
             {
               group: ['$lib/nostr/*', '$lib/stores/*'],
               message:
-                'Features and app must use $shared gateway/bridge, not $lib directly. See docs/refactoring-roadmap-endgame.md.'
+                'Features and app must use $shared gateway/bridge, not $lib directly. See CLAUDE.md Architecture section.'
             }
           ]
         }
@@ -185,7 +185,7 @@ export default ts.config(
             {
               group: ['rx-nostr', '$lib/nostr/client*', '$lib/nostr/event-db*'],
               message:
-                'Routes should use feature facades, not infra directly. See docs/refactoring-roadmap-endgame.md.'
+                'Routes should use feature facades, not infra directly. See CLAUDE.md Architecture section.'
             },
             {
               group: ['$lib/nostr/publish-signed*'],
@@ -232,7 +232,7 @@ export default ts.config(
                 '../../nostr/event-db*'
               ],
               message:
-                'UI components should use application layer, not infra directly. See docs/refactoring-roadmap-endgame.md.'
+                'UI components should use application layer, not infra directly. See CLAUDE.md Architecture section.'
             },
             {
               group: [

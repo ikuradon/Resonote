@@ -64,24 +64,22 @@ This matches the CI pipeline order. Do not skip any step.
 - `src/app/bootstrap/` — Session initialization orchestrator (login/logout sequence)
 - `src/app/ui/` — App shell view-model and app-wide presentation orchestration
 - `src/features/comments/` — Comments feature slice (domain/application/infra/ui)
-- `src/features/content-resolution/` — Content resolution feature slice (domain/application)
+- `src/features/content-resolution/` — Content resolution feature slice (domain/application/infra/ui)
 - `src/features/auth/` — Auth gateway (nostr-login infra 分離)
 - `src/features/bookmarks/` — Bookmarks domain + application (parse, add/remove publish)
-- `src/features/follows/` — Follows domain + application (extractFollows, follow/unfollow publish)
-- `src/features/mute/` — Mute application (publishMuteList)
-- `src/features/notifications/` — Notifications domain (classifier, types)
-- `src/features/profiles/` — Profiles domain + application (model, profile-queries)
-- `src/features/relays/` — Relays domain + application (parseRelayTags, publishRelayList)
-- `src/features/sharing/` — Share action (sendShare)
+- `src/features/follows/` — Follows domain + application + infra (extractFollows, follow/unfollow, WoT fetch)
+- `src/features/mute/` — Mute application + ui (publishMuteList, mute-settings VM)
+- `src/features/notifications/` — Notifications domain + ui (classifier, display helpers, feed VM, subscription VM)
+- `src/features/profiles/` — Profiles domain + application + ui (model, profile-queries, page/header VMs)
+- `src/features/relays/` — Relays domain + application + ui (parseRelayTags, publishRelayList, settings VM)
+- `src/features/sharing/` — Sharing domain + application + ui (share-link, sendShare, share-button VM)
 - `src/features/playback/` — Playback domain types
 - `src/features/extension-bridge/` — Extension bridge typed events
 - `src/features/nip19-resolver/` — NIP-19 event fetch (fetchNostrEvent)
 - `src/shared/` — Public runtime boundary ($shared alias): browser bridges, nostr helpers, content contracts, shared utils
 - `src/lib/components/` — Presentational components and component-local presentation helpers only
 - `src/shared/i18n/` — Translation runtime API (`t`, locales, message dictionaries)
-- `src/lib/i18n/` — 置かない
-- `src/lib/stores/` — 置かない
-- `src/lib/` — 上記以外の runtime ownership を置かない。新規業務ロジック追加禁止。
+- `src/lib/` — `src/lib/components/` のみ残存。runtime ownership を置かない。新規業務ロジック追加禁止。
 - `src/web/` — SvelteKit entry points (routes, app.html, app.css)
 - `src/extension/` — Browser extension (Chrome/Firefox Manifest V3)
 - `functions/` — Cloudflare Pages Functions (API endpoints)
@@ -104,7 +102,7 @@ Feature slices follow a layered structure:
 - `ui/` — View models (.svelte.ts) and Svelte components
 - Dependency direction: `ui → application → domain`, `ui → application → infra → shared`
 - UI components import from `application/` or `domain/`, never from infra directly.
-- `src/lib/stores/` は置かない。UI-support runtime ownership も `src/shared/browser/*` に置く。
+- `src/lib/stores/` は削除済み。UI-support runtime ownership は `src/shared/browser/*` に置く。
 - Public stateful APIs live in `src/shared/browser/*` and feature/domain owners live in `src/features/*`.
 - route は feature/app の facade として扱う。
 - `src/lib/components/**/*.svelte.ts` は component-local presentation helper に限定し、business logic は置かない。
@@ -185,20 +183,20 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
 - `src/shared/browser/emoji-sets.svelte.ts`: Custom emoji set management
 - `src/shared/browser/extension.svelte.ts`: Browser extension mode state + postMessage listener
 - `src/features/comments/ui/comment-view-model.svelte.ts`: Per-content comment subscription + additional tag merge
-- `src/lib/stores/`: 使用しない
+- `src/lib/stores/`: 削除済み
 
 ### Residual Policy
 
 - `src/lib/components/` に置いてよいのは presentational component と component-local helper だけ
 - `src/shared/i18n/*` が翻訳 API の唯一の公開面
 - `src/shared/browser/{locale,toast,dev-tools,emoji-mart}.ts` が UI-support browser ownership の公開面
-- `src/lib/stores/*` は再導入しない
+- `src/lib/stores/` は削除済み。再作成しない
 - `src/web/routes/*` の `ConfirmDialog` binding は thin facade として許容する
 
 ### Refactoring Docs
 
-- 現行の構造判断は `docs/refactoring-roadmap-endgame.md` を正とする
-- 過去の計画書は `docs/archive/refactoring-plan*.md` に退避してある。履歴参照用であり、現行方針の更新先ではない
+- リファクタリングは完了済み。現行の構造判断はこの CLAUDE.md を正とする
+- 過去の計画書は参照不要。構造方針の変更はこの CLAUDE.md を直接更新すること
 
 ### VirtualScrollList
 
