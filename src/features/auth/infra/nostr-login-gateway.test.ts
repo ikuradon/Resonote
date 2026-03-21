@@ -12,11 +12,7 @@ vi.mock('@konemono/nostr-login', () => ({
   logout: logoutMock
 }));
 
-import {
-  initNostrLogin,
-  launchLogin,
-  performLogout
-} from './nostr-login-gateway.js';
+import { initNostrLogin, launchLogin, performLogout } from './nostr-login-gateway.js';
 
 describe('initNostrLogin', () => {
   beforeEach(() => {

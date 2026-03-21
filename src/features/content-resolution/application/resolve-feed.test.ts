@@ -30,7 +30,13 @@ describe('resolvePodcastFeed', () => {
 
   it('returns feed data on success', async () => {
     const episodes = [
-      { guid: 'ep1', title: 'Episode 1', enclosureUrl: 'https://ex.com/ep1.mp3', duration: 3600, publishedAt: 1700000000 }
+      {
+        guid: 'ep1',
+        title: 'Episode 1',
+        enclosureUrl: 'https://ex.com/ep1.mp3',
+        duration: 3600,
+        publishedAt: 1700000000
+      }
     ];
     resolveByApiMock.mockResolvedValue({
       feed: { title: 'My Podcast', imageUrl: 'https://ex.com/art.jpg' },

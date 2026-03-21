@@ -55,12 +55,7 @@ describe('fetchFollowsCount', () => {
 
   it('filters out p tags without a second element', async () => {
     fetchLatestEventMock.mockResolvedValue({
-      tags: [
-        ['p', 'pk1'],
-        ['p'],
-        ['e', 'event-id'],
-        ['p', 'pk2']
-      ],
+      tags: [['p', 'pk1'], ['p'], ['e', 'event-id'], ['p', 'pk2']],
       content: '',
       created_at: 1000
     });

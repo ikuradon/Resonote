@@ -40,10 +40,7 @@ vi.mock('$shared/utils/logger.js', () => ({
   createLogger: () => ({ error: mockLogError })
 }));
 
-import {
-  resolvePodcastEpisode,
-  resolveAudioUrl
-} from './resolve-content.js';
+import { resolvePodcastEpisode, resolveAudioUrl } from './resolve-content.js';
 
 const FEED_URL = 'https://example.com/feed.xml';
 const GUID = 'episode-guid-123';
@@ -196,7 +193,10 @@ describe('resolveAudioUrl', () => {
       const signal = { cancelled: false };
       let resolveSearch: (v: typeof BOOKMARK) => void;
       mockSearchBookmarkByUrl.mockImplementation(
-        () => new Promise((r) => { resolveSearch = r; })
+        () =>
+          new Promise((r) => {
+            resolveSearch = r;
+          })
       );
 
       const promise = resolveAudioUrl('somebase64', signal);
@@ -236,7 +236,13 @@ describe('resolveAudioUrl', () => {
     it('merges episode title from API response', async () => {
       mockResolveByApi.mockResolvedValue({
         type: 'episode' as const,
-        episode: { guid: GUID, title: 'API Title', enclosureUrl: ENCLOSURE_URL, duration: 100, publishedAt: 0 }
+        episode: {
+          guid: GUID,
+          title: 'API Title',
+          enclosureUrl: ENCLOSURE_URL,
+          duration: 100,
+          publishedAt: 0
+        }
       });
       const result = await resolveAudioUrl('somebase64');
       expect(result.metadata.title).toBe('API Title');
@@ -254,7 +260,12 @@ describe('resolveAudioUrl', () => {
     it('merges feed image from API response', async () => {
       mockResolveByApi.mockResolvedValue({
         type: 'feed' as const,
-        feed: { guid: 'fg', title: 'Feed', feedUrl: FEED_URL, imageUrl: 'https://example.com/img.jpg' }
+        feed: {
+          guid: 'fg',
+          title: 'Feed',
+          feedUrl: FEED_URL,
+          imageUrl: 'https://example.com/img.jpg'
+        }
       });
       const result = await resolveAudioUrl('somebase64');
       expect(result.metadata.image).toBe('https://example.com/img.jpg');
@@ -282,7 +293,13 @@ describe('resolveAudioUrl', () => {
     it('does not overwrite title already set by episode with metadata title', async () => {
       mockResolveByApi.mockResolvedValue({
         type: 'episode' as const,
-        episode: { guid: GUID, title: 'Episode Title', enclosureUrl: ENCLOSURE_URL, duration: 100, publishedAt: 0 },
+        episode: {
+          guid: GUID,
+          title: 'Episode Title',
+          enclosureUrl: ENCLOSURE_URL,
+          duration: 100,
+          publishedAt: 0
+        },
         metadata: { title: 'ID3 Title' }
       });
       const result = await resolveAudioUrl('somebase64');
@@ -297,7 +314,13 @@ describe('resolveAudioUrl', () => {
       });
       mockResolveByApi.mockResolvedValue({
         type: 'episode' as const,
-        episode: { guid: GUID, title: 'T', enclosureUrl: ENCLOSURE_URL, duration: 100, publishedAt: 0 },
+        episode: {
+          guid: GUID,
+          title: 'T',
+          enclosureUrl: ENCLOSURE_URL,
+          duration: 100,
+          publishedAt: 0
+        },
         feed: { guid: 'fg', title: 'F', feedUrl: FEED_URL, imageUrl: '' }
       });
       const result = await resolveAudioUrl('somebase64');
@@ -308,7 +331,13 @@ describe('resolveAudioUrl', () => {
     it('does not set resolvedPath when feed.feedUrl is missing', async () => {
       mockResolveByApi.mockResolvedValue({
         type: 'episode' as const,
-        episode: { guid: GUID, title: 'T', enclosureUrl: ENCLOSURE_URL, duration: 100, publishedAt: 0 }
+        episode: {
+          guid: GUID,
+          title: 'T',
+          enclosureUrl: ENCLOSURE_URL,
+          duration: 100,
+          publishedAt: 0
+        }
       });
       const result = await resolveAudioUrl('somebase64');
       expect(result.resolvedPath).toBeUndefined();
