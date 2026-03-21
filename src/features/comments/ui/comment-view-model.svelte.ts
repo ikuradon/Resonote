@@ -371,7 +371,16 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   }
 
   async function fetchOrphanParent(parentId: string, estimatedPositionMs: number | null) {
-    if (fetchedParentIds.has(parentId)) return;
+    if (fetchedParentIds.has(parentId)) {
+      // Update positionMs if a better estimate arrives (e.g. timed reply after non-timed reply)
+      const existing = placeholders.get(parentId);
+      if (existing && existing.positionMs === null && estimatedPositionMs !== null) {
+        const updated = new Map(placeholders);
+        updated.set(parentId, { ...existing, positionMs: estimatedPositionMs });
+        placeholders = updated;
+      }
+      return;
+    }
 
     // Parent was received then deleted — show deleted placeholder immediately, no fetch needed
     if (deletedIds.has(parentId)) {
@@ -426,7 +435,10 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
       const status = deletedIds.has(parentId) ? 'deleted' : 'not-found';
       const ph = placeholders.get(parentId);
       const updated = new Map(placeholders);
-      updated.set(parentId, { ...(ph ?? placeholderFromOrphan(parentId, null)), status });
+      updated.set(parentId, {
+        ...(ph ?? placeholderFromOrphan(parentId, estimatedPositionMs)),
+        status
+      });
       placeholders = updated;
     }
   }
