@@ -21,6 +21,7 @@ export function getSystemPubkey(): Promise<string> {
           ) {
             return (data as Record<string, unknown>).pubkey as string;
           }
+          pubkeyPromise = undefined;
           return '';
         });
       })
@@ -210,7 +211,7 @@ async function validateResolveResponse(data: unknown): Promise<ResolveApiRespons
         // Invalid event shape or failed signature — skip
       }
     }
-    result.signedEvents = verified;
+    result.signedEvents = verified.length > 0 ? verified : undefined;
   } else {
     result.signedEvents = undefined;
   }
