@@ -17,7 +17,7 @@ const {
   getProfileDisplayMock: vi.fn((pubkey: string) => ({
     displayName: `Display ${pubkey}`,
     profileHref: `/profile/${pubkey}`,
-    formattedNip05: null
+    formattedNip05: null as string | null
   })),
   getProfileMock: vi.fn(() => undefined)
 }));

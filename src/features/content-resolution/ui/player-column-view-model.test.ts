@@ -168,7 +168,7 @@ describe('createPlayerColumnViewModel', () => {
     it('does nothing when openUrl is undefined', () => {
       const noUrlProvider = {
         ...spotifyProvider,
-        openUrl: () => null
+        openUrl: () => undefined as unknown as string
       };
       const vm = createPlayerColumnViewModel({
         getContentId: () => spotifyContentId,
