@@ -52,6 +52,7 @@ async function cachedFetchByIdInner(
     if (event) {
       const result = { content: event.content, kind: event.kind };
       fetchByIdCache.set(eventId, result);
+      nullCacheTimestamps.delete(eventId);
       return result;
     }
   } catch {
@@ -103,6 +104,7 @@ async function cachedFetchByIdInner(
     fetchByIdCache.set(eventId, result);
     if (result) {
       log.debug('Fetched target event from relay', { id: shortHex(eventId) });
+      nullCacheTimestamps.delete(eventId);
     } else {
       nullCacheTimestamps.set(eventId, Date.now());
     }

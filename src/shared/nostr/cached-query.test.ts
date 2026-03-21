@@ -64,7 +64,7 @@ describe('cachedFetchById', () => {
 
   it('retries null result after TTL expires', async () => {
     const now = Date.now();
-    vi.spyOn(Date, 'now').mockReturnValue(now);
+    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
     // First call: returns null
     const result1 = await cachedFetchById('event-3');
@@ -72,13 +72,13 @@ describe('cachedFetchById', () => {
     const callsAfterFirst = dbGetByIdMock.mock.calls.length;
 
     // Within TTL: returns cached null
-    vi.spyOn(Date, 'now').mockReturnValue(now + 10_000);
+    dateSpy.mockReturnValue(now + 10_000);
     const result2 = await cachedFetchById('event-3');
     expect(result2).toBeNull();
     expect(dbGetByIdMock).toHaveBeenCalledTimes(callsAfterFirst);
 
     // After TTL (30s): retries
-    vi.spyOn(Date, 'now').mockReturnValue(now + 31_000);
+    dateSpy.mockReturnValue(now + 31_000);
     dbGetByIdMock.mockResolvedValueOnce({ id: 'e3', content: 'found', kind: 1 });
     const result3 = await cachedFetchById('event-3');
     expect(result3).toEqual({ content: 'found', kind: 1 });
