@@ -1,5 +1,7 @@
 # Resonote
 
+[![codecov](https://codecov.io/gh/ikuradon/Resonote/graph/badge.svg)](https://codecov.io/gh/ikuradon/Resonote)
+
 Nostr プロトコルを使ったメディアコメント同期システム。動画・音楽の再生位置にコメントを紐づけて共有。
 
 NIP-73 (External Content IDs) + NIP-22 (Comments, kind:1111) + NIP-25 (Reactions, kind:7) を活用。
