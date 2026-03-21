@@ -398,15 +398,26 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     if (destroyed) return;
 
     if (result && result.kind === COMMENT_KIND) {
-      // Success → merge into commentsRaw, remove placeholder
-      if (!commentIds.has(result.id)) {
-        commentIds.add(result.id);
-        eventPubkeys.set(result.id, result.pubkey);
-        commentsRaw = [...commentsRaw, commentFromEvent(result)];
+      if (!deletedIds.has(parentId)) {
+        // Success and not deleted → merge into commentsRaw, remove placeholder
+        if (!commentIds.has(result.id)) {
+          commentIds.add(result.id);
+          eventPubkeys.set(result.id, result.pubkey);
+          commentsRaw = [...commentsRaw, commentFromEvent(result)];
+        }
+        const updated = new Map(placeholders);
+        updated.delete(parentId);
+        placeholders = updated;
+      } else {
+        // Fetched but deleted during await → show deleted placeholder
+        const ph = placeholders.get(parentId);
+        const updated = new Map(placeholders);
+        updated.set(parentId, {
+          ...(ph ?? placeholderFromOrphan(parentId, estimatedPositionMs)),
+          status: 'deleted' as const
+        });
+        placeholders = updated;
       }
-      const updated = new Map(placeholders);
-      updated.delete(parentId);
-      placeholders = updated;
     } else {
       // Failed or non-comment kind
       const status = deletedIds.has(parentId) ? 'deleted' : 'not-found';
