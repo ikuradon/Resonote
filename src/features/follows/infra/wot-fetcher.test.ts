@@ -1,50 +1,55 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ---- hoisted mocks ----
-const { createRxBackwardReqMock, getRxNostrMock, getEventsDBMock, extractFollowsMock, logInfoMock } =
-  vi.hoisted(() => {
-    const makeReq = () => ({ emit: vi.fn(), over: vi.fn() });
-    const makeSub = () => ({ unsubscribe: vi.fn() });
+const {
+  createRxBackwardReqMock,
+  getRxNostrMock,
+  getEventsDBMock,
+  extractFollowsMock,
+  logInfoMock
+} = vi.hoisted(() => {
+  const makeReq = () => ({ emit: vi.fn(), over: vi.fn() });
+  const makeSub = () => ({ unsubscribe: vi.fn() });
 
-    // rxNostr.use(...).subscribe returns sub; we capture the observer so tests can drive it
-    let capturedObservers: Array<{
-      next?: (p: unknown) => void;
-      complete?: () => void;
-      error?: () => void;
-    }> = [];
+  // rxNostr.use(...).subscribe returns sub; we capture the observer so tests can drive it
+  let capturedObservers: Array<{
+    next?: (p: unknown) => void;
+    complete?: () => void;
+    error?: () => void;
+  }> = [];
 
-    const rxNostrInstance = {
-      use: vi.fn().mockImplementation(() => ({
-        subscribe: vi.fn().mockImplementation((obs) => {
-          capturedObservers.push(obs);
-          return makeSub();
-        })
-      }))
-    };
+  const rxNostrInstance = {
+    use: vi.fn().mockImplementation(() => ({
+      subscribe: vi.fn().mockImplementation((obs) => {
+        capturedObservers.push(obs);
+        return makeSub();
+      })
+    }))
+  };
 
-    const createRxBackwardReqMock = vi.fn(() => makeReq());
-    const getRxNostrMock = vi.fn(async () => rxNostrInstance);
-    const eventsDB = { put: vi.fn() };
-    const getEventsDBMock = vi.fn(async () => eventsDB);
-    const extractFollowsMock = vi.fn((event: { tags: string[][] }) => {
-      const follows = new Set<string>();
-      for (const tag of event.tags) {
-        if (tag[0] === 'p' && tag[1]) follows.add(tag[1]);
-      }
-      return follows;
-    });
-    const logInfoMock = vi.fn();
-
-    return {
-      createRxBackwardReqMock,
-      getRxNostrMock,
-      getEventsDBMock,
-      extractFollowsMock,
-      logInfoMock,
-      _capturedObservers: capturedObservers,
-      _rxNostrInstance: rxNostrInstance
-    };
+  const createRxBackwardReqMock = vi.fn(() => makeReq());
+  const getRxNostrMock = vi.fn(async () => rxNostrInstance);
+  const eventsDB = { put: vi.fn() };
+  const getEventsDBMock = vi.fn(async () => eventsDB);
+  const extractFollowsMock = vi.fn((event: { tags: string[][] }) => {
+    const follows = new Set<string>();
+    for (const tag of event.tags) {
+      if (tag[0] === 'p' && tag[1]) follows.add(tag[1]);
+    }
+    return follows;
   });
+  const logInfoMock = vi.fn();
+
+  return {
+    createRxBackwardReqMock,
+    getRxNostrMock,
+    getEventsDBMock,
+    extractFollowsMock,
+    logInfoMock,
+    _capturedObservers: capturedObservers,
+    _rxNostrInstance: rxNostrInstance
+  };
+});
 
 vi.mock('rx-nostr', () => ({
   createRxBackwardReq: createRxBackwardReqMock
@@ -72,11 +77,13 @@ import { fetchWot } from './wot-fetcher.js';
 
 // ---- helpers ----
 
-function makeCallbacks(overrides: Partial<{
-  onDirectFollows: (f: Set<string>) => void;
-  onWotProgress: (c: number) => void;
-  isCancelled: () => boolean;
-}> = {}) {
+function makeCallbacks(
+  overrides: Partial<{
+    onDirectFollows: (f: Set<string>) => void;
+    onWotProgress: (c: number) => void;
+    isCancelled: () => boolean;
+  }> = {}
+) {
   return {
     onDirectFollows: vi.fn(),
     onWotProgress: vi.fn(),
@@ -98,7 +105,7 @@ async function driveSubscriptions(
   // We need to interleave driving observers with the async fetchWot flow.
   let stepIndex = 0;
 
-  const originalUse = (await getRxNostrMock() as { use: ReturnType<typeof vi.fn> }).use;
+  const originalUse = ((await getRxNostrMock()) as { use: ReturnType<typeof vi.fn> }).use;
 
   // Replace use with one that captures and auto-drives
   // (already captured above; we drive via a polling loop)
@@ -107,11 +114,14 @@ async function driveSubscriptions(
   const tick = () => new Promise<void>((r) => setImmediate(r));
 
   // Drive each observer step after a tick
-  const driveStep = async (step: (typeof steps)[number], obs: {
-    next?: (p: unknown) => void;
-    complete?: () => void;
-    error?: () => void;
-  }) => {
+  const driveStep = async (
+    step: (typeof steps)[number],
+    obs: {
+      next?: (p: unknown) => void;
+      complete?: () => void;
+      error?: () => void;
+    }
+  ) => {
     for (const pkt of step.packets ?? []) {
       obs.next?.(pkt);
       await tick();
@@ -144,7 +154,10 @@ describe('fetchWot', () => {
     const FOLLOW2 = 'follow-pk-2';
 
     const directFollowEvent = {
-      tags: [['p', FOLLOW1], ['p', FOLLOW2]],
+      tags: [
+        ['p', FOLLOW1],
+        ['p', FOLLOW2]
+      ],
       created_at: 100
     };
     const wotEvent = {
@@ -161,13 +174,12 @@ describe('fetchWot', () => {
 
     const rxNostrInstance = await getRxNostrMock();
     (rxNostrInstance as { use: ReturnType<typeof vi.fn> }).use.mockImplementation(() => ({
-      subscribe: vi.fn().mockImplementation((obs: {
-        next?: (p: unknown) => void;
-        complete?: () => void;
-      }) => {
-        observerSeq.push(obs);
-        return { unsubscribe: vi.fn() };
-      })
+      subscribe: vi
+        .fn()
+        .mockImplementation((obs: { next?: (p: unknown) => void; complete?: () => void }) => {
+          observerSeq.push(obs);
+          return { unsubscribe: vi.fn() };
+        })
     }));
 
     const promise = fetchWot(MY_PUBKEY, callbacks);
@@ -213,13 +225,12 @@ describe('fetchWot', () => {
 
     const rxNostrInstance = await getRxNostrMock();
     (rxNostrInstance as { use: ReturnType<typeof vi.fn> }).use.mockImplementation(() => ({
-      subscribe: vi.fn().mockImplementation((obs: {
-        next?: (p: unknown) => void;
-        complete?: () => void;
-      }) => {
-        observerSeq.push(obs);
-        return { unsubscribe: vi.fn() };
-      })
+      subscribe: vi
+        .fn()
+        .mockImplementation((obs: { next?: (p: unknown) => void; complete?: () => void }) => {
+          observerSeq.push(obs);
+          return { unsubscribe: vi.fn() };
+        })
     }));
 
     const promise = fetchWot(MY_PUBKEY, callbacks);
@@ -253,13 +264,12 @@ describe('fetchWot', () => {
 
     const rxNostrInstance = await getRxNostrMock();
     (rxNostrInstance as { use: ReturnType<typeof vi.fn> }).use.mockImplementation(() => ({
-      subscribe: vi.fn().mockImplementation((obs: {
-        next?: (p: unknown) => void;
-        complete?: () => void;
-      }) => {
-        observerSeq.push(obs);
-        return { unsubscribe: vi.fn() };
-      })
+      subscribe: vi
+        .fn()
+        .mockImplementation((obs: { next?: (p: unknown) => void; complete?: () => void }) => {
+          observerSeq.push(obs);
+          return { unsubscribe: vi.fn() };
+        })
     }));
 
     const promise = fetchWot(MY_PUBKEY, callbacks);
@@ -298,13 +308,12 @@ describe('fetchWot', () => {
 
     const rxNostrInstance = await getRxNostrMock();
     (rxNostrInstance as { use: ReturnType<typeof vi.fn> }).use.mockImplementation(() => ({
-      subscribe: vi.fn().mockImplementation((obs: {
-        next?: (p: unknown) => void;
-        complete?: () => void;
-      }) => {
-        observerSeq.push(obs);
-        return { unsubscribe: vi.fn() };
-      })
+      subscribe: vi
+        .fn()
+        .mockImplementation((obs: { next?: (p: unknown) => void; complete?: () => void }) => {
+          observerSeq.push(obs);
+          return { unsubscribe: vi.fn() };
+        })
     }));
 
     const promise = fetchWot(MY_PUBKEY, callbacks);
@@ -339,13 +348,12 @@ describe('fetchWot', () => {
 
     const rxNostrInstance = await getRxNostrMock();
     (rxNostrInstance as { use: ReturnType<typeof vi.fn> }).use.mockImplementation(() => ({
-      subscribe: vi.fn().mockImplementation((obs: {
-        next?: (p: unknown) => void;
-        complete?: () => void;
-      }) => {
-        observerSeq.push(obs);
-        return { unsubscribe: vi.fn() };
-      })
+      subscribe: vi
+        .fn()
+        .mockImplementation((obs: { next?: (p: unknown) => void; complete?: () => void }) => {
+          observerSeq.push(obs);
+          return { unsubscribe: vi.fn() };
+        })
     }));
 
     const promise = fetchWot(MY_PUBKEY, callbacks);
@@ -378,14 +386,14 @@ describe('fetchWot', () => {
 
     const rxNostrInstance = await getRxNostrMock();
     (rxNostrInstance as { use: ReturnType<typeof vi.fn> }).use.mockImplementation(() => ({
-      subscribe: vi.fn().mockImplementation((obs: {
-        next?: (p: unknown) => void;
-        complete?: () => void;
-        error?: () => void;
-      }) => {
-        observerSeq.push(obs);
-        return { unsubscribe: vi.fn() };
-      })
+      subscribe: vi
+        .fn()
+        .mockImplementation(
+          (obs: { next?: (p: unknown) => void; complete?: () => void; error?: () => void }) => {
+            observerSeq.push(obs);
+            return { unsubscribe: vi.fn() };
+          }
+        )
     }));
 
     const promise = fetchWot(MY_PUBKEY, callbacks);
@@ -419,13 +427,12 @@ describe('fetchWot', () => {
 
     const rxNostrInstance = await getRxNostrMock();
     (rxNostrInstance as { use: ReturnType<typeof vi.fn> }).use.mockImplementation(() => ({
-      subscribe: vi.fn().mockImplementation((obs: {
-        next?: (p: unknown) => void;
-        complete?: () => void;
-      }) => {
-        observerSeq.push(obs);
-        return { unsubscribe: vi.fn() };
-      })
+      subscribe: vi
+        .fn()
+        .mockImplementation((obs: { next?: (p: unknown) => void; complete?: () => void }) => {
+          observerSeq.push(obs);
+          return { unsubscribe: vi.fn() };
+        })
     }));
 
     const promise = fetchWot(MY_PUBKEY, callbacks);
@@ -457,13 +464,12 @@ describe('fetchWot', () => {
 
     const rxNostrInstance = await getRxNostrMock();
     (rxNostrInstance as { use: ReturnType<typeof vi.fn> }).use.mockImplementation(() => ({
-      subscribe: vi.fn().mockImplementation((obs: {
-        next?: (p: unknown) => void;
-        complete?: () => void;
-      }) => {
-        observerSeq.push(obs);
-        return { unsubscribe: vi.fn() };
-      })
+      subscribe: vi
+        .fn()
+        .mockImplementation((obs: { next?: (p: unknown) => void; complete?: () => void }) => {
+          observerSeq.push(obs);
+          return { unsubscribe: vi.fn() };
+        })
     }));
 
     const promise = fetchWot(MY_PUBKEY, callbacks);

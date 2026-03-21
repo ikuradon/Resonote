@@ -134,9 +134,10 @@ describe('YouTubeProvider', () => {
   });
 
   it('toNostrTag: returns correct NIP-73 tag', () => {
-    expect(provider.toNostrTag({ platform: 'youtube', type: 'video', id: 'dQw4w9WgXcQ' })).toEqual(
-      ['youtube:video:dQw4w9WgXcQ', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ']
-    );
+    expect(provider.toNostrTag({ platform: 'youtube', type: 'video', id: 'dQw4w9WgXcQ' })).toEqual([
+      'youtube:video:dQw4w9WgXcQ',
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+    ]);
   });
 
   it('contentKind: returns "youtube:video"', () => {
@@ -233,10 +234,7 @@ describe('SoundCloudProvider', () => {
   it('toNostrTag: returns correct NIP-73 tag', () => {
     expect(
       provider.toNostrTag({ platform: 'soundcloud', type: 'track', id: 'artist/trackname' })
-    ).toEqual([
-      'soundcloud:track:artist/trackname',
-      'https://soundcloud.com/artist/trackname'
-    ]);
+    ).toEqual(['soundcloud:track:artist/trackname', 'https://soundcloud.com/artist/trackname']);
   });
 
   it('contentKind: returns "soundcloud:track"', () => {
@@ -280,10 +278,7 @@ describe('MixcloudProvider', () => {
   it('toNostrTag: returns correct NIP-73 tag', () => {
     expect(
       provider.toNostrTag({ platform: 'mixcloud', type: 'mix', id: 'djname/mix-title' })
-    ).toEqual([
-      'mixcloud:mix:djname/mix-title',
-      'https://www.mixcloud.com/djname/mix-title/'
-    ]);
+    ).toEqual(['mixcloud:mix:djname/mix-title', 'https://www.mixcloud.com/djname/mix-title/']);
   });
 
   it('contentKind: returns "mixcloud:mix"', () => {
@@ -329,15 +324,16 @@ describe('SpreakerProvider', () => {
   });
 
   it('toNostrTag: returns correct NIP-73 tag', () => {
-    expect(
-      provider.toNostrTag({ platform: 'spreaker', type: 'episode', id: '12345678' })
-    ).toEqual(['spreaker:episode:12345678', 'https://www.spreaker.com/episode/12345678']);
+    expect(provider.toNostrTag({ platform: 'spreaker', type: 'episode', id: '12345678' })).toEqual([
+      'spreaker:episode:12345678',
+      'https://www.spreaker.com/episode/12345678'
+    ]);
   });
 
   it('contentKind: returns "spreaker:episode"', () => {
-    expect(
-      provider.contentKind({ platform: 'spreaker', type: 'episode', id: '12345678' })
-    ).toBe('spreaker:episode');
+    expect(provider.contentKind({ platform: 'spreaker', type: 'episode', id: '12345678' })).toBe(
+      'spreaker:episode'
+    );
   });
 
   it('toNostrTag()[0] prefix matches contentKind()', () => {
@@ -387,15 +383,16 @@ describe('NiconicoProvider', () => {
   });
 
   it('toNostrTag: returns correct NIP-73 tag', () => {
-    expect(
-      provider.toNostrTag({ platform: 'niconico', type: 'video', id: 'sm12345678' })
-    ).toEqual(['niconico:video:sm12345678', 'https://www.nicovideo.jp/watch/sm12345678']);
+    expect(provider.toNostrTag({ platform: 'niconico', type: 'video', id: 'sm12345678' })).toEqual([
+      'niconico:video:sm12345678',
+      'https://www.nicovideo.jp/watch/sm12345678'
+    ]);
   });
 
   it('contentKind: returns "niconico:video"', () => {
-    expect(
-      provider.contentKind({ platform: 'niconico', type: 'video', id: 'sm12345678' })
-    ).toBe('niconico:video');
+    expect(provider.contentKind({ platform: 'niconico', type: 'video', id: 'sm12345678' })).toBe(
+      'niconico:video'
+    );
   });
 
   it('toNostrTag()[0] prefix matches contentKind()', () => {
@@ -413,9 +410,7 @@ describe('PodbeanProvider', () => {
   const provider = new PodbeanProvider();
 
   it('parseUrl: media/share URL returns ContentId', () => {
-    expect(
-      provider.parseUrl('https://www.podbean.com/media/share/pb-abc12-def456')
-    ).toEqual({
+    expect(provider.parseUrl('https://www.podbean.com/media/share/pb-abc12-def456')).toEqual({
       platform: 'podbean',
       type: 'episode',
       id: 'pb-abc12-def456'
@@ -645,9 +640,7 @@ describe('PrimeVideoProvider', () => {
   });
 
   it('parseUrl: amazon.com gp/video URL returns ContentId', () => {
-    expect(
-      provider.parseUrl('https://www.amazon.com/gp/video/detail/B0ABCDE1234')
-    ).toEqual({
+    expect(provider.parseUrl('https://www.amazon.com/gp/video/detail/B0ABCDE1234')).toEqual({
       platform: 'primevideo',
       type: 'video',
       id: 'B0ABCDE1234'
@@ -665,16 +658,13 @@ describe('PrimeVideoProvider', () => {
   it('toNostrTag: returns correct NIP-73 tag', () => {
     expect(
       provider.toNostrTag({ platform: 'primevideo', type: 'video', id: 'B0ABCDE1234' })
-    ).toEqual([
-      'primevideo:video:B0ABCDE1234',
-      'https://www.primevideo.com/detail/B0ABCDE1234'
-    ]);
+    ).toEqual(['primevideo:video:B0ABCDE1234', 'https://www.primevideo.com/detail/B0ABCDE1234']);
   });
 
   it('contentKind: returns "primevideo:video"', () => {
-    expect(
-      provider.contentKind({ platform: 'primevideo', type: 'video', id: 'B0ABCDE1234' })
-    ).toBe('primevideo:video');
+    expect(provider.contentKind({ platform: 'primevideo', type: 'video', id: 'B0ABCDE1234' })).toBe(
+      'primevideo:video'
+    );
   });
 
   it('toNostrTag()[0] prefix matches contentKind()', () => {
@@ -740,9 +730,7 @@ describe('AppleMusicProvider', () => {
   const provider = new AppleMusicProvider();
 
   it('parseUrl: album URL returns album ContentId', () => {
-    expect(
-      provider.parseUrl('https://music.apple.com/us/album/album-name/1234567890')
-    ).toEqual({
+    expect(provider.parseUrl('https://music.apple.com/us/album/album-name/1234567890')).toEqual({
       platform: 'apple-music',
       type: 'album',
       id: '1234567890'
@@ -770,22 +758,19 @@ describe('AppleMusicProvider', () => {
   it('toNostrTag: returns correct NIP-73 tag for album', () => {
     expect(
       provider.toNostrTag({ platform: 'apple-music', type: 'album', id: '1234567890' })
-    ).toEqual([
-      'apple-music:album:1234567890',
-      'https://music.apple.com/us/album/1234567890'
-    ]);
+    ).toEqual(['apple-music:album:1234567890', 'https://music.apple.com/us/album/1234567890']);
   });
 
   it('contentKind: returns "apple-music:album" for album', () => {
-    expect(
-      provider.contentKind({ platform: 'apple-music', type: 'album', id: '1234567890' })
-    ).toBe('apple-music:album');
+    expect(provider.contentKind({ platform: 'apple-music', type: 'album', id: '1234567890' })).toBe(
+      'apple-music:album'
+    );
   });
 
   it('contentKind: returns "apple-music:song" for song', () => {
-    expect(
-      provider.contentKind({ platform: 'apple-music', type: 'song', id: '9876543210' })
-    ).toBe('apple-music:song');
+    expect(provider.contentKind({ platform: 'apple-music', type: 'song', id: '9876543210' })).toBe(
+      'apple-music:song'
+    );
   });
 
   it('toNostrTag()[0] prefix matches contentKind()', () => {
@@ -827,9 +812,10 @@ describe('FountainFmProvider', () => {
   });
 
   it('toNostrTag: returns correct NIP-73 tag', () => {
-    expect(
-      provider.toNostrTag({ platform: 'fountain', type: 'episode', id: 'abc123' })
-    ).toEqual(['fountain:episode:abc123', 'https://fountain.fm/episode/abc123']);
+    expect(provider.toNostrTag({ platform: 'fountain', type: 'episode', id: 'abc123' })).toEqual([
+      'fountain:episode:abc123',
+      'https://fountain.fm/episode/abc123'
+    ]);
   });
 
   it('contentKind: returns "fountain:episode"', () => {
@@ -977,9 +963,10 @@ describe('UNextProvider', () => {
   });
 
   it('toNostrTag: returns correct NIP-73 tag for title', () => {
-    expect(
-      provider.toNostrTag({ platform: 'unext', type: 'title', id: 'SID0012345' })
-    ).toEqual(['unext:title:SID0012345', 'https://video.unext.jp/play/SID0012345']);
+    expect(provider.toNostrTag({ platform: 'unext', type: 'title', id: 'SID0012345' })).toEqual([
+      'unext:title:SID0012345',
+      'https://video.unext.jp/play/SID0012345'
+    ]);
   });
 
   it('toNostrTag: returns correct NIP-73 tag for episode', () => {
@@ -992,9 +979,9 @@ describe('UNextProvider', () => {
   });
 
   it('contentKind: returns "unext:title" for title', () => {
-    expect(
-      provider.contentKind({ platform: 'unext', type: 'title', id: 'SID0012345' })
-    ).toBe('unext:title');
+    expect(provider.contentKind({ platform: 'unext', type: 'title', id: 'SID0012345' })).toBe(
+      'unext:title'
+    );
   });
 
   it('contentKind: returns "unext:episode" for episode', () => {
