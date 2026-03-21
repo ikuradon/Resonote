@@ -105,6 +105,7 @@ jobs:
           echo "name=$BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Deploy to Cloudflare Pages
+        id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -118,9 +119,10 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
           BRANCH: ${{ steps.branch.outputs.name }}
+          DEPLOY_URL: ${{ steps.deploy.outputs.deployment-alias-url || steps.deploy.outputs.deployment-url }}
           COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          PREVIEW_URL="https://${BRANCH}.resonote-preview.pages.dev"
+          PREVIEW_URL="${DEPLOY_URL:-https://${BRANCH}.resonote-preview.pages.dev}"
           SHORT_SHA="${COMMIT_SHA::7}"
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC')
           BODY="<!-- preview-deploy -->
