@@ -27,7 +27,7 @@ beforeEach(() => {
 
   // Mock window.nostr for castSigned (NIP-07)
   vi.stubGlobal('window', {
-    ...globalThis.window,
+    ...(globalThis.window ?? {}),
     nostr: {
       getPublicKey: async () => pubkey,
       signEvent: async (event: {

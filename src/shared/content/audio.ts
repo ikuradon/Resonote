@@ -25,7 +25,8 @@ export class AudioProvider implements ContentProvider {
   }
 
   toNostrTag(contentId: ContentId): [string, string] {
-    const decodedUrl = fromBase64url(contentId.id) ?? '';
+    const decodedUrl = fromBase64url(contentId.id);
+    if (decodedUrl === null) throw new Error(`Failed to decode audio URL from id: ${contentId.id}`);
     return [`audio:${decodedUrl}`, decodedUrl];
   }
 

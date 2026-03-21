@@ -1,7 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { dbGetByIdMock } = vi.hoisted(() => ({
-  dbGetByIdMock: vi.fn(async (): Promise<Record<string, unknown> | null> => null)
+type SubscribeCallbacks = {
+  next?: (packet: { event: Record<string, unknown> }) => void;
+  complete?: () => void;
+  error?: () => void;
+};
+
+const { dbGetByIdMock, subscribeMock } = vi.hoisted(() => ({
+  dbGetByIdMock: vi.fn(async (): Promise<Record<string, unknown> | null> => null),
+  subscribeMock: vi.fn((callbacks: SubscribeCallbacks) => {
+    // Default: synchronous EOSE (no setTimeout to avoid fake timer issues)
+    Promise.resolve().then(() => callbacks.complete?.());
+    return { unsubscribe: vi.fn() };
+  })
 }));
 
 vi.mock('$shared/nostr/gateway.js', () => ({
@@ -11,11 +22,7 @@ vi.mock('$shared/nostr/gateway.js', () => ({
   }),
   getRxNostr: async () => ({
     use: () => ({
-      subscribe: ({ complete }: { complete: () => void }) => {
-        // Synchronous EOSE (no setTimeout to avoid fake timer issues)
-        Promise.resolve().then(() => complete());
-        return { unsubscribe: vi.fn() };
-      }
+      subscribe: subscribeMock
     })
   })
 }));
@@ -44,6 +51,11 @@ describe('cachedFetchById', () => {
     resetFetchByIdCache();
     dbGetByIdMock.mockClear();
     dbGetByIdMock.mockResolvedValue(null);
+    subscribeMock.mockClear();
+    subscribeMock.mockImplementation((callbacks: SubscribeCallbacks) => {
+      Promise.resolve().then(() => callbacks.complete?.());
+      return { unsubscribe: vi.fn() };
+    });
   });
 
   it('returns null when event not found', async () => {
@@ -86,6 +98,25 @@ describe('cachedFetchById', () => {
     dbGetByIdMock.mockResolvedValueOnce({ id: 'e3', content: 'found', kind: 1 });
     const result3 = await cachedFetchById('event-3');
     expect(result3).toEqual(expect.objectContaining({ content: 'found', kind: 1 }));
+  });
+
+  it('returns event from relay when DB misses', async () => {
+    const relayEvent = { id: 'relay-e1', content: 'from relay', kind: 1 };
+
+    // DB returns null (default), but relay fires next before complete
+    subscribeMock.mockImplementation((callbacks: SubscribeCallbacks) => {
+      Promise.resolve().then(() => {
+        callbacks.next?.({ event: relayEvent });
+        callbacks.complete?.();
+      });
+      return { unsubscribe: vi.fn() };
+    });
+
+    const result = await cachedFetchById('event-relay');
+    expect(result).toEqual({ content: 'from relay', kind: 1 });
+    // DB was queried (miss), then relay provided the event
+    expect(dbGetByIdMock).toHaveBeenCalledTimes(1);
+    await expect(dbGetByIdMock.mock.results[0].value).resolves.toBeNull();
   });
 
   it('re-caches null after TTL expires and retry still returns null', async () => {

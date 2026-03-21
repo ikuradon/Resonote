@@ -33,12 +33,17 @@ export class PodcastProvider implements ContentProvider {
       const colonIndex = contentId.id.indexOf(':');
       const encodedFeed = contentId.id.slice(0, colonIndex);
       const encodedGuid = contentId.id.slice(colonIndex + 1);
-      const feedUrl = fromBase64url(encodedFeed) ?? '';
-      const guid = fromBase64url(encodedGuid) ?? '';
+      const feedUrl = fromBase64url(encodedFeed);
+      if (feedUrl === null)
+        throw new Error(`Failed to decode podcast feed URL from id: ${contentId.id}`);
+      const guid = fromBase64url(encodedGuid);
+      if (guid === null) throw new Error(`Failed to decode podcast guid from id: ${contentId.id}`);
       return [`podcast:item:guid:${guid}`, feedUrl];
     }
 
-    const feedUrl = fromBase64url(contentId.id) ?? '';
+    const feedUrl = fromBase64url(contentId.id);
+    if (feedUrl === null)
+      throw new Error(`Failed to decode podcast feed URL from id: ${contentId.id}`);
     return [`podcast:feed:${feedUrl}`, feedUrl];
   }
 
