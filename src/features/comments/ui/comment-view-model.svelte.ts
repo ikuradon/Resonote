@@ -126,24 +126,24 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     log.debug('Deletion event received', { deletedIds: verified.map(shortHex) });
 
     // Update orphan placeholders to 'deleted' when kind:5 arrives later
+    let updatedPlaceholders: Map<string, PlaceholderComment> | null = null;
     for (const id of verified) {
       const ph = placeholders.get(id);
       if (ph && ph.status !== 'deleted') {
-        const updated = new Map(placeholders);
-        updated.set(id, { ...ph, status: 'deleted' });
-        placeholders = updated;
+        updatedPlaceholders ??= new Map(placeholders);
+        updatedPlaceholders.set(id, { ...ph, status: 'deleted' });
       } else if (!ph && fetchedParentIds.has(id)) {
         // Parent was fetched successfully then deleted — re-create as 'deleted' placeholder
         const original = commentsRaw.find((c) => c.id === id);
-        const updated = new Map(placeholders);
-        updated.set(id, {
+        updatedPlaceholders ??= new Map(placeholders);
+        updatedPlaceholders.set(id, {
           id,
           status: 'deleted' as const,
           positionMs: original?.positionMs ?? null
         });
-        placeholders = updated;
       }
     }
+    if (updatedPlaceholders) placeholders = updatedPlaceholders;
   }
 
   function dispatchPacket(event: CachedEvent) {

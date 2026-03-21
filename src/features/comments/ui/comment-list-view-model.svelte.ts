@@ -1,3 +1,4 @@
+import { untrack } from 'svelte';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import { getProfileDisplay, type ProfileDisplay } from '$shared/browser/profile.js';
 import { dispatchSeek } from '$shared/browser/seek-bridge.js';
@@ -120,9 +121,11 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
 
   $effect(() => {
     for (const parentId of orphanParentIds) {
-      const estimatedPosition =
-        options.getComments().find((c) => c.replyTo === parentId && c.positionMs !== null)
-          ?.positionMs ?? null;
+      const estimatedPosition = untrack(
+        () =>
+          options.getComments().find((c) => c.replyTo === parentId && c.positionMs !== null)
+            ?.positionMs ?? null
+      );
       options.fetchOrphanParent?.(parentId, estimatedPosition);
     }
   });

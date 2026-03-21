@@ -116,7 +116,7 @@
                 bind:replyContent={vm.replyContent}
                 bind:replyEmojiTags={vm.replyEmojiTags}
                 replySending={vm.replySending}
-                replies={[]}
+                replies={vm.replyMap.get(reply.id) ?? []}
                 getAuthorDisplay={vm.authorDisplayFor}
                 getStats={vm.statsFor}
                 getMyReaction={vm.myReactionFor}
