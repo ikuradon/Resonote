@@ -16,11 +16,16 @@ const NULL_CACHE_TTL_MS = 30_000;
 const fetchByIdCache = new Map<string, FetchedEventFull | null>();
 const nullCacheTimestamps = new Map<string, number>();
 const inflight = new Map<string, Promise<FetchedEventFull | null>>();
+// Track IDs invalidated while an in-flight fetch is pending — prevents cache re-pollution
+const invalidatedDuringFetch = new Set<string>();
 
 /** Invalidate a cached entry (e.g. when a deletion event is received). */
 export function invalidateFetchByIdCache(eventId: string): void {
   fetchByIdCache.delete(eventId);
   nullCacheTimestamps.delete(eventId);
+  if (inflight.has(eventId)) {
+    invalidatedDuringFetch.add(eventId);
+  }
 }
 
 /** Reset cache state (for tests). */
@@ -28,6 +33,7 @@ export function resetFetchByIdCache(): void {
   fetchByIdCache.clear();
   nullCacheTimestamps.clear();
   inflight.clear();
+  invalidatedDuringFetch.clear();
 }
 
 export async function cachedFetchById(eventId: string): Promise<FetchedEventFull | null> {
@@ -62,8 +68,10 @@ async function cachedFetchByIdInner(eventId: string): Promise<FetchedEventFull |
     const event = await db.getById(eventId);
     if (event) {
       const result = event as FetchedEventFull;
-      fetchByIdCache.set(eventId, result);
-      nullCacheTimestamps.delete(eventId);
+      if (!invalidatedDuringFetch.delete(eventId)) {
+        fetchByIdCache.set(eventId, result);
+        nullCacheTimestamps.delete(eventId);
+      }
       return result;
     }
   } catch {
@@ -112,17 +120,21 @@ async function cachedFetchByIdInner(eventId: string): Promise<FetchedEventFull |
       req.over();
     });
 
-    fetchByIdCache.set(eventId, result);
-    if (result) {
-      log.debug('Fetched target event from relay', { id: shortHex(eventId) });
-      nullCacheTimestamps.delete(eventId);
-    } else {
-      nullCacheTimestamps.set(eventId, Date.now());
+    if (!invalidatedDuringFetch.delete(eventId)) {
+      fetchByIdCache.set(eventId, result);
+      if (result) {
+        log.debug('Fetched target event from relay', { id: shortHex(eventId) });
+        nullCacheTimestamps.delete(eventId);
+      } else {
+        nullCacheTimestamps.set(eventId, Date.now());
+      }
     }
     return result;
   } catch {
-    fetchByIdCache.set(eventId, null);
-    nullCacheTimestamps.set(eventId, Date.now());
+    if (!invalidatedDuringFetch.delete(eventId)) {
+      fetchByIdCache.set(eventId, null);
+      nullCacheTimestamps.set(eventId, Date.now());
+    }
     return null;
   }
 }
