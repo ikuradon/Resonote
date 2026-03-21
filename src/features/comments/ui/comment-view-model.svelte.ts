@@ -115,7 +115,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
       rebuildReactionIndex();
     }
     const toPurge = verified.filter((id) => commentIds.has(id) || reactionIds.has(id));
-    if (toPurge.length > 0) purgeDeletedFromCache(eventsDB!, toPurge);
+    if (toPurge.length > 0) void purgeDeletedFromCache(eventsDB!, toPurge);
     log.debug('Deletion event received', { deletedIds: verified.map(shortHex) });
   }
 
@@ -221,7 +221,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
         const idsToPurge = [...deletedIds].filter(
           (id) => commentIds.has(id) || reactionIds.has(id)
         );
-        purgeDeletedFromCache(db, idsToPurge);
+        void purgeDeletedFromCache(db, idsToPurge);
       }
 
       // Offline deletion reconcile
@@ -250,7 +250,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
             const idsToPurge = [...newDeletions].filter(
               (id) => commentIds.has(id) || reactionIds.has(id)
             );
-            purgeDeletedFromCache(db, idsToPurge);
+            void purgeDeletedFromCache(db, idsToPurge);
           }
         );
         reconcileSub = reconcile.sub;

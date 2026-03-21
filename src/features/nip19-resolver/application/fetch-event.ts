@@ -19,20 +19,15 @@ export async function fetchNostrEvent(
   ]);
   const rxNostr = await getRxNostr();
 
-  // Temporarily add relay hints
-  if (relayHints.length > 0) {
-    const current = Object.keys(rxNostr.getDefaultRelays());
-    const newRelays = relayHints.filter((r: string) => !current.includes(r));
-    if (newRelays.length > 0) {
-      rxNostr.addDefaultRelays(newRelays);
-    }
-  }
+  // Use rx-nostr temporary relays for relay hints (auto-connect, auto-disconnect)
+  const useOptions =
+    relayHints.length > 0 ? { on: { relays: relayHints, defaultReadRelays: true } } : undefined;
 
   const fetchPromise = new Promise<FetchedEvent | null>((resolve) => {
     const req = createRxBackwardReq();
     let found: FetchedEvent | null = null;
 
-    const sub = rxNostr.use(req).subscribe({
+    const sub = rxNostr.use(req, useOptions).subscribe({
       next: (packet) => {
         found = packet.event;
       },

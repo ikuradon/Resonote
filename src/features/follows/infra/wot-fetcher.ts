@@ -21,9 +21,8 @@ export interface WotProgressCallback {
 }
 
 export async function fetchWot(pubkey: string, callbacks: WotProgressCallback): Promise<WotResult> {
-  const [{ createRxBackwardReq }, { getRxNostr }, { getEventsDB }] = await Promise.all([
+  const [{ createRxBackwardReq }, { getRxNostr, getEventsDB }] = await Promise.all([
     import('rx-nostr'),
-    import('$shared/nostr/gateway.js'),
     import('$shared/nostr/gateway.js')
   ]);
   const rxNostr = await getRxNostr();
