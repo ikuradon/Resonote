@@ -101,15 +101,14 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
   });
 
   let orphanParentIds = $derived.by(() => {
-    const allComments = options.getComments();
-    const commentIdSet = new Set(allComments.map((c) => c.id));
-    const orphans: string[] = [];
-    for (const c of allComments) {
+    const commentIdSet = new Set(options.getComments().map((c) => c.id));
+    const orphanSet = new Set<string>();
+    for (const c of filteredComments) {
       if (c.replyTo !== null && !commentIdSet.has(c.replyTo)) {
-        if (!orphans.includes(c.replyTo)) orphans.push(c.replyTo);
+        orphanSet.add(c.replyTo);
       }
     }
-    return orphans;
+    return [...orphanSet];
   });
 
   let orphanParents = $derived.by(() => {
