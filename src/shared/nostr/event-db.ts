@@ -227,10 +227,13 @@ export class EventsDB {
 export async function getEventsDB(): Promise<EventsDB> {
   if (!instancePromise) {
     instancePromise = (async () => {
+      // Fire-and-forget: delete legacy DB ('resonote') that was renamed to 'resonote-events'.
+      // If another tab holds the old DB open, deletion is queued silently — this is fine
+      // because the two DB names never conflict.
       try {
         indexedDB.deleteDatabase('resonote');
       } catch {
-        // ignore
+        // Ignore — old DB may not exist in fresh installs
       }
       const db = await openEventsDB();
       return new EventsDB(db);

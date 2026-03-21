@@ -72,8 +72,8 @@ export async function fetchLatestEvent(
   pubkey: string,
   kind: number
 ): Promise<{ tags: string[][]; content: string; created_at: number } | null> {
-  const [{ createRxBackwardReq }] = await Promise.all([import('rx-nostr')]);
-  const rxNostr = await getRxNostr();
+  const { createRxBackwardReq } = await import('rx-nostr');
+  const instance = await getRxNostr();
 
   return new Promise<{ tags: string[][]; content: string; created_at: number } | null>(
     (resolve) => {
@@ -89,7 +89,7 @@ export async function fetchLatestEvent(
         }
       }, 10_000);
 
-      const sub = rxNostr.use(req).subscribe({
+      const sub = instance.use(req).subscribe({
         next: (packet) => {
           if (!latest || packet.event.created_at > latest.created_at) {
             latest = packet.event;

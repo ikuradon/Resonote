@@ -329,6 +329,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     if (addedDeletions) {
       deletedIds = new Set(deletedIds);
       prevDeletedSize = deletedIds.size;
+      rebuildReactionIndex();
     }
 
     // Restore comments and reactions
