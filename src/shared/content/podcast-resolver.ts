@@ -228,5 +228,9 @@ export async function resolveByApi(url: string): Promise<ResolveApiResponse> {
   } catch {
     return { type: 'episode', error: 'invalid_response' };
   }
-  return validateResolveResponse(data);
+  try {
+    return await validateResolveResponse(data);
+  } catch {
+    return { type: 'episode', error: 'invalid_response' };
+  }
 }
