@@ -14,6 +14,11 @@ export interface FetchedEventFull {
 const fetchByIdCache = new Map<string, FetchedEventFull | null>();
 const inflight = new Map<string, Promise<FetchedEventFull | null>>();
 
+/** Invalidate a cached entry (e.g. when a deletion event is received). */
+export function invalidateFetchByIdCache(eventId: string): void {
+  fetchByIdCache.delete(eventId);
+}
+
 export async function cachedFetchById(eventId: string): Promise<FetchedEventFull | null> {
   if (fetchByIdCache.has(eventId)) return fetchByIdCache.get(eventId)!;
 

@@ -16,7 +16,7 @@ import {
   reactionFromEvent,
   placeholderFromOrphan
 } from '../domain/comment-mappers.js';
-import { cachedFetchById } from '$shared/nostr/cached-query.js';
+import { cachedFetchById, invalidateFetchByIdCache } from '$shared/nostr/cached-query.js';
 import {
   emptyStats,
   applyReaction as applyReactionImmutable,
@@ -124,6 +124,9 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     const toPurge = verified.filter((id) => commentIds.has(id) || reactionIds.has(id));
     if (toPurge.length > 0) void purgeDeletedFromCache(eventsDB!, toPurge);
     log.debug('Deletion event received', { deletedIds: verified.map(shortHex) });
+
+    // Invalidate fetch cache for deleted events so re-visits don't restore them
+    for (const id of verified) invalidateFetchByIdCache(id);
 
     // Update orphan placeholders to 'deleted' when kind:5 arrives later
     let updatedPlaceholders: Map<string, PlaceholderComment> | null = null;

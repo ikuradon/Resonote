@@ -5,6 +5,7 @@
 
 export {
   cachedFetchById,
+  invalidateFetchByIdCache,
   useCachedLatest,
   type FetchedEventFull,
   type UseCachedLatestResult
