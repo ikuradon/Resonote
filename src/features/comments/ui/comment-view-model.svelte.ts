@@ -358,7 +358,24 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   }
 
   async function fetchOrphanParent(parentId: string, estimatedPositionMs: number | null) {
-    if (fetchedParentIds.has(parentId) || commentIds.has(parentId)) return;
+    if (fetchedParentIds.has(parentId)) return;
+
+    // Parent was received then deleted — show deleted placeholder immediately, no fetch needed
+    if (deletedIds.has(parentId)) {
+      fetchedParentIds.add(parentId);
+      const next = new Map(placeholders);
+      next.set(parentId, {
+        id: parentId,
+        status: 'deleted' as const,
+        positionMs: estimatedPositionMs
+      });
+      placeholders = next;
+      return;
+    }
+
+    // Parent exists and is visible — no placeholder needed
+    if (commentIds.has(parentId)) return;
+
     fetchedParentIds.add(parentId);
 
     // Register loading placeholder
