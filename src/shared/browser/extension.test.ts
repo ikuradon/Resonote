@@ -1,6 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// --- hoisted mocks ---
 const { updatePlaybackMock, gotoMock, onExtensionFrameMessageMock, isExtensionRuntimeOriginMock } =
   vi.hoisted(() => ({
     updatePlaybackMock: vi.fn(),
@@ -23,115 +22,83 @@ vi.mock('./extension-message-bridge.js', () => ({
   postSeekRequest: vi.fn()
 }));
 
-import { initExtensionListener, isExtensionMode } from './extension.svelte.js';
+vi.mock('$shared/utils/logger.js', () => ({
+  createLogger: () => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() })
+}));
 
-// ---- tests ----
-
-describe('isExtensionMode', () => {
-  it('初期状態はfalse', () => {
-    expect(isExtensionMode()).toBe(false);
-  });
-});
-
-describe('initExtensionListener', () => {
+describe('extension.svelte.ts', () => {
   let capturedCallback: ((message: unknown, origin: string) => void) | null = null;
 
   beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
     capturedCallback = null;
+
+    onExtensionFrameMessageMock.mockImplementation(
+      (cb: (message: unknown, origin: string) => void): (() => void) => {
+        capturedCallback = cb;
+        return vi.fn();
+      }
+    );
+  });
+
+  async function loadModule() {
+    return await import('./extension.svelte.js');
+  }
+
+  it('isExtensionMode returns false initially', async () => {
+    const { isExtensionMode } = await loadModule();
+    expect(isExtensionMode()).toBe(false);
+  });
+
+  it('initExtensionListener registers callback via onExtensionFrameMessage', async () => {
+    const { initExtensionListener } = await loadModule();
+    initExtensionListener();
+    expect(onExtensionFrameMessageMock).toHaveBeenCalledTimes(1);
+    expect(capturedCallback).not.toBeNull();
+  });
+
+  it('handles resonote:update-playback messages', async () => {
+    const { initExtensionListener } = await loadModule();
+    initExtensionListener();
+    expect(capturedCallback).not.toBeNull();
+
+    capturedCallback!(
+      { type: 'resonote:update-playback', position: 1000, duration: 5000, isPaused: false },
+      'chrome-extension://abc'
+    );
+    expect(updatePlaybackMock).toHaveBeenCalledWith(1000, 5000, false);
+  });
+
+  it('handles resonote:navigate messages', async () => {
+    const { initExtensionListener } = await loadModule();
+    initExtensionListener();
+    expect(capturedCallback).not.toBeNull();
+
+    capturedCallback!(
+      { type: 'resonote:navigate', path: '/content/test' },
+      'chrome-extension://abc'
+    );
+    expect(gotoMock).toHaveBeenCalledWith('/content/test');
+  });
+
+  it('ignores messages from different origin after first message', async () => {
+    const { initExtensionListener } = await loadModule();
+    initExtensionListener();
+    expect(capturedCallback).not.toBeNull();
+
+    // First message establishes sidePanelOrigin
+    capturedCallback!(
+      { type: 'resonote:update-playback', position: 100, duration: 1000, isPaused: true },
+      'chrome-extension://abc'
+    );
     vi.clearAllMocks();
 
-    onExtensionFrameMessageMock.mockImplementation(
-      (cb: (message: unknown, origin: string) => void): (() => void) => {
-        capturedCallback = cb;
-        return vi.fn();
-      }
+    // Different origin is ignored
+    capturedCallback!(
+      { type: 'resonote:update-playback', position: 200, duration: 2000, isPaused: false },
+      'chrome-extension://different'
     );
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('initExtensionListenerはonExtensionFrameMessageを呼び出す', () => {
-    // モジュールのシングルトン状態をリセット（fresh module import が必要な場合は別 describe で対応）
-    // ここでは1回目の呼び出しが機能することのみテストする
-    // (すでに初期化済みの場合はスキップされる)
-    onExtensionFrameMessageMock.mockImplementation(
-      (cb: (message: unknown, origin: string) => void): (() => void) => {
-        capturedCallback = cb;
-        return vi.fn();
-      }
-    );
-
-    initExtensionListener();
-
-    // onExtensionFrameMessageが最低1回は呼ばれている（初回または以前の呼び出しで）
-    // モジュールスコープのシングルトンのため呼び出し確認は初回のみ可能
-    expect(typeof initExtensionListener).toBe('function');
-  });
-
-  it('コールバック経由でresonote:update-playback を処理する', () => {
-    onExtensionFrameMessageMock.mockImplementation(
-      (cb: (message: unknown, origin: string) => void): (() => void) => {
-        capturedCallback = cb;
-        return vi.fn();
-      }
-    );
-
-    initExtensionListener();
-
-    if (capturedCallback) {
-      capturedCallback(
-        { type: 'resonote:update-playback', position: 1000, duration: 5000, isPaused: false },
-        'chrome-extension://abc'
-      );
-      expect(updatePlaybackMock).toHaveBeenCalledWith(1000, 5000, false);
-    }
-  });
-
-  it('コールバック経由でresonote:navigate を処理する', () => {
-    onExtensionFrameMessageMock.mockImplementation(
-      (cb: (message: unknown, origin: string) => void): (() => void) => {
-        capturedCallback = cb;
-        return vi.fn();
-      }
-    );
-
-    initExtensionListener();
-
-    if (capturedCallback) {
-      capturedCallback(
-        { type: 'resonote:navigate', path: '/content/test' },
-        'chrome-extension://abc'
-      );
-      expect(gotoMock).toHaveBeenCalledWith('/content/test');
-    }
-  });
-
-  it('異なるoriginの2つ目のメッセージは無視する', () => {
-    onExtensionFrameMessageMock.mockImplementation(
-      (cb: (message: unknown, origin: string) => void): (() => void) => {
-        capturedCallback = cb;
-        return vi.fn();
-      }
-    );
-
-    initExtensionListener();
-
-    if (capturedCallback) {
-      // 最初のメッセージでsidePanelOriginを確立
-      capturedCallback(
-        { type: 'resonote:update-playback', position: 100, duration: 1000, isPaused: true },
-        'chrome-extension://abc'
-      );
-      vi.clearAllMocks();
-
-      // 異なるoriginからのメッセージは無視される
-      capturedCallback(
-        { type: 'resonote:update-playback', position: 200, duration: 2000, isPaused: false },
-        'chrome-extension://different'
-      );
-      expect(updatePlaybackMock).not.toHaveBeenCalled();
-    }
+    expect(updatePlaybackMock).not.toHaveBeenCalled();
   });
 });
