@@ -214,7 +214,6 @@ describe('createAppShellViewModel', () => {
 
     it('afterNavigate callback closes the menu', () => {
       createAppShellViewModel();
-      const callback = mockAfterNavigate.mock.calls[0][0] as () => void;
       const vm2 = createAppShellViewModel();
       vm2.openMenu();
 

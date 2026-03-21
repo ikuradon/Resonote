@@ -12,7 +12,7 @@ const {
   const makeSub = () => ({ unsubscribe: vi.fn() });
 
   // rxNostr.use(...).subscribe returns sub; we capture the observer so tests can drive it
-  let capturedObservers: Array<{
+  const capturedObservers: Array<{
     next?: (p: unknown) => void;
     complete?: () => void;
     error?: () => void;
@@ -92,54 +92,6 @@ function makeCallbacks(
   };
 }
 
-/** Drive rx-nostr subscriptions by simulating events + complete signals. */
-async function driveSubscriptions(
-  fetchPromise: Promise<unknown>,
-  steps: Array<{
-    packets?: Array<{ event: { tags: string[][]; created_at: number } }>;
-    complete?: boolean;
-    error?: boolean;
-  }>
-) {
-  // Each step corresponds to one createRxBackwardReq call in order.
-  // We need to interleave driving observers with the async fetchWot flow.
-  let stepIndex = 0;
-
-  const originalUse = ((await getRxNostrMock()) as { use: ReturnType<typeof vi.fn> }).use;
-
-  // Replace use with one that captures and auto-drives
-  // (already captured above; we drive via a polling loop)
-  // Use setImmediate ticks to yield to the microtask queue.
-
-  const tick = () => new Promise<void>((r) => setImmediate(r));
-
-  // Drive each observer step after a tick
-  const driveStep = async (
-    step: (typeof steps)[number],
-    obs: {
-      next?: (p: unknown) => void;
-      complete?: () => void;
-      error?: () => void;
-    }
-  ) => {
-    for (const pkt of step.packets ?? []) {
-      obs.next?.(pkt);
-      await tick();
-    }
-    if (step.complete) {
-      obs.complete?.();
-      await tick();
-    }
-    if (step.error) {
-      obs.error?.();
-      await tick();
-    }
-  };
-
-  void fetchPromise; // don't await here — we need to interleave
-  return { driveStep, tick };
-}
-
 // ---- tests ----
 
 describe('fetchWot', () => {
@@ -167,7 +119,7 @@ describe('fetchWot', () => {
 
     // We need to orchestrate the two sequential backward reqs.
     // Use a custom sequence driven by resolving promises manually.
-    let observerSeq: Array<{
+    const observerSeq: Array<{
       next?: (p: unknown) => void;
       complete?: () => void;
     }> = [];
@@ -218,7 +170,7 @@ describe('fetchWot', () => {
     const MY_PUBKEY = 'my-pubkey-2';
     const FOLLOW1 = 'f1';
 
-    let observerSeq: Array<{
+    const observerSeq: Array<{
       next?: (p: unknown) => void;
       complete?: () => void;
     }> = [];
@@ -257,7 +209,7 @@ describe('fetchWot', () => {
     const MY_PUBKEY = 'my-pubkey-3';
     const FOLLOW1 = 'f-prog-1';
 
-    let observerSeq: Array<{
+    const observerSeq: Array<{
       next?: (p: unknown) => void;
       complete?: () => void;
     }> = [];
@@ -301,7 +253,7 @@ describe('fetchWot', () => {
     const MY_PUBKEY = 'my-pubkey-4';
     const FOLLOW1 = 'f-cancel';
 
-    let observerSeq: Array<{
+    const observerSeq: Array<{
       next?: (p: unknown) => void;
       complete?: () => void;
     }> = [];
@@ -341,7 +293,7 @@ describe('fetchWot', () => {
     const callbacks = makeCallbacks();
     const MY_PUBKEY = 'lonely-pubkey';
 
-    let observerSeq: Array<{
+    const observerSeq: Array<{
       next?: (p: unknown) => void;
       complete?: () => void;
     }> = [];
@@ -378,7 +330,7 @@ describe('fetchWot', () => {
     const MY_PUBKEY = 'err-pubkey';
     const FOLLOW1 = 'f-err';
 
-    let observerSeq: Array<{
+    const observerSeq: Array<{
       next?: (p: unknown) => void;
       complete?: () => void;
       error?: () => void;
@@ -420,7 +372,7 @@ describe('fetchWot', () => {
     const eventsDB = await getEventsDBMock();
     const event = { tags: [['p', 'f1']], created_at: 1 };
 
-    let observerSeq: Array<{
+    const observerSeq: Array<{
       next?: (p: unknown) => void;
       complete?: () => void;
     }> = [];
@@ -457,7 +409,7 @@ describe('fetchWot', () => {
     const olderEvent = { tags: [['p', 'old-follow']], created_at: 50 };
     const newerEvent = { tags: [['p', 'new-follow']], created_at: 200 };
 
-    let observerSeq: Array<{
+    const observerSeq: Array<{
       next?: (p: unknown) => void;
       complete?: () => void;
     }> = [];
