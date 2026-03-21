@@ -147,9 +147,11 @@
           <span class="text-xs font-semibold tracking-wide text-text-secondary uppercase"
             >{t('comment.section.timed')}</span
           >
-          <span class="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-mono text-accent"
-            >{vm.timedComments.length}</span
-          >
+          {#if vm.timedComments.length > 0}
+            <span class="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-mono text-accent"
+              >{vm.timedComments.length}</span
+            >
+          {/if}
           <div class="h-px flex-1 bg-border-subtle"></div>
           {#if vm.userScrolledAway}
             <button
@@ -226,9 +228,11 @@
           <span class="text-xs font-semibold tracking-wide text-text-secondary uppercase"
             >{t('comment.section.general')}</span
           >
-          <span class="rounded-full bg-surface-3 px-2 py-0.5 text-xs font-mono text-text-muted"
-            >{vm.generalComments.length}</span
-          >
+          {#if vm.generalComments.length > 0}
+            <span class="rounded-full bg-surface-3 px-2 py-0.5 text-xs font-mono text-text-muted"
+              >{vm.generalComments.length}</span
+            >
+          {/if}
           <div class="h-px flex-1 bg-border-subtle"></div>
         </div>
         {#each vm.orphanParents.filter((p) => p.positionMs === null) as placeholder (placeholder.id)}

@@ -132,6 +132,16 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
         const updated = new Map(placeholders);
         updated.set(id, { ...ph, status: 'deleted' });
         placeholders = updated;
+      } else if (!ph && fetchedParentIds.has(id)) {
+        // Parent was fetched successfully then deleted — re-create as 'deleted' placeholder
+        const original = commentsRaw.find((c) => c.id === id);
+        const updated = new Map(placeholders);
+        updated.set(id, {
+          id,
+          status: 'deleted' as const,
+          positionMs: original?.positionMs ?? null
+        });
+        placeholders = updated;
       }
     }
   }
