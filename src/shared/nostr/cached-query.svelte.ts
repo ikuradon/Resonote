@@ -2,12 +2,19 @@ import { createLogger, shortHex } from '$shared/utils/logger.js';
 
 const log = createLogger('cached-nostr');
 
-const fetchByIdCache = new Map<string, { content: string; kind: number } | null>();
-const inflight = new Map<string, Promise<{ content: string; kind: number } | null>>();
+export interface FetchedEventFull {
+  id: string;
+  pubkey: string;
+  content: string;
+  created_at: number;
+  tags: string[][];
+  kind: number;
+}
 
-export async function cachedFetchById(
-  eventId: string
-): Promise<{ content: string; kind: number } | null> {
+const fetchByIdCache = new Map<string, FetchedEventFull | null>();
+const inflight = new Map<string, Promise<FetchedEventFull | null>>();
+
+export async function cachedFetchById(eventId: string): Promise<FetchedEventFull | null> {
   if (fetchByIdCache.has(eventId)) return fetchByIdCache.get(eventId)!;
 
   // Dedup: if another call for the same eventId is already in flight, await it
@@ -23,15 +30,13 @@ export async function cachedFetchById(
   }
 }
 
-async function cachedFetchByIdInner(
-  eventId: string
-): Promise<{ content: string; kind: number } | null> {
+async function cachedFetchByIdInner(eventId: string): Promise<FetchedEventFull | null> {
   try {
     const { getEventsDB } = await import('$shared/nostr/gateway.js');
     const db = await getEventsDB();
     const event = await db.getById(eventId);
     if (event) {
-      const result = { content: event.content, kind: event.kind };
+      const result = event as FetchedEventFull;
       fetchByIdCache.set(eventId, result);
       return result;
     }
@@ -46,9 +51,9 @@ async function cachedFetchByIdInner(
     ]);
     const rxNostr = await getRxNostr();
 
-    const result = await new Promise<{ content: string; kind: number } | null>((resolve) => {
+    const result = await new Promise<FetchedEventFull | null>((resolve) => {
       const req = createRxBackwardReq();
-      let found: { content: string; kind: number } | null = null;
+      let found: FetchedEventFull | null = null;
       const timeout = setTimeout(() => {
         sub.unsubscribe();
         resolve(found);
@@ -56,7 +61,7 @@ async function cachedFetchByIdInner(
 
       const sub = rxNostr.use(req).subscribe({
         next: async (packet) => {
-          found = { content: packet.event.content, kind: packet.event.kind };
+          found = packet.event as FetchedEventFull;
           try {
             const { getEventsDB } = await import('$shared/nostr/gateway.js');
             const db = await getEventsDB();
