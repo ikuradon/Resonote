@@ -24,7 +24,7 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           BRANCH=$(gh pr view "$PR_NUMBER" --json comments --repo "$REPO" \
-            --jq '[.comments[] | select(.author.login == "github-actions[bot]" and (.body | contains("<!-- preview-deploy -->"))) | .body | capture("\\*\\*Branch\\*\\* \\| `(?<id>[a-z-]+)`") | .id] | last // ""')
+            --jq '[.comments[] | select((.author.login | startswith("github-actions")) and (.body | contains("<!-- preview-deploy -->"))) | .body | capture("\\*\\*Branch\\*\\* \\| `(?<id>[a-z-]+)`") | .id] | last // ""')
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Delete all preview deployments
@@ -49,7 +49,7 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           COMMENT_ID=$(gh pr view "$PR_NUMBER" --json comments --repo "$REPO" \
-            --jq '[.comments[] | select(.author.login == "github-actions[bot]" and (.body | contains("<!-- preview-deploy -->"))) | .id] | last // ""')
+            --jq '[.comments[] | select((.author.login | startswith("github-actions")) and (.body | contains("<!-- preview-deploy -->"))) | .id] | last // ""')
           if [[ -n "$COMMENT_ID" ]]; then
             gh api "repos/$REPO/issues/comments/$COMMENT_ID" -X PATCH \
               -f body="<!-- preview-deploy -->
