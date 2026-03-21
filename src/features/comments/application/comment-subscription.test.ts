@@ -245,7 +245,8 @@ describe('startSubscription', () => {
 
     startSubscription(refs, filters, null, vi.fn(), onBackwardComplete);
 
-    const observer = backwardPipe.subscribe.mock.calls[0][0] as {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const observer = (backwardPipe.subscribe.mock.calls[0] as any)[0] as {
       complete: () => void;
     };
     observer.complete();
@@ -299,7 +300,10 @@ describe('startMergedSubscription', () => {
     const onPacket = vi.fn();
     startMergedSubscription(refs, filters, onPacket);
 
-    const subscribeFn = refs.mergedStream.subscribe.mock.calls[0][0] as (p: unknown) => void;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const subscribeFn = (refs.mergedStream.subscribe.mock.calls[0] as any)[0] as (
+      p: unknown
+    ) => void;
     const fakeEvent = { id: 'e2', pubkey: 'pk2', content: '', created_at: 2, tags: [], kind: 7 };
     subscribeFn({ event: fakeEvent });
     expect(onPacket).toHaveBeenCalledWith(fakeEvent);
@@ -380,7 +384,8 @@ describe('startDeletionReconcile', () => {
 
     startDeletionReconcile(refs, ['id-x'], vi.fn(), onComplete);
 
-    const observer = backwardPipe.subscribe.mock.calls[0][0] as {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const observer = (backwardPipe.subscribe.mock.calls[0] as any)[0] as {
       complete: () => void;
     };
     observer.complete();
@@ -397,7 +402,8 @@ describe('startDeletionReconcile', () => {
 
     startDeletionReconcile(refs, ['id-x'], vi.fn(), onComplete);
 
-    const observer = backwardPipe.subscribe.mock.calls[0][0] as {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const observer = (backwardPipe.subscribe.mock.calls[0] as any)[0] as {
       complete: () => void;
     };
     observer.complete();

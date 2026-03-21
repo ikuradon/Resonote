@@ -24,10 +24,10 @@ vi.mock('$shared/i18n/t.js', () => ({
 import { createTrackInputViewModel } from './track-input-view-model.svelte.js';
 
 describe('createTrackInputViewModel', () => {
-  let navigateMock: ReturnType<typeof vi.fn>;
+  let navigateMock: (path: string) => void;
 
   beforeEach(() => {
-    navigateMock = vi.fn();
+    navigateMock = vi.fn<(path: string) => void>();
     resolveContentNavigationMock.mockReset();
     startIntervalTaskMock.mockClear();
     stopMock.mockClear();
