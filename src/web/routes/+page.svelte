@@ -1,9 +1,8 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { resolveContentNavigation } from '$features/content-resolution/application/content-navigation.js';
   import TrackInput from '$lib/components/TrackInput.svelte';
-  import { parseContentUrl } from '$lib/content/registry.js';
-  import { extractTimeParam } from '$lib/content/url-utils.js';
-  import { t } from '$lib/i18n/t.js';
+  import { t } from '$shared/i18n/t.js';
 
   const examples = [
     {
@@ -64,13 +63,9 @@
   ].sort(() => Math.random() - 0.5);
 
   function handleExample(url: string) {
-    const contentId = parseContentUrl(url);
-    if (contentId) {
-      const timeSec = extractTimeParam(url);
-      const timeQuery = timeSec > 0 ? `?t=${timeSec}` : '';
-      goto(
-        `/${contentId.platform}/${contentId.type}/${encodeURIComponent(contentId.id)}${timeQuery}`
-      );
+    const result = resolveContentNavigation(url);
+    if (result && 'path' in result) {
+      goto(result.path);
     }
   }
 </script>

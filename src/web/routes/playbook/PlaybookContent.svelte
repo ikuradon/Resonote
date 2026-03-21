@@ -1,293 +1,35 @@
 <script lang="ts">
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import VirtualScrollList from '$lib/components/VirtualScrollList.svelte';
-  import { onMount, onDestroy } from 'svelte';
+  import {
+    createPlaybookContentViewModel,
+    type PlaybookVirtualList
+  } from './playbook-content-view-model.svelte.js';
 
-  // --- Toggle states ---
-  let sending = $state(false);
-  let liked = $state(false);
-  let confirmOpen = $state(false);
-  let spotifyReady = $state(false);
-  let youtubeReady = $state(false);
+  const vm = createPlaybookContentViewModel();
 
-  function simulateSend() {
-    sending = true;
-    setTimeout(() => (sending = false), 2000);
-  }
-
-  // --- Virtual Scroll Demo ---
-  interface DemoComment {
-    id: string;
-    author: string;
-    content: string;
-    positionMs: number;
-    createdAt: number;
-    arrivedAt: number;
-    hasCW?: boolean;
-    hasEmoji?: boolean;
-  }
-
-  const ADJECTIVES = ['Great', 'Amazing', 'Love this', 'Nice', 'Cool', 'Interesting', 'Wow'];
-  const SUFFIXES = [
-    'part!',
-    'moment here',
-    'beat drop',
-    'section',
-    'transition',
-    'melody',
-    'vibe',
-    'solo',
-    'hook',
-    'chorus'
-  ];
-  const AUTHORS = ['alice', 'bob', 'carol', 'dave', 'eve', 'frank', 'grace', 'heidi'];
-  const LONG_TEXTS = [
-    'This is a much longer comment that spans multiple lines to test dynamic height handling in the virtual scroll component. The comment card should expand to fit this content naturally.',
-    'Short',
-    'Another extended comment with lots of detail about the track. I really enjoyed the way the bass line interacts with the melody at this point. The producer did an excellent job here.',
-    'Medium length comment with some extra words to make it a bit taller than the short ones but not as tall as the really long ones.',
-    "Five lines worth of content to really push the dynamic height. This comment discusses the intricate layering of instruments in the bridge section. The synthesizer pad creates an ethereal atmosphere while the drums maintain a steady groove. I particularly love how the vocals soar over the top. It's moments like these that make music so special and worth discussing."
-  ];
-  const CW_REASONS = ['spoiler', 'loud section', 'controversial opinion'];
-  const CUSTOM_EMOJIS = [
-    {
-      shortcode: 'fire',
-      url: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f525.svg'
-    },
-    {
-      shortcode: 'heart_eyes',
-      url: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f60d.svg'
-    },
-    {
-      shortcode: 'musical_note',
-      url: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f3b5.svg'
-    },
-    {
-      shortcode: 'star',
-      url: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/2b50.svg'
-    },
-    {
-      shortcode: 'thumbsup',
-      url: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f44d.svg'
-    }
-  ];
-
-  let nextId = $state(0);
-
-  function randomComment(positionMs?: number, isNew = false): DemoComment {
-    const id = `demo-${nextId++}`;
-    const roll = Math.random();
-    let content: string;
-    if (roll < 0.2) {
-      content = LONG_TEXTS[Math.floor(Math.random() * LONG_TEXTS.length)];
-    } else {
-      content = `${ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]} ${SUFFIXES[Math.floor(Math.random() * SUFFIXES.length)]}`;
-    }
-    return {
-      id,
-      author: AUTHORS[Math.floor(Math.random() * AUTHORS.length)],
-      content,
-      positionMs: positionMs ?? Math.floor(Math.random() * 300_000),
-      createdAt: Date.now(),
-      arrivedAt: isNew ? Date.now() : 0,
-      hasCW: Math.random() < 0.08,
-      hasEmoji: Math.random() < 0.15
-    };
-  }
-
-  // --- FPS counter ---
-  let fps = $state(0);
-  let fpsFrames = 0;
-  let fpsLastTime = 0;
-  let fpsRafId: number | undefined;
-
-  function fpsLoop(now: number) {
-    fpsFrames++;
-    if (now - fpsLastTime >= 1000) {
-      fps = fpsFrames;
-      fpsFrames = 0;
-      fpsLastTime = now;
-    }
-    fpsRafId = requestAnimationFrame(fpsLoop);
-  }
-
-  // --- Auto-add mode ---
-  let autoAddEnabled = $state(false);
-  let autoAddTimer: ReturnType<typeof setTimeout> | undefined;
-
-  function scheduleAutoAdd() {
-    if (!autoAddEnabled) return;
-    const delay = 500 + Math.random() * 2500;
-    autoAddTimer = setTimeout(() => {
-      addRandomComment(true);
-      scheduleAutoAdd();
-    }, delay);
-  }
-
-  function toggleAutoAdd() {
-    autoAddEnabled = !autoAddEnabled;
-    if (autoAddEnabled) {
-      scheduleAutoAdd();
-    } else if (autoAddTimer) {
-      clearTimeout(autoAddTimer);
-      autoAddTimer = undefined;
-    }
-  }
-
-  // --- New comment highlight ---
-  const NEW_HIGHLIGHT_MS = 3_000;
-  // Periodically expire highlights (every 500ms)
-  let highlightTick = $state(0);
-  let highlightInterval: ReturnType<typeof setInterval> | undefined;
-
-  // Generate initial sorted comments
-  function generateInitial(count: number): DemoComment[] {
-    const arr: DemoComment[] = [];
-    for (let i = 0; i < count; i++) {
-      arr.push(randomComment());
-    }
-    return arr.sort((a, b) => a.positionMs - b.positionMs);
-  }
-
-  let demoComments = $state<DemoComment[]>(generateInitial(200));
-
-  // Playback emulation
-  let playbackMs = $state(0);
-  let playbackPlaying = $state(false);
-  let playbackInterval: ReturnType<typeof setInterval> | undefined;
-  const PLAYBACK_DURATION = 300_000; // 5 min track
-
-  function formatMs(ms: number): string {
-    const s = Math.floor(ms / 1000);
-    const m = Math.floor(s / 60);
-    return `${m}:${String(s % 60).padStart(2, '0')}`;
-  }
-
-  function togglePlayback() {
-    if (playbackPlaying) {
-      clearInterval(playbackInterval);
-      playbackInterval = undefined;
-      playbackPlaying = false;
-    } else {
-      playbackPlaying = true;
-      playbackInterval = setInterval(() => {
-        playbackMs += 1000;
-        if (playbackMs >= PLAYBACK_DURATION) {
-          playbackMs = 0;
-        }
-      }, 1000);
-    }
-  }
-
-  function seekTo(ms: number) {
-    playbackMs = Math.max(0, Math.min(ms, PLAYBACK_DURATION));
-  }
-
-  // Auto-scroll: find the index of the comment closest to current position
-  let virtualList: VirtualScrollList<DemoComment> | undefined;
-  let autoScrollEnabled = $state(true);
-  let userScrolledAway = $state(false);
-
-  // Find index of nearest comment at or before current position
-  function findNearestIndex(posMs: number): number {
-    let lo = 0;
-    let hi = demoComments.length - 1;
-    let result = 0;
-    while (lo <= hi) {
-      const mid = (lo + hi) >> 1;
-      if (demoComments[mid].positionMs <= posMs) {
-        result = mid;
-        lo = mid + 1;
-      } else {
-        hi = mid - 1;
-      }
-    }
-    return result;
-  }
+  let virtualList = $state<PlaybookVirtualList | undefined>();
 
   $effect(() => {
-    if (autoScrollEnabled && !userScrolledAway && demoComments.length > 0 && virtualList) {
-      const idx = findNearestIndex(playbackMs);
-      virtualList.scrollToIndex(idx);
-    }
+    vm.setVirtualList(virtualList);
   });
 
-  // Track visible range for scroll-away detection
-  let visibleStart = $state(0);
-  let visibleEnd = $state(0);
+  let sending = $derived(vm.sending);
+  let liked = $derived(vm.liked);
+  let confirmOpen = $derived(vm.confirmOpen);
+  let spotifyReady = $derived(vm.spotifyReady);
+  let youtubeReady = $derived(vm.youtubeReady);
+  let demoComments = $derived(vm.demoComments);
+  let playbackMs = $derived(vm.playbackMs);
+  let playbackPlaying = $derived(vm.playbackPlaying);
+  let autoScrollEnabled = $derived(vm.autoScrollEnabled);
+  let autoAddEnabled = $derived(vm.autoAddEnabled);
+  let userScrolledAway = $derived(vm.userScrolledAway);
+  let visibleStart = $derived(vm.visibleStart);
+  let visibleEnd = $derived(vm.visibleEnd);
+  let fps = $derived(vm.fps);
 
-  function handleRangeChange(start: number, end: number) {
-    visibleStart = start;
-    visibleEnd = end;
-    // Only detect user-scroll-away when NOT in a programmatic scroll
-    if (autoScrollEnabled && virtualList && !virtualList.isAutoScrolling()) {
-      const target = findNearestIndex(playbackMs);
-      if (target < start || target > end) {
-        userScrolledAway = true;
-      }
-    }
-  }
-
-  function jumpToNow() {
-    userScrolledAway = false;
-    if (virtualList) {
-      virtualList.scrollToIndex(findNearestIndex(playbackMs));
-    }
-  }
-
-  // Insert random comment near current position
-  function addRandomComment(isNew = false) {
-    const jitter = (Math.random() - 0.5) * 10_000;
-    const pos = Math.max(0, Math.min(playbackMs + jitter, PLAYBACK_DURATION));
-    const comment = randomComment(pos, isNew);
-    // Binary insert
-    let lo = 0;
-    let hi = demoComments.length;
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1;
-      if (demoComments[mid].positionMs <= pos) lo = mid + 1;
-      else hi = mid;
-    }
-    demoComments = [...demoComments.slice(0, lo), comment, ...demoComments.slice(lo)];
-  }
-
-  // Delete a random visible comment
-  function deleteRandomComment() {
-    if (demoComments.length === 0) return;
-    const idx = visibleStart + Math.floor(Math.random() * (visibleEnd - visibleStart + 1));
-    const safeIdx = Math.min(Math.max(0, idx), demoComments.length - 1);
-    demoComments = [...demoComments.slice(0, safeIdx), ...demoComments.slice(safeIdx + 1)];
-  }
-
-  // Bulk add
-  function addBulk(count: number) {
-    const newComments = [];
-    for (let i = 0; i < count; i++) {
-      newComments.push(randomComment());
-    }
-    demoComments = [...demoComments, ...newComments].sort((a, b) => a.positionMs - b.positionMs);
-  }
-
-  // Highlight threshold
-  const HIGHLIGHT_MS = 5_000;
-
-  onMount(() => {
-    fpsLastTime = performance.now();
-    fpsRafId = requestAnimationFrame(fpsLoop);
-    highlightInterval = setInterval(() => {
-      highlightTick++;
-    }, 500);
-  });
-
-  onDestroy(() => {
-    if (fpsRafId) cancelAnimationFrame(fpsRafId);
-    if (highlightInterval) clearInterval(highlightInterval);
-    if (autoAddTimer) clearTimeout(autoAddTimer);
-    if (playbackInterval) clearInterval(playbackInterval);
-  });
-
-  // CW reveal state for demo
-  let revealedCW = $state(new Set<string>());
+  const PLAYBACK_DURATION = vm.playbackDuration;
 </script>
 
 <div class="mx-auto max-w-4xl space-y-12">
@@ -310,7 +52,7 @@
         <button
           type="button"
           disabled={sending}
-          onclick={simulateSend}
+          onclick={vm.simulateSend}
           class="inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-surface-0 transition-all duration-200 hover:bg-accent-hover disabled:opacity-30"
         >
           {#if sending}
@@ -371,7 +113,7 @@
       <div class="flex flex-wrap items-center gap-4">
         <button
           type="button"
-          onclick={simulateSend}
+          onclick={vm.simulateSend}
           disabled={sending}
           class="inline-flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-surface-0 transition-all duration-200 hover:bg-accent-hover disabled:opacity-30"
         >
@@ -427,7 +169,7 @@
         </button>
         <button
           type="button"
-          onclick={simulateSend}
+          onclick={vm.simulateSend}
           disabled={sending}
           class="inline-flex items-center gap-1 rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-surface-0 transition-all duration-200 hover:bg-accent-hover disabled:opacity-30"
         >
@@ -489,7 +231,7 @@
         <!-- Like -->
         <button
           type="button"
-          onclick={() => (liked = !liked)}
+          onclick={vm.toggleLiked}
           class="inline-flex items-center gap-1 rounded-lg p-1.5 transition-colors
             {liked ? 'text-accent' : 'text-text-muted hover:text-accent'}"
           title={liked ? 'Liked' : 'Like'}
@@ -552,7 +294,7 @@
         <!-- Delete -->
         <button
           type="button"
-          onclick={() => (confirmOpen = true)}
+          onclick={vm.openConfirm}
           class="ml-auto rounded-lg p-1.5 text-text-muted transition-colors hover:text-red-400"
           title="Delete"
         >
@@ -710,7 +452,7 @@
         </h3>
         <button
           type="button"
-          onclick={() => (spotifyReady = !spotifyReady)}
+          onclick={vm.toggleSpotifyReady}
           class="rounded-lg bg-surface-2 px-3 py-1 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-3"
         >
           {spotifyReady ? 'Show Loading' : 'Show Ready'}
@@ -758,7 +500,7 @@
         </h3>
         <button
           type="button"
-          onclick={() => (youtubeReady = !youtubeReady)}
+          onclick={vm.toggleYoutubeReady}
           class="rounded-lg bg-surface-2 px-3 py-1 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-3"
         >
           {youtubeReady ? 'Show Loading' : 'Show Ready'}
@@ -810,7 +552,7 @@
       </h3>
       <button
         type="button"
-        onclick={() => (confirmOpen = true)}
+        onclick={vm.openConfirm}
         class="rounded-lg bg-error px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:brightness-110"
       >
         Open Dialog
@@ -859,7 +601,7 @@
           ></textarea>
           <button
             type="button"
-            onclick={simulateSend}
+            onclick={vm.simulateSend}
             disabled={sending}
             class="inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-surface-0 transition-all duration-200 hover:bg-accent-hover disabled:opacity-30"
           >
@@ -964,30 +706,37 @@
         <div class="flex items-center gap-3">
           <button
             type="button"
-            onclick={togglePlayback}
+            onclick={vm.togglePlayback}
             class="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-surface-0 transition-colors hover:bg-accent-hover"
           >
             {playbackPlaying ? 'Pause' : 'Play'}
           </button>
-          <span class="font-mono text-sm text-text-primary">{formatMs(playbackMs)}</span>
-          <span class="text-xs text-text-muted">/ {formatMs(PLAYBACK_DURATION)}</span>
+          <span class="font-mono text-sm text-text-primary">{vm.formatMs(playbackMs)}</span>
+          <span class="text-xs text-text-muted">/ {vm.formatMs(PLAYBACK_DURATION)}</span>
           <input
             type="range"
             min="0"
             max={PLAYBACK_DURATION}
-            bind:value={playbackMs}
+            value={playbackMs}
+            oninput={(event) =>
+              vm.setPlaybackPosition(Number((event.currentTarget as HTMLInputElement).value))}
             class="flex-1"
           />
         </div>
         <div class="flex items-center gap-2">
           <label class="flex items-center gap-1.5 text-xs text-text-muted">
-            <input type="checkbox" bind:checked={autoScrollEnabled} />
+            <input
+              type="checkbox"
+              checked={autoScrollEnabled}
+              onchange={(event) =>
+                vm.setAutoScrollEnabled((event.currentTarget as HTMLInputElement).checked)}
+            />
             Auto-scroll
           </label>
           {#if userScrolledAway}
             <button
               type="button"
-              onclick={jumpToNow}
+              onclick={vm.jumpToNow}
               class="rounded-lg bg-accent/20 px-2 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/30"
             >
               Jump to now
@@ -1000,35 +749,35 @@
       <div class="mb-4 flex flex-wrap items-center gap-2">
         <button
           type="button"
-          onclick={() => addRandomComment(true)}
+          onclick={() => vm.addRandomComment(true)}
           class="rounded-lg bg-surface-2 px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-3"
         >
           + Add
         </button>
         <button
           type="button"
-          onclick={deleteRandomComment}
+          onclick={vm.deleteRandomComment}
           class="rounded-lg bg-surface-2 px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-3"
         >
           - Delete
         </button>
         <button
           type="button"
-          onclick={() => addBulk(50)}
+          onclick={() => vm.addBulk(50)}
           class="rounded-lg bg-surface-2 px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-3"
         >
           +50
         </button>
         <button
           type="button"
-          onclick={() => addBulk(500)}
+          onclick={() => vm.addBulk(500)}
           class="rounded-lg bg-surface-2 px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-3"
         >
           +500
         </button>
         <button
           type="button"
-          onclick={toggleAutoAdd}
+          onclick={vm.toggleAutoAdd}
           class="rounded-lg px-3 py-1.5 text-xs font-medium transition-colors
             {autoAddEnabled
             ? 'bg-accent text-surface-0'
@@ -1057,14 +806,11 @@
           keyFn={(c) => c.id}
           estimateHeight={80}
           overscan={5}
-          onRangeChange={handleRangeChange}
+          onRangeChange={vm.handleRangeChange}
         >
           {#snippet children({ item, index })}
-            {@const nearCurrent = Math.abs(item.positionMs - playbackMs) < HIGHLIGHT_MS}
-            {@const isNew =
-              highlightTick >= 0 &&
-              item.arrivedAt > 0 &&
-              Date.now() - item.arrivedAt < NEW_HIGHLIGHT_MS}
+            {@const nearCurrent = vm.isNearCurrentPosition(item.positionMs)}
+            {@const isNew = vm.isNewComment(item)}
             <div
               class="border-b border-border-subtle px-4 py-3 transition-colors duration-500
                 {isNew
@@ -1083,10 +829,10 @@
                   <span class="text-xs font-medium text-accent">{item.author}</span>
                   <button
                     type="button"
-                    onclick={() => seekTo(item.positionMs)}
+                    onclick={() => vm.seekTo(item.positionMs)}
                     class="rounded-full bg-accent/10 px-2 py-0.5 font-mono text-xs text-accent transition-colors hover:bg-accent/20"
                   >
-                    {formatMs(item.positionMs)}
+                    {vm.formatMs(item.positionMs)}
                   </button>
                   {#if isNew}
                     <span class="text-xs font-semibold text-accent">NEW</span>
@@ -1094,7 +840,7 @@
                 </div>
                 <span class="text-xs text-text-muted">#{index}</span>
               </div>
-              {#if item.hasCW && !revealedCW.has(item.id)}
+              {#if item.hasCW && !vm.isRevealed(item.id)}
                 <div
                   class="flex items-center gap-2 rounded-lg bg-surface-2 px-3 py-2 text-sm text-text-muted"
                 >
@@ -1108,10 +854,10 @@
                   >
                     <path d="M12 9v4m0 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                   </svg>
-                  <span class="flex-1">CW: {CW_REASONS[index % CW_REASONS.length]}</span>
+                  <span class="flex-1">CW: {vm.getCwReason(index)}</span>
                   <button
                     type="button"
-                    onclick={() => (revealedCW = new Set([...revealedCW, item.id]))}
+                    onclick={() => vm.revealCW(item.id)}
                     class="rounded px-2 py-0.5 text-xs font-medium text-accent transition-colors hover:bg-accent/10"
                   >
                     Show
@@ -1121,7 +867,7 @@
                 <p class="text-sm leading-relaxed text-text-primary">
                   {item.content}
                   {#if item.hasEmoji}
-                    {@const emoji = CUSTOM_EMOJIS[index % CUSTOM_EMOJIS.length]}
+                    {@const emoji = vm.getEmoji(index)}
                     <img
                       src={emoji.url}
                       alt=":{emoji.shortcode}:"
@@ -1169,6 +915,6 @@
   message="このコメントを削除しますか？この操作は取り消せません。"
   confirmLabel="削除"
   cancelLabel="キャンセル"
-  onConfirm={() => (confirmOpen = false)}
-  onCancel={() => (confirmOpen = false)}
+  onConfirm={vm.closeConfirm}
+  onCancel={vm.closeConfirm}
 />

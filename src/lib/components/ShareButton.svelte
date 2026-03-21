@@ -1,16 +1,9 @@
 <script lang="ts">
-  import { buildShare } from '../nostr/events.js';
-  import { castSigned } from '../nostr/client.js';
-  import { getAuth } from '../stores/auth.svelte.js';
-  import { getPlayer } from '../stores/player.svelte.js';
-  import { t } from '../i18n/t.js';
-  import type { ContentId, ContentProvider } from '../content/types.js';
-  import { createLogger } from '../utils/logger.js';
-  import { encodeContentLink } from '../nostr/content-link.js';
-  import { DEFAULT_RELAYS } from '../nostr/relays.js';
+  import { createShareButtonViewModel } from '$features/sharing/ui/share-button-view-model.svelte.js';
+  import { t } from '$shared/i18n/t.js';
+  import type { ContentId, ContentProvider } from '$shared/content/types.js';
+  import { formatDuration } from '$shared/utils/format.js';
   import NoteInput from './NoteInput.svelte';
-
-  const log = createLogger('ShareButton');
 
   interface Props {
     contentId: ContentId;
@@ -18,111 +11,18 @@
   }
 
   let { contentId, provider }: Props = $props();
-
-  const auth = getAuth();
-  const player = getPlayer();
-
-  // 'closed' | 'menu' | 'post'
-  type ModalState = 'closed' | 'menu' | 'post';
-  let modalState = $state<ModalState>('closed');
-
-  let content = $state('');
-  let emojiTags = $state<string[][]>([]);
-  let sending = $state(false);
-  let copiedLink = $state(false);
-  let copiedTimedLink = $state(false);
-
-  let positionSec = $derived(Math.floor(player.position / 1000));
-  let showTimedLink = $derived(positionSec > 0);
-
-  function formatTime(sec: number): string {
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
-    const s = sec % 60;
-    if (h > 0) {
-      return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    }
-    return `${m}:${String(s).padStart(2, '0')}`;
-  }
-
-  function openMenu() {
-    modalState = 'menu';
-  }
-
-  function closeModal() {
-    modalState = 'closed';
-    content = '';
-    emojiTags = [];
-  }
-
-  function openPostForm() {
-    content = defaultContent();
-    emojiTags = [];
-    modalState = 'post';
-  }
-
-  function defaultContent(): string {
-    const openUrl = provider.openUrl(contentId);
-    const pageUrl = window.location.href;
-    return `${openUrl}\n${pageUrl}`;
-  }
-
-  async function copyToClipboard(url: string, setCopied: (v: boolean) => void) {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      log.error('Failed to copy link', err);
-    }
-  }
-
-  function buildResonoteUrl(withTime = false): string {
-    const encoded = encodeContentLink(contentId, DEFAULT_RELAYS);
-    const base = `${window.location.origin}/${encoded}`;
-    return withTime ? `${base}?t=${positionSec}` : base;
-  }
-
-  async function copyResonoteLink() {
-    await copyToClipboard(buildResonoteUrl(), (v) => (copiedLink = v));
-  }
-
-  async function copyTimedLink() {
-    await copyToClipboard(buildResonoteUrl(true), (v) => (copiedTimedLink = v));
-  }
-
-  async function share() {
-    const trimmed = content.trim();
-    if (!auth.loggedIn || !trimmed) return;
-
-    sending = true;
-    try {
-      const tags = emojiTags.length > 0 ? emojiTags : undefined;
-      const params = buildShare(trimmed, contentId, provider, tags);
-      log.info('Sharing as kind:1', { contentLength: trimmed.length });
-      await castSigned(params);
-      log.info('Shared successfully');
-      closeModal();
-    } catch (err) {
-      log.error('Failed to share', err);
-    } finally {
-      sending = false;
-    }
-  }
-
-  function handleKeydown(e: KeyboardEvent) {
-    if (modalState !== 'closed' && e.key === 'Escape') {
-      closeModal();
-    }
-  }
+  const vm = createShareButtonViewModel({
+    getContentId: () => contentId,
+    getProvider: () => provider
+  });
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onkeydown={vm.handleKeydown} />
 
 <!-- Share trigger button -->
 <button
   type="button"
-  onclick={openMenu}
+  onclick={vm.openMenu}
   class="inline-flex items-center gap-1.5 rounded-lg bg-surface-2 px-3 py-2 text-sm font-medium text-text-secondary transition-all duration-200 hover:bg-surface-3 hover:text-text-primary"
   title={t('share.title')}
 >
@@ -144,7 +44,7 @@
 </button>
 
 <!-- Modal overlay -->
-{#if modalState !== 'closed'}
+{#if vm.modalState !== 'closed'}
   <div
     class="fixed inset-0 z-50 flex items-center justify-center"
     role="dialog"
@@ -155,7 +55,7 @@
     <button
       type="button"
       class="absolute inset-0 border-0 bg-black/50 backdrop-blur-sm"
-      onclick={closeModal}
+      onclick={vm.closeModal}
       aria-label={t('dialog.close')}
       tabindex="-1"
     ></button>
@@ -166,11 +66,11 @@
       <!-- Modal header -->
       <div class="flex items-center justify-between border-b border-border px-5 py-4">
         <h3 id="share-dialog-title" class="font-display text-base font-semibold text-text-primary">
-          {modalState === 'post' ? t('share.title') : t('share.button')}
+          {vm.modalState === 'post' ? t('share.title') : t('share.button')}
         </h3>
         <button
           type="button"
-          onclick={closeModal}
+          onclick={vm.closeModal}
           aria-label={t('dialog.close')}
           class="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-text-secondary"
           title={t('dialog.close')}
@@ -189,20 +89,20 @@
         </button>
       </div>
 
-      {#if modalState === 'menu'}
+      {#if vm.modalState === 'menu'}
         <!-- Share menu -->
         <div class="p-3">
-          {#if showTimedLink}
+          {#if vm.showTimedLink}
             <!-- Action: Copy timed link -->
             <button
               type="button"
-              onclick={copyTimedLink}
+              onclick={vm.copyTimedLink}
               class="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-surface-1"
             >
               <span
                 class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-surface-2"
               >
-                {#if copiedTimedLink}
+                {#if vm.copiedTimedLink}
                   <svg
                     class="h-4 w-4 text-green-500"
                     viewBox="0 0 24 24"
@@ -231,9 +131,9 @@
                 <p class="text-sm font-medium text-text-primary">
                   {t('share.menu.timed_link')}
                 </p>
-                <p class="text-xs text-text-muted">{formatTime(positionSec)}</p>
+                <p class="text-xs text-text-muted">{formatDuration(vm.positionSec)}</p>
               </div>
-              {#if copiedTimedLink}
+              {#if vm.copiedTimedLink}
                 <span class="text-xs font-medium text-green-500">{t('share.copied')}</span>
               {/if}
             </button>
@@ -242,13 +142,13 @@
           <!-- Action: Copy link -->
           <button
             type="button"
-            onclick={copyResonoteLink}
+            onclick={vm.copyResonoteLink}
             class="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-surface-1"
           >
             <span
               class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-surface-2"
             >
-              {#if copiedLink}
+              {#if vm.copiedLink}
                 <svg
                   class="h-4 w-4 text-green-500"
                   viewBox="0 0 24 24"
@@ -276,16 +176,16 @@
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium text-text-primary">{t('share.menu.link')}</p>
             </div>
-            {#if copiedLink}
+            {#if vm.copiedLink}
               <span class="text-xs font-medium text-green-500">{t('share.copied')}</span>
             {/if}
           </button>
 
           <!-- Action: Post to Nostr (logged in only) -->
-          {#if auth.loggedIn}
+          {#if vm.loggedIn}
             <button
               type="button"
-              onclick={openPostForm}
+              onclick={vm.openPostForm}
               class="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-surface-1"
             >
               <span
@@ -320,34 +220,34 @@
             </button>
           {/if}
         </div>
-      {:else if modalState === 'post'}
+      {:else if vm.modalState === 'post'}
         <!-- Post form -->
         <div class="p-4">
           <p class="mb-3 text-xs font-medium text-text-secondary">{t('share.description')}</p>
           <NoteInput
-            bind:content
-            bind:emojiTags
-            disabled={sending}
+            bind:content={vm.content}
+            bind:emojiTags={vm.emojiTags}
+            disabled={vm.sending}
             placeholder=""
             rows={5}
-            onsubmit={share}
+            onsubmit={vm.share}
           />
           <div class="mt-3 flex justify-end gap-2">
             <button
               type="button"
-              onclick={closeModal}
-              disabled={sending}
+              onclick={vm.closeModal}
+              disabled={vm.sending}
               class="rounded-lg px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:text-text-secondary"
             >
               {t('share.cancel')}
             </button>
             <button
               type="button"
-              onclick={share}
-              disabled={sending || !content.trim()}
+              onclick={vm.share}
+              disabled={vm.sending || !vm.content.trim()}
               class="inline-flex items-center gap-1 rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-surface-0 transition-all duration-200 hover:bg-accent-hover disabled:opacity-30"
             >
-              {#if sending}
+              {#if vm.sending}
                 <svg
                   class="h-3.5 w-3.5 animate-spin"
                   viewBox="0 0 24 24"

@@ -1,97 +1,25 @@
 <script lang="ts">
-  import { getNotifications, markAllAsRead } from '$lib/stores/notifications.svelte.js';
-  import { getDisplayName, getProfile, fetchProfiles } from '$lib/stores/profile.svelte.js';
-  import { getAuth } from '$lib/stores/auth.svelte.js';
-  import { t, type TranslationKey } from '$lib/i18n/t.js';
   import {
-    typeIcon,
-    typeLabel,
-    relativeTime,
-    parseReactionDisplay
-  } from '$lib/utils/notification-helpers.js';
-  import { getContentPathFromTags } from '$lib/nostr/content-link.js';
-  import { cachedFetchById } from '$lib/nostr/cached-nostr.svelte.js';
-  import { npubEncode } from 'nostr-tools/nip19';
-  import { untrack } from 'svelte';
-
-  type NotificationFilter = 'all' | 'reply' | 'reaction' | 'mention' | 'follow_comment';
+    createNotificationFeedViewModel,
+    describeNotificationItem,
+    getNotifications,
+    type NotificationItemDisplay,
+    type NotificationFeedFilter
+  } from '$shared/browser/notifications.js';
+  import { getAuth } from '$shared/browser/auth.js';
+  import { t, type TranslationKey } from '$shared/i18n/t.js';
 
   const auth = getAuth();
   const notifs = getNotifications();
+  const feed = createNotificationFeedViewModel(notifs);
 
-  let filter = $state<NotificationFilter>('all');
-  let limit = $state(30);
-
-  const PAGE_SIZE = 30;
-
-  const filterOptions: { value: NotificationFilter; labelKey: TranslationKey }[] = [
+  const filterOptions: { value: NotificationFeedFilter; labelKey: TranslationKey }[] = [
     { value: 'all', labelKey: 'notification.filter.all' },
     { value: 'reply', labelKey: 'notification.filter.replies' },
     { value: 'reaction', labelKey: 'notification.filter.reactions' },
     { value: 'mention', labelKey: 'notification.filter.mentions' },
     { value: 'follow_comment', labelKey: 'notification.filter.follows' }
   ];
-
-  let filteredItems = $derived(
-    filter === 'all' ? notifs.items : notifs.items.filter((n) => n.type === filter)
-  );
-
-  let paginatedItems = $derived(filteredItems.slice(0, limit));
-  let remaining = $derived(Math.max(0, filteredItems.length - limit));
-
-  let lastReadTs = $state(notifs.lastReadTs);
-  let targetTexts = $state<Map<string, string>>(new Map());
-
-  // Fetch target comment texts for visible notifications.
-  // untrack(targetTexts) to avoid infinite loop: reading targetTexts.has()
-  // would make $effect depend on targetTexts, which we update inside.
-  $effect(() => {
-    const items = paginatedItems; // track paginatedItems
-    untrack(() => {
-      const targetIds = items
-        .filter((n) => n.targetEventId && (n.type === 'reply' || n.type === 'reaction'))
-        .map((n) => n.targetEventId!)
-        .filter((id) => !targetTexts.has(id));
-
-      if (targetIds.length === 0) return;
-
-      Promise.all(
-        targetIds.map(async (id) => {
-          const event = await cachedFetchById(id);
-          return { id, event };
-        })
-      ).then((results) => {
-        const newTexts = new Map(targetTexts);
-        for (const { id, event } of results) {
-          if (event) {
-            const preview =
-              event.content.length > 40 ? event.content.slice(0, 38) + '\u2026' : event.content;
-            newTexts.set(id, preview);
-          }
-        }
-        targetTexts = newTexts;
-      });
-    });
-  });
-
-  function isUnread(createdAt: number): boolean {
-    return createdAt > lastReadTs;
-  }
-
-  // Fetch profiles for visible items
-  $effect(() => {
-    const pubkeys = [...new Set(paginatedItems.map((n) => n.pubkey))];
-    untrack(() => fetchProfiles(pubkeys));
-  });
-
-  function contentPreview(content: string): string {
-    return content.length > 80 ? content.slice(0, 78) + '\u2026' : content;
-  }
-
-  function handleMarkAllRead() {
-    markAllAsRead();
-    lastReadTs = Math.floor(Date.now() / 1000);
-  }
 </script>
 
 <svelte:head>
@@ -109,7 +37,7 @@
       {#if notifs.items.length > 0}
         <button
           type="button"
-          onclick={handleMarkAllRead}
+          onclick={feed.markAllRead}
           class="rounded-lg px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:bg-surface-1 hover:text-text-secondary"
         >
           {t('notification.mark_all_read')}
@@ -123,12 +51,9 @@
         {#each filterOptions as opt (opt.value)}
           <button
             type="button"
-            onclick={() => {
-              filter = opt.value;
-              limit = PAGE_SIZE;
-            }}
+            onclick={() => feed.setFilter(opt.value)}
             class="rounded-md px-2.5 py-1 font-medium transition-all
-              {filter === opt.value
+              {feed.filter === opt.value
               ? 'bg-surface-0 text-text-primary shadow-sm'
               : 'text-text-muted hover:text-text-secondary'}"
           >
@@ -139,30 +64,32 @@
     </div>
 
     <!-- Notification list -->
-    {#if paginatedItems.length === 0}
+    {#if feed.items.length === 0}
       <div class="py-16 text-center">
         <p class="text-sm text-text-muted">{t('notification.empty')}</p>
       </div>
     {:else}
       <div class="space-y-2">
-        {#each paginatedItems as notif (notif.id)}
-          {@const path = getContentPathFromTags(notif.tags)}
-          {@const picture = getProfile(notif.pubkey)?.picture}
-          {@const unread = isUnread(notif.createdAt)}
+        {#each feed.items as notif (notif.id)}
+          {@const item: NotificationItemDisplay = describeNotificationItem(notif, {
+            contentPreview: feed.contentPreview,
+            targetTexts: feed.targetTexts,
+            unread: feed.isUnread(notif.createdAt)
+          })}
           <div
             class="flex items-start gap-3 rounded-xl border p-4 transition-all
-              {unread
+              {item.unread
               ? 'border-accent/30 bg-accent/5'
               : 'border-border-subtle bg-surface-1 hover:border-border'}"
           >
-            {#if unread}
+            {#if item.unread}
               <span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-accent"></span>
             {/if}
-            <span class="mt-0.5 text-base">{typeIcon(notif.type)}</span>
-            {#if picture}
-              <a href="/profile/{npubEncode(notif.pubkey)}" class="shrink-0">
+            <span class="mt-0.5 text-base">{item.icon}</span>
+            {#if item.actor.picture}
+              <a href={item.actor.profileHref} class="shrink-0">
                 <img
-                  src={picture}
+                  src={item.actor.picture}
                   alt=""
                   class="h-8 w-8 rounded-full object-cover ring-1 ring-border"
                 />
@@ -177,49 +104,51 @@
             <div class="min-w-0 flex-1">
               <p class="text-sm text-text-primary">
                 <a
-                  href="/profile/{npubEncode(notif.pubkey)}"
-                  class="font-medium text-accent hover:underline">{getDisplayName(notif.pubkey)}</a
+                  href={item.actor.profileHref}
+                  class="font-medium text-accent hover:underline">{item.actor.displayName}</a
                 >
-                <span class="text-text-secondary">{typeLabel(notif.type)}</span>
+                <span class="text-text-secondary">{item.label}</span>
               </p>
-              {#if notif.type === 'reaction' && notif.content}
-                {@const rx = parseReactionDisplay(notif.content, notif.tags)}
+              {#if item.reaction}
                 <p class="mt-1 flex items-center gap-1 text-xs text-text-muted">
-                  {#if rx.type === 'heart'}
+                  {#if item.reaction.type === 'heart'}
                     <span class="text-base">❤️</span>
-                  {:else if rx.type === 'emoji_image' && rx.url}
-                    <img src={rx.url} alt={rx.content} class="inline h-5 w-5" loading="lazy" />
+                  {:else if item.reaction.type === 'emoji_image' && item.reaction.url}
+                    <img
+                      src={item.reaction.url}
+                      alt={item.reaction.content}
+                      class="inline h-5 w-5"
+                      loading="lazy"
+                    />
                   {:else}
-                    <span>{rx.content}</span>
+                    <span>{item.reaction.content}</span>
                   {/if}
                 </p>
-              {:else if notif.content && notif.type !== 'reaction'}
-                <p class="mt-1 text-xs text-text-muted">{contentPreview(notif.content)}</p>
+              {:else if item.contentPreview}
+                <p class="mt-1 text-xs text-text-muted">{item.contentPreview}</p>
               {/if}
-              {#if notif.targetEventId && targetTexts.has(notif.targetEventId)}
+              {#if item.targetPreview}
                 <p class="mt-0.5 truncate text-xs text-text-muted/70 italic">
-                  {t('notification.your_comment', {
-                    text: targetTexts.get(notif.targetEventId) ?? ''
-                  })}
+                  {t('notification.your_comment', { text: item.targetPreview })}
                 </p>
               {/if}
-              {#if path}
+              {#if item.contentPath}
                 <a
-                  href={path}
+                  href={item.contentPath}
                   class="mt-1 inline-block text-xs text-accent hover:text-accent-hover hover:underline"
                   >{t('nip19.view_content')}</a
                 >
               {/if}
             </div>
-            <span class="shrink-0 text-xs text-text-muted">{relativeTime(notif.createdAt)}</span>
+            <span class="shrink-0 text-xs text-text-muted">{item.timeLabel}</span>
           </div>
         {/each}
       </div>
 
-      {#if remaining > 0}
+      {#if feed.remaining > 0}
         <button
           type="button"
-          onclick={() => (limit += PAGE_SIZE)}
+          onclick={feed.loadMore}
           class="mt-4 w-full rounded-lg bg-surface-2 py-2 text-xs font-medium text-text-muted transition-colors hover:bg-surface-3 hover:text-text-secondary"
         >
           {t('profile.load_more')}

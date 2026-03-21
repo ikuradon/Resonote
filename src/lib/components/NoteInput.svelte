@@ -1,11 +1,12 @@
-<script lang="ts">
+  <script lang="ts">
   import type { Snippet } from 'svelte';
   import { tick } from 'svelte';
-  import { getCustomEmojis } from '../stores/emoji-sets.svelte.js';
-  import { addEmojiTag, extractShortcode } from '../utils/emoji.js';
-  import EmojiPickerPopover, { allocatePopoverId } from './EmojiPickerPopover.svelte';
+  import { getCustomEmojis } from '$shared/browser/emoji-sets.js';
+  import { createMediaQuery } from '$shared/browser/media-query.js';
+  import { addEmojiTag, extractShortcode } from '$shared/utils/emoji.js';
+  import { allocateEmojiPopoverId } from './emoji-popover-id.js';
+  import EmojiPickerPopover from './EmojiPickerPopover.svelte';
   import MobileOverlay from './MobileOverlay.svelte';
-  import { createMediaQuery } from '../utils/media-query.svelte.js';
 
   interface Props {
     content: string;
@@ -27,7 +28,7 @@
     children
   }: Props = $props();
 
-  const pickerId = allocatePopoverId();
+  const pickerId = allocateEmojiPopoverId();
   const emojiSets = getCustomEmojis();
   const desktop = createMediaQuery('(min-width: 1024px)');
   let isDesktop = $derived(desktop.matches);

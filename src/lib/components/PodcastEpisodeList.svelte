@@ -1,12 +1,12 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import type { ContentId } from '$lib/content/types.js';
-  import { buildEpisodeContentId } from '$lib/content/podcast.js';
-  import { fromBase64url } from '$lib/content/url-utils.js';
-  import { resolveByApi } from '$lib/content/podcast-resolver.js';
+  import type { ContentId } from '$shared/content/types.js';
+  import { buildEpisodeContentId } from '$shared/content/resolution.js';
+  import { fromBase64url } from '$shared/content/url-utils.js';
+  import { formatCompactDuration, formatDateOnly } from '$shared/utils/format.js';
   import WaveformLoader from './WaveformLoader.svelte';
-  import { t } from '$lib/i18n/t.js';
-  import { publishSignedEvents } from '$lib/nostr/publish-signed.js';
+  import { t } from '$shared/i18n/t.js';
+  import { resolvePodcastFeed } from '../../features/content-resolution/application/resolve-feed.js';
 
   interface Props {
     contentId: ContentId;
@@ -30,23 +30,6 @@
   >([]);
   let errorMessage = $state('');
 
-  function formatDuration(seconds: number): string {
-    if (!seconds || seconds <= 0) return '';
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    if (h > 0) return `${h}h ${m}m`;
-    return `${m}m`;
-  }
-
-  function formatDate(unix: number): string {
-    if (!unix) return '';
-    return new Date(unix * 1000).toLocaleDateString('ja-JP', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  }
-
   function selectEpisode(ep: { guid: string }) {
     const feedUrl = fromBase64url(contentId.id);
     if (!feedUrl) return;
@@ -67,30 +50,18 @@
   async function load(feedUrl: string) {
     status = 'loading';
     try {
-      const data = await resolveByApi(feedUrl);
+      const result = await resolvePodcastFeed(feedUrl);
 
-      if (data.error) {
+      if (result.error) {
         status = 'error';
         errorMessage = 'フィードの読み込みに失敗しました';
         return;
       }
 
-      if (data.feed) {
-        feedTitle = data.feed.title;
-        feedImage = data.feed.imageUrl;
-      }
-
-      if (data.episodes) {
-        episodes = data.episodes;
-      }
-
+      feedTitle = result.title;
+      feedImage = result.imageUrl;
+      episodes = result.episodes;
       status = 'loaded';
-
-      if (data.signedEvents && data.signedEvents.length > 0) {
-        publishSignedEvents(data.signedEvents).catch(() => {
-          // ignore publish errors silently
-        });
-      }
     } catch {
       status = 'error';
       errorMessage = 'フィードの読み込みに失敗しました';
@@ -166,11 +137,11 @@
               <p class="truncate text-sm font-medium text-text-primary">{ep.title}</p>
               <div class="mt-0.5 flex items-center gap-2 text-xs text-text-secondary">
                 {#if ep.publishedAt}
-                  <span>{formatDate(ep.publishedAt)}</span>
+                  <span>{formatDateOnly(ep.publishedAt)}</span>
                 {/if}
                 {#if ep.duration}
                   <span>·</span>
-                  <span>{formatDuration(ep.duration)}</span>
+                  <span>{formatCompactDuration(ep.duration)}</span>
                 {/if}
               </div>
             </div>

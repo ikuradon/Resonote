@@ -1,19 +1,17 @@
 <script lang="ts">
-  import { getLocale, setLocale } from '../stores/locale.svelte.js';
-  import { LOCALES, type Locale } from '../i18n/locales.js';
+  import { getLocale, setLocale } from '$shared/browser/locale.js';
+  import { LOCALES, type Locale } from '$shared/i18n/locales.js';
+  import { isNodeInsideElements, manageClickOutside } from '$shared/browser/click-outside.js';
 
   let open = $state(false);
   let containerEl: HTMLDivElement | undefined;
 
-  $effect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (!containerEl?.contains(e.target as Node)) {
-        open = false;
-      }
-    };
-    document.addEventListener('click', handler, true);
-    return () => document.removeEventListener('click', handler, true);
+  manageClickOutside({
+    active: () => open,
+    isInside: (target) => isNodeInsideElements(target, [containerEl]),
+    onOutside: () => {
+      open = false;
+    }
   });
 
   function select(code: string) {

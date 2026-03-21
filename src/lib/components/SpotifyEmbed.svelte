@@ -1,52 +1,31 @@
 <script module lang="ts">
-  import { createLogger } from '../utils/logger.js';
+  import { loadWindowCallbackScript } from '$shared/browser/script-loader.js';
+  import { createLogger } from '$shared/utils/logger.js';
 
   const log = createLogger('SpotifyEmbed');
 
-  /** Module-level API cache — persists across SPA navigations */
-  let apiPromise: Promise<SpotifyIFrameAPI> | undefined;
-
   function loadApi(): Promise<SpotifyIFrameAPI> {
-    if (apiPromise) return apiPromise;
-
-    // Check if already loaded (re-visit in SPA)
-    if (
-      typeof window !== 'undefined' &&
-      (window as unknown as Record<string, unknown>).SpotifyIframeApi
-    ) {
-      apiPromise = Promise.resolve(
-        (window as unknown as Record<string, SpotifyIFrameAPI>).SpotifyIframeApi
-      );
-      return apiPromise;
-    }
-
     log.info('Loading Spotify IFrame API...');
-    apiPromise = new Promise((resolve, reject) => {
-      window.onSpotifyIframeApiReady = (api) => {
+    return loadWindowCallbackScript<SpotifyIFrameAPI>({
+      src: 'https://open.spotify.com/embed-podcast/iframe-api/v1',
+      callbackName: 'onSpotifyIframeApiReady',
+      isReady: () =>
+        typeof window !== 'undefined' &&
+        !!(window as unknown as Record<string, unknown>).SpotifyIframeApi,
+      getResolvedValue: (api) => api as SpotifyIFrameAPI,
+      onResolved: (api) => {
         (window as unknown as Record<string, SpotifyIFrameAPI>).SpotifyIframeApi = api;
-        resolve(api);
-      };
-
-      const script = document.createElement('script');
-      script.src = 'https://open.spotify.com/embed-podcast/iframe-api/v1';
-      script.async = true;
-      script.onerror = () => {
-        apiPromise = undefined;
-        script.remove();
-        delete (window as unknown as Record<string, unknown>).onSpotifyIframeApiReady;
-        reject(new Error('Failed to load Spotify API'));
-      };
-      document.head.appendChild(script);
+      }
     });
-
-    return apiPromise;
   }
 </script>
 
 <script lang="ts">
-  import type { ContentId } from '../content/types.js';
-  import { updatePlayback } from '../stores/player.svelte.js';
-  import { t } from '../i18n/t.js';
+  import { createAsyncReadyTimeout } from '$shared/browser/async-ready-timeout.js';
+  import type { ContentId } from '$shared/content/types.js';
+  import { updatePlayback } from '$shared/browser/player.js';
+  import { onSeek } from '../../shared/browser/seek-bridge.js';
+  import { t } from '$shared/i18n/t.js';
   import EmbedLoading from './EmbedLoading.svelte';
 
   interface Props {
@@ -82,11 +61,10 @@
     });
   }
 
-  function handleSeek(e: Event) {
-    const detail = (e as CustomEvent<{ positionMs: number }>).detail;
-    if (controller && detail.positionMs >= 0) {
-      log.debug('Seeking to position', { positionMs: detail.positionMs });
-      controller.seek(detail.positionMs / 1000);
+  function handleSeek(posMs: number) {
+    if (controller && posMs >= 0) {
+      log.debug('Seeking to position', { positionMs: posMs });
+      controller.seek(posMs / 1000);
       controller.resume();
     }
   }
@@ -96,43 +74,43 @@
 
     const uri = spotifyUri(contentId);
 
-    window.addEventListener('resonote:seek', handleSeek);
+    const cleanupSeek = onSeek(handleSeek);
 
     if (controller) {
       controller.loadUri(uri);
       return () => {
-        window.removeEventListener('resonote:seek', handleSeek);
+        cleanupSeek();
       };
     }
 
     let cancelled = false;
-
-    const readyTimeout = setTimeout(() => {
-      if (!ready && !error) {
+    const readyTimeout = createAsyncReadyTimeout({
+      timeoutMs: 15000,
+      onTimeout: () => {
         log.error('Player initialization timed out');
         error = true;
       }
-    }, 15000);
+    });
 
     initController(containerEl, uri)
       .then((ctrl) => {
-        if (cancelled) {
+        if (cancelled || !readyTimeout.succeed()) {
           ctrl.destroy();
           return;
         }
         controller = ctrl;
         ready = true;
-        clearTimeout(readyTimeout);
       })
       .catch((err) => {
+        readyTimeout.cancel();
         log.error('Failed to initialize Spotify controller', err);
         error = true;
       });
 
     return () => {
       cancelled = true;
-      clearTimeout(readyTimeout);
-      window.removeEventListener('resonote:seek', handleSeek);
+      readyTimeout.cancel();
+      cleanupSeek();
       controller?.destroy();
       controller = undefined;
       ready = false;

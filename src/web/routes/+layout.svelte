@@ -1,75 +1,18 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
-  import { afterNavigate } from '$app/navigation';
   import type { Snippet } from 'svelte';
   import LoginButton from '$lib/components/LoginButton.svelte';
   import NotificationBell from '$lib/components/NotificationBell.svelte';
   import RelayStatus from '$lib/components/RelayStatus.svelte';
-  import { getAuth, initAuth } from '$lib/stores/auth.svelte.js';
-  import { getFollows } from '$lib/stores/follows.svelte.js';
-  import {
-    subscribeNotifications,
-    destroyNotifications
-  } from '$lib/stores/notifications.svelte.js';
-  import { initExtensionListener, isExtensionMode } from '$lib/stores/extension.svelte.js';
-  import { retryPendingPublishes } from '$lib/nostr/publish-signed.js';
   import LanguageSwitcher from '$lib/components/LanguageSwitcher.svelte';
   import MobileOverlay from '$lib/components/MobileOverlay.svelte';
-  import { getRelays, isTransitionalState } from '$lib/stores/relays.svelte.js';
-  import { t } from '$lib/i18n/t.js';
-  import { getLocale, setLocale } from '$lib/stores/locale.svelte.js';
-  import { LOCALES, type Locale } from '$lib/i18n/locales.js';
+  import { t } from '$shared/i18n/t.js';
+  import { LOCALES } from '$shared/i18n/locales.js';
   import ToastContainer from '$lib/components/ToastContainer.svelte';
+  import { createAppShellViewModel } from '$appcore/ui/app-shell-view-model.svelte.js';
   import '../app.css';
 
   let { children }: { children: Snippet } = $props();
-
-  let menuOpen = $state(false);
-
-  // Close hamburger menu on SPA navigation (back/forward)
-  afterNavigate(() => {
-    menuOpen = false;
-  });
-
-  const auth = getAuth();
-
-  let relayList = $derived(getRelays());
-  let relayConnectedCount = $derived(relayList.filter((r) => r.state === 'connected').length);
-  let anyRelayConnecting = $derived(relayList.some((r) => isTransitionalState(r.state)));
-  let showRelayWarning = $derived(
-    relayList.length > 0 && relayConnectedCount === 0 && !anyRelayConnecting
-  );
-
-  $effect(() => {
-    document.documentElement.lang = getLocale();
-  });
-
-  // Subscribe/unsubscribe notifications on auth/follows changes.
-  // untrack prevents $effect from tracking reactive reads inside
-  // subscribeNotifications (e.g., allItems.length), which would cause
-  // infinite re-subscription on every received event.
-  $effect(() => {
-    if (auth.loggedIn && auth.pubkey) {
-      const pubkey = auth.pubkey;
-      const follows = getFollows().follows;
-      if (follows.size === 0) {
-        untrack(() => subscribeNotifications(pubkey, follows));
-        return;
-      }
-      const timer = setTimeout(() => {
-        untrack(() => subscribeNotifications(pubkey, follows));
-      }, 1000);
-      return () => clearTimeout(timer);
-    } else if (auth.initialized && !auth.loggedIn) {
-      untrack(() => destroyNotifications());
-    }
-  });
-
-  onMount(() => {
-    initAuth();
-    initExtensionListener();
-    retryPendingPublishes().catch(() => {});
-  });
+  const vm = createAppShellViewModel();
 </script>
 
 <div class="noise min-h-screen bg-surface-0 font-body text-text-primary">
@@ -79,7 +22,7 @@
     style="background: radial-gradient(circle, var(--color-accent) 0%, transparent 70%)"
   ></div>
 
-  {#if isExtensionMode()}
+  {#if vm.extensionMode}
     <header class="glass sticky top-0 z-40 border-b border-border-subtle">
       <div class="mx-auto flex max-w-3xl items-center justify-end px-5 py-3">
         <LanguageSwitcher />
@@ -100,7 +43,7 @@
         <!-- Desktop nav -->
         <nav aria-label="Main navigation" class="hidden items-center gap-3 lg:flex">
           <LanguageSwitcher />
-          {#if auth.loggedIn}
+          {#if vm.auth.loggedIn}
             <RelayStatus />
             <a
               href="/bookmarks"
@@ -149,17 +92,15 @@
 
         <!-- Mobile nav -->
         <div class="flex items-center gap-3 lg:hidden">
-          {#if auth.loggedIn}
+          {#if vm.auth.loggedIn}
             <NotificationBell />
           {/if}
           <button
             type="button"
-            onclick={() => {
-              menuOpen = true;
-            }}
+            onclick={vm.openMenu}
             class="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-surface-1 hover:text-text-secondary lg:hidden"
             aria-label="Menu"
-            aria-expanded={menuOpen}
+            aria-expanded={vm.menuOpen}
             data-testid="hamburger-menu-button"
           >
             <svg
@@ -182,10 +123,8 @@
     </header>
 
     <MobileOverlay
-      open={menuOpen}
-      onclose={() => {
-        menuOpen = false;
-      }}
+      open={vm.menuOpen}
+      onclose={vm.closeMenu}
       title="Menu"
     >
       <nav class="flex flex-col gap-1">
@@ -195,11 +134,8 @@
             {#each LOCALES as locale (locale.code)}
               <button
                 type="button"
-                onclick={() => {
-                  setLocale(locale.code as Locale);
-                  menuOpen = false;
-                }}
-                class="rounded-lg px-3 py-1.5 text-sm transition-colors {locale.code === getLocale()
+                onclick={() => vm.selectLocale(locale.code)}
+                class="rounded-lg px-3 py-1.5 text-sm transition-colors {locale.code === vm.localeCode
                   ? 'bg-accent/10 text-accent'
                   : 'text-text-secondary hover:bg-surface-1'}"
               >
@@ -212,17 +148,15 @@
 
         <hr class="border-border-subtle" />
 
-        {#if auth.loggedIn}
+        {#if vm.auth.loggedIn}
           <div class="flex items-center gap-3 rounded-lg px-2 py-3 text-text-secondary">
             <span class="text-lg">📡</span>
-            <span>Relays ({relayConnectedCount}/{relayList.length})</span>
+            <span>Relays ({vm.relayConnectedCount}/{vm.relayList.length})</span>
           </div>
 
           <a
             href="/bookmarks"
-            onclick={() => {
-              menuOpen = false;
-            }}
+            onclick={vm.closeMenu}
             class="flex items-center gap-3 rounded-lg px-2 py-3 text-text-secondary transition-colors hover:bg-surface-1"
           >
             <span class="text-lg">🔖</span>
@@ -231,9 +165,7 @@
 
           <a
             href="/settings"
-            onclick={() => {
-              menuOpen = false;
-            }}
+            onclick={vm.closeMenu}
             class="flex items-center gap-3 rounded-lg px-2 py-3 text-text-secondary transition-colors hover:bg-surface-1"
           >
             <span class="text-lg">⚙️</span>
@@ -250,7 +182,7 @@
     </MobileOverlay>
   {/if}
 
-  {#if showRelayWarning}
+  {#if vm.showRelayWarning}
     <div class="mx-auto flex max-w-7xl items-center gap-3 px-5 py-2">
       <div
         class="flex flex-1 items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-200"

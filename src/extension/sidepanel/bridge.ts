@@ -1,4 +1,9 @@
 import { SIDEPANEL_PORT_NAME, RESONOTE_ORIGIN } from '../shared/constants.js';
+import {
+  onExtensionFrameMessage,
+  postExtensionMode,
+  postPlaybackUpdate
+} from '$shared/browser/extension-message-bridge.js';
 
 const frame = document.getElementById('resonote-frame') as HTMLIFrameElement;
 const loading = document.getElementById('loading') as HTMLDivElement;
@@ -15,7 +20,9 @@ function navigateToContent(path: string): void {
 }
 
 frame.addEventListener('load', () => {
-  frame.contentWindow?.postMessage({ type: 'resonote:extension-mode' }, RESONOTE_ORIGIN);
+  if (frame.contentWindow) {
+    postExtensionMode(frame.contentWindow, RESONOTE_ORIGIN);
+  }
 });
 
 port.onMessage.addListener((message) => {
@@ -30,15 +37,15 @@ port.onMessage.addListener((message) => {
     }
 
     case 'resonote:playback-state': {
-      frame.contentWindow?.postMessage(
-        {
-          type: 'resonote:update-playback',
-          position: message.position,
-          duration: message.duration,
-          isPaused: message.isPaused
-        },
-        RESONOTE_ORIGIN
-      );
+      if (frame.contentWindow) {
+        postPlaybackUpdate(
+          frame.contentWindow,
+          RESONOTE_ORIGIN,
+          message.position,
+          message.duration,
+          message.isPaused
+        );
+      }
       break;
     }
 
@@ -52,15 +59,16 @@ port.onMessage.addListener((message) => {
   }
 });
 
-window.addEventListener('message', (event) => {
-  if (event.origin !== RESONOTE_ORIGIN) return;
-
-  if (event.data?.type === 'resonote:seek-request') {
-    chrome.runtime
-      .sendMessage({
-        type: 'resonote:seek',
-        position: event.data.position
-      })
-      .catch(() => {});
-  }
-});
+onExtensionFrameMessage(
+  (message) => {
+    if (message.type === 'resonote:seek-request') {
+      chrome.runtime
+        .sendMessage({
+          type: 'resonote:seek',
+          position: message.position
+        })
+        .catch(() => {});
+    }
+  },
+  { acceptOrigin: (origin) => origin === RESONOTE_ORIGIN }
+);

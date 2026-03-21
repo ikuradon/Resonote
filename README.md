@@ -119,10 +119,61 @@ pnpm run dev:full
 
 ### ディレクトリ構成
 
-- `src/lib/` — 共有コード ($lib alias): ContentProviders, Nostr レイヤー, stores, components
+- `src/app/` — app shell / bootstrap
+- `src/lib/` — presentational component と component-local helper のみ
+- `src/shared/` — 公開 runtime boundary (browser / nostr / content / utils)
+- `src/features/` — feature slice (domain / application / infra / ui)
 - `src/web/` — SvelteKit エントリーポイント (routes, app.html, app.css)
 - `src/extension/` — ブラウザ拡張機能 (Chrome/Firefox Manifest V3)
 - `functions/` — Cloudflare Pages Functions (API エンドポイント)
+
+### runtime ownership の基準
+
+- `src/shared/*` は cross-feature な公開 runtime API
+- `src/features/*` は業務ロジック、アプリケーション処理、view-model
+- `src/app/*` は shell / bootstrap
+- `src/web/routes/*` は thin facade
+- `src/lib/*` は presentation / component-local helper のみ
+
+新しい business logic や infra ownership は `src/lib/*` に追加しない。
+route / component / feature / app は direct store import を避け、`$shared/browser/*` と `$shared/i18n/*` の公開面を使う。`src/lib/stores/*` は残さない。
+
+### 新機能の配置ガイド
+
+- cross-feature な browser / nostr / content / utility は `src/shared/*`
+- feature 固有の domain / application / view-model は `src/features/<feature>/*`
+- app shell / bootstrap / session は `src/app/*`
+- route は `src/web/routes/*` で facade に保つ
+- component-local な描画補助だけを `src/lib/components/*.ts` / `*.svelte.ts` に置く
+
+### 構造チェック
+
+最低限、次を通す。
+
+```bash
+pnpm check
+pnpm lint
+pnpm test
+pnpm check:structure
+pnpm graph:imports:summary
+pnpm perf:bundle:summary
+rg -n '\$lib/stores/.*svelte|../stores/.*svelte' src --glob '!**/*.test.*'
+rg -n '\$lib/i18n/(t|locales)\.js|\.\./i18n/(t|locales)\.js' src --glob '!**/*.test.*'
+```
+
+現行の設計文書は [docs/refactoring-roadmap-endgame.md](/root/src/github.com/ikuradon/Resonote/docs/refactoring-roadmap-endgame.md) です。過去の計画書は `docs/archive/` に退避しています。
+
+### PR / CI 運用
+
+- PR では `.github/PULL_REQUEST_TEMPLATE.md` に沿って、配置判断と構造チェックを残す
+- `ci.yml` は import graph artifact と bundle profile artifact を出す
+- 構造変更時は `pnpm graph:imports:summary`、UI / bundle 影響がある変更では `pnpm perf:bundle:summary` を確認する
+
+### 性能確認
+
+- `pnpm perf:bundle:summary` で build 後の raw / gzip サイズを確認する
+- `pnpm perf:bundle` で詳細一覧を出せる
+- CI の `bundle-profile` artifact に、最新 build の bundle summary と file list が残る
 
 ### Playbook (dev only)
 
@@ -130,7 +181,7 @@ pnpm run dev:full
 
 ### ContentProvider パターン
 
-`src/lib/content/types.ts` で `ContentProvider` インターフェースを定義。
+`src/shared/content/types.ts` で `ContentProvider` インターフェースを定義。
 各プラットフォームがこのインターフェースを実装し、`requiresExtension` フラグで Web / 拡張機能の区別を制御。
 `toNostrTag()` で NIP-73 `i` タグを生成。i タグ形式は `platform:type:id` で統一。
 

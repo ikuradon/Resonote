@@ -1,8 +1,12 @@
 <script lang="ts">
-  import type { ContentId } from '../content/types.js';
-  import { setContent, updatePlayback } from '../stores/player.svelte.js';
-  import { t } from '../i18n/t.js';
-  import { createLogger } from '../utils/logger.js';
+  import { resolveSoundCloudEmbed } from '$features/content-resolution/infra/soundcloud-api-client.js';
+  import { createAsyncReadyTimeout } from '$shared/browser/async-ready-timeout.js';
+  import { loadExternalScript } from '$shared/browser/script-loader.js';
+  import type { ContentId } from '$shared/content/types.js';
+  import { setContent, updatePlayback } from '$shared/browser/player.js';
+  import { onSeek } from '../../shared/browser/seek-bridge.js';
+  import { t } from '$shared/i18n/t.js';
+  import { createLogger } from '$shared/utils/logger.js';
   import EmbedLoading from './EmbedLoading.svelte';
 
   const log = createLogger('SoundCloudEmbed');
@@ -21,31 +25,16 @@
   let error = $state(false);
   let embedSrc = $state('');
 
-  let apiPromise: Promise<void> | undefined;
-
   function loadApi(): Promise<void> {
-    if (apiPromise) return apiPromise;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (typeof window !== 'undefined' && (window as any).SC?.Widget) {
-      apiPromise = Promise.resolve();
-      return apiPromise;
-    }
     log.info('Loading SoundCloud Widget API...');
-    apiPromise = new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = 'https://w.soundcloud.com/player/api.js';
-      script.async = true;
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Failed to load SoundCloud API'));
-      document.head.appendChild(script);
+    return loadExternalScript({
+      src: 'https://w.soundcloud.com/player/api.js',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      isReady: () => typeof window !== 'undefined' && !!(window as any).SC?.Widget
     });
-    return apiPromise;
   }
 
-  function handleSeek(e: Event) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const detail = (e as CustomEvent).detail as any;
-    const posMs: number = detail.position ?? detail.positionMs ?? -1;
+  function handleSeek(posMs: number) {
     if (widget && posMs >= 0) {
       log.debug('Seeking to position', { posMs });
       widget.seekTo(posMs);
@@ -58,19 +47,9 @@
     embedSrc = '';
     error = false;
 
-    fetch(`https://soundcloud.com/oembed?format=json&url=${encodeURIComponent(trackUrl)}`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`oEmbed ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
-        // Extract iframe src from oEmbed HTML
-        const match = (data.html as string)?.match(/src="([^"]+)"/);
-        if (match?.[1]) {
-          embedSrc = match[1];
-        } else {
-          throw new Error('No iframe src in oEmbed response');
-        }
+    resolveSoundCloudEmbed(trackUrl)
+      .then((src) => {
+        embedSrc = src;
       })
       .catch((err) => {
         log.error('Failed to resolve SoundCloud oEmbed', err);
@@ -82,31 +61,31 @@
   $effect(() => {
     if (!iframeEl || !embedSrc) return;
 
-    window.addEventListener('resonote:seek', handleSeek);
+    const cleanupSeek = onSeek(handleSeek);
 
     let cancelled = false;
     let cachedDuration = 0;
     let cachedPaused = true;
-
-    const readyTimeout = setTimeout(() => {
-      if (!ready && !error) {
+    const readyTimeout = createAsyncReadyTimeout({
+      timeoutMs: 15000,
+      onTimeout: () => {
         log.error('Player initialization timed out');
         error = true;
       }
-    }, 15000);
+    });
 
     loadApi()
       .then(() => {
-        if (cancelled) return;
+        if (cancelled || readyTimeout.hasTimedOut()) return;
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const SCWidget = (window as any).SC.Widget;
         const w = SCWidget(iframeEl) as SC.WidgetInstance; // eslint-disable-line no-undef
 
         w.bind(SCWidget.Events.READY, () => {
-          if (cancelled) return;
+          if (cancelled || !readyTimeout.succeed()) return;
           widget = w;
           ready = true;
-          clearTimeout(readyTimeout);
           setContent(contentId);
           log.info('SoundCloud widget ready');
           w.getDuration((d: number) => {
@@ -127,14 +106,15 @@
         });
       })
       .catch((err) => {
+        readyTimeout.cancel();
         log.error('Failed to initialize SoundCloud widget', err);
         error = true;
       });
 
     return () => {
       cancelled = true;
-      clearTimeout(readyTimeout);
-      window.removeEventListener('resonote:seek', handleSeek);
+      readyTimeout.cancel();
+      cleanupSeek();
       if (widget) {
         try {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

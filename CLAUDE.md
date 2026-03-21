@@ -61,15 +61,59 @@ This matches the CI pipeline order. Do not skip any step.
 
 ### Directory Structure
 
-- `src/lib/` — Shared code ($lib alias): ContentProviders, Nostr layer, stores, components
+- `src/app/bootstrap/` — Session initialization orchestrator (login/logout sequence)
+- `src/app/ui/` — App shell view-model and app-wide presentation orchestration
+- `src/features/comments/` — Comments feature slice (domain/application/infra/ui)
+- `src/features/content-resolution/` — Content resolution feature slice (domain/application)
+- `src/features/auth/` — Auth gateway (nostr-login infra 分離)
+- `src/features/bookmarks/` — Bookmarks domain + application (parse, add/remove publish)
+- `src/features/follows/` — Follows domain + application (extractFollows, follow/unfollow publish)
+- `src/features/mute/` — Mute application (publishMuteList)
+- `src/features/notifications/` — Notifications domain (classifier, types)
+- `src/features/profiles/` — Profiles domain + application (model, profile-queries)
+- `src/features/relays/` — Relays domain + application (parseRelayTags, publishRelayList)
+- `src/features/sharing/` — Share action (sendShare)
+- `src/features/playback/` — Playback domain types
+- `src/features/extension-bridge/` — Extension bridge typed events
+- `src/features/nip19-resolver/` — NIP-19 event fetch (fetchNostrEvent)
+- `src/shared/` — Public runtime boundary ($shared alias): browser bridges, nostr helpers, content contracts, shared utils
+- `src/lib/components/` — Presentational components and component-local presentation helpers only
+- `src/shared/i18n/` — Translation runtime API (`t`, locales, message dictionaries)
+- `src/lib/i18n/` — 置かない
+- `src/lib/stores/` — 置かない
+- `src/lib/` — 上記以外の runtime ownership を置かない。新規業務ロジック追加禁止。
 - `src/web/` — SvelteKit entry points (routes, app.html, app.css)
 - `src/extension/` — Browser extension (Chrome/Firefox Manifest V3)
 - `functions/` — Cloudflare Pages Functions (API endpoints)
 - `static/` — Static assets copied to build output (favicon, `_headers`, etc.)
 
+### Path Aliases
+
+- `$lib` — `src/lib` (presentation / component-local helpers only)
+- `$shared` — `src/shared` (public runtime boundary)
+- `$features` — `src/features` (feature slices)
+- `$appcore` — `src/app` (bootstrap, session)
+
+### Feature Slice Architecture
+
+Feature slices follow a layered structure:
+
+- `domain/` — Pure types and functions (no infra dependencies). Test-friendly.
+- `application/` — Use cases orchestrating domain + infra. UI calls these instead of infra directly.
+- `infra/` — External I/O (rx-nostr, IndexedDB, fetch, browser APIs)
+- `ui/` — View models (.svelte.ts) and Svelte components
+- Dependency direction: `ui → application → domain`, `ui → application → infra → shared`
+- UI components import from `application/` or `domain/`, never from infra directly.
+- `src/lib/stores/` は置かない。UI-support runtime ownership も `src/shared/browser/*` に置く。
+- Public stateful APIs live in `src/shared/browser/*` and feature/domain owners live in `src/features/*`.
+- route は feature/app の facade として扱う。
+- `src/lib/components/**/*.svelte.ts` は component-local presentation helper に限定し、business logic は置かない。
+- 複数箇所で使う表示ルールは `$shared/*` または feature helper へ先に集約する。
+- `CommentList` の profile preload のような read-side preload も component-local helper ではなく feature helper 側で持つ。
+
 ### ContentProvider Pattern
 
-`src/lib/content/types.ts` defines `ContentProvider` interface and `ContentId` type.
+`src/shared/content/types.ts` defines `ContentProvider` interface and `ContentId` type.
 Each platform implements this interface. Extension-only providers set `requiresExtension: true`.
 Nostr tags are generated via `toNostrTag()` returning NIP-73 tags. i タグ形式は `platform:type:id` で統一。
 `toNostrTag()` の value prefix は `contentKind()` の返り値と一致させること (例: K=`spotify:track` なら I=`spotify:track:xxx`)。
@@ -101,13 +145,13 @@ Web embed 対応: Spotify, YouTube, Vimeo, SoundCloud, Mixcloud, Spreaker, Nicon
 
 ### Nostr Layer
 
-- `src/lib/nostr/client.ts`: Singleton `getRxNostr()` with `@rx-nostr/crypto` verifier
-- `src/lib/nostr/events.ts`: Event builders for kind:1111 (comment) and kind:7 (reaction)
-- `src/lib/nostr/events.ts` にないイベント: kind:3 (follows.svelte.ts), kind:10000 (mute.svelte.ts), kind:10002 (relays.svelte.ts), kind:10003 (bookmarks.svelte.ts), kind:39701 (functions/api/podcast/resolve.ts)
-- `src/lib/nostr/event-db.ts`: IndexedDB-based event cache (`idb` wrapper)
-- `src/lib/nostr/relays.ts`: Default relay list
-- `src/lib/nostr/user-relays.ts`: Per-user relay discovery
-- `src/lib/nostr/publish-signed.ts`: Pre-signed event publish via `rxNostr.cast()` + pending queue
+- `src/shared/nostr/client.ts`: Singleton `getRxNostr()` with `@rx-nostr/crypto` verifier
+- `src/shared/nostr/events.ts`: Event builders for kind:1111 (comment) and kind:7 (reaction)
+- `src/shared/nostr/events.ts` にないイベント: kind:3 (follows.svelte.ts), kind:10000 (mute.svelte.ts), kind:10002 (relays.svelte.ts), kind:10003 (bookmarks.svelte.ts), kind:39701 (functions/api/podcast/resolve.ts)
+- `src/shared/nostr/event-db.ts`: IndexedDB-based event cache (`idb` wrapper)
+- `src/shared/nostr/relays.ts`: Default relay list
+- `src/shared/nostr/user-relays.ts`: Per-user relay discovery
+- `src/shared/nostr/publish-signed.ts`: Pre-signed event publish via `rxNostr.cast()` + pending queue
 - Signing: `nip07Signer()` from rx-nostr (delegates to `window.nostr`)
 
 ### Podcast/Audio Resolution Flow
@@ -131,16 +175,30 @@ Comments use rx-nostr's dual-request pattern:
 
 ### State Management
 
-Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
+Svelte 5 `$state` runes are used in owner modules, not in a central store directory:
 
-- `auth.svelte.ts`: Login state via nostr-login `nlAuth` events
-- `comments.svelte.ts`: Per-content comment subscription + `addSubscription` for dual-tag merge
-- `player.svelte.ts`: Playback state + `resetPlayer()` on navigation
-- `profile.svelte.ts`: User profile (kind:0) cache
-- `follows.svelte.ts`: Follow list (kind:3) state
-- `relays.svelte.ts`: Relay connection status
-- `emoji-sets.svelte.ts`: Custom emoji set management
-- `extension.svelte.ts`: Browser extension mode state + postMessage listener
+- `src/shared/browser/auth.svelte.ts`: Login state via nostr-login `nlAuth` events
+- `src/shared/browser/player.svelte.ts`: Playback state + `resetPlayer()` on navigation
+- `src/shared/browser/profile.svelte.ts`: User profile (kind:0) cache
+- `src/shared/browser/follows.svelte.ts`: Follow list (kind:3) state
+- `src/shared/browser/relays.svelte.ts`: Relay connection status
+- `src/shared/browser/emoji-sets.svelte.ts`: Custom emoji set management
+- `src/shared/browser/extension.svelte.ts`: Browser extension mode state + postMessage listener
+- `src/features/comments/ui/comment-view-model.svelte.ts`: Per-content comment subscription + additional tag merge
+- `src/lib/stores/`: 使用しない
+
+### Residual Policy
+
+- `src/lib/components/` に置いてよいのは presentational component と component-local helper だけ
+- `src/shared/i18n/*` が翻訳 API の唯一の公開面
+- `src/shared/browser/{locale,toast,dev-tools,emoji-mart}.ts` が UI-support browser ownership の公開面
+- `src/lib/stores/*` は再導入しない
+- `src/web/routes/*` の `ConfirmDialog` binding は thin facade として許容する
+
+### Refactoring Docs
+
+- 現行の構造判断は `docs/refactoring-roadmap-endgame.md` を正とする
+- 過去の計画書は `docs/archive/refactoring-plan*.md` に退避してある。履歴参照用であり、現行方針の更新先ではない
 
 ### VirtualScrollList
 
@@ -154,11 +212,18 @@ Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
 
 - Unit: vitest (`src/**/*.test.ts` + `functions/**/*.test.ts`)
 - E2E: Playwright (`e2e/*.test.ts`, Chromium, build+preview on :4173)
+- Structure guard: `src/architecture/structure-guard.test.ts` が legacy store / i18n runtime import の再流入を止める
+- `pnpm check:structure` を通常の検証セットに含める
+- `pnpm graph:imports:summary` で依存方向の崩れを確認できる
+- `pnpm perf:bundle:summary` で build 後の bundle 変化を確認できる
 - IndexedDB テストは `fake-indexeddb/auto` を import
 - rx-nostr/client は `vi.mock()` でモック
 - rx-nostr 統合テスト: `@ikuradon/tsunagiya` MockPool で WebSocket モック + `nostr-tools/pure` finalizeEvent で有効署名生成
 - E2E 認証フロー: tsunagiya ブラウザバンドル (`pretest:e2e` で自動生成) + `window.nostr` mock + `nlAuth` DOM イベント
 - `client.ts` の `disposeRxNostr()` でテスト間のシングルトンリセット
+- component-local helper でも壊れやすい orchestration は単体テストを持つ
+  - `src/lib/components/audio-embed-view-model.test.ts`
+  - `src/lib/components/comment-list-view-model.test.ts`
 
 ## Deployment
 
@@ -169,6 +234,7 @@ Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
 ## Issue Tracking
 
 - GitHub Issues + マイルストーン (v0.0.1, v0.0.2 等) で管理。ラベル: `security`, `performance`, `a11y`, `ux`, `testing`, `code-quality`, `bundle-size`, `feature`
+- PR / task / feature / bug template でも ownership と perf impact を確認する
 
 ## Key Decisions
 
@@ -191,7 +257,7 @@ Svelte 5 `$state` runes in `src/lib/stores/*.svelte.ts` (no Svelte stores):
 - `static/_headers` は静的アセットにのみ適用される。Pages Functions のレスポンスヘッダーは関数内で制御
 - `/_app/immutable/` のチャンクはコンテンツハッシュ付き → immutable キャッシュ設定済み。Resonote 側コード変更でもハッシュが変わりうる
 - 新しい embed プロバイダー追加時は `static/_headers` の CSP `frame-src` / `script-src` も更新すること
-- Nostr イベント由来の画像 URL は `sanitizeImageUrl()` (`src/lib/utils/url.ts`) でスキーム検証すること
+- Nostr イベント由来の画像 URL は `sanitizeImageUrl()` (`src/shared/utils/url.ts`) でスキーム検証すること
 - `pnpm dev` では Pages Functions が動かない。API 必要時は `pnpm dev:full`
 - Spreaker `widgets.js` は SPA 再ナビゲーション時に再走査しない → script remove+re-add が必要
 - SoundCloud embed は permalink URL を受け付けない → oEmbed API で api.soundcloud.com URL に解決

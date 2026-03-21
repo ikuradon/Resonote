@@ -1,25 +1,13 @@
 <script lang="ts">
-  import { getAuth } from '$lib/stores/auth.svelte.js';
-  import { getBookmarks, removeBookmark } from '$lib/stores/bookmarks.svelte.js';
-  import { iTagToContentPath } from '$lib/nostr/content-link.js';
-  import { t } from '$lib/i18n/t.js';
-  import type { ContentId } from '$lib/content/types.js';
+  import { getAuth } from '$shared/browser/auth.js';
+  import { getBookmarks, removeBookmark } from '$shared/browser/bookmarks.js';
+  import { iTagToContentPath } from '$shared/nostr/helpers.js';
+  import { t } from '$shared/i18n/t.js';
+  import { parseContentId } from '$shared/content/types.js';
+  import { truncateString } from '$shared/utils/format.js';
 
   const auth = getAuth();
   const bookmarks = getBookmarks();
-
-  let removing = $state<string | null>(null);
-
-  function parseContentId(value: string): ContentId | null {
-    const i1 = value.indexOf(':');
-    const i2 = value.indexOf(':', i1 + 1);
-    if (i1 === -1 || i2 === -1) return null;
-    return {
-      platform: value.slice(0, i1),
-      type: value.slice(i1 + 1, i2),
-      id: value.slice(i2 + 1)
-    };
-  }
 
   async function handleRemove(value: string) {
     const contentId = parseContentId(value);
@@ -32,9 +20,7 @@
     }
   }
 
-  function truncate(str: string, len: number): string {
-    return str.length > len ? str.slice(0, len - 1) + '\u2026' : str;
-  }
+  let removing = $state<string | null>(null);
 </script>
 
 <svelte:head>
@@ -92,7 +78,7 @@
               <span class="shrink-0 text-base text-text-muted">&#9993;</span>
               <div class="min-w-0 flex-1">
                 <span class="truncate text-sm font-mono text-text-primary" title={entry.value}>
-                  {truncate(entry.value, 24)}
+                  {truncateString(entry.value, 24)}
                 </span>
                 {#if entry.hint}
                   <p class="mt-0.5 truncate text-xs text-text-muted">{entry.hint}</p>

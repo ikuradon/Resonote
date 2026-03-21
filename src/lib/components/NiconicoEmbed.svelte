@@ -1,13 +1,23 @@
 <script lang="ts" module>
-  import { createLogger } from '../utils/logger.js';
+  import { createLogger } from '$shared/utils/logger.js';
 
   const log = createLogger('NiconicoEmbed');
 </script>
 
 <script lang="ts">
-  import type { ContentId } from '../content/types.js';
-  import { setContent, updatePlayback } from '../stores/player.svelte.js';
-  import { t } from '../i18n/t.js';
+  import {
+    createAsyncReadyTimeout,
+    type AsyncReadyTimeoutHandle
+  } from '$shared/browser/async-ready-timeout.js';
+  import type { ContentId } from '$shared/content/types.js';
+  import {
+    onNiconicoMessage,
+    seekNiconicoPlayer,
+    type NiconicoPlayerMessage
+  } from '$shared/browser/niconico-bridge.js';
+  import { setContent, updatePlayback } from '$shared/browser/player.js';
+  import { onSeek } from '../../shared/browser/seek-bridge.js';
+  import { t } from '$shared/i18n/t.js';
   import EmbedLoading from './EmbedLoading.svelte';
 
   interface Props {
@@ -20,64 +30,44 @@
   let iframeEl: HTMLIFrameElement | undefined = $state();
   let ready = $state(false);
   let error = $state(false);
-  let readyTimeout: ReturnType<typeof setTimeout> | undefined;
+  let readyTimeout: AsyncReadyTimeoutHandle | undefined;
 
-  const NICONICO_ORIGINS = ['https://embed.nicovideo.jp', 'http://embed.nicovideo.jp'];
-
-  function sendCommand(
-    iframeEl: HTMLIFrameElement,
-    command: string,
-    data: Record<string, unknown> = {}
-  ) {
-    iframeEl.contentWindow?.postMessage(
-      { ...data, eventName: command, sourceConnectorType: 1, playerId: '1' },
-      'https://embed.nicovideo.jp'
-    );
-  }
-
-  function handleSeek(e: Event) {
+  function handleSeek(posMs: number) {
     if (!iframeEl) return;
-    const detail = (e as CustomEvent<{ positionMs?: number; position?: number }>).detail;
-    const positionMs = detail.positionMs ?? detail.position;
-    if (positionMs !== undefined && positionMs >= 0) {
-      log.debug('Seeking to position', { positionMs });
-      sendCommand(iframeEl, 'seek', { data: { time: positionMs / 1000 } });
+    if (posMs >= 0) {
+      log.debug('Seeking to position', { positionMs: posMs });
+      seekNiconicoPlayer(iframeEl, posMs);
     }
   }
 
-  function handleMessage(e: MessageEvent) {
-    if (!NICONICO_ORIGINS.includes(e.origin)) return;
+  function handleMessage(message: NiconicoPlayerMessage) {
+    log.debug('Received message', message);
 
-    const { eventName, data } = e.data ?? {};
-    log.debug('Received message', { eventName, data });
-
-    switch (eventName) {
-      case 'loadComplete':
+    switch (message.type) {
+      case 'ready':
+        if (!readyTimeout?.succeed()) return;
         setContent(contentId);
         ready = true;
-        clearTimeout(readyTimeout);
         break;
-      case 'playerMetadataChange': {
-        const currentTimeMs = data?.currentTime !== undefined ? data.currentTime * 1000 : undefined;
-        const durationMs = data?.duration !== undefined ? data.duration * 1000 : undefined;
+      case 'metadata': {
+        const { currentTimeMs, durationMs } = message;
         if (currentTimeMs !== undefined && durationMs !== undefined) {
           updatePlayback(currentTimeMs, durationMs, true);
         }
         break;
       }
-      case 'playerStatusChange': {
-        // 2 = playing, 3 = paused, 4 = ended
-        const status = data?.playerStatus;
-        const isPaused = status !== 2;
-        if (data?.currentTime !== undefined && data?.duration !== undefined) {
-          updatePlayback(data.currentTime * 1000, data.duration * 1000, isPaused);
+      case 'status': {
+        const { currentTimeMs, durationMs, isPaused } = message;
+        if (currentTimeMs !== undefined && durationMs !== undefined) {
+          updatePlayback(currentTimeMs, durationMs, isPaused);
         } else {
           updatePlayback(0, 0, isPaused);
         }
         break;
       }
       case 'error':
-        log.error('Niconico embed error', data);
+        readyTimeout?.cancel();
+        log.error('Niconico embed error', message.data);
         error = true;
         break;
     }
@@ -86,20 +76,22 @@
   $effect(() => {
     if (!iframeEl) return;
 
-    window.addEventListener('resonote:seek', handleSeek);
-    window.addEventListener('message', handleMessage);
+    const cleanupSeek = onSeek(handleSeek);
+    const cleanupMessages = onNiconicoMessage(handleMessage);
 
-    readyTimeout = setTimeout(() => {
-      if (!ready && !error) {
+    readyTimeout = createAsyncReadyTimeout({
+      timeoutMs: 20000,
+      onTimeout: () => {
         log.error('Player initialization timed out');
         error = true;
       }
-    }, 20000);
+    });
 
     return () => {
-      clearTimeout(readyTimeout);
-      window.removeEventListener('resonote:seek', handleSeek);
-      window.removeEventListener('message', handleMessage);
+      readyTimeout?.cancel();
+      readyTimeout = undefined;
+      cleanupSeek();
+      cleanupMessages();
       ready = false;
       error = false;
     };

@@ -1,84 +1,41 @@
 <script lang="ts">
-  import { getNotifications, markAllAsRead } from '../stores/notifications.svelte.js';
-  import { getDisplayName, fetchProfiles } from '../stores/profile.svelte.js';
-  import { t } from '../i18n/t.js';
   import {
-    typeIcon,
-    typeLabel,
-    relativeTime,
-    parseReactionDisplay
-  } from '../utils/notification-helpers.js';
-  import { getContentPathFromTags } from '../nostr/content-link.js';
-  import { cachedFetchById } from '../nostr/cached-nostr.svelte.js';
-  import { untrack } from 'svelte';
+    createNotificationFeedViewModel,
+    describeNotificationItem,
+    getNotifications,
+    type NotificationItemDisplay
+  } from '$shared/browser/notifications.js';
+  import { t } from '$shared/i18n/t.js';
+  import { isNodeInsideElements, manageClickOutside } from '$shared/browser/click-outside.js';
+  import { createMediaQuery } from '$shared/browser/media-query.js';
   import MobileOverlay from './MobileOverlay.svelte';
-  import { createMediaQuery } from '../utils/media-query.svelte.js';
 
   const notifs = getNotifications();
-  const desktop = createMediaQuery('(min-width: 1024px)');
 
   let open = $state(false);
+  const feed = createNotificationFeedViewModel(notifs, {
+    pageSize: 5,
+    contentPreviewLength: 50,
+    active: () => open
+  });
+  const desktop = createMediaQuery('(min-width: 1024px)');
+
   let isDesktop = $derived(desktop.matches);
   let containerEl: HTMLDivElement | undefined;
-  let targetTexts = $state<Map<string, string>>(new Map());
 
-  // Fetch target comment texts for visible notifications.
-  // untrack(targetTexts) to avoid infinite loop.
-  $effect(() => {
-    const items = latest5; // track latest5
-    untrack(() => {
-      const targetIds = items
-        .filter((n) => n.targetEventId && (n.type === 'reply' || n.type === 'reaction'))
-        .map((n) => n.targetEventId!)
-        .filter((id) => !targetTexts.has(id));
-
-      if (targetIds.length === 0) return;
-
-      Promise.all(
-        targetIds.map(async (id) => {
-          const event = await cachedFetchById(id);
-          return { id, event };
-        })
-      ).then((results) => {
-        const newTexts = new Map(targetTexts);
-        for (const { id, event } of results) {
-          if (event) {
-            const preview =
-              event.content.length > 40 ? event.content.slice(0, 38) + '\u2026' : event.content;
-            newTexts.set(id, preview);
-          }
-        }
-        targetTexts = newTexts;
-      });
-    });
-  });
-
-  // Close on outside click (desktop dropdown only)
-  $effect(() => {
-    if (!open || !isDesktop) return;
-    const handler = (e: MouseEvent) => {
-      if (!containerEl?.contains(e.target as Node)) {
-        open = false;
-      }
-    };
-    document.addEventListener('click', handler, true);
-    return () => document.removeEventListener('click', handler, true);
-  });
-
-  // When dropdown opens, mark as read and fetch profiles
-  $effect(() => {
-    if (open) {
-      markAllAsRead();
-      const pubkeys = [...new Set(notifs.items.slice(0, 5).map((n) => n.pubkey))];
-      untrack(() => fetchProfiles(pubkeys));
+  manageClickOutside({
+    active: () => open && isDesktop,
+    isInside: (target) => isNodeInsideElements(target, [containerEl]),
+    onOutside: () => {
+      open = false;
     }
   });
 
-  let latest5 = $derived(notifs.items.slice(0, 5));
-
-  function contentPreview(content: string): string {
-    return content.length > 50 ? content.slice(0, 48) + '\u2026' : content;
-  }
+  $effect(() => {
+    if (open) {
+      feed.markAllRead();
+    }
+  });
 </script>
 
 <div class="relative" bind:this={containerEl}>
@@ -112,89 +69,92 @@
   </button>
 
   {#snippet notificationList()}
-    {#if latest5.length === 0}
+    {#if feed.items.length === 0}
       <div class="px-4 py-8 text-center text-sm text-text-muted">
         {t('notification.empty')}
       </div>
     {:else}
       <div class="max-h-80 overflow-y-auto lg:max-h-80">
-        {#each latest5 as notif (notif.id)}
-          {@const path = getContentPathFromTags(notif.tags)}
-          {#if path}
+        {#each feed.items as notif (notif.id)}
+          {@const item: NotificationItemDisplay = describeNotificationItem(notif, {
+            contentPreview: feed.contentPreview,
+            targetTexts: feed.targetTexts
+          })}
+          {#if item.contentPath}
             <a
-              href={path}
+              href={item.contentPath}
               onclick={() => (open = false)}
               class="flex gap-3 px-4 py-3 transition-colors hover:bg-surface-2"
             >
-              <span class="mt-0.5 text-sm">{typeIcon(notif.type)}</span>
+              <span class="mt-0.5 text-sm">{item.icon}</span>
               <div class="min-w-0 flex-1">
                 <p class="text-xs text-text-primary">
-                  <span class="font-medium text-accent">{getDisplayName(notif.pubkey)}</span>
-                  {typeLabel(notif.type)}
+                  <span class="font-medium text-accent">{item.actor.displayName}</span>
+                  {item.label}
                 </p>
-                {#if notif.type === 'reaction' && notif.content}
-                  {@const rx = parseReactionDisplay(notif.content, notif.tags)}
+                {#if item.reaction}
                   <p class="mt-0.5 flex items-center gap-1 text-xs text-text-muted">
-                    {#if rx.type === 'heart'}
+                    {#if item.reaction.type === 'heart'}
                       <span>❤️</span>
-                    {:else if rx.type === 'emoji_image' && rx.url}
-                      <img src={rx.url} alt={rx.content} class="inline h-4 w-4" loading="lazy" />
+                    {:else if item.reaction.type === 'emoji_image' && item.reaction.url}
+                      <img
+                        src={item.reaction.url}
+                        alt={item.reaction.content}
+                        class="inline h-4 w-4"
+                        loading="lazy"
+                      />
                     {:else}
-                      <span>{rx.content}</span>
+                      <span>{item.reaction.content}</span>
                     {/if}
                   </p>
-                {:else if notif.content && notif.type !== 'reaction'}
+                {:else if item.contentPreview}
                   <p class="mt-0.5 truncate text-xs text-text-muted">
-                    {contentPreview(notif.content)}
+                    {item.contentPreview}
                   </p>
                 {/if}
-                {#if notif.targetEventId && targetTexts.has(notif.targetEventId)}
+                {#if item.targetPreview}
                   <p class="mt-0.5 truncate text-xs text-text-muted/70 italic">
-                    {t('notification.your_comment', {
-                      text: targetTexts.get(notif.targetEventId) ?? ''
-                    })}
+                    {t('notification.your_comment', { text: item.targetPreview })}
                   </p>
                 {/if}
               </div>
-              <span class="shrink-0 text-[10px] text-text-muted"
-                >{relativeTime(notif.createdAt)}</span
-              >
+              <span class="shrink-0 text-[10px] text-text-muted">{item.timeLabel}</span>
             </a>
           {:else}
             <div class="flex gap-3 px-4 py-3">
-              <span class="mt-0.5 text-sm">{typeIcon(notif.type)}</span>
+              <span class="mt-0.5 text-sm">{item.icon}</span>
               <div class="min-w-0 flex-1">
                 <p class="text-xs text-text-primary">
-                  <span class="font-medium text-accent">{getDisplayName(notif.pubkey)}</span>
-                  {typeLabel(notif.type)}
+                  <span class="font-medium text-accent">{item.actor.displayName}</span>
+                  {item.label}
                 </p>
-                {#if notif.type === 'reaction' && notif.content}
-                  {@const rx = parseReactionDisplay(notif.content, notif.tags)}
+                {#if item.reaction}
                   <p class="mt-0.5 flex items-center gap-1 text-xs text-text-muted">
-                    {#if rx.type === 'heart'}
+                    {#if item.reaction.type === 'heart'}
                       <span>❤️</span>
-                    {:else if rx.type === 'emoji_image' && rx.url}
-                      <img src={rx.url} alt={rx.content} class="inline h-4 w-4" loading="lazy" />
+                    {:else if item.reaction.type === 'emoji_image' && item.reaction.url}
+                      <img
+                        src={item.reaction.url}
+                        alt={item.reaction.content}
+                        class="inline h-4 w-4"
+                        loading="lazy"
+                      />
                     {:else}
-                      <span>{rx.content}</span>
+                      <span>{item.reaction.content}</span>
                     {/if}
                   </p>
-                {:else if notif.content && notif.type !== 'reaction'}
+                {:else if item.contentPreview}
                   <p class="mt-0.5 truncate text-xs text-text-muted">
-                    {contentPreview(notif.content)}
+                    {item.contentPreview}
                   </p>
                 {/if}
-                {#if notif.targetEventId && targetTexts.has(notif.targetEventId)}
+                {#if item.targetPreview}
                   <p class="mt-0.5 truncate text-xs text-text-muted/70 italic">
-                    {t('notification.your_comment', {
-                      text: targetTexts.get(notif.targetEventId) ?? ''
-                    })}
+                    {t('notification.your_comment', { text: item.targetPreview })}
                   </p>
                 {/if}
               </div>
-              <span class="shrink-0 text-[10px] text-text-muted"
-                >{relativeTime(notif.createdAt)}</span
-              >
+              <span class="shrink-0 text-[10px] text-text-muted">{item.timeLabel}</span>
             </div>
           {/if}
         {/each}
