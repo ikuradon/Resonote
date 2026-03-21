@@ -383,8 +383,9 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     } else {
       // Failed or non-comment kind
       const status = deletedIds.has(parentId) ? 'deleted' : 'not-found';
+      const ph = placeholders.get(parentId);
       const updated = new Map(placeholders);
-      updated.set(parentId, { ...placeholders.get(parentId)!, status });
+      updated.set(parentId, { ...(ph ?? placeholderFromOrphan(parentId, null)), status });
       placeholders = updated;
     }
   }

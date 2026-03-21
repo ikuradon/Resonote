@@ -141,7 +141,7 @@
       </div>
     {/snippet}
 
-    {#if vm.timedComments.length > 0}
+    {#if vm.timedComments.length > 0 || vm.orphanParents.some((p) => p.positionMs !== null)}
       <section class="space-y-3">
         <div class="flex items-center gap-2">
           <span class="text-xs font-semibold tracking-wide text-text-secondary uppercase"
@@ -164,61 +164,63 @@
         {#each vm.orphanParents.filter((p) => p.positionMs !== null) as placeholder (placeholder.id)}
           {@render orphanPlaceholder(placeholder)}
         {/each}
-        <div class="max-h-[400px] overflow-hidden rounded-xl border border-border-subtle">
-          <VirtualScrollList
-            bind:this={timedVirtualList}
-            items={vm.timedComments}
-            keyFn={(c) => c.id}
-            estimateHeight={120}
-            overscan={3}
-            onRangeChange={vm.handleTimedRangeChange}
-          >
-            {#snippet children({ item: comment, index: i })}
-              <CommentCard
-                {comment}
-                author={vm.authorDisplayFor(comment.pubkey)}
-                index={i}
-                showPosition={true}
-                nearCurrent={comment.positionMs !== null &&
-                  vm.isNearCurrentPosition(comment.positionMs)}
-                stats={vm.statsFor(comment.id)}
-                myReaction={vm.myReactionFor(comment.id)}
-                isOwn={vm.isOwn(comment.pubkey)}
-                acting={vm.isActing(comment.id)}
-                loggedIn={vm.loggedIn}
-                revealedCW={vm.isRevealed(comment.id)}
-                canMute={vm.canMute}
-                popoverId={getPopoverId(comment.id)}
-                replyOpen={vm.isReplyOpen(comment.id)}
-                bind:replyContent={vm.replyContent}
-                bind:replyEmojiTags={vm.replyEmojiTags}
-                replySending={vm.replySending}
-                replies={vm.replyMap.get(comment.id) ?? []}
-                getAuthorDisplay={vm.authorDisplayFor}
-                getStats={vm.statsFor}
-                getMyReaction={vm.myReactionFor}
-                isActing={vm.isActing}
-                isRevealed={vm.isRevealed}
-                {getPopoverId}
-                onReaction={vm.sendReaction}
-                onDelete={vm.requestDelete}
-                onReply={vm.startReply}
-                onCancelReply={vm.cancelReply}
-                onSubmitReply={vm.submitReply}
-                onSeek={vm.seekToPosition}
-                onRevealCW={vm.revealCW}
-                onHideCW={vm.hideCW}
-                onMute={vm.requestMute}
-                onReplyContentChange={(content) => (vm.replyContent = content)}
-                onReplyEmojiTagsChange={(tags) => (vm.replyEmojiTags = tags)}
-              />
-            {/snippet}
-          </VirtualScrollList>
-        </div>
+        {#if vm.timedComments.length > 0}
+          <div class="max-h-[400px] overflow-hidden rounded-xl border border-border-subtle">
+            <VirtualScrollList
+              bind:this={timedVirtualList}
+              items={vm.timedComments}
+              keyFn={(c) => c.id}
+              estimateHeight={120}
+              overscan={3}
+              onRangeChange={vm.handleTimedRangeChange}
+            >
+              {#snippet children({ item: comment, index: i })}
+                <CommentCard
+                  {comment}
+                  author={vm.authorDisplayFor(comment.pubkey)}
+                  index={i}
+                  showPosition={true}
+                  nearCurrent={comment.positionMs !== null &&
+                    vm.isNearCurrentPosition(comment.positionMs)}
+                  stats={vm.statsFor(comment.id)}
+                  myReaction={vm.myReactionFor(comment.id)}
+                  isOwn={vm.isOwn(comment.pubkey)}
+                  acting={vm.isActing(comment.id)}
+                  loggedIn={vm.loggedIn}
+                  revealedCW={vm.isRevealed(comment.id)}
+                  canMute={vm.canMute}
+                  popoverId={getPopoverId(comment.id)}
+                  replyOpen={vm.isReplyOpen(comment.id)}
+                  bind:replyContent={vm.replyContent}
+                  bind:replyEmojiTags={vm.replyEmojiTags}
+                  replySending={vm.replySending}
+                  replies={vm.replyMap.get(comment.id) ?? []}
+                  getAuthorDisplay={vm.authorDisplayFor}
+                  getStats={vm.statsFor}
+                  getMyReaction={vm.myReactionFor}
+                  isActing={vm.isActing}
+                  isRevealed={vm.isRevealed}
+                  {getPopoverId}
+                  onReaction={vm.sendReaction}
+                  onDelete={vm.requestDelete}
+                  onReply={vm.startReply}
+                  onCancelReply={vm.cancelReply}
+                  onSubmitReply={vm.submitReply}
+                  onSeek={vm.seekToPosition}
+                  onRevealCW={vm.revealCW}
+                  onHideCW={vm.hideCW}
+                  onMute={vm.requestMute}
+                  onReplyContentChange={(content) => (vm.replyContent = content)}
+                  onReplyEmojiTagsChange={(tags) => (vm.replyEmojiTags = tags)}
+                />
+              {/snippet}
+            </VirtualScrollList>
+          </div>
+        {/if}
       </section>
     {/if}
 
-    {#if vm.generalComments.length > 0}
+    {#if vm.generalComments.length > 0 || vm.orphanParents.some((p) => p.positionMs === null)}
       <section class="space-y-3">
         <div class="flex items-center gap-2">
           <span class="text-xs font-semibold tracking-wide text-text-secondary uppercase"
@@ -232,53 +234,55 @@
         {#each vm.orphanParents.filter((p) => p.positionMs === null) as placeholder (placeholder.id)}
           {@render orphanPlaceholder(placeholder)}
         {/each}
-        <div class="max-h-[400px] overflow-hidden rounded-xl border border-border-subtle">
-          <VirtualScrollList
-            items={vm.generalComments}
-            keyFn={(c) => c.id}
-            estimateHeight={120}
-            overscan={3}
-          >
-            {#snippet children({ item: comment, index: i })}
-              <CommentCard
-                {comment}
-                author={vm.authorDisplayFor(comment.pubkey)}
-                index={i}
-                showPosition={false}
-                stats={vm.statsFor(comment.id)}
-                myReaction={vm.myReactionFor(comment.id)}
-                isOwn={vm.isOwn(comment.pubkey)}
-                acting={vm.isActing(comment.id)}
-                loggedIn={vm.loggedIn}
-                revealedCW={vm.isRevealed(comment.id)}
-                canMute={vm.canMute}
-                popoverId={getPopoverId(comment.id)}
-                replyOpen={vm.isReplyOpen(comment.id)}
-                bind:replyContent={vm.replyContent}
-                bind:replyEmojiTags={vm.replyEmojiTags}
-                replySending={vm.replySending}
-                replies={vm.replyMap.get(comment.id) ?? []}
-                getAuthorDisplay={vm.authorDisplayFor}
-                getStats={vm.statsFor}
-                getMyReaction={vm.myReactionFor}
-                isActing={vm.isActing}
-                isRevealed={vm.isRevealed}
-                {getPopoverId}
-                onReaction={vm.sendReaction}
-                onDelete={vm.requestDelete}
-                onReply={vm.startReply}
-                onCancelReply={vm.cancelReply}
-                onSubmitReply={vm.submitReply}
-                onSeek={vm.seekToPosition}
-                onRevealCW={vm.revealCW}
-                onHideCW={vm.hideCW}
-                onMute={vm.requestMute}
-                onReplyContentChange={(content) => (vm.replyContent = content)}
-                onReplyEmojiTagsChange={(tags) => (vm.replyEmojiTags = tags)}
-              />
-            {/snippet}
-          </VirtualScrollList>
-        </div>
+        {#if vm.generalComments.length > 0}
+          <div class="max-h-[400px] overflow-hidden rounded-xl border border-border-subtle">
+            <VirtualScrollList
+              items={vm.generalComments}
+              keyFn={(c) => c.id}
+              estimateHeight={120}
+              overscan={3}
+            >
+              {#snippet children({ item: comment, index: i })}
+                <CommentCard
+                  {comment}
+                  author={vm.authorDisplayFor(comment.pubkey)}
+                  index={i}
+                  showPosition={false}
+                  stats={vm.statsFor(comment.id)}
+                  myReaction={vm.myReactionFor(comment.id)}
+                  isOwn={vm.isOwn(comment.pubkey)}
+                  acting={vm.isActing(comment.id)}
+                  loggedIn={vm.loggedIn}
+                  revealedCW={vm.isRevealed(comment.id)}
+                  canMute={vm.canMute}
+                  popoverId={getPopoverId(comment.id)}
+                  replyOpen={vm.isReplyOpen(comment.id)}
+                  bind:replyContent={vm.replyContent}
+                  bind:replyEmojiTags={vm.replyEmojiTags}
+                  replySending={vm.replySending}
+                  replies={vm.replyMap.get(comment.id) ?? []}
+                  getAuthorDisplay={vm.authorDisplayFor}
+                  getStats={vm.statsFor}
+                  getMyReaction={vm.myReactionFor}
+                  isActing={vm.isActing}
+                  isRevealed={vm.isRevealed}
+                  {getPopoverId}
+                  onReaction={vm.sendReaction}
+                  onDelete={vm.requestDelete}
+                  onReply={vm.startReply}
+                  onCancelReply={vm.cancelReply}
+                  onSubmitReply={vm.submitReply}
+                  onSeek={vm.seekToPosition}
+                  onRevealCW={vm.revealCW}
+                  onHideCW={vm.hideCW}
+                  onMute={vm.requestMute}
+                  onReplyContentChange={(content) => (vm.replyContent = content)}
+                  onReplyEmojiTagsChange={(tags) => (vm.replyEmojiTags = tags)}
+                />
+              {/snippet}
+            </VirtualScrollList>
+          </div>
+        {/if}
       </section>
     {/if}
   {/if}
