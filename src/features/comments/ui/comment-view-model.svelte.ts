@@ -9,9 +9,14 @@
  */
 
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
-import type { Comment, Reaction } from '../domain/comment-model.js';
+import type { Comment, PlaceholderComment, Reaction } from '../domain/comment-model.js';
 import type { ReactionStats } from '../domain/comment-model.js';
-import { commentFromEvent, reactionFromEvent } from '../domain/comment-mappers.js';
+import {
+  commentFromEvent,
+  reactionFromEvent,
+  placeholderFromOrphan
+} from '../domain/comment-mappers.js';
+import { cachedFetchById } from '$shared/nostr/cached-query.js';
 import {
   emptyStats,
   applyReaction as applyReactionImmutable,
@@ -50,6 +55,8 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
 
   let deletedIds = $state<Set<string>>(new Set());
   let loading = $state(true);
+  let placeholders = $state<Map<string, PlaceholderComment>>(new Map());
+  let fetchedParentIds = new Set<string>();
 
   let prevDeletedSize = 0;
   let destroyed = false;
@@ -117,6 +124,16 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     const toPurge = verified.filter((id) => commentIds.has(id) || reactionIds.has(id));
     if (toPurge.length > 0) void purgeDeletedFromCache(eventsDB!, toPurge);
     log.debug('Deletion event received', { deletedIds: verified.map(shortHex) });
+
+    // Update orphan placeholders to 'deleted' when kind:5 arrives later
+    for (const id of verified) {
+      const ph = placeholders.get(id);
+      if (ph && ph.status !== 'deleted') {
+        const updated = new Map(placeholders);
+        updated.set(id, { ...ph, status: 'deleted' });
+        placeholders = updated;
+      }
+    }
   }
 
   function dispatchPacket(event: CachedEvent) {
@@ -340,6 +357,38 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     subscriptions.push(sub);
   }
 
+  async function fetchOrphanParent(parentId: string, estimatedPositionMs: number | null) {
+    if (fetchedParentIds.has(parentId) || commentIds.has(parentId)) return;
+    fetchedParentIds.add(parentId);
+
+    // Register loading placeholder
+    const next = new Map(placeholders);
+    next.set(parentId, placeholderFromOrphan(parentId, estimatedPositionMs));
+    placeholders = next;
+
+    const result = await cachedFetchById(parentId);
+
+    if (destroyed) return;
+
+    if (result && result.kind === COMMENT_KIND) {
+      // Success → merge into commentsRaw, remove placeholder
+      if (!commentIds.has(result.id)) {
+        commentIds.add(result.id);
+        eventPubkeys.set(result.id, result.pubkey);
+        commentsRaw = [...commentsRaw, commentFromEvent(result)];
+      }
+      const updated = new Map(placeholders);
+      updated.delete(parentId);
+      placeholders = updated;
+    } else {
+      // Failed or non-comment kind
+      const status = deletedIds.has(parentId) ? 'deleted' : 'not-found';
+      const updated = new Map(placeholders);
+      updated.set(parentId, { ...placeholders.get(parentId)!, status });
+      placeholders = updated;
+    }
+  }
+
   function destroy() {
     log.info('Destroying comment subscriptions');
     destroyed = true;
@@ -363,6 +412,8 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     reactionIds = new Set();
     reactionIndex = new Map();
     deletedIds = new Set();
+    placeholders = new Map();
+    fetchedParentIds = new Set();
     prevDeletedSize = 0;
     eventPubkeys.clear();
   }
@@ -380,8 +431,12 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     get loading() {
       return loading;
     },
+    get placeholders() {
+      return placeholders;
+    },
     subscribe,
     addSubscription,
+    fetchOrphanParent,
     destroy
   };
 }

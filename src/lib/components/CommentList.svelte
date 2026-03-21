@@ -1,6 +1,10 @@
 <script lang="ts">
   import { useCommentProfilePreload } from '$features/comments/ui/comment-profile-preload.svelte.js';
-  import type { Comment, PlaceholderComment, ReactionStats } from '$features/comments/domain/comment-model.js';
+  import type {
+    Comment,
+    PlaceholderComment,
+    ReactionStats
+  } from '$features/comments/domain/comment-model.js';
   import { createCommentListViewModel } from '$features/comments/ui/comment-list-view-model.svelte.js';
   import { allocateEmojiPopoverId } from './emoji-popover-id.js';
   import WaveformLoader from './WaveformLoader.svelte';
@@ -22,7 +26,15 @@
     fetchOrphanParent?: (parentId: string, positionMs: number | null) => void;
   }
 
-  let { comments, reactionIndex, contentId, provider, loading = false, getPlaceholders, fetchOrphanParent }: Props = $props();
+  let {
+    comments,
+    reactionIndex,
+    contentId,
+    provider,
+    loading = false,
+    getPlaceholders,
+    fetchOrphanParent
+  }: Props = $props();
 
   // --- Virtual scroll auto-scroll ---
   let timedVirtualList = $state<VirtualScrollList<Comment> | undefined>();
