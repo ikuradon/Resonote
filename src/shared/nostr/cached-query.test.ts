@@ -36,6 +36,7 @@ import { cachedFetchById, resetFetchByIdCache } from './cached-query.svelte.js';
 
 describe('cachedFetchById', () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     resetFetchByIdCache();
     dbGetByIdMock.mockClear();
     dbGetByIdMock.mockResolvedValue(null);
@@ -81,7 +82,5 @@ describe('cachedFetchById', () => {
     dbGetByIdMock.mockResolvedValueOnce({ id: 'e3', content: 'found', kind: 1 });
     const result3 = await cachedFetchById('event-3');
     expect(result3).toEqual({ content: 'found', kind: 1 });
-
-    vi.restoreAllMocks();
   });
 });

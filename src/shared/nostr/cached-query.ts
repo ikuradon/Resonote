@@ -5,7 +5,6 @@
 
 export {
   cachedFetchById,
-  resetFetchByIdCache,
   useCachedLatest,
   type UseCachedLatestResult
 } from './cached-query.svelte.js';
