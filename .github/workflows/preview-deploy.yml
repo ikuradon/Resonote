@@ -137,7 +137,7 @@ jobs:
 
           # Update existing comment or create new one
           COMMENT_ID=$(gh pr view "$PR_NUMBER" --json comments --repo "$REPO" \
-            --jq '[.comments[] | select((.author.login | startswith("github-actions")) and (.body | contains("<!-- preview-deploy -->"))) | .id] | last // ""')
+            --jq '[.comments[] | select((.author.login | startswith("github-actions")) and (.body | contains("<!-- preview-deploy -->"))) | .url | split("issuecomment-") | last] | last // ""')
 
           if [[ -n "$COMMENT_ID" ]]; then
             gh api "repos/$REPO/issues/comments/$COMMENT_ID" -X PATCH -f body="$BODY" --silent
