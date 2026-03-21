@@ -30,9 +30,7 @@ const TEST_PUBKEY = 'abcdef1234567890abcdef1234567890abcdef1234567890abcdef12345
 let fakeDocument: EventTarget;
 
 function dispatchNlAuth(type: string) {
-  const event = new Event('nlAuth');
-  Object.defineProperty(event, 'detail', { value: { type } });
-  fakeDocument.dispatchEvent(event);
+  fakeDocument.dispatchEvent(new CustomEvent('nlAuth', { detail: { type } }));
 }
 
 beforeEach(() => {
@@ -234,7 +232,7 @@ describe('window.nostr が未定義の場合', () => {
     // クラッシュしないことを確認
     dispatchNlAuth('login');
     // 少し待っても pubkey は null のまま
-    await new Promise((r) => setTimeout(r, 20));
+    await Promise.resolve();
     expect(getAuth().pubkey).toBeNull();
   });
 
@@ -249,7 +247,7 @@ describe('window.nostr が未定義の場合', () => {
     await initAuth();
 
     dispatchNlAuth('login');
-    await new Promise((r) => setTimeout(r, 20));
+    await Promise.resolve();
     expect(getAuth().pubkey).toBeNull();
   });
 });
