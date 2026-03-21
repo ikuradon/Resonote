@@ -268,6 +268,49 @@ describe('createCommentListViewModel', () => {
     expect(sendReplyMock).toHaveBeenCalledWith(expect.objectContaining({ positionMs: undefined }));
   });
 
+  describe('orphan parent detection', () => {
+    it('detects orphan replies whose parent is not in comments', () => {
+      const orphanReply = createComment({
+        id: 'reply-1',
+        pubkey: 'me',
+        content: 'orphan reply',
+        replyTo: 'missing-parent',
+        positionMs: 15_000
+      });
+      const opts = {
+        getComments: () => [orphanReply],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      };
+      const vm = createCommentListViewModel(opts);
+      expect(vm.orphanParentIds).toContain('missing-parent');
+    });
+
+    it('does not detect orphan when parent exists in comments', () => {
+      const parent = createComment({
+        id: 'parent-1',
+        pubkey: 'me',
+        content: 'parent',
+        positionMs: 10_000
+      });
+      const reply = createComment({
+        id: 'reply-1',
+        pubkey: 'me',
+        content: 'reply',
+        replyTo: 'parent-1'
+      });
+      const opts = {
+        getComments: () => [parent, reply],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      };
+      const vm = createCommentListViewModel(opts);
+      expect(vm.orphanParentIds).toHaveLength(0);
+    });
+  });
+
   it('should handle mute confirmation and seek dispatch', async () => {
     const comment = createComment({
       id: 'comment-1',

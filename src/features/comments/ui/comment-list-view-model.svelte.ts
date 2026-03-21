@@ -14,7 +14,11 @@ import {
 import { toastSuccess, toastError } from '$shared/browser/toast.js';
 import { createLogger } from '$shared/utils/logger.js';
 import { t } from '$shared/i18n/t.js';
-import type { Comment, ReactionStats } from '$features/comments/domain/comment-model.js';
+import type {
+  Comment,
+  PlaceholderComment,
+  ReactionStats
+} from '$features/comments/domain/comment-model.js';
 import { emptyStats } from '$features/comments/domain/reaction-rules.js';
 import {
   sendReaction as sendReactionAction,
@@ -37,6 +41,8 @@ interface CommentListViewModelOptions {
   getContentId: () => ContentId;
   getProvider: () => ContentProvider;
   getTimedList?: () => TimedListScroller | undefined;
+  getPlaceholders?: () => Map<string, PlaceholderComment>;
+  fetchOrphanParent?: (parentId: string, positionMs: number | null) => void;
 }
 
 export function createCommentListViewModel(options: CommentListViewModelOptions) {
@@ -92,6 +98,34 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
       arr.sort((a, b) => a.createdAt - b.createdAt);
     }
     return map;
+  });
+
+  let orphanParentIds = $derived.by(() => {
+    const allComments = options.getComments();
+    const commentIdSet = new Set(allComments.map((c) => c.id));
+    const orphans: string[] = [];
+    for (const c of allComments) {
+      if (c.replyTo !== null && !commentIdSet.has(c.replyTo)) {
+        if (!orphans.includes(c.replyTo)) orphans.push(c.replyTo);
+      }
+    }
+    return orphans;
+  });
+
+  let orphanParents = $derived.by(() => {
+    const pMap = options.getPlaceholders?.() ?? new Map();
+    return orphanParentIds
+      .map((id) => pMap.get(id))
+      .filter((p): p is PlaceholderComment => p !== undefined);
+  });
+
+  $effect(() => {
+    for (const parentId of orphanParentIds) {
+      const estimatedPosition =
+        options.getComments().find((c) => c.replyTo === parentId && c.positionMs !== null)
+          ?.positionMs ?? null;
+      options.fetchOrphanParent?.(parentId, estimatedPosition);
+    }
   });
 
   $effect(() => {
@@ -344,6 +378,12 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
     },
     get muteCount() {
       return muteList.mutedPubkeys.size;
+    },
+    get orphanParentIds() {
+      return orphanParentIds;
+    },
+    get orphanParents() {
+      return orphanParents;
     },
     setFollowFilter,
     handleTimedRangeChange,
