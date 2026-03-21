@@ -243,7 +243,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
           refs,
           cachedIds,
           (event) => {
-            eventsDB?.put(event as CachedEvent);
+            eventsDB?.put(event);
             for (const id of extractDeletionTargets(event)) {
               const originalPubkey = eventPubkeys.get(id);
               if (!originalPubkey || originalPubkey === event.pubkey) {

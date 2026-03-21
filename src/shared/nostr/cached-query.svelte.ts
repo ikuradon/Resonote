@@ -3,12 +3,29 @@ import { createLogger, shortHex } from '$shared/utils/logger.js';
 const log = createLogger('cached-nostr');
 
 const fetchByIdCache = new Map<string, { content: string; kind: number } | null>();
+const inflight = new Map<string, Promise<{ content: string; kind: number } | null>>();
 
 export async function cachedFetchById(
   eventId: string
 ): Promise<{ content: string; kind: number } | null> {
   if (fetchByIdCache.has(eventId)) return fetchByIdCache.get(eventId)!;
 
+  // Dedup: if another call for the same eventId is already in flight, await it
+  const pending = inflight.get(eventId);
+  if (pending) return pending;
+
+  const promise = cachedFetchByIdInner(eventId);
+  inflight.set(eventId, promise);
+  try {
+    return await promise;
+  } finally {
+    inflight.delete(eventId);
+  }
+}
+
+async function cachedFetchByIdInner(
+  eventId: string
+): Promise<{ content: string; kind: number } | null> {
   try {
     const { getEventsDB } = await import('$shared/nostr/gateway.js');
     const db = await getEventsDB();

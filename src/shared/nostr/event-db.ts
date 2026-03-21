@@ -131,6 +131,14 @@ export class EventsDB {
     return true;
   }
 
+  /**
+   * Batch insert events. Regular events are written in a single transaction
+   * for performance. Replaceable events (NIP-01 kinds 0/3/10000-19999/30000-39999)
+   * use individual put() calls because each needs a read-then-write to enforce
+   * the "keep latest only" rule. The two groups are intentionally in separate
+   * transactions — partial failure of one group does not roll back the other,
+   * which is acceptable because events are idempotent and will be re-fetched.
+   */
   async putMany(events: NostrEvent[]): Promise<void> {
     const replaceable: NostrEvent[] = [];
     const regular: StoredEvent[] = [];

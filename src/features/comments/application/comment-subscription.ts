@@ -135,22 +135,44 @@ export function startMergedSubscription(
 /**
  * Reconcile offline deletions by querying kind:5 events targeting cached event IDs.
  */
+/** Full Nostr event shape for deletion reconcile (matches runtime packet.event). */
+export interface DeletionEvent {
+  id: string;
+  pubkey: string;
+  content: string;
+  created_at: number;
+  tags: string[][];
+  kind: number;
+}
+
 export function startDeletionReconcile(
   refs: SubscriptionRefs,
   cachedIds: string[],
-  onDeletionEvent: (event: { id: string; pubkey: string; tags: string[][] }) => void,
+  onDeletionEvent: (event: DeletionEvent) => void,
   onComplete: () => void
 ): { sub: SubscriptionHandle; timeout: ReturnType<typeof setTimeout> } {
   const { createRxBackwardReq, uniq } = refs.rxNostrMod;
   const CHUNK_SIZE = 50;
   const reconcileBackward = createRxBackwardReq();
 
-  const sub = refs.rxNostr
+  let completed = false;
+  function finish() {
+    if (completed) return;
+    completed = true;
+    clearTimeout(timeout);
+    sub.unsubscribe();
+    onComplete();
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sub = (refs.rxNostr as any)
     .use(reconcileBackward)
     .pipe(uniq())
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .subscribe((packet: any) => {
-      onDeletionEvent(packet.event);
+    .subscribe({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      next: (packet: any) => onDeletionEvent(packet.event),
+      complete: () => finish(),
+      error: () => finish()
     });
 
   for (let i = 0; i < cachedIds.length; i += CHUNK_SIZE) {
@@ -158,10 +180,8 @@ export function startDeletionReconcile(
   }
   reconcileBackward.over();
 
-  const timeout = setTimeout(() => {
-    sub.unsubscribe();
-    onComplete();
-  }, 5000);
+  // Fallback timeout in case EOSE never arrives
+  const timeout = setTimeout(() => finish(), 5000);
 
   return { sub, timeout };
 }
