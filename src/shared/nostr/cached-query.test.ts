@@ -83,4 +83,27 @@ describe('cachedFetchById', () => {
     const result3 = await cachedFetchById('event-3');
     expect(result3).toEqual({ content: 'found', kind: 1 });
   });
+
+  it('re-caches null after TTL expires and retry still returns null', async () => {
+    const now = Date.now();
+    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
+
+    // First call: returns null, populates nullCacheTimestamps
+    const result1 = await cachedFetchById('event-4');
+    expect(result1).toBeNull();
+
+    // After TTL: retries but still null
+    dateSpy.mockReturnValue(now + 31_000);
+    const callsBeforeRetry = dbGetByIdMock.mock.calls.length;
+    const result2 = await cachedFetchById('event-4');
+    expect(result2).toBeNull();
+    expect(dbGetByIdMock.mock.calls.length).toBeGreaterThan(callsBeforeRetry);
+
+    // Within new TTL window: should be cached again (no extra DB call)
+    dateSpy.mockReturnValue(now + 40_000);
+    const callsAfterRetry = dbGetByIdMock.mock.calls.length;
+    const result3 = await cachedFetchById('event-4');
+    expect(result3).toBeNull();
+    expect(dbGetByIdMock).toHaveBeenCalledTimes(callsAfterRetry);
+  });
 });
