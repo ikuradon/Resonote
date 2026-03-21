@@ -3,7 +3,7 @@ import type { ContentId } from '$shared/content/types.js';
 
 const { castSignedMock, fetchLatestEventMock, logInfoMock } = vi.hoisted(() => ({
   castSignedMock: vi.fn(async () => {}),
-  fetchLatestEventMock: vi.fn(async () => null),
+  fetchLatestEventMock: vi.fn(async (): Promise<Record<string, unknown> | null> => null),
   logInfoMock: vi.fn()
 }));
 
@@ -17,11 +17,7 @@ vi.mock('$shared/utils/logger.js', () => ({
   shortHex: (hex: string) => hex.slice(0, 8)
 }));
 
-import {
-  loadBookmarks,
-  publishAddBookmark,
-  publishRemoveBookmark
-} from './bookmark-actions.js';
+import { loadBookmarks, publishAddBookmark, publishRemoveBookmark } from './bookmark-actions.js';
 
 const MY_PUBKEY = 'my-pubkey-1234';
 const contentId: ContentId = { platform: 'spotify', type: 'track', id: 'track-1' };

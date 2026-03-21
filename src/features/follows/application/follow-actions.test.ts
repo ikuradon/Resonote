@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { castSignedMock, fetchLatestEventMock, logInfoMock } = vi.hoisted(() => ({
   castSignedMock: vi.fn(async () => {}),
-  fetchLatestEventMock: vi.fn(async () => null),
+  fetchLatestEventMock: vi.fn(async (): Promise<Record<string, unknown> | null> => null),
   logInfoMock: vi.fn()
 }));
 
@@ -52,7 +52,10 @@ describe('publishFollow', () => {
     await publishFollow(TARGET_PUBKEY, MY_PUBKEY);
     expect(castSignedMock).toHaveBeenCalledWith({
       kind: FOLLOW_KIND,
-      tags: [['p', 'other-pubkey'], ['p', TARGET_PUBKEY]],
+      tags: [
+        ['p', 'other-pubkey'],
+        ['p', TARGET_PUBKEY]
+      ],
       content: 'relay hints'
     });
   });
@@ -107,7 +110,10 @@ describe('publishUnfollow', () => {
 
   it('removes p-tag from existing follow list', async () => {
     const existing = {
-      tags: [['p', 'other-pubkey'], ['p', TARGET_PUBKEY]],
+      tags: [
+        ['p', 'other-pubkey'],
+        ['p', TARGET_PUBKEY]
+      ],
       content: ''
     };
     fetchLatestEventMock.mockResolvedValueOnce(existing);
@@ -147,7 +153,10 @@ describe('publishUnfollow', () => {
 
   it('does not remove unrelated tags (non-p tags)', async () => {
     const existing = {
-      tags: [['p', TARGET_PUBKEY], ['r', 'wss://relay.example.com']],
+      tags: [
+        ['p', TARGET_PUBKEY],
+        ['r', 'wss://relay.example.com']
+      ],
       content: ''
     };
     fetchLatestEventMock.mockResolvedValueOnce(existing);
