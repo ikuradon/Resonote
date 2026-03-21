@@ -18,7 +18,8 @@ export async function resolveEncodedNavigation(
 
     if (data.error) {
       return {
-        errorKey: data.error === 'rss_not_found' ? 'resolve.error.not_found' : 'resolve.error.parse_failed'
+        errorKey:
+          data.error === 'rss_not_found' ? 'resolve.error.not_found' : 'resolve.error.parse_failed'
       };
     }
 

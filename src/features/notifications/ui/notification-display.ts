@@ -10,7 +10,10 @@ export interface ReactionDisplay {
   url?: string;
 }
 
-export type NotificationActorDisplay = Pick<ProfileDisplay, 'displayName' | 'picture' | 'profileHref'>;
+export type NotificationActorDisplay = Pick<
+  ProfileDisplay,
+  'displayName' | 'picture' | 'profileHref'
+>;
 
 export interface NotificationItemDisplay {
   actor: NotificationActorDisplay;

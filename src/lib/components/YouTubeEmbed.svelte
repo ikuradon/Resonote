@@ -17,10 +17,7 @@
 
 <script lang="ts">
   import { createAsyncReadyTimeout } from '$shared/browser/async-ready-timeout.js';
-  import {
-    startIntervalTask,
-    type IntervalTaskHandle
-  } from '$shared/browser/interval-task.js';
+  import { startIntervalTask, type IntervalTaskHandle } from '$shared/browser/interval-task.js';
   import type { ContentId } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
   import { updatePlayback } from '$shared/browser/player.js';

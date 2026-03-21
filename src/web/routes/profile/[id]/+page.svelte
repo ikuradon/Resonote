@@ -40,7 +40,5 @@
     />
   </div>
 
-  <ConfirmDialog
-    {...vm.confirmDialog}
-  />
+  <ConfirmDialog {...vm.confirmDialog} />
 {/if}

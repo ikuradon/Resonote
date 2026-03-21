@@ -1,8 +1,4 @@
-import {
-  detectExtension,
-  isExtensionMode,
-  requestOpenContent
-} from '$shared/browser/extension.js';
+import { detectExtension, isExtensionMode, requestOpenContent } from '$shared/browser/extension.js';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import { getEmbedComponentLoader } from './embed-component-loader.js';
 import { resolvePlayerSurface } from './player-surface.js';

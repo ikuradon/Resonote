@@ -203,11 +203,8 @@ export default ts.config(
                 'Routes should use moved $shared public content/helpers instead of compat wrappers in $lib.'
             },
             {
-              group: [
-                '$lib/stores/*.svelte.js'
-              ],
-              message:
-                'Routes should use $shared/$features facades, not legacy $lib/stores.'
+              group: ['$lib/stores/*.svelte.js'],
+              message: 'Routes should use $shared/$features facades, not legacy $lib/stores.'
             }
           ]
         }
@@ -253,10 +250,7 @@ export default ts.config(
                 'Components should use moved $shared public content/helpers instead of compat wrappers in $lib.'
             },
             {
-              group: [
-                '../stores/*.svelte.js',
-                '$lib/stores/*.svelte.js',
-              ],
+              group: ['../stores/*.svelte.js', '$lib/stores/*.svelte.js'],
               message:
                 'Components must use $shared/$features facades for stateful stores, not legacy store modules.'
             }
@@ -369,9 +363,7 @@ export default ts.config(
   },
   // Shared content owners: moved core helpers must not drift back to legacy lib/content
   {
-    files: [
-      'src/shared/content/*.ts'
-    ],
+    files: ['src/shared/content/*.ts'],
     rules: {
       'no-restricted-imports': [
         'error',

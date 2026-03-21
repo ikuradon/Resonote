@@ -93,7 +93,9 @@ vi.mock('$features/comments/application/comment-actions.js', () => ({
 
 import { createCommentListViewModel } from './comment-list-view-model.svelte.js';
 
-function createComment(partial: Partial<Comment> & Pick<Comment, 'id' | 'pubkey' | 'content'>): Comment {
+function createComment(
+  partial: Partial<Comment> & Pick<Comment, 'id' | 'pubkey' | 'content'>
+): Comment {
   return {
     id: partial.id,
     pubkey: partial.pubkey,
@@ -222,7 +224,12 @@ describe('createCommentListViewModel', () => {
   });
 
   it('should handle mute confirmation and seek dispatch', async () => {
-    const comment = createComment({ id: 'comment-1', pubkey: 'target', content: 'hello', positionMs: 5_000 });
+    const comment = createComment({
+      id: 'comment-1',
+      pubkey: 'target',
+      content: 'hello',
+      positionMs: 5_000
+    });
     const vm = createCommentListViewModel({
       getComments: () => [comment],
       getReactionIndex: () => new Map(),

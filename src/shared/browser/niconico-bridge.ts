@@ -77,9 +77,7 @@ export function seekNiconicoPlayer(iframeEl: HTMLIFrameElement, positionMs: numb
   );
 }
 
-export function onNiconicoMessage(
-  callback: (message: NiconicoPlayerMessage) => void
-): () => void {
+export function onNiconicoMessage(callback: (message: NiconicoPlayerMessage) => void): () => void {
   function handler(event: MessageEvent): void {
     const message = parseNiconicoMessage(event);
     if (message) {

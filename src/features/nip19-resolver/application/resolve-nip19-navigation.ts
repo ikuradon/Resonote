@@ -4,10 +4,7 @@ import { fetchNostrEvent } from './fetch-event.js';
 
 const VALID_PREFIXES = ['npub1', 'nprofile1', 'nevent1', 'note1', 'ncontent1'];
 
-export type Nip19NavigationErrorKey =
-  | 'nip19.invalid'
-  | 'nip19.not_found'
-  | 'nip19.not_comment';
+export type Nip19NavigationErrorKey = 'nip19.invalid' | 'nip19.not_found' | 'nip19.not_comment';
 
 export type ResolveNip19NavigationResult =
   | { kind: 'redirect'; path: string }
@@ -46,13 +43,16 @@ export async function resolveNip19Navigation(value: string): Promise<ResolveNip1
     case 'note':
     case 'nevent': {
       try {
-        const event = await fetchNostrEvent(decoded.eventId, 'relays' in decoded ? decoded.relays : []);
+        const event = await fetchNostrEvent(
+          decoded.eventId,
+          'relays' in decoded ? decoded.relays : []
+        );
         if (!event) {
           return { kind: 'error', errorKey: 'nip19.not_found' };
         }
 
         const iTag = event.tags.find((tag) => tag[0] === 'I' && tag[1]);
-        const contentPath = iTag ? iTagToContentPath(iTag[1]) ?? undefined : undefined;
+        const contentPath = iTag ? (iTagToContentPath(iTag[1]) ?? undefined) : undefined;
 
         if (event.kind !== 1111) {
           return {

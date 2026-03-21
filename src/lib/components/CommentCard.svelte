@@ -132,9 +132,8 @@
           ?
         </div>
       {/if}
-      <a
-        href={author.profileHref}
-        class="text-xs font-medium text-accent hover:underline">{author.displayName}</a
+      <a href={author.profileHref} class="text-xs font-medium text-accent hover:underline"
+        >{author.displayName}</a
       >
       {#if author.formattedNip05}
         <span class="text-xs text-text-muted" title={author.nip05 ?? ''}>

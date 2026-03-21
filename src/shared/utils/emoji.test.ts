@@ -14,7 +14,9 @@ describe('parseEmojiContent', () => {
 
   it('should replace matching shortcodes with emoji segments', () => {
     expect(
-      parseEmojiContent('hello :sushi: world', [['emoji', 'sushi', 'https://example.com/sushi.png']])
+      parseEmojiContent('hello :sushi: world', [
+        ['emoji', 'sushi', 'https://example.com/sushi.png']
+      ])
     ).toEqual([
       { type: 'text', value: 'hello ' },
       { type: 'emoji', shortcode: 'sushi', url: 'https://example.com/sushi.png' },
@@ -37,7 +39,9 @@ describe('parseEmojiContent', () => {
 
   it('should keep content as text when shortcode tags are missing', () => {
     expect(
-      parseEmojiContent('hello :unknown: world', [['emoji', 'sushi', 'https://example.com/sushi.png']])
+      parseEmojiContent('hello :unknown: world', [
+        ['emoji', 'sushi', 'https://example.com/sushi.png']
+      ])
     ).toEqual([{ type: 'text', value: 'hello :unknown: world' }]);
   });
 

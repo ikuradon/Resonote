@@ -57,9 +57,7 @@ describe('formatNip05', () => {
   });
 
   it('should truncate long values when requested', () => {
-    expect(formatNip05('very.long.identifier@example.com', true)).toBe(
-      'very.long.identifi…'
-    );
+    expect(formatNip05('very.long.identifier@example.com', true)).toBe('very.long.identifi…');
   });
 });
 

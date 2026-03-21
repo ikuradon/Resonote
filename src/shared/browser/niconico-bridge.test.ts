@@ -68,12 +68,10 @@ describe('onNiconicoMessage', () => {
     const seen: NiconicoPlayerMessage[] = [];
     const cleanup = onNiconicoMessage((message) => seen.push(message));
 
-    dispatchMessage(
-      {
-        origin: 'https://embed.nicovideo.jp',
-        data: { eventName: 'loadComplete' }
-      } as MessageEvent
-    );
+    dispatchMessage({
+      origin: 'https://embed.nicovideo.jp',
+      data: { eventName: 'loadComplete' }
+    } as MessageEvent);
 
     cleanup();
     expect(seen).toEqual([{ type: 'ready' }]);
@@ -84,24 +82,20 @@ describe('onNiconicoMessage', () => {
     const seen: NiconicoPlayerMessage[] = [];
     const cleanup = onNiconicoMessage((message) => seen.push(message));
 
-    dispatchMessage(
-      {
-        origin: 'https://embed.nicovideo.jp',
-        data: {
-          eventName: 'playerMetadataChange',
-          data: { currentTime: 12, duration: 30 }
-        }
-      } as MessageEvent
-    );
-    dispatchMessage(
-      {
-        origin: 'https://embed.nicovideo.jp',
-        data: {
-          eventName: 'playerStatusChange',
-          data: { currentTime: 15, duration: 30, playerStatus: 3 }
-        }
-      } as MessageEvent
-    );
+    dispatchMessage({
+      origin: 'https://embed.nicovideo.jp',
+      data: {
+        eventName: 'playerMetadataChange',
+        data: { currentTime: 12, duration: 30 }
+      }
+    } as MessageEvent);
+    dispatchMessage({
+      origin: 'https://embed.nicovideo.jp',
+      data: {
+        eventName: 'playerStatusChange',
+        data: { currentTime: 15, duration: 30, playerStatus: 3 }
+      }
+    } as MessageEvent);
 
     cleanup();
     expect(seen).toEqual([
@@ -115,12 +109,10 @@ describe('onNiconicoMessage', () => {
     const callback = vi.fn();
     const cleanup = onNiconicoMessage(callback);
 
-    dispatchMessage(
-      {
-        origin: 'https://example.com',
-        data: { eventName: 'loadComplete' }
-      } as MessageEvent
-    );
+    dispatchMessage({
+      origin: 'https://example.com',
+      data: { eventName: 'loadComplete' }
+    } as MessageEvent);
 
     cleanup();
     expect(callback).not.toHaveBeenCalled();

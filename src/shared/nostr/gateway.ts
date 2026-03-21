@@ -33,7 +33,11 @@ export type { EventParameters };
 
 // --- Publish ---
 export { castSigned } from './client.js';
-export { publishSignedEvent, publishSignedEvents, retryPendingPublishes } from './publish-signed.js';
+export {
+  publishSignedEvent,
+  publishSignedEvents,
+  retryPendingPublishes
+} from './publish-signed.js';
 
 // --- Query ---
 export { fetchLatestEvent, getRxNostr } from './client.js';

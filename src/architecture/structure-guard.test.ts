@@ -44,18 +44,14 @@ function walk(dir: string): string[] {
 }
 
 function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/^\s*\/\/.*$/gm, '');
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 }
 
 function collectSpecifiers(source: string): string[] {
   const stripped = stripComments(source);
   const specifiers = new Set<string>();
 
-  for (const match of stripped.matchAll(
-    /^\s*(?:import|export)\s.+?\sfrom\s+['"]([^'"]+)['"]/gm
-  )) {
+  for (const match of stripped.matchAll(/^\s*(?:import|export)\s.+?\sfrom\s+['"]([^'"]+)['"]/gm)) {
     specifiers.add(match[1]);
   }
 

@@ -26,10 +26,7 @@
         <div
           class="flex items-center gap-3 rounded-xl border border-border-subtle bg-surface-0 px-4 py-3"
         >
-          <a
-            href={user.profileHref}
-            class="flex-1 truncate text-sm text-accent hover:underline"
-          >
+          <a href={user.profileHref} class="flex-1 truncate text-sm text-accent hover:underline">
             {user.displayName}
           </a>
           <button
@@ -103,6 +100,4 @@
   </div>
 </section>
 
-<ConfirmDialog
-  {...vm.confirmDialog}
-/>
+<ConfirmDialog {...vm.confirmDialog} />

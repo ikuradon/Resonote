@@ -30,9 +30,9 @@ body:
       label: 検証方針
       description: 必要なものにチェックしてください
       options:
-        - label: `pnpm check:structure` を確認する
-        - label: `pnpm graph:imports:summary` を確認する
-        - label: `pnpm perf:bundle:summary` を確認する
+        - label: 'pnpm check:structure を確認する'
+        - label: 'pnpm graph:imports:summary を確認する'
+        - label: 'pnpm perf:bundle:summary を確認する'
   - type: textarea
     id: additional
     attributes:

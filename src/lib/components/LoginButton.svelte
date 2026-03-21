@@ -7,10 +7,7 @@
 
 {#if vm.auth.loggedIn && vm.auth.pubkey}
   <div class="flex items-center gap-3">
-    <a
-      href={vm.profileHref}
-      class="flex items-center gap-2 transition-opacity hover:opacity-80"
-    >
+    <a href={vm.profileHref} class="flex items-center gap-2 transition-opacity hover:opacity-80">
       {#if vm.profileDisplay?.picture}
         <img
           src={vm.profileDisplay.picture}

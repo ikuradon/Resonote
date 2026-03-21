@@ -95,7 +95,8 @@
                 author={vm.authorDisplayFor(comment.pubkey)}
                 index={i}
                 showPosition={true}
-                nearCurrent={comment.positionMs !== null && vm.isNearCurrentPosition(comment.positionMs)}
+                nearCurrent={comment.positionMs !== null &&
+                  vm.isNearCurrentPosition(comment.positionMs)}
                 stats={vm.statsFor(comment.id)}
                 myReaction={vm.myReactionFor(comment.id)}
                 isOwn={vm.isOwn(comment.pubkey)}

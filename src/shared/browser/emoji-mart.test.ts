@@ -6,25 +6,31 @@ const { dbState, openDBMock, pickerModule, rawData } = vi.hoisted(() => ({
     putCalls: [] as unknown[],
     clearCalls: 0
   },
-  openDBMock: vi.fn(async (_name: string, _version: number, options?: { upgrade?: (db: { createObjectStore(name: string): void }) => void }) => {
-    options?.upgrade?.({
-      createObjectStore() {
-        // noop
-      }
-    });
-    return {
-      get: vi.fn(async () => dbState.cachedData),
-      clear: vi.fn(async () => {
-        dbState.clearCalls += 1;
-        dbState.cachedData = null;
-      }),
-      put: vi.fn(async (_store: string, data: unknown) => {
-        dbState.putCalls.push(data);
-        dbState.cachedData = data;
-      }),
-      close: vi.fn()
-    };
-  }),
+  openDBMock: vi.fn(
+    async (
+      _name: string,
+      _version: number,
+      options?: { upgrade?: (db: { createObjectStore(name: string): void }) => void }
+    ) => {
+      options?.upgrade?.({
+        createObjectStore() {
+          // noop
+        }
+      });
+      return {
+        get: vi.fn(async () => dbState.cachedData),
+        clear: vi.fn(async () => {
+          dbState.clearCalls += 1;
+          dbState.cachedData = null;
+        }),
+        put: vi.fn(async (_store: string, data: unknown) => {
+          dbState.putCalls.push(data);
+          dbState.cachedData = data;
+        }),
+        close: vi.fn()
+      };
+    }
+  ),
   pickerModule: {
     Picker: class Picker {}
   },

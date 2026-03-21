@@ -27,7 +27,10 @@ export function resolvePlayerSurface(options: ResolvePlayerSurfaceOptions): Play
     return { kind: 'podcast-feed' };
   }
 
-  if (contentId.platform === 'audio' || (contentId.platform === 'podcast' && contentId.type === 'episode')) {
+  if (
+    contentId.platform === 'audio' ||
+    (contentId.platform === 'podcast' && contentId.type === 'episode')
+  ) {
     return { kind: 'audio' };
   }
 

@@ -122,11 +122,7 @@
       </div>
     </header>
 
-    <MobileOverlay
-      open={vm.menuOpen}
-      onclose={vm.closeMenu}
-      title="Menu"
-    >
+    <MobileOverlay open={vm.menuOpen} onclose={vm.closeMenu} title="Menu">
       <nav class="flex flex-col gap-1">
         <div class="py-3">
           <p class="mb-2 text-xs font-medium uppercase text-text-muted">Language</p>
@@ -135,7 +131,8 @@
               <button
                 type="button"
                 onclick={() => vm.selectLocale(locale.code)}
-                class="rounded-lg px-3 py-1.5 text-sm transition-colors {locale.code === vm.localeCode
+                class="rounded-lg px-3 py-1.5 text-sm transition-colors {locale.code ===
+                vm.localeCode
                   ? 'bg-accent/10 text-accent'
                   : 'text-text-secondary hover:bg-surface-1'}"
               >

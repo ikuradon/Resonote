@@ -4,7 +4,10 @@ import { buildDefaultShareContent, buildResonoteShareUrl } from './share-link.js
 describe('buildDefaultShareContent', () => {
   it('should combine source and page URLs on separate lines', () => {
     expect(
-      buildDefaultShareContent('https://open.spotify.com/track/abc', 'https://resonote.app/spotify/track/abc')
+      buildDefaultShareContent(
+        'https://open.spotify.com/track/abc',
+        'https://resonote.app/spotify/track/abc'
+      )
     ).toBe('https://open.spotify.com/track/abc\nhttps://resonote.app/spotify/track/abc');
   });
 });

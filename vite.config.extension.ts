@@ -5,6 +5,15 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      $shared: resolve(__dirname, 'src/shared'),
+      $features: resolve(__dirname, 'src/features'),
+      $appcore: resolve(__dirname, 'src/app'),
+      $extension: resolve(__dirname, 'src/extension'),
+      $lib: resolve(__dirname, 'src/lib')
+    }
+  },
   build: {
     outDir: 'dist-extension',
     emptyOutDir: true,

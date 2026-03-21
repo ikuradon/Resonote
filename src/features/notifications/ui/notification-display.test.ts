@@ -1,10 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import {
-  parseReactionDisplay,
-  typeIcon,
-  relativeTime,
-  typeLabel
-} from './notification-display.js';
+import { parseReactionDisplay, typeIcon, relativeTime, typeLabel } from './notification-display.js';
 
 describe('parseReactionDisplay', () => {
   it('should return heart for plus content', () => {
@@ -20,12 +15,13 @@ describe('parseReactionDisplay', () => {
   });
 
   it('should return emoji_image for custom emoji with a matching tag', () => {
-    expect(parseReactionDisplay(':sushi:', [['emoji', 'sushi', 'https://example.com/sushi.png']]))
-      .toEqual({
-        type: 'emoji_image',
-        content: ':sushi:',
-        url: 'https://example.com/sushi.png'
-      });
+    expect(
+      parseReactionDisplay(':sushi:', [['emoji', 'sushi', 'https://example.com/sushi.png']])
+    ).toEqual({
+      type: 'emoji_image',
+      content: ':sushi:',
+      url: 'https://example.com/sushi.png'
+    });
   });
 
   it('should return text when no matching emoji tag exists', () => {

@@ -76,7 +76,11 @@ export function createProfilePageViewModel(getProfileId: () => string) {
     followsPubkeys = result.pubkeys;
   }
 
-  async function loadComments(pubkeyToLoad: string, until?: number, requestKey = commentsRequestKey) {
+  async function loadComments(
+    pubkeyToLoad: string,
+    until?: number,
+    requestKey = commentsRequestKey
+  ) {
     commentsLoading = true;
     try {
       const result = await fetchProfileComments(pubkeyToLoad, until);

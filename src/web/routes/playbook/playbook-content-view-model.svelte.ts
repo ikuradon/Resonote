@@ -173,10 +173,13 @@ export function createPlaybookContentViewModel() {
 
     const schedule = () => {
       if (cancelled || !autoAddEnabled) return;
-      timer = setTimeout(() => {
-        addRandomComment(true);
-        schedule();
-      }, 500 + Math.random() * 2500);
+      timer = setTimeout(
+        () => {
+          addRandomComment(true);
+          schedule();
+        },
+        500 + Math.random() * 2500
+      );
     };
 
     schedule();

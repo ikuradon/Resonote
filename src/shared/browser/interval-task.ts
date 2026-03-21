@@ -9,10 +9,7 @@ export interface IntervalTaskHandle {
   stop(): void;
 }
 
-export function startIntervalTask(
-  task: () => void,
-  intervalMs: number
-): IntervalTaskHandle {
+export function startIntervalTask(task: () => void, intervalMs: number): IntervalTaskHandle {
   let running = true;
 
   const intervalId = setInterval(() => {

@@ -11,7 +11,11 @@ export {
   fetchRelayList,
   type RelayListResult
 } from './relays.svelte.js';
-export type { RelayEntry, ConnectionState, RelayState } from '../../features/relays/domain/relay-model.js';
+export type {
+  RelayEntry,
+  ConnectionState,
+  RelayState
+} from '../../features/relays/domain/relay-model.js';
 export {
   parseRelayTags,
   shortUrl,

@@ -22,7 +22,9 @@ export function createAppShellViewModel() {
   });
 
   let relayList = $derived(getRelays());
-  let relayConnectedCount = $derived(relayList.filter((relay) => relay.state === 'connected').length);
+  let relayConnectedCount = $derived(
+    relayList.filter((relay) => relay.state === 'connected').length
+  );
   let anyRelayConnecting = $derived(relayList.some((relay) => isTransitionalState(relay.state)));
   let showRelayWarning = $derived(
     relayList.length > 0 && relayConnectedCount === 0 && !anyRelayConnecting

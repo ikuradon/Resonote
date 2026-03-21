@@ -1,4 +1,7 @@
-import { resolveNip19Navigation, type Nip19NavigationErrorKey } from '../application/resolve-nip19-navigation.js';
+import {
+  resolveNip19Navigation,
+  type Nip19NavigationErrorKey
+} from '../application/resolve-nip19-navigation.js';
 
 interface Nip19RouteViewModelOptions {
   getValue: () => string;

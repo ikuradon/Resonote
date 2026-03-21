@@ -22,7 +22,10 @@ export {
   typeLabel,
   relativeTime
 } from '../../features/notifications/ui/notification-display.js';
-export type { Notification, NotificationType } from '../../features/notifications/domain/notification-model.js';
+export type {
+  Notification,
+  NotificationType
+} from '../../features/notifications/domain/notification-model.js';
 export type {
   ReactionDisplay,
   NotificationActorDisplay,

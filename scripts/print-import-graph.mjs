@@ -26,18 +26,14 @@ function walk(dir) {
 }
 
 function stripComments(source) {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/^\s*\/\/.*$/gm, '');
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 }
 
 function collectSpecifiers(source) {
   const stripped = stripComments(source);
   const specifiers = new Set();
 
-  for (const match of stripped.matchAll(
-    /^\s*(?:import|export)\s.+?\sfrom\s+['"]([^'"]+)['"]/gm
-  )) {
+  for (const match of stripped.matchAll(/^\s*(?:import|export)\s.+?\sfrom\s+['"]([^'"]+)['"]/gm)) {
     specifiers.add(match[1]);
   }
 

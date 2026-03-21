@@ -152,7 +152,8 @@ export async function fetchRelayList(pubkey: string): Promise<RelayListResult> {
 }
 
 export async function publishRelayList(entries: RelayEntry[]): Promise<void> {
-  const { publishRelayList: publish } = await import('$features/relays/application/relay-actions.js');
+  const { publishRelayList: publish } =
+    await import('$features/relays/application/relay-actions.js');
   const urls = await publish(entries);
   await refreshRelayList(urls);
 }

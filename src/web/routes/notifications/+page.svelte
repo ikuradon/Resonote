@@ -103,9 +103,8 @@
             {/if}
             <div class="min-w-0 flex-1">
               <p class="text-sm text-text-primary">
-                <a
-                  href={item.actor.profileHref}
-                  class="font-medium text-accent hover:underline">{item.actor.displayName}</a
+                <a href={item.actor.profileHref} class="font-medium text-accent hover:underline"
+                  >{item.actor.displayName}</a
                 >
                 <span class="text-text-secondary">{item.label}</span>
               </p>

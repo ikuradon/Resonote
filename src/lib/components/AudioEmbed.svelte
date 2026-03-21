@@ -24,11 +24,7 @@
   data-testid="audio-embed"
   class="animate-fade-in w-full overflow-hidden rounded-2xl border border-border-subtle bg-zinc-800 shadow-[0_4px_24px_rgba(0,0,0,0.4)]"
 >
-  <audio
-    use:vm.bindAudioElement
-    src={vm.audioSrc ?? undefined}
-    preload="metadata"
-    class="hidden"
+  <audio use:vm.bindAudioElement src={vm.audioSrc ?? undefined} preload="metadata" class="hidden"
   ></audio>
 
   {#if vm.error}

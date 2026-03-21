@@ -1,4 +1,4 @@
-  <script lang="ts">
+<script lang="ts">
   import type { Snippet } from 'svelte';
   import { tick } from 'svelte';
   import { getCustomEmojis } from '$shared/browser/emoji-sets.js';
