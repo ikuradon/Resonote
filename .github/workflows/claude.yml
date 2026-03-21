@@ -537,7 +537,7 @@ jobs:
           claude_args: |
             --model claude-opus-4-6
             --max-turns 200
-            --allowedTools "Read,Glob,Grep,WebFetch,WebSearch,Bash(pnpm:*),Bash(git log:*),Bash(git diff:*),Bash(git status:*),Bash(gh pr view:*),mcp__context7__*"
+            --allowedTools "Read,Glob,Grep,WebFetch,WebSearch,Bash(pnpm:*),Bash(git log:*),Bash(git diff:*),Bash(git status:*),Bash(gh pr view:*),Bash(gh api:*),mcp__context7__*"
             --mcp-config /tmp/mcp-config.json
           additional_permissions: |
             actions: read

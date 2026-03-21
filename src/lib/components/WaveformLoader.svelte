@@ -21,7 +21,7 @@
     <span
       class="w-[3px] rounded-sm {active ? color : 'bg-surface-3'}"
       style="height: 100%; {active
-        ? `animation: waveform 1.2s ease-in-out infinite; animation-delay: ${delay}s`
+        ? `animation: waveform 1.2s ease-in-out infinite; animation-delay: ${delay}s; animation-fill-mode: backwards`
         : 'transform: scaleY(0.1)'}"
     ></span>
   {/each}
