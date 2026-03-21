@@ -1,11 +1,12 @@
 <script lang="ts">
   import { useCommentProfilePreload } from '$features/comments/ui/comment-profile-preload.svelte.js';
-  import type { Comment, ReactionStats } from '$features/comments/domain/comment-model.js';
+  import type { Comment, PlaceholderComment, ReactionStats } from '$features/comments/domain/comment-model.js';
   import { createCommentListViewModel } from '$features/comments/ui/comment-list-view-model.svelte.js';
   import { allocateEmojiPopoverId } from './emoji-popover-id.js';
   import WaveformLoader from './WaveformLoader.svelte';
   import type { ContentId, ContentProvider } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
+  import { formatPosition } from '$shared/nostr/events.js';
   import ConfirmDialog from './ConfirmDialog.svelte';
   import VirtualScrollList from './VirtualScrollList.svelte';
   import CommentCard from './CommentCard.svelte';
@@ -17,9 +18,11 @@
     contentId: ContentId;
     provider: ContentProvider;
     loading?: boolean;
+    getPlaceholders?: () => Map<string, PlaceholderComment>;
+    fetchOrphanParent?: (parentId: string, positionMs: number | null) => void;
   }
 
-  let { comments, reactionIndex, contentId, provider, loading = false }: Props = $props();
+  let { comments, reactionIndex, contentId, provider, loading = false, getPlaceholders, fetchOrphanParent }: Props = $props();
 
   // --- Virtual scroll auto-scroll ---
   let timedVirtualList = $state<VirtualScrollList<Comment> | undefined>();
@@ -29,7 +32,9 @@
     getReactionIndex: () => reactionIndex,
     getContentId: () => contentId,
     getProvider: () => provider,
-    getTimedList: () => timedVirtualList
+    getTimedList: () => timedVirtualList,
+    getPlaceholders: () => getPlaceholders?.() ?? new Map(),
+    fetchOrphanParent: (parentId, positionMs) => fetchOrphanParent?.(parentId, positionMs)
   });
 
   const popoverIds = new Map<string, string>();
@@ -60,6 +65,70 @@
       {/if}
     </p>
   {:else}
+    {#snippet orphanPlaceholder(placeholder: PlaceholderComment)}
+      <div class="rounded-lg border border-border-subtle bg-surface-secondary/30 px-4 py-3">
+        <div class="flex items-center gap-2">
+          {#if placeholder.positionMs !== null}
+            <span class="rounded bg-accent/10 px-1.5 py-0.5 font-mono text-xs text-accent">
+              {formatPosition(placeholder.positionMs)}
+            </span>
+          {/if}
+          <span class="text-sm italic text-text-muted">
+            {#if placeholder.status === 'loading'}
+              {t('comment.orphan.loading')}
+            {:else if placeholder.status === 'not-found'}
+              {t('comment.orphan.not_found')}
+            {:else}
+              {t('comment.orphan.deleted')}
+            {/if}
+          </span>
+        </div>
+        {#if vm.replyMap.get(placeholder.id)}
+          <div class="mt-2 space-y-2 pl-4">
+            {#each vm.replyMap.get(placeholder.id) ?? [] as reply (reply.id)}
+              <CommentCard
+                comment={reply}
+                author={vm.authorDisplayFor(reply.pubkey)}
+                index={0}
+                showPosition={reply.positionMs !== null}
+                nearCurrent={false}
+                stats={vm.statsFor(reply.id)}
+                myReaction={vm.myReactionFor(reply.id)}
+                isOwn={vm.isOwn(reply.pubkey)}
+                acting={vm.isActing(reply.id)}
+                loggedIn={vm.loggedIn}
+                revealedCW={vm.isRevealed(reply.id)}
+                canMute={vm.canMute}
+                popoverId={getPopoverId(reply.id)}
+                replyOpen={vm.isReplyOpen(reply.id)}
+                bind:replyContent={vm.replyContent}
+                bind:replyEmojiTags={vm.replyEmojiTags}
+                replySending={vm.replySending}
+                replies={[]}
+                getAuthorDisplay={vm.authorDisplayFor}
+                getStats={vm.statsFor}
+                getMyReaction={vm.myReactionFor}
+                isActing={vm.isActing}
+                isRevealed={vm.isRevealed}
+                {getPopoverId}
+                onReaction={vm.sendReaction}
+                onDelete={vm.requestDelete}
+                onReply={vm.startReply}
+                onCancelReply={vm.cancelReply}
+                onSubmitReply={vm.submitReply}
+                onSeek={vm.seekToPosition}
+                onRevealCW={vm.revealCW}
+                onHideCW={vm.hideCW}
+                onMute={vm.requestMute}
+                onReplyContentChange={(content) => (vm.replyContent = content)}
+                onReplyEmojiTagsChange={(tags) => (vm.replyEmojiTags = tags)}
+              />
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/snippet}
+
     {#if vm.timedComments.length > 0}
       <section class="space-y-3">
         <div class="flex items-center gap-2">
@@ -80,6 +149,9 @@
             </button>
           {/if}
         </div>
+        {#each vm.orphanParents.filter((p) => p.positionMs !== null) as placeholder (placeholder.id)}
+          {@render orphanPlaceholder(placeholder)}
+        {/each}
         <div class="max-h-[400px] overflow-hidden rounded-xl border border-border-subtle">
           <VirtualScrollList
             bind:this={timedVirtualList}
@@ -145,6 +217,9 @@
           >
           <div class="h-px flex-1 bg-border-subtle"></div>
         </div>
+        {#each vm.orphanParents.filter((p) => p.positionMs === null) as placeholder (placeholder.id)}
+          {@render orphanPlaceholder(placeholder)}
+        {/each}
         <div class="max-h-[400px] overflow-hidden rounded-xl border border-border-subtle">
           <VirtualScrollList
             items={vm.generalComments}

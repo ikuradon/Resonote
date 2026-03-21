@@ -200,6 +200,8 @@
               loading={vm.store.loading}
               {contentId}
               {provider}
+              getPlaceholders={() => vm.store!.placeholders}
+              fetchOrphanParent={vm.store.fetchOrphanParent}
             />
           {/if}
         </section>
