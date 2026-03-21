@@ -78,6 +78,7 @@
     </p>
   {:else}
     {#snippet orphanPlaceholder(placeholder: PlaceholderComment)}
+      {@const orphanReplies = vm.replyMap.get(placeholder.id) ?? []}
       <div class="rounded-lg border border-border-subtle bg-surface-secondary/30 px-4 py-3">
         <div class="flex items-center gap-2">
           {#if placeholder.positionMs !== null}
@@ -95,9 +96,9 @@
             {/if}
           </span>
         </div>
-        {#if vm.replyMap.get(placeholder.id)}
+        {#if orphanReplies.length > 0}
           <div class="mt-2 space-y-2 pl-4">
-            {#each vm.replyMap.get(placeholder.id) ?? [] as reply (reply.id)}
+            {#each orphanReplies as reply (reply.id)}
               <CommentCard
                 comment={reply}
                 author={vm.authorDisplayFor(reply.pubkey)}

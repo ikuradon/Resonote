@@ -32,7 +32,11 @@ vi.mock('$shared/utils/logger.js', () => ({
   shortHex: (s: string) => s.slice(0, 8)
 }));
 
-import { cachedFetchById, resetFetchByIdCache } from './cached-query.svelte.js';
+import {
+  cachedFetchById,
+  invalidateFetchByIdCache,
+  resetFetchByIdCache
+} from './cached-query.svelte.js';
 
 describe('cachedFetchById', () => {
   beforeEach(() => {
@@ -105,5 +109,53 @@ describe('cachedFetchById', () => {
     const result3 = await cachedFetchById('event-4');
     expect(result3).toBeNull();
     expect(dbGetByIdMock).toHaveBeenCalledTimes(callsAfterRetry);
+  });
+});
+
+describe('invalidateFetchByIdCache', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    resetFetchByIdCache();
+    dbGetByIdMock.mockClear();
+    dbGetByIdMock.mockResolvedValue(null);
+  });
+
+  it('evicts a cached non-null entry, forcing re-fetch', async () => {
+    const dbEvent = { id: 'e5', content: 'cached', kind: 1 };
+    dbGetByIdMock.mockResolvedValueOnce(dbEvent);
+
+    // Populate cache
+    await cachedFetchById('event-5');
+    expect(dbGetByIdMock).toHaveBeenCalledTimes(1);
+
+    // Invalidate
+    invalidateFetchByIdCache('event-5');
+
+    // Next call should hit DB again
+    dbGetByIdMock.mockResolvedValueOnce({ id: 'e5', content: 'refreshed', kind: 1 });
+    const result = await cachedFetchById('event-5');
+    expect(result).toEqual(expect.objectContaining({ content: 'refreshed' }));
+    expect(dbGetByIdMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('evicts a cached null entry, forcing re-fetch before TTL', async () => {
+    const now = Date.now();
+    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
+
+    // First call: null cached with TTL
+    await cachedFetchById('event-6');
+
+    // Within TTL: normally returns cached null
+    dateSpy.mockReturnValue(now + 5_000);
+    const beforeInvalidate = await cachedFetchById('event-6');
+    expect(beforeInvalidate).toBeNull();
+    const callsBefore = dbGetByIdMock.mock.calls.length;
+
+    // Invalidate forces re-fetch even within TTL
+    invalidateFetchByIdCache('event-6');
+    dbGetByIdMock.mockResolvedValueOnce({ id: 'e6', content: 'found', kind: 1 });
+    const result = await cachedFetchById('event-6');
+    expect(result).toEqual(expect.objectContaining({ content: 'found' }));
+    expect(dbGetByIdMock.mock.calls.length).toBeGreaterThan(callsBefore);
   });
 });
