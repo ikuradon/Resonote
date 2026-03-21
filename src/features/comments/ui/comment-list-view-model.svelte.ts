@@ -283,6 +283,7 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
         contentId: options.getContentId(),
         provider: options.getProvider(),
         parentEvent: { id: replyTarget.id, pubkey: replyTarget.pubkey },
+        positionMs: replyTarget.positionMs ?? undefined,
         emojiTags: tags
       });
       toastSuccess(t('toast.reply_sent'));
