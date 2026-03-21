@@ -222,6 +222,11 @@ async function validateResolveResponse(data: unknown): Promise<ResolveApiRespons
 export async function resolveByApi(url: string): Promise<ResolveApiResponse> {
   const res = await fetch(`/api/podcast/resolve?url=${encodeURIComponent(url)}`);
   if (!res.ok) return { type: 'episode', error: 'fetch_failed' };
-  const data: unknown = await res.json();
+  let data: unknown;
+  try {
+    data = await res.json();
+  } catch {
+    return { type: 'episode', error: 'invalid_response' };
+  }
   return validateResolveResponse(data);
 }
