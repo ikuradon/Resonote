@@ -2,13 +2,32 @@ import { createLogger, shortHex } from '$shared/utils/logger.js';
 
 const log = createLogger('cached-nostr');
 
+const NULL_CACHE_TTL_MS = 30_000;
+
 const fetchByIdCache = new Map<string, { content: string; kind: number } | null>();
+const nullCacheTimestamps = new Map<string, number>();
 const inflight = new Map<string, Promise<{ content: string; kind: number } | null>>();
+
+/** Reset cache state (for tests). */
+export function resetFetchByIdCache(): void {
+  fetchByIdCache.clear();
+  nullCacheTimestamps.clear();
+  inflight.clear();
+}
 
 export async function cachedFetchById(
   eventId: string
 ): Promise<{ content: string; kind: number } | null> {
-  if (fetchByIdCache.has(eventId)) return fetchByIdCache.get(eventId)!;
+  if (fetchByIdCache.has(eventId)) {
+    const cached = fetchByIdCache.get(eventId)!;
+    if (cached !== null) return cached;
+    // Null entry — check TTL
+    const ts = nullCacheTimestamps.get(eventId);
+    if (ts && Date.now() - ts < NULL_CACHE_TTL_MS) return null;
+    // Expired — evict and re-fetch
+    fetchByIdCache.delete(eventId);
+    nullCacheTimestamps.delete(eventId);
+  }
 
   // Dedup: if another call for the same eventId is already in flight, await it
   const pending = inflight.get(eventId);
@@ -84,10 +103,13 @@ async function cachedFetchByIdInner(
     fetchByIdCache.set(eventId, result);
     if (result) {
       log.debug('Fetched target event from relay', { id: shortHex(eventId) });
+    } else {
+      nullCacheTimestamps.set(eventId, Date.now());
     }
     return result;
   } catch {
     fetchByIdCache.set(eventId, null);
+    nullCacheTimestamps.set(eventId, Date.now());
     return null;
   }
 }
