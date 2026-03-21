@@ -32,6 +32,9 @@ vite.config.ts.timestamp-*
 # Superpowers
 .superpowers/
 docs/superpowers/
-.worktrees/
 .serena/
+
+# Worktrees (git worktree add)
+.worktrees/
+.claude/worktrees/
 e2e/helpers/*.js

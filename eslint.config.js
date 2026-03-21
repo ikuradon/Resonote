@@ -409,6 +409,8 @@ export default ts.config(
       'dist-extension/',
       '.svelte-kit/',
       '.wrangler/',
+      '.worktrees/',
+      '.claude/worktrees/',
       'node_modules/',
       'test-results/',
       'playwright-report/',
