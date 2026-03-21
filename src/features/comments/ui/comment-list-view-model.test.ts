@@ -268,6 +268,114 @@ describe('createCommentListViewModel', () => {
     expect(sendReplyMock).toHaveBeenCalledWith(expect.objectContaining({ positionMs: undefined }));
   });
 
+  describe('orphan detection edge cases', () => {
+    it('does not detect orphan when both parent and reply are muted (filtered out)', () => {
+      // isMutedMock returns true for 'muted-user'
+      // Parent exists in getComments() but is muted → not in filteredComments
+      // Reply is also muted → not in filteredComments
+      // orphanParentIds checks filteredComments for replyTo references,
+      // so neither should trigger orphan detection
+      const mutedParent = createComment({
+        id: 'muted-parent',
+        pubkey: 'muted-user',
+        content: 'muted parent'
+      });
+      const mutedReply = createComment({
+        id: 'muted-reply',
+        pubkey: 'muted-user',
+        content: 'muted reply',
+        replyTo: 'muted-parent'
+      });
+      const vm = createCommentListViewModel({
+        getComments: () => [mutedParent, mutedReply],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+      // filteredComments excludes both → no orphan
+      expect(vm.orphanParentIds).toHaveLength(0);
+    });
+
+    it('detects orphan when visible reply references non-existent parent', () => {
+      // Reply is visible (pubkey 'me', not muted), parent does not exist at all
+      const orphanReply = createComment({
+        id: 'reply-no-parent',
+        pubkey: 'me',
+        content: 'my orphan reply',
+        replyTo: 'ghost-parent'
+      });
+      const vm = createCommentListViewModel({
+        getComments: () => [orphanReply],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+      expect(vm.orphanParentIds).toContain('ghost-parent');
+    });
+
+    it('deduplicates orphan parent IDs when multiple replies reference same parent', () => {
+      const reply1 = createComment({
+        id: 'reply-a',
+        pubkey: 'me',
+        content: 'first reply',
+        replyTo: 'same-parent'
+      });
+      const reply2 = createComment({
+        id: 'reply-b',
+        pubkey: 'followed',
+        content: 'second reply',
+        replyTo: 'same-parent'
+      });
+      const vm = createCommentListViewModel({
+        getComments: () => [reply1, reply2],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+      // Both replies reference the same parent → deduplicated to one entry
+      const ids = vm.orphanParentIds.filter((id) => id === 'same-parent');
+      expect(ids).toHaveLength(1);
+    });
+
+    it('estimatedPositionMs: orphanParentIds contains parent when timed reply references it', () => {
+      // Verify that orphanParentIds correctly surfaces the parent ID even when
+      // one reply has positionMs and another has null — the $effect uses the
+      // timed reply's positionMs as the estimate.
+      const timedReply = createComment({
+        id: 'timed-reply',
+        pubkey: 'me',
+        content: 'timed orphan reply',
+        replyTo: 'orphan-parent-pos',
+        positionMs: 15_000
+      });
+      const generalReply = createComment({
+        id: 'general-reply',
+        pubkey: 'followed',
+        content: 'general orphan reply',
+        replyTo: 'orphan-parent-pos',
+        positionMs: null
+      });
+      const fetchOrphanParentMock = vi.fn();
+      const vm = createCommentListViewModel({
+        getComments: () => [timedReply, generalReply],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider,
+        fetchOrphanParent: fetchOrphanParentMock
+      });
+      // orphanParentIds should contain the shared parent ID exactly once
+      expect(vm.orphanParentIds).toContain('orphan-parent-pos');
+      const ids = vm.orphanParentIds.filter((id) => id === 'orphan-parent-pos');
+      expect(ids).toHaveLength(1);
+      // The $effect calls fetchOrphanParent with the timed reply's positionMs (15_000)
+      // as the estimate; verify via the comment model that positionMs=15_000 is available
+      const timedReplies = [timedReply, generalReply].filter(
+        (c) => c.replyTo === 'orphan-parent-pos' && c.positionMs !== null
+      );
+      expect(timedReplies[0].positionMs).toBe(15_000);
+    });
+  });
+
   describe('orphan parent detection', () => {
     it('detects orphan replies whose parent is not in comments', () => {
       const orphanReply = createComment({

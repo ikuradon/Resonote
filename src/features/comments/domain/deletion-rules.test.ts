@@ -44,4 +44,25 @@ describe('verifyDeletionTargets', () => {
     const event = { pubkey: 'pk1', tags: [['p', 'someone']] };
     expect(verifyDeletionTargets(event, pubkeys)).toEqual([]);
   });
+
+  it('accepts deletion when original pubkey is unknown (not in eventPubkeys map)', () => {
+    // Event ID not present in map at all → originalPubkey is undefined → accept
+    const pubkeys = new Map([['other-event', 'someone-else']]);
+    const event = { pubkey: 'pk-unknown', tags: [['e', 'ev-not-in-map']] };
+    expect(verifyDeletionTargets(event, pubkeys)).toEqual(['ev-not-in-map']);
+  });
+
+  it('rejects deletion when pubkeys do not match', () => {
+    const pubkeys = new Map([['ev-conflict', 'original-author']]);
+    const event = { pubkey: 'different-author', tags: [['e', 'ev-conflict']] };
+    // original-author !== different-author → reject
+    expect(verifyDeletionTargets(event, pubkeys)).toEqual([]);
+  });
+
+  it('handles empty tags array', () => {
+    const pubkeys = new Map([['ev1', 'pk1']]);
+    const event = { pubkey: 'pk1', tags: [] };
+    // No e-tags → nothing to delete
+    expect(verifyDeletionTargets(event, pubkeys)).toEqual([]);
+  });
 });

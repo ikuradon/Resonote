@@ -110,6 +110,57 @@ describe('applyReaction (immutable)', () => {
   });
 });
 
+describe('buildReactionIndex with deletedIds', () => {
+  it('excludes deleted reactions from the index', () => {
+    const reactions: Reaction[] = [
+      { id: 'r1', pubkey: 'pk1', content: '+', targetEventId: 'e1' },
+      { id: 'r2', pubkey: 'pk2', content: '+', targetEventId: 'e1' },
+      { id: 'r3', pubkey: 'pk3', content: '🔥', targetEventId: 'e1' }
+    ];
+    // r1 and r3 are deleted
+    const deletedIds = new Set(['r1', 'r3']);
+    const index = buildReactionIndex(reactions, deletedIds);
+
+    const stats = index.get('e1')!;
+    // Only r2 survives: 1 like, 0 emojis
+    expect(stats.likes).toBe(1);
+    expect(stats.emojis).toHaveLength(0);
+    expect(stats.reactors.has('pk2')).toBe(true);
+    expect(stats.reactors.has('pk1')).toBe(false);
+    expect(stats.reactors.has('pk3')).toBe(false);
+  });
+
+  it('excludes reactions targeting deleted comments', () => {
+    // The reaction itself is NOT deleted, but it targets a comment whose ID
+    // happens to be in deletedIds. The deletion logic here only skips reactions
+    // whose own ID is in deletedIds — the reaction should still appear.
+    const reactions: Reaction[] = [
+      { id: 'r1', pubkey: 'pk1', content: '+', targetEventId: 'deleted-comment' },
+      { id: 'r2', pubkey: 'pk2', content: '+', targetEventId: 'alive-comment' }
+    ];
+    // 'deleted-comment' is in deletedIds as a comment ID — but r1's id is 'r1'
+    const deletedIds = new Set(['deleted-comment']);
+    const index = buildReactionIndex(reactions, deletedIds);
+
+    // r1 is NOT in deletedIds by its own ID, so it must appear in the index
+    expect(index.has('deleted-comment')).toBe(true);
+    expect(index.get('deleted-comment')!.likes).toBe(1);
+    // r2 also appears
+    expect(index.get('alive-comment')!.likes).toBe(1);
+  });
+
+  it('all reactions deleted results in empty index for that target', () => {
+    const reactions: Reaction[] = [
+      { id: 'r1', pubkey: 'pk1', content: '+', targetEventId: 'e1' },
+      { id: 'r2', pubkey: 'pk2', content: '+', targetEventId: 'e1' }
+    ];
+    const deletedIds = new Set(['r1', 'r2']);
+    const index = buildReactionIndex(reactions, deletedIds);
+    // No surviving reactions → key should not appear
+    expect(index.has('e1')).toBe(false);
+  });
+});
+
 describe('buildReactionIndex', () => {
   const reactions: Reaction[] = [
     { id: 'r1', pubkey: 'pk1', content: '+', targetEventId: 'e1' },

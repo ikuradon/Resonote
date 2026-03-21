@@ -414,6 +414,44 @@ describe('buildDeletion', () => {
   });
 });
 
+describe('buildComment with parentEvent + positionMs', () => {
+  it('includes both position tag and e-tag when replying to timed comment', () => {
+    const parentEvent = { id: 'parent-timed', pubkey: 'parent-author' };
+    const event = buildComment('timed reply', trackId, provider, {
+      parentEvent,
+      positionMs: 30_000
+    });
+    expect(event.tags).toContainEqual(['e', 'parent-timed', '', 'parent-author']);
+    expect(event.tags).toContainEqual(['position', '30']);
+    // Verify both present simultaneously
+    const eTags = event.tags!.filter((t) => t[0] === 'e');
+    const posTags = event.tags!.filter((t) => t[0] === 'position');
+    expect(eTags).toHaveLength(1);
+    expect(posTags).toHaveLength(1);
+  });
+
+  it('omits position tag when replying without positionMs', () => {
+    const parentEvent = { id: 'parent-no-pos', pubkey: 'parent-author' };
+    const event = buildComment('reply no position', trackId, provider, { parentEvent });
+    expect(event.tags).toContainEqual(['e', 'parent-no-pos', '', 'parent-author']);
+    const posTag = event.tags!.find((t) => t[0] === 'position');
+    expect(posTag).toBeUndefined();
+  });
+
+  it('omits position tag when positionMs is 0', () => {
+    const parentEvent = { id: 'parent-zero', pubkey: 'parent-author' };
+    const event = buildComment('reply zero position', trackId, provider, {
+      parentEvent,
+      positionMs: 0
+    });
+    // e-tag should be present
+    expect(event.tags).toContainEqual(['e', 'parent-zero', '', 'parent-author']);
+    // position tag must NOT be present (guard: positionMs > 0)
+    const posTag = event.tags!.find((t) => t[0] === 'position');
+    expect(posTag).toBeUndefined();
+  });
+});
+
 describe('buildComment edge cases', () => {
   it('should not include position tag when positionMs is 0', () => {
     const event = buildComment('test', trackId, provider, { positionMs: 0 });
