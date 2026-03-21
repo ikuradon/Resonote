@@ -210,17 +210,105 @@ describe('createCommentListViewModel', () => {
 
     await vm.submitReply();
 
-    expect(sendReplyMock).toHaveBeenCalledWith({
-      content: 'reply body',
-      contentId,
-      provider,
-      parentEvent: { id: 'parent', pubkey: 'followed' },
-      emojiTags: [['emoji', 'sparkles', 'https://example.com/sparkles.png']]
-    });
+    expect(sendReplyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: 'reply body',
+        contentId,
+        provider,
+        parentEvent: { id: 'parent', pubkey: 'followed' },
+        emojiTags: [['emoji', 'sparkles', 'https://example.com/sparkles.png']]
+      })
+    );
     expect(vm.isReplyOpen('parent')).toBe(false);
     expect(vm.replyContent).toBe('');
     expect(vm.replyEmojiTags).toEqual([]);
     expect(toastSuccessMock).toHaveBeenCalledWith('toast.reply_sent');
+  });
+
+  it('submitReply passes parent positionMs to sendReply', async () => {
+    const parent = createComment({
+      id: 'timed-parent',
+      pubkey: 'followed',
+      content: 'timed comment',
+      positionMs: 30_000
+    });
+    const vm = createCommentListViewModel({
+      getComments: () => [parent],
+      getReactionIndex: () => new Map(),
+      getContentId: () => contentId,
+      getProvider: () => provider
+    });
+
+    vm.startReply(parent);
+    vm.replyContent = 'reply to timed';
+
+    await vm.submitReply();
+
+    expect(sendReplyMock).toHaveBeenCalledWith(expect.objectContaining({ positionMs: 30_000 }));
+  });
+
+  it('submitReply passes undefined positionMs for general comment reply', async () => {
+    const parent = createComment({
+      id: 'general-parent',
+      pubkey: 'followed',
+      content: 'general comment'
+    });
+    const vm = createCommentListViewModel({
+      getComments: () => [parent],
+      getReactionIndex: () => new Map(),
+      getContentId: () => contentId,
+      getProvider: () => provider
+    });
+
+    vm.startReply(parent);
+    vm.replyContent = 'reply to general';
+
+    await vm.submitReply();
+
+    expect(sendReplyMock).toHaveBeenCalledWith(expect.objectContaining({ positionMs: undefined }));
+  });
+
+  describe('orphan parent detection', () => {
+    it('detects orphan replies whose parent is not in comments', () => {
+      const orphanReply = createComment({
+        id: 'reply-1',
+        pubkey: 'me',
+        content: 'orphan reply',
+        replyTo: 'missing-parent',
+        positionMs: 15_000
+      });
+      const opts = {
+        getComments: () => [orphanReply],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      };
+      const vm = createCommentListViewModel(opts);
+      expect(vm.orphanParentIds).toContain('missing-parent');
+    });
+
+    it('does not detect orphan when parent exists in comments', () => {
+      const parent = createComment({
+        id: 'parent-1',
+        pubkey: 'me',
+        content: 'parent',
+        positionMs: 10_000
+      });
+      const reply = createComment({
+        id: 'reply-1',
+        pubkey: 'me',
+        content: 'reply',
+        replyTo: 'parent-1'
+      });
+      const opts = {
+        getComments: () => [parent, reply],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      };
+      const vm = createCommentListViewModel(opts);
+      expect(vm.orphanParentIds).toHaveLength(0);
+    });
   });
 
   it('should handle mute confirmation and seek dispatch', async () => {

@@ -41,12 +41,14 @@ export interface SendReplyParams {
   contentId: ContentId;
   provider: ContentProvider;
   parentEvent: { id: string; pubkey: string };
+  positionMs?: number;
   emojiTags?: string[][];
 }
 
 /** Send a reply to an existing comment. */
 export async function sendReply(params: SendReplyParams): Promise<void> {
   const eventParams = buildComment(params.content, params.contentId, params.provider, {
+    positionMs: params.positionMs,
     emojiTags: params.emojiTags,
     parentEvent: params.parentEvent
   });

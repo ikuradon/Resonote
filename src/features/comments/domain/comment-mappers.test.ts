@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { commentFromEvent, reactionFromEvent } from './comment-mappers.js';
+import { commentFromEvent, reactionFromEvent, placeholderFromOrphan } from './comment-mappers.js';
 
 describe('commentFromEvent', () => {
   it('should map basic event fields', () => {
@@ -74,6 +74,26 @@ describe('commentFromEvent', () => {
     });
     expect(comment.emojiTags).toHaveLength(1);
     expect(comment.emojiTags[0]).toEqual(['emoji', 'fire', 'https://example.com/fire.png']);
+  });
+});
+
+describe('placeholderFromOrphan', () => {
+  it('creates loading placeholder with positionMs from orphan reply', () => {
+    const result = placeholderFromOrphan('parent-id', 30_000);
+    expect(result).toEqual({
+      id: 'parent-id',
+      status: 'loading',
+      positionMs: 30_000
+    });
+  });
+
+  it('creates loading placeholder with null positionMs', () => {
+    const result = placeholderFromOrphan('parent-id', null);
+    expect(result).toEqual({
+      id: 'parent-id',
+      status: 'loading',
+      positionMs: null
+    });
   });
 });
 

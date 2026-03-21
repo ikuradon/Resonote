@@ -1,3 +1,4 @@
+import { untrack } from 'svelte';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import { getProfileDisplay, type ProfileDisplay } from '$shared/browser/profile.js';
 import { dispatchSeek } from '$shared/browser/seek-bridge.js';
@@ -14,7 +15,11 @@ import {
 import { toastSuccess, toastError } from '$shared/browser/toast.js';
 import { createLogger } from '$shared/utils/logger.js';
 import { t } from '$shared/i18n/t.js';
-import type { Comment, ReactionStats } from '$features/comments/domain/comment-model.js';
+import type {
+  Comment,
+  PlaceholderComment,
+  ReactionStats
+} from '$features/comments/domain/comment-model.js';
 import { emptyStats } from '$features/comments/domain/reaction-rules.js';
 import {
   sendReaction as sendReactionAction,
@@ -37,6 +42,8 @@ interface CommentListViewModelOptions {
   getContentId: () => ContentId;
   getProvider: () => ContentProvider;
   getTimedList?: () => TimedListScroller | undefined;
+  getPlaceholders?: () => Map<string, PlaceholderComment>;
+  fetchOrphanParent?: (parentId: string, positionMs: number | null) => void;
 }
 
 export function createCommentListViewModel(options: CommentListViewModelOptions) {
@@ -92,6 +99,35 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
       arr.sort((a, b) => a.createdAt - b.createdAt);
     }
     return map;
+  });
+
+  let orphanParentIds = $derived.by(() => {
+    const commentIdSet = new Set(options.getComments().map((c) => c.id));
+    const orphanSet = new Set<string>();
+    for (const c of filteredComments) {
+      if (c.replyTo !== null && !commentIdSet.has(c.replyTo)) {
+        orphanSet.add(c.replyTo);
+      }
+    }
+    return [...orphanSet];
+  });
+
+  let orphanParents = $derived.by(() => {
+    const pMap = options.getPlaceholders?.() ?? new Map();
+    return orphanParentIds
+      .map((id) => pMap.get(id))
+      .filter((p): p is PlaceholderComment => p !== undefined);
+  });
+
+  $effect(() => {
+    for (const parentId of orphanParentIds) {
+      const estimatedPosition = untrack(
+        () =>
+          options.getComments().find((c) => c.replyTo === parentId && c.positionMs !== null)
+            ?.positionMs ?? null
+      );
+      options.fetchOrphanParent?.(parentId, estimatedPosition);
+    }
   });
 
   $effect(() => {
@@ -283,6 +319,7 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
         contentId: options.getContentId(),
         provider: options.getProvider(),
         parentEvent: { id: replyTarget.id, pubkey: replyTarget.pubkey },
+        positionMs: replyTarget.positionMs ?? undefined,
         emojiTags: tags
       });
       toastSuccess(t('toast.reply_sent'));
@@ -343,6 +380,12 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
     },
     get muteCount() {
       return muteList.mutedPubkeys.size;
+    },
+    get orphanParentIds() {
+      return orphanParentIds;
+    },
+    get orphanParents() {
+      return orphanParents;
     },
     setFollowFilter,
     handleTimedRangeChange,
