@@ -36,6 +36,7 @@
     "build:ext:firefox": "pnpm build:ext && cp src/extension/manifest.firefox.json dist-extension/manifest.json"
   },
   "devDependencies": {
+    "@codecov/vite-plugin": "^1.9.1",
     "@eslint/js": "^10.0.1",
     "@ikuradon/tsunagiya": "^0.4.0",
     "@playwright/test": "^1.58.2",
