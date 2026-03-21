@@ -31,6 +31,12 @@ export interface ReactionStats {
   reactors: Set<string>;
 }
 
+export interface PlaceholderComment {
+  id: string;
+  status: 'loading' | 'not-found' | 'deleted';
+  positionMs: number | null;
+}
+
 /** Raw Nostr event shape used by mappers. */
 export interface NostrEvent {
   id: string;

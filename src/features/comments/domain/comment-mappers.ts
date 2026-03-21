@@ -3,7 +3,7 @@
  * No side effects, no infra dependencies.
  */
 
-import type { Comment, Reaction, NostrEvent } from './comment-model.js';
+import type { Comment, PlaceholderComment, Reaction, NostrEvent } from './comment-model.js';
 import { parsePosition } from '$shared/nostr/events.js';
 import { isEmojiTag } from '$shared/utils/emoji.js';
 
@@ -25,6 +25,14 @@ export function commentFromEvent(
     replyTo: eTag?.[1] ?? null,
     contentWarning: cwTag ? (cwTag[1] ?? '') : null
   };
+}
+
+/** Create a loading placeholder for an orphan reply whose parent has not yet been fetched. */
+export function placeholderFromOrphan(
+  parentId: string,
+  positionMs: number | null
+): PlaceholderComment {
+  return { id: parentId, status: 'loading', positionMs };
 }
 
 /** Convert a kind:7 Nostr event into a Reaction domain model. Returns null if no e-tag. */
