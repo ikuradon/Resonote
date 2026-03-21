@@ -9,8 +9,13 @@ import {
 
 type PublishableEvent = PendingEvent | EventParameters;
 
-function toPendingEvent(event: PublishableEvent): PendingEvent {
-  return event as PendingEvent;
+/** Convert to PendingEvent only if it has the required fields (id + sig). */
+function toPendingEvent(event: PublishableEvent): PendingEvent | null {
+  const e = event as unknown as Record<string, unknown>;
+  if (typeof e.id === 'string' && typeof e.sig === 'string' && typeof e.kind === 'number') {
+    return event as unknown as PendingEvent;
+  }
+  return null;
 }
 
 export async function retryPendingPublishes(): Promise<void> {
@@ -32,7 +37,8 @@ export async function publishSignedEvent(event: PublishableEvent): Promise<void>
     const rxNostr = await getRxNostr();
     await rxNostr.cast(event);
   } catch {
-    await addPendingPublish(toPendingEvent(event));
+    const pending = toPendingEvent(event);
+    if (pending) await addPendingPublish(pending);
   }
 }
 
@@ -47,7 +53,8 @@ export async function publishSignedEvents(events: PublishableEvent[]): Promise<v
       try {
         await rxNostr.cast(event);
       } catch {
-        await addPendingPublish(toPendingEvent(event));
+        const pending = toPendingEvent(event);
+        if (pending) await addPendingPublish(pending);
       }
     })
   );

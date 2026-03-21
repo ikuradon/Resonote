@@ -13,13 +13,23 @@ export function buildContentFilters(idValue: string) {
   ];
 }
 
-export interface SubscriptionRefs {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  rxNostr: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  rxNostrMod: any;
+/* Minimal shape for rx-nostr dynamic imports (avoids bare `any`). */
+interface RxNostrLike {
+  use(req: unknown): {
+    pipe(...ops: unknown[]): { subscribe(observer: unknown): { unsubscribe(): void } };
+  };
+}
 
-  rxjsMerge: (...args: unknown[]) => unknown;
+interface RxNostrModLike {
+  createRxBackwardReq(): { emit(filter: unknown): void; over(): void };
+  createRxForwardReq(): { emit(filter: unknown): void };
+  uniq(): unknown;
+}
+
+export interface SubscriptionRefs {
+  rxNostr: RxNostrLike;
+  rxNostrMod: RxNostrModLike;
+  rxjsMerge: (...args: unknown[]) => { subscribe(observer: unknown): { unsubscribe(): void } };
 }
 
 export async function loadSubscriptionDeps(): Promise<SubscriptionRefs> {
@@ -144,7 +154,7 @@ export function startDeletionReconcile(
     });
 
   for (let i = 0; i < cachedIds.length; i += CHUNK_SIZE) {
-    reconcileBackward.emit({ kinds: [5], '#e': cachedIds.slice(i, i + CHUNK_SIZE) });
+    reconcileBackward.emit({ kinds: [DELETION_KIND], '#e': cachedIds.slice(i, i + CHUNK_SIZE) });
   }
   reconcileBackward.over();
 

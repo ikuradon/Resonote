@@ -16,11 +16,19 @@ async function onLogin(pubkey: string) {
   await initSession(pubkey);
 }
 
+let logoutInProgress = false;
+
 async function onLogout() {
-  log.info('Logout');
-  state.pubkey = null;
-  const { destroySession } = await import('$appcore/bootstrap/init-session.js');
-  await destroySession();
+  if (logoutInProgress) return;
+  logoutInProgress = true;
+  try {
+    log.info('Logout');
+    state.pubkey = null;
+    const { destroySession } = await import('$appcore/bootstrap/init-session.js');
+    await destroySession();
+  } finally {
+    logoutInProgress = false;
+  }
 }
 
 export function getAuth() {
