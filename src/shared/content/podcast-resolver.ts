@@ -13,7 +13,16 @@ export function getSystemPubkey(): Promise<string> {
           pubkeyPromise = undefined;
           return '';
         }
-        return res.json().then((data) => (data.pubkey as string) ?? '');
+        return res.json().then((data: unknown) => {
+          if (
+            typeof data === 'object' &&
+            data !== null &&
+            typeof (data as Record<string, unknown>).pubkey === 'string'
+          ) {
+            return (data as Record<string, unknown>).pubkey as string;
+          }
+          return '';
+        });
       })
       .catch(() => {
         pubkeyPromise = undefined;
@@ -177,8 +186,41 @@ export async function searchBookmarkByUrl(url: string): Promise<DTagResult | nul
   }
 }
 
+const VALID_TYPES = new Set(['episode', 'feed', 'redirect']);
+
+async function validateResolveResponse(data: unknown): Promise<ResolveApiResponse> {
+  if (typeof data !== 'object' || data === null) {
+    return { type: 'episode', error: 'invalid_response' };
+  }
+  const obj = data as Record<string, unknown>;
+  const type = VALID_TYPES.has(obj.type as string)
+    ? (obj.type as ResolveApiResponse['type'])
+    : 'episode';
+  const result = { ...obj, type } as ResolveApiResponse;
+
+  // Verify signedEvents with cryptographic signature check
+  if (Array.isArray(result.signedEvents) && result.signedEvents.length > 0) {
+    const { verifier } = await import('@rx-nostr/crypto');
+    const verified: EventParameters[] = [];
+    for (const event of result.signedEvents) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (await verifier(event as any)) verified.push(event);
+      } catch {
+        // Invalid event shape or failed signature — skip
+      }
+    }
+    result.signedEvents = verified;
+  } else {
+    result.signedEvents = undefined;
+  }
+
+  return result;
+}
+
 export async function resolveByApi(url: string): Promise<ResolveApiResponse> {
   const res = await fetch(`/api/podcast/resolve?url=${encodeURIComponent(url)}`);
   if (!res.ok) return { type: 'episode', error: 'fetch_failed' };
-  return res.json();
+  const data: unknown = await res.json();
+  return validateResolveResponse(data);
 }
