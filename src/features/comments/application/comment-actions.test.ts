@@ -27,12 +27,7 @@ vi.mock('$shared/utils/logger.js', () => ({
   shortHex: (hex: string) => hex.slice(0, 8)
 }));
 
-import {
-  sendComment,
-  sendReply,
-  sendReaction,
-  deleteComment
-} from './comment-actions.js';
+import { sendComment, sendReply, sendReaction, deleteComment } from './comment-actions.js';
 
 const contentId: ContentId = { platform: 'spotify', type: 'track', id: 'track-1' };
 const provider: ContentProvider = {
@@ -143,9 +138,9 @@ describe('sendReply', () => {
 
   it('propagates errors from castSigned', async () => {
     castSignedMock.mockRejectedValueOnce(new Error('send failed'));
-    await expect(
-      sendReply({ content: 'reply', contentId, provider, parentEvent })
-    ).rejects.toThrow('send failed');
+    await expect(sendReply({ content: 'reply', contentId, provider, parentEvent })).rejects.toThrow(
+      'send failed'
+    );
   });
 });
 

@@ -40,16 +40,24 @@ const {
     startDeletionReconcileMock: vi.fn().mockReturnValue({ sub: mockSub, timeout: undefined }),
     startMergedSubscriptionMock: vi.fn().mockReturnValue(mockSub),
     purgeDeletedFromCacheMock: vi.fn().mockResolvedValue(undefined),
-    commentFromEventMock: vi.fn((event: { id: string; pubkey: string; content: string; created_at: number; tags: string[][] }) => ({
-      id: event.id,
-      pubkey: event.pubkey,
-      content: event.content,
-      createdAt: event.created_at,
-      positionMs: null,
-      emojiTags: [],
-      replyTo: null,
-      contentWarning: null
-    })),
+    commentFromEventMock: vi.fn(
+      (event: {
+        id: string;
+        pubkey: string;
+        content: string;
+        created_at: number;
+        tags: string[][];
+      }) => ({
+        id: event.id,
+        pubkey: event.pubkey,
+        content: event.content,
+        createdAt: event.created_at,
+        positionMs: null,
+        emojiTags: [],
+        replyTo: null,
+        contentWarning: null
+      })
+    ),
     reactionFromEventMock: vi.fn().mockReturnValue(null),
     placeholderFromOrphanMock: vi.fn((id: string, positionMs: number | null) => ({
       id,
@@ -142,13 +150,16 @@ const provider = {
   openUrl: () => 'https://open.spotify.com/track/track-1'
 };
 
-function makeCommentEvent(id: string, overrides: Partial<{
-  pubkey: string;
-  content: string;
-  created_at: number;
-  positionMs: number | null;
-  kind: number;
-}> = {}) {
+function makeCommentEvent(
+  id: string,
+  overrides: Partial<{
+    pubkey: string;
+    content: string;
+    created_at: number;
+    positionMs: number | null;
+    kind: number;
+  }> = {}
+) {
   return {
     id,
     pubkey: overrides.pubkey ?? 'pubkey-' + id,
@@ -180,16 +191,24 @@ describe('createCommentViewModel', () => {
     startDeletionReconcileMock.mockReturnValue({ sub: mockSub, timeout: undefined });
     startMergedSubscriptionMock.mockReturnValue(mockSub);
     purgeDeletedFromCacheMock.mockResolvedValue(undefined);
-    commentFromEventMock.mockImplementation((event: { id: string; pubkey: string; content: string; created_at: number; tags: string[][] }) => ({
-      id: event.id,
-      pubkey: event.pubkey,
-      content: event.content,
-      createdAt: event.created_at,
-      positionMs: null,
-      emojiTags: [],
-      replyTo: null,
-      contentWarning: null
-    }));
+    commentFromEventMock.mockImplementation(
+      (event: {
+        id: string;
+        pubkey: string;
+        content: string;
+        created_at: number;
+        tags: string[][];
+      }) => ({
+        id: event.id,
+        pubkey: event.pubkey,
+        content: event.content,
+        createdAt: event.created_at,
+        positionMs: null,
+        emojiTags: [],
+        replyTo: null,
+        contentWarning: null
+      })
+    );
     reactionFromEventMock.mockReturnValue(null);
     placeholderFromOrphanMock.mockImplementation((id: string, positionMs: number | null) => ({
       id,
@@ -246,7 +265,10 @@ describe('createCommentViewModel', () => {
     it('calls restoreFromCache with tag query derived from provider', async () => {
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
-      expect(restoreFromCacheMock).toHaveBeenCalledWith(expect.anything(), 'I:spotify:track:track-1');
+      expect(restoreFromCacheMock).toHaveBeenCalledWith(
+        expect.anything(),
+        'I:spotify:track:track-1'
+      );
     });
 
     it('calls startSubscription after loading deps', async () => {
@@ -257,7 +279,13 @@ describe('createCommentViewModel', () => {
 
     it('sets loading=false when backward complete callback fires', async () => {
       startSubscriptionMock.mockImplementation(
-        (_refs: unknown, _filters: unknown, _maxCreatedAt: unknown, _onPacket: unknown, onBackwardComplete: () => void) => {
+        (
+          _refs: unknown,
+          _filters: unknown,
+          _maxCreatedAt: unknown,
+          _onPacket: unknown,
+          onBackwardComplete: () => void
+        ) => {
           onBackwardComplete();
           return [{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }];
         }
@@ -433,7 +461,14 @@ describe('createCommentViewModel', () => {
           _refs: unknown,
           _filters: unknown,
           _maxCreatedAt: unknown,
-          onPacket: (event: { id: string; pubkey: string; kind: number; tags: string[][]; content: string; created_at: number }) => void,
+          onPacket: (event: {
+            id: string;
+            pubkey: string;
+            kind: number;
+            tags: string[][];
+            content: string;
+            created_at: number;
+          }) => void,
           onBackwardComplete: () => void
         ) => {
           onPacket({
@@ -486,14 +521,23 @@ describe('createCommentViewModel', () => {
 
       // Use a promise to control timing
       let resolveDelete!: () => void;
-      const deletionTriggered = new Promise<void>((res) => { resolveDelete = res; });
+      const deletionTriggered = new Promise<void>((res) => {
+        resolveDelete = res;
+      });
 
       startSubscriptionMock.mockImplementation(
         (
           _refs: unknown,
           _filters: unknown,
           _maxCreatedAt: unknown,
-          onPacket: (event: { id: string; pubkey: string; kind: number; tags: string[][]; content: string; created_at: number }) => void,
+          onPacket: (event: {
+            id: string;
+            pubkey: string;
+            kind: number;
+            tags: string[][];
+            content: string;
+            created_at: number;
+          }) => void,
           onBackwardComplete: () => void
         ) => {
           onBackwardComplete();
