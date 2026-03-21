@@ -4,6 +4,11 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   plugins: [tailwindcss(), sveltekit()],
+  server: {
+    watch: {
+      ignored: ['**/.worktrees/**', '**/.claude/worktrees/**']
+    }
+  },
   build: {
     // Large vendor chunks are lazy-loaded via dynamic import:
     // - @ikuradon/emoji-kitchen-mart-data (~10MB) — emoji dataset
