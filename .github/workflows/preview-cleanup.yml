@@ -36,7 +36,7 @@ jobs:
         run: |
           DEPLOY_IDS=$(npx wrangler@4 pages deployment list --project-name=resonote-preview \
             --json 2>/dev/null | jq -r --arg branch "$BRANCH" \
-            '[.[] | select(.deployment_trigger.metadata.branch == $branch) | .id] | .[]')
+            '[.[] | select(.deployment_trigger.metadata.branch == $branch) | .id] | .[]' 2>/dev/null || true)
           for DEPLOY_ID in $DEPLOY_IDS; do
             npx wrangler@4 pages deployment delete "$DEPLOY_ID" --project-name=resonote-preview --yes || true
           done
