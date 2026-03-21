@@ -226,6 +226,8 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
   - `src/lib/components/audio-embed-view-model.test.ts`
 - feature UI の view model テスト:
   - `src/features/comments/ui/comment-list-view-model.test.ts`
+- shared nostr テスト:
+  - `src/shared/nostr/cached-query.test.ts` (TTL, invalidate, fetch dedup)
 
 ## Deployment
 
@@ -250,6 +252,7 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
 - ページ遷移時に `resetPlayer()` で再生状態をクリア
 - `import.meta.env.DEV` で開発時のみ表示する UI (DEV シークパネル等)
 - `.wrangler/` を ESLint ignore に追加 (ビルドキャッシュが lint エラーになるため)
+- 孤児リプライ（親が未取得/削除済み）はプレースホルダー (`PlaceholderComment`) で表示。状態遷移: loading → not-found/deleted。`fetchOrphanParent` は `fetchedParentIds` で dedup、`deletedIds` チェックで即時 deleted 判定、fetch 後の `deletedIds` 再チェックでレース対応
 
 ## Gotchas
 
@@ -282,3 +285,4 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
 - `cachedFetchById` は fetch 中に `invalidateFetchByIdCache` が呼ばれると `invalidatedDuringFetch` Set でキャッシュ書き込みをスキップする。新規キャッシュ利用コードを書く際はこのパターンを維持すること
 - `$effect` 内で `options.getComments()` 等のリアクティブ getter を呼ぶと二重追跡される → `untrack()` でラップして依存を限定する
 - Svelte 5 `{@const}` は `{#snippet}` / `{#if}` / `{#each}` 等のブロック直下にしか置けない。`<div>` 内に置くとコンパイルエラー
+- PR review comment への返信は `gh api repos/{owner}/{repo}/pulls/{pr}/comments/{id}/replies` を使う。`gh pr comment` は issue comment を作成するため review thread に紐づかず二重投稿になる
