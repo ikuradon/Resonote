@@ -23,7 +23,7 @@ export async function cachedFetchById(
     if (cached !== null) return cached;
     // Null entry — check TTL
     const ts = nullCacheTimestamps.get(eventId);
-    if (ts && Date.now() - ts < NULL_CACHE_TTL_MS) return null;
+    if (ts !== undefined && Date.now() - ts < NULL_CACHE_TTL_MS) return null;
     // Expired — evict and re-fetch
     fetchByIdCache.delete(eventId);
     nullCacheTimestamps.delete(eventId);
