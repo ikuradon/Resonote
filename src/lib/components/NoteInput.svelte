@@ -329,7 +329,7 @@
       {placeholder}
       {disabled}
       {rows}
-      class="flex-1 resize-none rounded-xl border border-border bg-surface-1 px-4 py-2.5 text-sm text-text-primary placeholder-text-muted transition-all duration-200 focus:border-accent focus:ring-1 focus:ring-accent/30 focus:outline-none disabled:opacity-40"
+      class="flex-1 resize-none rounded-xl border border-border bg-surface-1 px-4 py-2.5 text-base text-text-primary placeholder-text-muted transition-all duration-200 focus:border-accent focus:ring-1 focus:ring-accent/30 focus:outline-none disabled:opacity-40 lg:text-sm"
     ></textarea>
     {#if !disabled}
       <EmojiPickerPopover id={pickerId} onSelect={insertEmoji} />
