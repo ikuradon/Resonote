@@ -11,7 +11,8 @@ export function getDeployEnv(): DeployEnv {
   if (typeof window === 'undefined') return 'production';
   const host = window.location.hostname;
   if (host.endsWith('.resonote-preview.pages.dev')) return 'preview';
-  if (host === 'resonote.pages.dev') return 'staging';
+  if (host === 'staging.resonote.pages.dev') return 'staging';
+  if (host === 'resonote.pages.dev') return 'production';
   return 'production';
 }
 
