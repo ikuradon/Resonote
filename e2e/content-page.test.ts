@@ -163,6 +163,13 @@ test.describe('Content page (podcast feed)', () => {
     await page.goto(feedUrl);
     await expect(page.locator('h2:has-text("Comments")')).toBeVisible();
   });
+
+  test('should show episode selection hint instead of comment form', async ({ page }) => {
+    await page.goto(feedUrl);
+    await expect(page.locator('[data-testid="feed-comment-hint"]')).toBeVisible();
+    // Comment form should NOT be visible
+    await expect(page.locator('form, [data-testid="comment-form"]')).not.toBeVisible();
+  });
 });
 
 test.describe('Content page (podbean)', () => {

@@ -20,6 +20,7 @@
   let contentId = $derived<ContentId>({ platform, type: contentType, id: contentIdParam });
   let isValid = $derived(provider !== undefined && contentType !== '' && contentIdParam !== '');
   let isCollection = $derived(contentType === 'show');
+  let isFeed = $derived(platform === 'podcast' && contentType === 'feed');
   let initialTimeSec = $derived(Number(page.url.searchParams.get('t')) || 0);
 
   // --- View model (single facade for all content page logic) ---
@@ -129,82 +130,96 @@
       </div>
 
       <div class="mt-6 min-w-0 flex-1 md:mt-0">
-        <section class="animate-slide-up stagger-2 space-y-5">
-          <div class="flex items-center gap-3">
-            <h2 class="font-display text-lg font-semibold text-text-primary">
-              {t('comment.heading')}
-            </h2>
-            <div class="h-px flex-1 bg-border-subtle"></div>
-            <ShareButton {contentId} {provider} />
-            {#if auth.loggedIn}
-              <button
-                type="button"
-                onclick={vm.toggleBookmark}
-                disabled={vm.bookmarkBusy}
-                class="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 disabled:opacity-50
-                  {vm.bookmarked
-                  ? 'bg-accent/10 text-accent hover:bg-accent/20'
-                  : 'bg-surface-2 text-text-secondary hover:bg-surface-3 hover:text-text-primary'}"
-                title={vm.bookmarked ? t('bookmark.remove') : t('bookmark.add')}
-              >
-                {vm.bookmarked ? '\u2605' : '\u2606'}
-                {vm.bookmarked ? t('bookmark.remove') : t('bookmark.add')}
-              </button>
-            {/if}
-          </div>
-          {#if isDev && player}
-            <div
-              class="rounded-lg border border-dashed border-yellow-600/40 bg-yellow-950/20 px-3 py-2"
-            >
-              <div class="flex items-center gap-3">
-                <span class="text-xs font-semibold text-yellow-500">DEV</span>
-                <span class="font-mono text-xs text-text-muted">
-                  {Math.floor(player.position / 60000)}:{String(
-                    Math.floor((player.position / 1000) % 60)
-                  ).padStart(2, '0')}
-                  /
-                  {Math.floor(player.duration / 60000)}:{String(
-                    Math.floor((player.duration / 1000) % 60)
-                  ).padStart(2, '0')}
-                </span>
-                <span
-                  class="rounded px-1 py-0.5 text-xs {player.isPaused
-                    ? 'bg-zinc-700 text-zinc-400'
-                    : 'bg-green-900 text-green-400'}"
+        {#if isFeed}
+          <section class="animate-slide-up stagger-2 space-y-5">
+            <div class="flex items-center gap-3">
+              <h2 class="font-display text-lg font-semibold text-text-primary">
+                {t('comment.heading')}
+              </h2>
+              <div class="h-px flex-1 bg-border-subtle"></div>
+            </div>
+            <p data-testid="feed-comment-hint" class="py-8 text-center text-sm text-text-muted">
+              {t('comment.feed.select_episode')}
+            </p>
+          </section>
+        {:else}
+          <section class="animate-slide-up stagger-2 space-y-5">
+            <div class="flex items-center gap-3">
+              <h2 class="font-display text-lg font-semibold text-text-primary">
+                {t('comment.heading')}
+              </h2>
+              <div class="h-px flex-1 bg-border-subtle"></div>
+              <ShareButton {contentId} {provider} />
+              {#if auth.loggedIn}
+                <button
+                  type="button"
+                  onclick={vm.toggleBookmark}
+                  disabled={vm.bookmarkBusy}
+                  class="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 disabled:opacity-50
+                    {vm.bookmarked
+                    ? 'bg-accent/10 text-accent hover:bg-accent/20'
+                    : 'bg-surface-2 text-text-secondary hover:bg-surface-3 hover:text-text-primary'}"
+                  title={vm.bookmarked ? t('bookmark.remove') : t('bookmark.add')}
                 >
-                  {player.isPaused ? 'PAUSED' : 'PLAYING'}
-                </span>
-                <div class="ml-auto flex items-center gap-1.5">
-                  <input
-                    type="number"
-                    bind:value={devSeekSec}
-                    min="0"
-                    placeholder="sec"
-                    class="w-16 rounded border border-yellow-600/30 bg-transparent px-1.5 py-0.5 text-xs text-text-primary"
-                  />
-                  <button
-                    onclick={() => requestSeek(devSeekSec * 1000)}
-                    class="rounded bg-yellow-600 px-2 py-0.5 text-xs font-semibold text-black hover:bg-yellow-500"
+                  {vm.bookmarked ? '\u2605' : '\u2606'}
+                  {vm.bookmarked ? t('bookmark.remove') : t('bookmark.add')}
+                </button>
+              {/if}
+            </div>
+            {#if isDev && player}
+              <div
+                class="rounded-lg border border-dashed border-yellow-600/40 bg-yellow-950/20 px-3 py-2"
+              >
+                <div class="flex items-center gap-3">
+                  <span class="text-xs font-semibold text-yellow-500">DEV</span>
+                  <span class="font-mono text-xs text-text-muted">
+                    {Math.floor(player.position / 60000)}:{String(
+                      Math.floor((player.position / 1000) % 60)
+                    ).padStart(2, '0')}
+                    /
+                    {Math.floor(player.duration / 60000)}:{String(
+                      Math.floor((player.duration / 1000) % 60)
+                    ).padStart(2, '0')}
+                  </span>
+                  <span
+                    class="rounded px-1 py-0.5 text-xs {player.isPaused
+                      ? 'bg-zinc-700 text-zinc-400'
+                      : 'bg-green-900 text-green-400'}"
                   >
-                    Seek
-                  </button>
+                    {player.isPaused ? 'PAUSED' : 'PLAYING'}
+                  </span>
+                  <div class="ml-auto flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      bind:value={devSeekSec}
+                      min="0"
+                      placeholder="sec"
+                      class="w-16 rounded border border-yellow-600/30 bg-transparent px-1.5 py-0.5 text-xs text-text-primary"
+                    />
+                    <button
+                      onclick={() => requestSeek(devSeekSec * 1000)}
+                      class="rounded bg-yellow-600 px-2 py-0.5 text-xs font-semibold text-black hover:bg-yellow-500"
+                    >
+                      Seek
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          {/if}
-          <CommentForm {contentId} {provider} />
-          {#if vm.store}
-            <CommentList
-              comments={vm.store.comments}
-              reactionIndex={vm.store.reactionIndex}
-              loading={vm.store.loading}
-              {contentId}
-              {provider}
-              getPlaceholders={() => vm.store!.placeholders}
-              fetchOrphanParent={vm.store.fetchOrphanParent}
-            />
-          {/if}
-        </section>
+            {/if}
+            <CommentForm {contentId} {provider} />
+            {#if vm.store}
+              <CommentList
+                comments={vm.store.comments}
+                reactionIndex={vm.store.reactionIndex}
+                loading={vm.store.loading}
+                {contentId}
+                {provider}
+                getPlaceholders={() => vm.store!.placeholders}
+                fetchOrphanParent={vm.store.fetchOrphanParent}
+              />
+            {/if}
+          </section>
+        {/if}
       </div>
     </div>
   {/if}
