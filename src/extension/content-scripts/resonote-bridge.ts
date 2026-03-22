@@ -1,4 +1,5 @@
 import { RESONOTE_EXT_ATTR, RESONOTE_ACTION_ATTR } from '../shared/constants.js';
+import { isKnownMessageType } from '../shared/messages.js';
 
 document.documentElement.setAttribute(RESONOTE_EXT_ATTR, 'true');
 
@@ -9,7 +10,7 @@ const observer = new MutationObserver((mutations) => {
       if (!raw) continue;
       try {
         const data = JSON.parse(raw);
-        if (typeof data === 'object' && data !== null && typeof data.type === 'string') {
+        if (typeof data === 'object' && data !== null && isKnownMessageType(data.type)) {
           chrome.runtime.sendMessage(data).catch(() => {});
         }
       } catch {
