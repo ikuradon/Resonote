@@ -63,6 +63,22 @@ describe('oEmbed resolve API', () => {
     expect(body.error).toBe('unsupported_platform');
   });
 
+  it('returns 400 for unsupported type', async () => {
+    const ctx = makeContext({ platform: 'youtube', type: 'playlist', id: 'PLxxxx' });
+    const res = await onRequestGet(ctx);
+    expect(res.status).toBe(400);
+    const body = await parseJson(res);
+    expect(body.error).toBe('unsupported_type');
+  });
+
+  it('returns 400 for invalid id format', async () => {
+    const ctx = makeContext({ platform: 'spotify', type: 'track', id: '../../../etc/passwd' });
+    const res = await onRequestGet(ctx);
+    expect(res.status).toBe(400);
+    const body = await parseJson(res);
+    expect(body.error).toBe('invalid_id');
+  });
+
   it('returns metadata for spotify track', async () => {
     vi.stubGlobal(
       'fetch',

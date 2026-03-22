@@ -11,27 +11,39 @@ interface OEmbedResponse {
   provider_name?: string;
 }
 
-const OEMBED_ENDPOINTS: Record<string, string> = {
-  spotify: 'https://open.spotify.com/oembed',
-  youtube: 'https://www.youtube.com/oembed',
-  soundcloud: 'https://soundcloud.com/oembed',
-  vimeo: 'https://vimeo.com/api/oembed.json'
-};
-
-function buildContentUrl(platform: string, type: string, id: string): string | null {
-  switch (platform) {
-    case 'spotify':
-      return `https://open.spotify.com/${type}/${id}`;
-    case 'youtube':
-      return `https://www.youtube.com/watch?v=${id}`;
-    case 'soundcloud':
-      return `https://soundcloud.com/${id}`;
-    case 'vimeo':
-      return `https://vimeo.com/${id}`;
-    default:
-      return null;
-  }
+interface PlatformConfig {
+  oembedBase: string;
+  validTypes: Set<string>;
+  idPattern: RegExp;
+  buildUrl: (type: string, id: string) => string;
 }
+
+const PLATFORMS: Record<string, PlatformConfig> = {
+  spotify: {
+    oembedBase: 'https://open.spotify.com/oembed',
+    validTypes: new Set(['track', 'album', 'artist', 'playlist', 'episode', 'show']),
+    idPattern: /^[a-zA-Z0-9]+$/,
+    buildUrl: (type, id) => `https://open.spotify.com/${type}/${id}`
+  },
+  youtube: {
+    oembedBase: 'https://www.youtube.com/oembed',
+    validTypes: new Set(['video']),
+    idPattern: /^[a-zA-Z0-9_-]+$/,
+    buildUrl: (_type, id) => `https://www.youtube.com/watch?v=${id}`
+  },
+  soundcloud: {
+    oembedBase: 'https://soundcloud.com/oembed',
+    validTypes: new Set(['track', 'set']),
+    idPattern: /^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/,
+    buildUrl: (_type, id) => `https://soundcloud.com/${id}`
+  },
+  vimeo: {
+    oembedBase: 'https://vimeo.com/api/oembed.json',
+    validTypes: new Set(['video']),
+    idPattern: /^[0-9]+$/,
+    buildUrl: (_type, id) => `https://vimeo.com/${id}`
+  }
+};
 
 export const onRequestGet: PagesFunction<Env> = handleRequest;
 
@@ -46,17 +58,21 @@ async function handleRequest(context: EventContext<Env, string, unknown>): Promi
     return json({ error: 'missing_params' }, 400);
   }
 
-  const oembedBase = OEMBED_ENDPOINTS[platform];
-  if (!oembedBase) {
+  const config = PLATFORMS[platform];
+  if (!config) {
     return json({ error: 'unsupported_platform' }, 400);
   }
 
-  const contentUrl = buildContentUrl(platform, type, id);
-  if (!contentUrl) {
-    return json({ error: 'unsupported_content' }, 400);
+  if (!config.validTypes.has(type)) {
+    return json({ error: 'unsupported_type' }, 400);
   }
 
-  const oembedUrl = `${oembedBase}?format=json&url=${encodeURIComponent(contentUrl)}`;
+  if (!config.idPattern.test(id)) {
+    return json({ error: 'invalid_id' }, 400);
+  }
+
+  const contentUrl = config.buildUrl(type, id);
+  const oembedUrl = `${config.oembedBase}?format=json&url=${encodeURIComponent(contentUrl)}`;
 
   try {
     const res = await safeFetch(oembedUrl, { allowPrivateIPs });

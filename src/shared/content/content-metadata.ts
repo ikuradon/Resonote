@@ -15,6 +15,7 @@ export interface ContentMetadata {
   provider: string;
 }
 
+/** Must match PLATFORMS keys in functions/api/oembed/resolve.ts */
 const SUPPORTED_PLATFORMS = new Set(['spotify', 'youtube', 'soundcloud', 'vimeo']);
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
