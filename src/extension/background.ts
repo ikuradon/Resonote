@@ -1,7 +1,7 @@
 import { openSidePanel } from './shared/compat.js';
 import { SIDEPANEL_PORT_NAME } from './shared/constants.js';
 import type { ContentId } from '$shared/content/types.js';
-import type { ExtensionMessage } from './shared/messages.js';
+import { type ExtensionMessage, isSafeUrl, isValidContentId } from './shared/messages.js';
 
 interface TabState {
   contentId: ContentId;
@@ -30,7 +30,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender) => {
 
   switch (message.type) {
     case 'resonote:site-detected': {
-      if (!tabId) return;
+      if (!tabId || !isSafeUrl(message.siteUrl) || !isValidContentId(message.contentId)) return;
       tabStates.set(tabId, {
         contentId: message.contentId,
         siteUrl: message.siteUrl
@@ -67,7 +67,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender) => {
     }
 
     case 'resonote:open-content': {
-      if (tabId) {
+      if (tabId && isSafeUrl(message.siteUrl) && isValidContentId(message.contentId)) {
         chrome.tabs.update(tabId, { url: message.siteUrl });
         tabStates.set(tabId, {
           contentId: message.contentId,
