@@ -89,8 +89,20 @@ describe('clearMuteList', () => {
 });
 
 describe('isMuted', () => {
+  const savedWindow = globalThis.window;
+
   beforeEach(() => {
     clearMuteList();
+    authState.pubkey = null;
+  });
+
+  afterEach(() => {
+    authState.pubkey = null;
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      writable: true,
+      value: savedWindow
+    });
   });
 
   it('ミュートされていないpubkeyはfalseを返す', () => {
