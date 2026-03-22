@@ -56,7 +56,7 @@ function toCandidate(
  * Excludes the current user's own pubkey.
  */
 export function computeMentionCandidates(input: MentionCandidateInput): MentionCandidate[] {
-  const { query, follows, threadPubkeys, getProfile, myPubkey, limit = 8 } = input;
+  const { query, follows, threadPubkeys, getProfile, myPubkey, limit = 15 } = input;
   const seen = new Set<string>();
   const results: MentionCandidate[] = [];
 

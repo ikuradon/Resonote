@@ -267,9 +267,9 @@
 
 <div class="relative">
   {#if autocomplete && suggestions.length > 0}
-    {#if isDesktop}
+    {#if isDesktop || autocomplete.type === 'mention'}
       <div
-        class="absolute bottom-full left-0 z-20 mb-1 w-64 overflow-hidden rounded-lg border border-border bg-surface-0 shadow-lg"
+        class="absolute bottom-full left-0 z-20 mb-1 max-h-64 w-64 overflow-y-auto overflow-x-hidden rounded-lg border border-border bg-surface-0 shadow-lg"
       >
         {#each suggestions as item, i (item.shortcode)}
           <button
@@ -294,11 +294,7 @@
         onclose={() => {
           autocomplete = null;
         }}
-        title={autocomplete.type === 'emoji'
-          ? 'Emoji'
-          : autocomplete.type === 'mention'
-            ? 'Mention'
-            : 'Hashtag'}
+        title={autocomplete.type === 'emoji' ? 'Emoji' : 'Hashtag'}
       >
         <div class="flex flex-col gap-1">
           {#each suggestions as item, i (item.shortcode)}
