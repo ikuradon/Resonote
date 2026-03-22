@@ -6,18 +6,37 @@
   import { tick } from 'svelte';
   import NoteInput from './NoteInput.svelte';
   import SendButton from './SendButton.svelte';
+  import { getFollows } from '$shared/browser/follows.js';
+  import { getAuth } from '$shared/browser/auth.js';
+  import { getProfile } from '$shared/browser/profile.js';
+  import { computeMentionCandidates } from '$features/comments/ui/mention-candidates.js';
 
   interface Props {
     contentId: ContentId;
     provider: ContentProvider;
+    threadPubkeys?: string[];
   }
 
-  let { contentId, provider }: Props = $props();
+  let { contentId, provider, threadPubkeys = [] }: Props = $props();
 
   const vm = createCommentFormViewModel({
     getContentId: () => contentId,
     getProvider: () => provider
   });
+
+  const auth = getAuth();
+  const followsState = getFollows();
+
+  let mentionQuery = $state('');
+  let mentionCandidates = $derived(
+    computeMentionCandidates({
+      query: mentionQuery,
+      follows: followsState.follows,
+      threadPubkeys,
+      getProfile,
+      myPubkey: auth.pubkey
+    })
+  );
 
   let formEl = $state<HTMLFormElement | null>(null);
 
@@ -29,6 +48,10 @@
       const textarea = formEl?.querySelector('textarea');
       textarea?.focus();
     });
+  }
+
+  function handleMentionQuery(query: string) {
+    mentionQuery = query;
   }
 
   async function submit() {
@@ -120,6 +143,8 @@
       placeholder={vm.placeholder}
       rows={1}
       onsubmit={submit}
+      {mentionCandidates}
+      onmentionquery={handleMentionQuery}
     >
       <SendButton sending={vm.sending} flying={vm.flying} disabled={!vm.content.trim()} />
     </NoteInput>

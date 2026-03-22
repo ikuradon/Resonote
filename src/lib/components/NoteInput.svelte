@@ -7,6 +7,8 @@
   import { allocateEmojiPopoverId } from './emoji-popover-id.js';
   import EmojiPickerPopover from './EmojiPickerPopover.svelte';
   import MobileOverlay from './MobileOverlay.svelte';
+  import type { MentionCandidate } from '$features/comments/ui/mention-candidates.js';
+  import { npubEncode } from 'nostr-tools/nip19';
 
   interface Props {
     content: string;
@@ -16,6 +18,8 @@
     rows?: number;
     onsubmit?: () => void;
     children?: Snippet;
+    mentionCandidates?: MentionCandidate[];
+    onmentionquery?: (query: string) => void;
   }
 
   let {
@@ -25,7 +29,9 @@
     placeholder = '',
     rows = 1,
     onsubmit,
-    children
+    children,
+    mentionCandidates = [],
+    onmentionquery
   }: Props = $props();
 
   const pickerId = allocateEmojiPopoverId();
@@ -36,7 +42,7 @@
   let textareaEl = $state<HTMLTextAreaElement | null>(null);
   let composing = $state(false);
   let autocomplete = $state<{
-    type: 'emoji' | 'hashtag';
+    type: 'emoji' | 'hashtag' | 'mention';
     query: string;
     startPos: number;
   } | null>(null);
@@ -61,12 +67,21 @@
     'NewRelease'
   ];
 
-  let suggestions = $derived.by(() => {
+  interface SuggestionItem {
+    label: string;
+    shortcode: string;
+    url: string;
+    /** Set only for mention suggestions */
+    mentionPubkey?: string;
+    mentionNip05?: string;
+  }
+
+  let suggestions = $derived.by<SuggestionItem[]>(() => {
     if (!autocomplete) return [];
     const q = autocomplete.query.toLowerCase();
 
     if (autocomplete.type === 'emoji') {
-      const results: { label: string; shortcode: string; url: string }[] = [];
+      const results: SuggestionItem[] = [];
       for (const cat of emojiSets.categories) {
         for (const e of cat.emojis) {
           if (e.id.toLowerCase().includes(q)) {
@@ -77,6 +92,16 @@
         if (results.length >= 8) break;
       }
       return results;
+    }
+
+    if (autocomplete.type === 'mention') {
+      return mentionCandidates.map((c) => ({
+        label: `@${c.displayName}`,
+        shortcode: c.pubkey,
+        url: c.picture ?? '',
+        mentionPubkey: c.pubkey,
+        mentionNip05: c.nip05
+      }));
     }
 
     // hashtag
@@ -108,6 +133,22 @@
     const pos = textareaEl.selectionStart;
     const before = content.slice(0, pos);
 
+    // Detect @query (mention) — @ at start of text or after whitespace
+    if (onmentionquery) {
+      const mentionMatch = before.match(/(?:^|\s)@([^\s]*)$/);
+      if (mentionMatch) {
+        const query = mentionMatch[1];
+        autocomplete = {
+          type: 'mention',
+          query,
+          startPos: pos - query.length - 1
+        };
+        selectedIndex = 0;
+        onmentionquery(query);
+        return;
+      }
+    }
+
     // Detect :query (emoji)
     const emojiMatch = before.match(/:([^:\s]*)$/);
     if (emojiMatch) {
@@ -138,7 +179,7 @@
     detectAutocomplete();
   }
 
-  function acceptSuggestion(item: { label: string; shortcode: string; url: string }) {
+  function acceptSuggestion(item: SuggestionItem) {
     if (!autocomplete || !textareaEl) return;
     const cursorPos = textareaEl.selectionStart;
     const { startPos, type } = autocomplete;
@@ -149,6 +190,9 @@
       if (item.url) {
         emojiTags = addEmojiTag(emojiTags, item.shortcode, item.url);
       }
+    } else if (type === 'mention' && item.mentionPubkey) {
+      const npub = npubEncode(item.mentionPubkey);
+      replacement = `nostr:${npub} `;
     } else {
       replacement = `#${item.shortcode} `;
     }
@@ -199,6 +243,24 @@
   }
 </script>
 
+{#snippet suggestionContent(item: SuggestionItem)}
+  {#if autocomplete?.type === 'mention' && item.url}
+    <img src={item.url} alt="" class="h-5 w-5 rounded-full object-cover" />
+  {:else if autocomplete?.type === 'mention'}
+    <div
+      class="flex h-5 w-5 items-center justify-center rounded-full bg-surface-2 text-[10px] text-text-muted"
+    >
+      @
+    </div>
+  {:else if autocomplete?.type === 'emoji' && item.url}
+    <img src={item.url} alt={item.shortcode} class="h-5 w-5 object-contain" />
+  {/if}
+  <span class="truncate">{item.label}</span>
+  {#if item.mentionNip05}
+    <span class="ml-auto truncate text-xs text-text-muted">{item.mentionNip05}</span>
+  {/if}
+{/snippet}
+
 <div class="relative">
   {#if autocomplete && suggestions.length > 0}
     {#if isDesktop}
@@ -218,10 +280,7 @@
             }}
             onmouseenter={() => (selectedIndex = i)}
           >
-            {#if autocomplete.type === 'emoji' && item.url}
-              <img src={item.url} alt={item.shortcode} class="h-5 w-5 object-contain" />
-            {/if}
-            <span>{item.label}</span>
+            {@render suggestionContent(item)}
           </button>
         {/each}
       </div>
@@ -231,7 +290,11 @@
         onclose={() => {
           autocomplete = null;
         }}
-        title={autocomplete.type === 'emoji' ? 'Emoji' : 'Hashtag'}
+        title={autocomplete.type === 'emoji'
+          ? 'Emoji'
+          : autocomplete.type === 'mention'
+            ? 'Mention'
+            : 'Hashtag'}
       >
         <div class="flex flex-col gap-1">
           {#each suggestions as item, i (item.label)}
@@ -243,10 +306,7 @@
                 : 'text-text-primary hover:bg-surface-2'} rounded-lg"
               onclick={() => acceptSuggestion(item)}
             >
-              {#if autocomplete?.type === 'emoji' && item.url}
-                <img src={item.url} alt={item.shortcode} class="h-5 w-5 object-contain" />
-              {/if}
-              <span>{item.label}</span>
+              {@render suggestionContent(item)}
             </button>
           {/each}
         </div>

@@ -41,6 +41,9 @@
   const player = isDev ? getPlayer() : undefined;
   let devSeekSec = $state(0);
   let commentFormRef = $state<CommentForm | undefined>();
+  let threadPubkeys = $derived(
+    vm.store ? [...new Set(vm.store.comments.map((c) => c.pubkey))] : []
+  );
   const collectionVm = createPlayerColumnViewModel({
     getContentId: () => contentId,
     getProvider: () => provider!
@@ -207,7 +210,7 @@
                 </div>
               </div>
             {/if}
-            <CommentForm bind:this={commentFormRef} {contentId} {provider} />
+            <CommentForm bind:this={commentFormRef} {contentId} {provider} {threadPubkeys} />
             {#if vm.store}
               <CommentList
                 comments={vm.store.comments}
