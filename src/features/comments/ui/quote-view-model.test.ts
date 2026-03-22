@@ -85,7 +85,13 @@ describe('createQuoteViewModel', () => {
     expect(vm.data!.isComment).toBe(false);
   });
 
-  it('fetches profile in background for display name', async () => {
+  it('updates authorName after background profile fetch', async () => {
+    let resolveProfile!: () => void;
+    mockFetchProfile.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveProfile = resolve;
+      })
+    );
     mockCachedFetchById.mockResolvedValue({
       id: EVENT_ID,
       pubkey: PK_AUTHOR,
@@ -94,13 +100,19 @@ describe('createQuoteViewModel', () => {
       kind: 1111,
       tags: []
     });
-    mockGetDisplayName.mockReturnValueOnce('npub1aaa...').mockReturnValueOnce('Alice');
+    mockGetDisplayName.mockReturnValue('npub1aaa...');
 
     const { createQuoteViewModel } = await import('./quote-view-model.svelte.js');
     const vm = createQuoteViewModel(EVENT_ID);
 
     await vi.waitFor(() => expect(vm.status).toBe('loaded'));
-    await vi.waitFor(() => expect(mockFetchProfile).toHaveBeenCalledWith(PK_AUTHOR));
+    expect(vm.authorName).toBe('npub1aaa...');
+
+    // Simulate profile fetch completing and name resolving
+    mockGetDisplayName.mockReturnValue('Alice');
+    resolveProfile();
+
+    await vi.waitFor(() => expect(vm.authorName).toBe('Alice'));
   });
 
   it('sets not-found when cachedFetchById throws', async () => {
