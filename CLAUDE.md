@@ -284,7 +284,7 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
 - `getFollows().follows` は `Set<string>` → `.length` ではなく `.size` を使う
 - `static/icon.svg` がマスター SVG。PNG は `rsvg-convert -w 512 -h 512 static/icon.svg -o static/icon-512.png` で再生成 (ImageMagick はグラデーション非対応)
 - `app.html` のスプラッシュ SVG は `icon.svg` の inline 埋め込み。アイコン変更時は両方更新すること
-- OGP の `og:url` / `og:image` は `resonote.pages.dev` を使用。独自ドメイン取得時に `app.html` を更新すること
+- OGP の `og:url` / `og:image` は `resonote.cc` を使用 (prod ドメイン)。`resonote.pages.dev` は staging 扱い
 - `cachedFetchById` は fetch 中に `invalidateFetchByIdCache` が呼ばれると `invalidatedDuringFetch` Set でキャッシュ書き込みをスキップする。新規キャッシュ利用コードを書く際はこのパターンを維持すること
 - `$effect` 内で `options.getComments()` 等のリアクティブ getter を呼ぶと二重追跡される → `untrack()` でラップして依存を限定する
 - Svelte 5 `{@const}` は `{#snippet}` / `{#if}` / `{#each}` 等のブロック直下にしか置けない。`<div>` 内に置くとコンパイルエラー

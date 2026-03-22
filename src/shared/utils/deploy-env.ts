@@ -8,7 +8,8 @@ export interface EnvBannerConfig {
 /** Detect deploy environment from hostname. Exported for testing. */
 export function detectEnvFromHostname(hostname: string): DeployEnv {
   if (hostname.endsWith('.resonote-preview.pages.dev')) return 'preview';
-  if (hostname === 'staging.resonote.pages.dev') return 'staging';
+  if (hostname === 'resonote.pages.dev' || hostname === 'staging.resonote.pages.dev')
+    return 'staging';
   return 'production';
 }
 
