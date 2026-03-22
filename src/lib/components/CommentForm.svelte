@@ -51,6 +51,7 @@
   }
 
   let followProfilesFetched = false;
+  let lastThreadFetchSize = 0;
 
   function handleMentionQuery(query: string) {
     mentionQuery = query;
@@ -61,8 +62,9 @@
       fetchProfiles([...followsState.follows]);
     }
 
-    // Also fetch thread participant profiles (may not be cached for realtime arrivals)
-    if (threadPubkeys.length > 0) {
+    // Fetch thread participant profiles when new participants arrive
+    if (threadPubkeys.length > lastThreadFetchSize) {
+      lastThreadFetchSize = threadPubkeys.length;
       fetchProfiles(threadPubkeys);
     }
   }
