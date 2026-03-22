@@ -3,6 +3,7 @@
   import { toastSuccess, toastError } from '$shared/browser/toast.js';
   import type { ContentId, ContentProvider } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
+  import { tick } from 'svelte';
   import NoteInput from './NoteInput.svelte';
   import SendButton from './SendButton.svelte';
 
@@ -18,6 +19,18 @@
     getProvider: () => provider
   });
 
+  let formEl = $state<HTMLFormElement | null>(null);
+
+  export function insertQuote(eventId: string, authorPubkey: string): void {
+    if (vm.busy) return;
+    vm.insertQuote(eventId, authorPubkey);
+    tick().then(() => {
+      formEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const textarea = formEl?.querySelector('textarea');
+      textarea?.focus();
+    });
+  }
+
   async function submit() {
     const result = await vm.submit();
     if (result === 'sent') {
@@ -32,6 +45,7 @@
 
 {#if vm.loggedIn}
   <form
+    bind:this={formEl}
     data-testid="comment-form"
     onsubmit={(e) => {
       e.preventDefault();

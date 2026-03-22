@@ -24,6 +24,7 @@
     loading?: boolean;
     getPlaceholders?: () => Map<string, PlaceholderComment>;
     fetchOrphanParent?: (parentId: string, positionMs: number | null) => void;
+    onQuote?: (comment: Comment) => void;
   }
 
   let {
@@ -33,7 +34,8 @@
     provider,
     loading = false,
     getPlaceholders,
-    fetchOrphanParent
+    fetchOrphanParent,
+    onQuote
   }: Props = $props();
 
   // --- Virtual scroll auto-scroll ---
@@ -133,6 +135,7 @@
                 onRevealCW={vm.revealCW}
                 onHideCW={vm.hideCW}
                 onMute={vm.requestMute}
+                {onQuote}
                 onReplyContentChange={(content) => (vm.replyContent = content)}
                 onReplyEmojiTagsChange={(tags) => (vm.replyEmojiTags = tags)}
               />
@@ -213,6 +216,7 @@
                   onRevealCW={vm.revealCW}
                   onHideCW={vm.hideCW}
                   onMute={vm.requestMute}
+                  {onQuote}
                   onReplyContentChange={(content) => (vm.replyContent = content)}
                   onReplyEmojiTagsChange={(tags) => (vm.replyEmojiTags = tags)}
                 />
@@ -281,6 +285,7 @@
                   onRevealCW={vm.revealCW}
                   onHideCW={vm.hideCW}
                   onMute={vm.requestMute}
+                  {onQuote}
                   onReplyContentChange={(content) => (vm.replyContent = content)}
                   onReplyEmojiTagsChange={(tags) => (vm.replyEmojiTags = tags)}
                 />

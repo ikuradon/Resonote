@@ -40,6 +40,7 @@
   const isDev = import.meta.env.DEV;
   const player = isDev ? getPlayer() : undefined;
   let devSeekSec = $state(0);
+  let commentFormRef = $state<CommentForm | undefined>();
   const collectionVm = createPlayerColumnViewModel({
     getContentId: () => contentId,
     getProvider: () => provider!
@@ -206,7 +207,7 @@
                 </div>
               </div>
             {/if}
-            <CommentForm {contentId} {provider} />
+            <CommentForm bind:this={commentFormRef} {contentId} {provider} />
             {#if vm.store}
               <CommentList
                 comments={vm.store.comments}
@@ -216,6 +217,7 @@
                 {provider}
                 getPlaceholders={() => vm.store!.placeholders}
                 fetchOrphanParent={vm.store.fetchOrphanParent}
+                onQuote={(comment) => commentFormRef?.insertQuote(comment.id, comment.pubkey)}
               />
             {/if}
           </section>

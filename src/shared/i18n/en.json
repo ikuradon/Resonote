@@ -211,5 +211,8 @@
   "toast.delete_sent": "Comment deleted",
   "toast.delete_failed": "Failed to delete comment",
   "toast.dismiss": "Dismiss",
-  "comment.error.contains_private_key": "Your comment contains a private key (nsec). Blocked for security."
+  "comment.error.contains_private_key": "Your comment contains a private key (nsec). Blocked for security.",
+  "quote.loading": "Loading…",
+  "quote.not_found": "Quoted event not found",
+  "quote.title": "Quote"
 }

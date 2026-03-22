@@ -8,6 +8,7 @@
   import EmojiPickerPopover from './EmojiPickerPopover.svelte';
   import NoteInput from './NoteInput.svelte';
   import CommentCard from './CommentCard.svelte';
+  import QuoteCard from './QuoteCard.svelte';
 
   interface Props {
     comment: Comment;
@@ -45,6 +46,7 @@
     onRevealCW: (id: string) => void;
     onHideCW: (id: string) => void;
     onMute: (pubkey: string) => void;
+    onQuote?: (comment: Comment) => void;
     onReplyContentChange: (content: string) => void;
     onReplyEmojiTagsChange: (tags: string[][]) => void;
   }
@@ -84,6 +86,7 @@
     onRevealCW,
     onHideCW,
     onMute,
+    onQuote,
     onReplyContentChange,
     onReplyEmojiTagsChange
   }: Props = $props();
@@ -181,22 +184,23 @@
       </button>
     </div>
   {:else}
-    <p class="text-sm leading-relaxed text-text-primary whitespace-pre-wrap break-words">
+    <div class="text-sm leading-relaxed text-text-primary whitespace-pre-wrap break-words">
       {#each segments as seg, segIdx (segIdx)}
         {#if seg.type === 'text'}{seg.value}{:else if seg.type === 'emoji'}<img
             src={seg.url}
             alt=":{seg.shortcode}:"
             class="inline h-5 w-5"
             loading="lazy"
-          />{:else if seg.type === 'nostr-link'}<a
-            href={seg.href}
-            class="text-accent hover:underline"
-            >{#if seg.decoded.type === 'npub' || seg.decoded.type === 'nprofile'}{#if getAuthorDisplay(seg.decoded.pubkey).displayName !== seg.decoded.pubkey}@{getAuthorDisplay(
-                  seg.decoded.pubkey
-                ).displayName}{:else}{seg.uri.slice(0, 8)}…{seg.uri.slice(
-                  -4
-                )}{/if}{:else}{seg.uri.slice(0, 8)}…{seg.uri.slice(-4)}{/if}</a
-          >{:else if seg.type === 'content-link'}<a
+          />{:else if seg.type === 'nostr-link'}{#if seg.decoded.type === 'note' || seg.decoded.type === 'nevent'}<QuoteCard
+              eventId={seg.decoded.eventId}
+              href={seg.href}
+            />{:else}<a href={seg.href} class="text-accent hover:underline"
+              >{#if seg.decoded.type === 'npub' || seg.decoded.type === 'nprofile'}{#if getAuthorDisplay(seg.decoded.pubkey).displayName !== seg.decoded.pubkey}@{getAuthorDisplay(
+                    seg.decoded.pubkey
+                  ).displayName}{:else}{seg.uri.slice(0, 8)}…{seg.uri.slice(
+                    -4
+                  )}{/if}{:else}{seg.uri.slice(0, 8)}…{seg.uri.slice(-4)}{/if}</a
+            >{/if}{:else if seg.type === 'content-link'}<a
             href={seg.href}
             class="inline-flex items-center gap-1 text-accent hover:underline">{seg.displayLabel}</a
           >{:else if seg.type === 'url'}<a
@@ -207,7 +211,7 @@
             >{seg.href.length > 50 ? seg.href.slice(0, 50) + '…' : seg.href}</a
           >{:else if seg.type === 'hashtag'}<span class="text-accent">#{seg.tag}</span>{/if}
       {/each}
-    </p>
+    </div>
     {#if comment.contentWarning !== null}
       <button
         type="button"
@@ -278,6 +282,30 @@
           <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
         </svg>
       </button>
+      {#if onQuote}
+        <button
+          type="button"
+          onclick={() => onQuote(comment)}
+          class="inline-flex items-center min-h-11 rounded-lg p-1.5 text-text-muted transition-colors hover:text-accent"
+          title={t('quote.title')}
+        >
+          <svg
+            aria-hidden="true"
+            class="h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z"
+            />
+            <path
+              d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"
+            />
+          </svg>
+        </button>
+      {/if}
     {/if}
     {#if loggedIn && !isOwn && canMute}
       <button
@@ -428,6 +456,7 @@
             {onRevealCW}
             {onHideCW}
             {onMute}
+            {onQuote}
             {onReplyContentChange}
             {onReplyEmojiTagsChange}
           />
