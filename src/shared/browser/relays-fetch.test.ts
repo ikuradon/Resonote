@@ -221,6 +221,10 @@ describe('fetchRelayList', () => {
     const result = await fetchRelayList(PUBKEY);
 
     expect(result.source).toBe('none');
+    // Verify kind:10002 failed and kind:3 fallback was attempted (2 subscriptions)
+    expect(rxNostr.use).toHaveBeenCalledTimes(2);
+    // Verify emit was called with kind:10002 filter first, then kind:3
+    expect(reqEmitMock).toHaveBeenCalledTimes(2);
   });
 });
 

@@ -506,73 +506,71 @@ describe('createCommentViewModel', () => {
   // 7. fetchOrphanParent — deleted during await
   // -------------------------------------------------------------------------
   describe('fetchOrphanParent: deleted during fetch await', () => {
-    it('shows deleted placeholder when parent is deleted while fetching', async () => {
+    it('shows deleted placeholder when deletion arrives while fetch is pending', async () => {
       const parentId = 'race-parent';
 
-      // cachedFetchById resolves with the event but by then deletedIds contains parentId
-      cachedFetchByIdMock.mockImplementation(async () => {
-        // Simulate deletion arriving during the fetch: inject deletedIds via a deletion packet
-        // We need to reach the internal state — instead test observable outcome:
-        // The parent is in deletedIds when fetch resolves. We can achieve this by
-        // having verifyDeletionTargets return parentId on the deletion event dispatched
-        // via startSubscription, and having cachedFetchById resolve after that.
-        return makeCommentEvent(parentId);
-      });
-
-      // Use a promise to control timing
-      let resolveDelete!: () => void;
-      const deletionTriggered = new Promise<void>((res) => {
-        resolveDelete = res;
-      });
+      // Capture onPacket from startSubscription to dispatch deletion later
+      let capturedOnPacket!: (event: {
+        id: string;
+        pubkey: string;
+        kind: number;
+        tags: string[][];
+        content: string;
+        created_at: number;
+      }) => void;
 
       startSubscriptionMock.mockImplementation(
         (
           _refs: unknown,
           _filters: unknown,
           _maxCreatedAt: unknown,
-          onPacket: (event: {
-            id: string;
-            pubkey: string;
-            kind: number;
-            tags: string[][];
-            content: string;
-            created_at: number;
-          }) => void,
+          onPacket: typeof capturedOnPacket,
           onBackwardComplete: () => void
         ) => {
+          capturedOnPacket = onPacket;
           onBackwardComplete();
-          // Schedule deletion dispatch after subscribe resolves but before fetchOrphanParent awaits
-          Promise.resolve().then(() => {
-            verifyDeletionTargetsMock.mockReturnValue([parentId]);
-            onPacket({
-              id: 'del-event-race',
-              pubkey: 'author',
-              kind: 5,
-              tags: [['e', parentId]],
-              content: '',
-              created_at: 3000
-            });
-            resolveDelete();
-          });
           return [{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }];
         }
       );
 
-      // Make cachedFetchById wait for the deletion to be processed first
-      cachedFetchByIdMock.mockImplementation(async () => {
-        await deletionTriggered;
-        return makeCommentEvent(parentId);
-      });
-
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      verifyDeletionTargetsMock.mockReturnValue([]);
-      await vm.fetchOrphanParent(parentId, null);
+      // At this point deletedIds does NOT contain parentId
+      // Make cachedFetchById block until we manually resolve it
+      let resolveFetch!: (val: ReturnType<typeof makeCommentEvent>) => void;
+      cachedFetchByIdMock.mockImplementation(
+        () =>
+          new Promise((r) => {
+            resolveFetch = r;
+          })
+      );
 
+      // Start fetch — this enters the fetch path (deletedIds.has is false)
+      const fetchPromise = vm.fetchOrphanParent(parentId, null);
+
+      // While fetch is pending, simulate deletion event arriving via live subscription
+      verifyDeletionTargetsMock.mockReturnValue([parentId]);
+      capturedOnPacket({
+        id: 'del-during-fetch',
+        pubkey: 'author',
+        kind: 5,
+        tags: [['e', parentId]],
+        content: '',
+        created_at: 3000
+      });
+
+      // Now resolve the fetch with a valid comment event
+      resolveFetch(makeCommentEvent(parentId));
+      await fetchPromise;
+
+      // Result: deleted placeholder (NOT added to commentsRaw)
       const ph = vm.placeholders.get(parentId);
       expect(ph).toBeDefined();
       expect(ph?.status).toBe('deleted');
+      expect(vm.comments.find((c) => c.id === parentId)).toBeUndefined();
+      // cachedFetchById WAS called (unlike the early-return path)
+      expect(cachedFetchByIdMock).toHaveBeenCalledWith(parentId);
     });
   });
 
