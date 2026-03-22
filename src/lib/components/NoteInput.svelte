@@ -121,6 +121,13 @@
       .map((t) => ({ label: `#${t}`, shortcode: t, url: '' }));
   });
 
+  // Clamp selectedIndex whenever suggestions change (async profile loads can reorder/resize)
+  $effect(() => {
+    if (suggestions.length > 0 && selectedIndex >= suggestions.length) {
+      selectedIndex = suggestions.length - 1;
+    }
+  });
+
   function insertEmoji(reaction: string, emojiUrl?: string) {
     if (!textareaEl) return;
     const start = textareaEl.selectionStart;
