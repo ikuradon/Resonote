@@ -110,6 +110,7 @@ describe('clearFollows', () => {
 
 describe('matchesFilter', () => {
   beforeEach(async () => {
+    vi.clearAllMocks();
     clearFollows();
     // loadFollows で follows/wot をセットする
     getByPubkeyAndKindMock.mockResolvedValue(makeKind3Event(MY_PUBKEY, [FOLLOW_A]));

@@ -231,8 +231,8 @@ describe('window.nostr が未定義の場合', () => {
 
     // クラッシュしないことを確認
     dispatchNlAuth('login');
-    // 少し待っても pubkey は null のまま
-    await Promise.resolve();
+    // マイクロタスクチェーンを確実にフラッシュ
+    await new Promise((r) => setTimeout(r, 0));
     expect(getAuth().pubkey).toBeNull();
   });
 
@@ -247,7 +247,7 @@ describe('window.nostr が未定義の場合', () => {
     await initAuth();
 
     dispatchNlAuth('login');
-    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
     expect(getAuth().pubkey).toBeNull();
   });
 });

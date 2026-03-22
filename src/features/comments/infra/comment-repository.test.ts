@@ -53,7 +53,7 @@ beforeEach(() => {
 describe('getCommentRepository', () => {
   it('returns the EventsDB instance from getEventsDB', async () => {
     const fakeDb = makeDb();
-    getEventsDBMock.mockReturnValue(fakeDb);
+    getEventsDBMock.mockResolvedValue(fakeDb);
 
     const result = await getCommentRepository();
 
