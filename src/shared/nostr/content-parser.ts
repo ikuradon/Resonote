@@ -8,7 +8,7 @@ export type { DecodedNip19 };
 export type ContentSegment =
   | { type: 'text'; value: string }
   | { type: 'emoji'; shortcode: string; url: string }
-  | { type: 'nostr-link'; uri: string; decoded: DecodedNip19; href: string }
+  | { type: 'nostr-link'; uri: string; decoded: NonNullable<DecodedNip19>; href: string }
   | { type: 'content-link'; uri: string; contentId: ContentId; href: string; displayLabel: string }
   | { type: 'url'; href: string }
   | { type: 'hashtag'; tag: string };
@@ -48,7 +48,20 @@ function createCombinedRe(): RegExp {
   return /nostr:(npub1|nprofile1|nevent1|note1|ncontent1)[a-z0-9]+|https?:\/\/[^\s<>"]+|:([^:\s]+):|(?:^|(?<=\s))#([a-zA-Z0-9_\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]+)/g;
 }
 
-const URL_TRAILING_RE = /[.,;:!?)]+$/;
+/** Trim trailing punctuation from a URL, preserving balanced parentheses. */
+function trimUrlTrailing(url: string): string {
+  let end = url.length;
+  while (end > 0 && /[.,;:!?)]/.test(url[end - 1])) {
+    if (url[end - 1] === ')') {
+      const sub = url.slice(0, end);
+      const opens = (sub.match(/\(/g) || []).length;
+      const closes = (sub.match(/\)/g) || []).length;
+      if (opens >= closes) break;
+    }
+    end--;
+  }
+  return url.slice(0, end);
+}
 
 function nostrLinkHref(uri: string, decoded: NonNullable<DecodedNip19>): string {
   switch (decoded.type) {
@@ -132,7 +145,7 @@ export function parseCommentContent(content: string, emojiTags: string[][]): Con
       lastIndex = matchStart + matchText.length;
     } else if (matchText.startsWith('http://') || matchText.startsWith('https://')) {
       // URL -- trim trailing punctuation
-      const trimmed = matchText.replace(URL_TRAILING_RE, '');
+      const trimmed = trimUrlTrailing(matchText);
       segments.push({ type: 'url', href: trimmed });
       lastIndex = matchStart + trimmed.length;
       re.lastIndex = matchStart + trimmed.length;

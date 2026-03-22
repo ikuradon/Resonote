@@ -191,6 +191,27 @@ describe('parseCommentContent — URLs', () => {
     }
   });
 
+  it('preserves balanced parentheses in URL (Wikipedia style)', () => {
+    const result = parseCommentContent('https://en.wikipedia.org/wiki/Nostr_(protocol)', []);
+    const seg = result.find((s) => s.type === 'url');
+    if (seg?.type === 'url') {
+      expect(seg.href).toBe('https://en.wikipedia.org/wiki/Nostr_(protocol)');
+    } else {
+      expect.fail('Expected url segment');
+    }
+  });
+
+  it('trims ) after balanced URL in parenthetical text', () => {
+    const result = parseCommentContent('(see https://en.wikipedia.org/wiki/Nostr_(protocol))', []);
+    const seg = result.find((s) => s.type === 'url');
+    if (seg?.type === 'url') {
+      // The URL has balanced parens, but the outer ) is not part of it
+      expect(seg.href).toBe('https://en.wikipedia.org/wiki/Nostr_(protocol)');
+    } else {
+      expect.fail('Expected url segment');
+    }
+  });
+
   it('nostr: URI is not mistaken for a URL', () => {
     const result = parseCommentContent(`nostr:${VALID_NPUB}`, []);
     const urlSeg = result.find((s) => s.type === 'url');
