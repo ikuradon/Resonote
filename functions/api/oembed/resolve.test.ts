@@ -79,6 +79,27 @@ describe('oEmbed resolve API', () => {
     expect(body.error).toBe('invalid_id');
   });
 
+  it('accepts soundcloud set id with two slashes', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ title: 'My Playlist', author_name: 'Artist' }), {
+          status: 200
+        })
+      )
+    );
+
+    const ctx = makeContext({
+      platform: 'soundcloud',
+      type: 'set',
+      id: 'artist-name/sets/my-playlist'
+    });
+    const res = await onRequestGet(ctx);
+    expect(res.status).toBe(200);
+    const body = await parseJson(res);
+    expect(body.title).toBe('My Playlist');
+  });
+
   it('returns metadata for spotify track', async () => {
     vi.stubGlobal(
       'fetch',

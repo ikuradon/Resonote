@@ -34,7 +34,7 @@ const PLATFORMS: Record<string, PlatformConfig> = {
   soundcloud: {
     oembedBase: 'https://soundcloud.com/oembed',
     validTypes: new Set(['track', 'set']),
-    idPattern: /^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/,
+    idPattern: /^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+){1,2}$/,
     buildUrl: (_type, id) => `https://soundcloud.com/${id}`
   },
   vimeo: {
