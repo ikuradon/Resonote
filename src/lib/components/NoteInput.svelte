@@ -267,7 +267,7 @@
       <div
         class="absolute bottom-full left-0 z-20 mb-1 w-64 overflow-hidden rounded-lg border border-border bg-surface-0 shadow-lg"
       >
-        {#each suggestions as item, i (item.label)}
+        {#each suggestions as item, i (item.shortcode)}
           <button
             type="button"
             class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors {i ===
@@ -297,7 +297,7 @@
             : 'Hashtag'}
       >
         <div class="flex flex-col gap-1">
-          {#each suggestions as item, i (item.label)}
+          {#each suggestions as item, i (item.shortcode)}
             <button
               type="button"
               class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition-colors {i ===

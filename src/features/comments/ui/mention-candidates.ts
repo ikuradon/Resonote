@@ -11,8 +11,8 @@ export interface MentionCandidate {
   displayName: string;
   picture?: string;
   nip05?: string;
-  /** Source priority: 'follow' > 'thread' > 'profile' */
-  source: 'follow' | 'thread' | 'profile';
+  /** Source priority: 'follow' > 'thread' */
+  source: 'follow' | 'thread';
 }
 
 export interface MentionCandidateInput {
@@ -51,8 +51,8 @@ function toCandidate(
 }
 
 /**
- * Compute ranked mention candidates from follows, thread participants, and profiles.
- * Priority: follows first, then thread participants, then remaining profiles.
+ * Compute ranked mention candidates from follows and thread participants.
+ * Priority: follows first, then thread participants.
  * Excludes the current user's own pubkey.
  */
 export function computeMentionCandidates(input: MentionCandidateInput): MentionCandidate[] {
