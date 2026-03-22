@@ -42,7 +42,7 @@ export type ExtensionMessage =
   | SeekMessage
   | OpenContentMessage;
 
-const VALID_MESSAGE_TYPES = new Set([
+const VALID_MESSAGE_TYPES = new Set<ExtensionMessage['type']>([
   'resonote:site-detected',
   'resonote:playback-state',
   'resonote:site-lost',
@@ -76,6 +76,6 @@ export function isValidContentId(id: unknown): id is ContentId {
 }
 
 /** Check if a message type is a known ExtensionMessage type. */
-export function isKnownMessageType(type: unknown): boolean {
-  return typeof type === 'string' && VALID_MESSAGE_TYPES.has(type);
+export function isKnownMessageType(type: unknown): type is ExtensionMessage['type'] {
+  return typeof type === 'string' && VALID_MESSAGE_TYPES.has(type as ExtensionMessage['type']);
 }
