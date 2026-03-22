@@ -59,13 +59,13 @@
     // Lazy-load follows' profiles on first @ trigger
     if (!followProfilesFetched && followsState.follows.size > 0) {
       followProfilesFetched = true;
-      fetchProfiles([...followsState.follows]);
+      void fetchProfiles([...followsState.follows]);
     }
 
     // Fetch thread participant profiles when new participants arrive
     if (threadPubkeys.length > lastThreadFetchSize) {
       lastThreadFetchSize = threadPubkeys.length;
-      fetchProfiles(threadPubkeys);
+      void fetchProfiles(threadPubkeys);
     }
   }
 
