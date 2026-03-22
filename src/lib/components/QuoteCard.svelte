@@ -23,7 +23,7 @@
 
 <a
   {href}
-  class="my-1 block rounded-lg border border-border bg-surface-1 p-3 text-left transition-colors hover:bg-surface-2"
+  class="my-1 block whitespace-normal rounded-lg border border-border bg-surface-1 p-3 text-left transition-colors hover:bg-surface-2"
 >
   {#if vm.status === 'loading'}
     <div class="flex items-center gap-2 text-xs text-text-muted">
@@ -54,7 +54,7 @@
           : t('cw.warning')}
       </div>
     {:else}
-      <div class="mt-1 whitespace-normal text-sm leading-relaxed text-text-primary">{preview}</div>
+      <div class="mt-1 text-sm leading-relaxed text-text-primary">{preview}</div>
     {/if}
   {/if}
 </a>
