@@ -47,6 +47,14 @@ describe('oEmbed resolve API', () => {
     expect(body.error).toBe('missing_params');
   });
 
+  it('returns 400 when id is missing', async () => {
+    const ctx = makeContext({ platform: 'spotify', type: 'track' });
+    const res = await onRequestGet(ctx);
+    expect(res.status).toBe(400);
+    const body = await parseJson(res);
+    expect(body.error).toBe('missing_params');
+  });
+
   it('returns 400 for unsupported platform', async () => {
     const ctx = makeContext({ platform: 'tiktok', type: 'video', id: '123' });
     const res = await onRequestGet(ctx);

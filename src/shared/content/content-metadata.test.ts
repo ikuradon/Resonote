@@ -73,14 +73,18 @@ describe('fetchContentMetadata', () => {
     expect(result).toBeNull();
   });
 
-  it('caches null on 4xx client error', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('not found', { status: 404 })));
+  it('caches null on 4xx client error — does not retry', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(new Response('not found', { status: 404 }));
+    vi.stubGlobal('fetch', mockFetch);
 
-    const result = await fetchContentMetadata(SPOTIFY_TRACK);
-    expect(result).toBeNull();
+    const first = await fetchContentMetadata(SPOTIFY_TRACK);
+    expect(first).toBeNull();
+    expect(mockFetch).toHaveBeenCalledOnce();
 
-    const cached = getContentMetadata(SPOTIFY_TRACK);
-    expect(cached).toBeNull();
+    // Second call should return cached null without fetching again
+    const second = await fetchContentMetadata(SPOTIFY_TRACK);
+    expect(second).toBeNull();
+    expect(mockFetch).toHaveBeenCalledOnce(); // NOT called again
   });
 
   it('does not cache null on 5xx server error — retries on next call', async () => {
