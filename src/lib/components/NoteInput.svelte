@@ -214,6 +214,10 @@
     if (composing) return;
 
     if (autocomplete && suggestions.length > 0) {
+      // Clamp selectedIndex in case suggestions shrank asynchronously
+      if (selectedIndex >= suggestions.length) {
+        selectedIndex = Math.max(0, suggestions.length - 1);
+      }
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         selectedIndex = (selectedIndex + 1) % suggestions.length;
