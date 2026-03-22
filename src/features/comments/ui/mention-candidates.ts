@@ -5,6 +5,7 @@
  */
 
 import { formatDisplayName, type Profile } from '$features/profiles/domain/profile-model.js';
+import { npubEncode } from 'nostr-tools/nip19';
 
 export interface MentionCandidate {
   pubkey: string;
@@ -32,6 +33,11 @@ function matchesQuery(query: string, profile: Profile | undefined, pubkey: strin
   if (profile?.name?.toLowerCase().includes(q)) return true;
   if (profile?.nip05?.toLowerCase().includes(q)) return true;
   if (pubkey.startsWith(q)) return true;
+
+  // npub prefix search — lazy bech32 encoding only when query looks like npub1...
+  if (q.length > 5 && q.startsWith('npub1')) {
+    if (npubEncode(pubkey).startsWith(q)) return true;
+  }
 
   return false;
 }

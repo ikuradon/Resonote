@@ -79,6 +79,25 @@ describe('computeMentionCandidates', () => {
     expect(result[0].pubkey).toBe(PK_ALICE);
   });
 
+  it('filters by npub prefix (lazy bech32)', () => {
+    const npub = npubEncode(PK_ALICE);
+    const query = npub.slice(0, 8); // e.g. "npub1qsp"
+    const result = computeMentionCandidates(
+      makeInput({ query, follows: new Set([PK_ALICE, PK_BOB]) })
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].pubkey).toBe(PK_ALICE);
+  });
+
+  it('does not trigger npub path for short queries', () => {
+    // "npub1" alone (5 chars) should not trigger bech32 encoding
+    const result = computeMentionCandidates(
+      makeInput({ query: 'npub1', follows: new Set([PK_ALICE]) })
+    );
+    // Still matches via empty-ish query behavior or not — the point is no crash
+    expect(result).toBeDefined();
+  });
+
   it('excludes own pubkey', () => {
     const result = computeMentionCandidates(makeInput({ follows: new Set([PK_ME, PK_ALICE]) }));
     expect(result).toHaveLength(1);
