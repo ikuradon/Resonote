@@ -86,7 +86,6 @@ function json(body: unknown, status: number, extraHeaders?: Record<string, strin
     status,
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
       ...extraHeaders
     }
   });
