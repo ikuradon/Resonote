@@ -28,6 +28,7 @@
   {#if vm.status === 'loading'}
     <div class="flex items-center gap-2 text-xs text-text-muted">
       <svg
+        aria-hidden="true"
         class="h-3 w-3 animate-spin"
         viewBox="0 0 24 24"
         fill="none"
