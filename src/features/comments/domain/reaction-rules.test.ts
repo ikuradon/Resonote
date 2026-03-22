@@ -130,7 +130,7 @@ describe('buildReactionIndex with deletedIds', () => {
     expect(stats.reactors.has('pk3')).toBe(false);
   });
 
-  it('excludes reactions targeting deleted comments', () => {
+  it('does not exclude reactions whose target comment is deleted (only own ID matters)', () => {
     // The reaction itself is NOT deleted, but it targets a comment whose ID
     // happens to be in deletedIds. The deletion logic here only skips reactions
     // whose own ID is in deletedIds — the reaction should still appear.
