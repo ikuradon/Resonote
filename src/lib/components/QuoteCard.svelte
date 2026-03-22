@@ -54,7 +54,7 @@
           : t('cw.warning')}
       </div>
     {:else}
-      <div class="mt-1 text-sm leading-relaxed text-text-primary">{preview}</div>
+      <div class="mt-1 whitespace-normal text-sm leading-relaxed text-text-primary">{preview}</div>
     {/if}
   {/if}
 </a>
