@@ -167,8 +167,8 @@ test.describe('Content page (podcast feed)', () => {
   test('should show episode selection hint instead of comment form', async ({ page }) => {
     await page.goto(feedUrl);
     await expect(page.locator('[data-testid="feed-comment-hint"]')).toBeVisible();
-    // Comment form should NOT be visible
-    await expect(page.locator('form, [data-testid="comment-form"]')).not.toBeVisible();
+    // Comment form should NOT be in DOM at all (isFeed hides the entire section)
+    await expect(page.locator('form, [data-testid="comment-form"]')).toHaveCount(0);
   });
 });
 
