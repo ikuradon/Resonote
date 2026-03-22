@@ -89,13 +89,12 @@ describe('computeMentionCandidates', () => {
     expect(result[0].pubkey).toBe(PK_ALICE);
   });
 
-  it('does not trigger npub path for short queries', () => {
-    // "npub1" alone (5 chars) should not trigger bech32 encoding
+  it('does not trigger npub path for 5-char query (no match, no crash)', () => {
+    // "npub1" (5 chars) should not trigger bech32 encoding — falls through to no match
     const result = computeMentionCandidates(
       makeInput({ query: 'npub1', follows: new Set([PK_ALICE]) })
     );
-    // Still matches via empty-ish query behavior or not — the point is no crash
-    expect(result).toBeDefined();
+    expect(result).toHaveLength(0);
   });
 
   it('excludes own pubkey', () => {
