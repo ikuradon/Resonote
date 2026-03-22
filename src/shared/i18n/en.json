@@ -22,6 +22,7 @@
   "comment.orphan.loading": "Loading…",
   "comment.orphan.not_found": "Could not retrieve",
   "comment.orphan.deleted": "Deleted",
+  "comment.feed.select_episode": "Select an episode to view comments",
   "comment.delete.title": "Delete comment",
   "comment.delete.message": "Delete this comment? This action cannot be undone.",
   "comment.delete.confirm": "Delete",
