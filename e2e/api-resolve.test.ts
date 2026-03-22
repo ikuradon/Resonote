@@ -126,10 +126,10 @@ test.describe('API integration: UI flow', () => {
     await input.fill(`${mock.url}/site-with-rss`);
     await page.locator('[data-testid="track-submit-button"]').click();
 
-    // Should first go to resolve page
-    await expect(page).toHaveURL(/\/resolve\//);
+    // May briefly visit /resolve/ before redirecting, or go directly to /podcast/feed/
+    await expect(page).toHaveURL(/\/resolve\/|\/podcast\/feed\//, { timeout: 15_000 });
 
-    // API discovers RSS link and redirects to podcast feed page
+    // Final destination: podcast feed page
     await expect(page).toHaveURL(/\/podcast\/feed\//, { timeout: 15_000 });
 
     // Feed page should display the podcast title

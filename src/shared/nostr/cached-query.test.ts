@@ -143,6 +143,115 @@ describe('cachedFetchById', () => {
   });
 });
 
+describe('invalidatedDuringFetch race condition', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    resetFetchByIdCache();
+    // mockReset clears call history AND any pending mockResolvedValueOnce queues,
+    // preventing cross-test pollution when a prior test leaves unconsumed mocks.
+    dbGetByIdMock.mockReset();
+    dbGetByIdMock.mockResolvedValue(null);
+    subscribeMock.mockReset();
+    subscribeMock.mockImplementation((callbacks: SubscribeCallbacks) => {
+      Promise.resolve().then(() => callbacks.complete?.());
+      return { unsubscribe: vi.fn() };
+    });
+  });
+
+  it('does not cache result when invalidated during in-flight DB fetch', async () => {
+    // DB returns event but invalidation happens concurrently
+    let resolveDb!: (val: Record<string, unknown> | null) => void;
+    const dbPromise = new Promise<Record<string, unknown> | null>((res) => {
+      resolveDb = res;
+    });
+    dbGetByIdMock.mockReturnValueOnce(dbPromise);
+
+    // Start the fetch (now in-flight, waiting for DB)
+    const fetchPromise = cachedFetchById('race-db');
+
+    // While DB fetch is in-flight, invalidate
+    invalidateFetchByIdCache('race-db');
+
+    // Now resolve DB with an event
+    resolveDb({ id: 'race-db', content: 'db-result', kind: 1111 });
+
+    const result = await fetchPromise;
+    // Result is still returned to the caller
+    expect(result).toEqual(expect.objectContaining({ content: 'db-result' }));
+
+    // But result must NOT be cached: next call should hit DB again
+    dbGetByIdMock.mockResolvedValueOnce({ id: 'race-db', content: 'fresh', kind: 1111 });
+    const result2 = await cachedFetchById('race-db');
+    expect(result2).toEqual(expect.objectContaining({ content: 'fresh' }));
+    // DB was called again (not served from cache)
+    expect(dbGetByIdMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not serve stale relay result after invalidation', async () => {
+    // Scenario: relay returns an event (DB miss → relay hit → cached).
+    // Then invalidation is called. The next fetch must bypass the cache.
+    //
+    // This tests the relay path for the invalidation contract.
+    // The in-flight race (invalidation called WHILE relay is pending) is covered
+    // by the DB test above using the same invalidatedDuringFetch mechanism.
+    const relayEvent = { id: 'race-relay2', content: 'relay-result', kind: 1111 };
+
+    subscribeMock.mockImplementation((callbacks: SubscribeCallbacks) => {
+      Promise.resolve().then(() => {
+        callbacks.next?.({ event: relayEvent });
+        callbacks.complete?.();
+      });
+      return { unsubscribe: vi.fn() };
+    });
+
+    // First fetch: DB miss → relay returns event → result is cached
+    const result1 = await cachedFetchById('race-relay2');
+    expect(result1).toEqual(expect.objectContaining({ content: 'relay-result' }));
+
+    // Flush any pending microtasks (e.g. async next callback's DB write)
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Invalidate the cached relay result
+    invalidateFetchByIdCache('race-relay2');
+
+    // Next fetch must NOT serve the stale cached relay result
+    const callsBefore = dbGetByIdMock.mock.calls.length;
+    dbGetByIdMock.mockResolvedValueOnce({ id: 'race-relay2', content: 'updated', kind: 1111 });
+    subscribeMock.mockImplementation((callbacks: SubscribeCallbacks) => {
+      Promise.resolve().then(() => callbacks.complete?.());
+      return { unsubscribe: vi.fn() };
+    });
+    const result2 = await cachedFetchById('race-relay2');
+    // DB was queried (cache was cleared)
+    expect(dbGetByIdMock.mock.calls.length).toBeGreaterThan(callsBefore);
+    expect(result2).toEqual(expect.objectContaining({ content: 'updated' }));
+  });
+
+  it('invalidate + TTL interaction: invalidated null is not re-cached within TTL', async () => {
+    const now = Date.now();
+    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
+
+    // First call returns null (cached with TTL)
+    const result1 = await cachedFetchById('ttl-invalidate');
+    expect(result1).toBeNull();
+
+    // Within TTL: normally would return cached null
+    dateSpy.mockReturnValue(now + 5_000);
+
+    // Invalidate within TTL
+    invalidateFetchByIdCache('ttl-invalidate');
+
+    // Next call should re-fetch, not use the invalidated null cache
+    const callsBefore = dbGetByIdMock.mock.calls.length;
+    dbGetByIdMock.mockResolvedValueOnce({ id: 'ttl-invalidate', content: 'found', kind: 1111 });
+    const result2 = await cachedFetchById('ttl-invalidate');
+    expect(result2).toEqual(expect.objectContaining({ content: 'found' }));
+    expect(dbGetByIdMock.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+});
+
 describe('invalidateFetchByIdCache', () => {
   beforeEach(() => {
     vi.restoreAllMocks();

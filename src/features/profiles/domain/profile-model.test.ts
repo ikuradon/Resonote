@@ -101,3 +101,65 @@ describe('describeProfileDisplay', () => {
     });
   });
 });
+
+describe('formatDisplayName — malformed kind:0 data', () => {
+  it('handles empty profile object (all fields missing)', () => {
+    // {} has no displayName/name → falls back to npub
+    const result = formatDisplayName(TEST_PUBKEY, {});
+    expect(result).toMatch(/^npub1[a-z0-9]{7}\.\.\.([a-z0-9]{4})$/);
+  });
+
+  it('handles undefined profile', () => {
+    const result = formatDisplayName(TEST_PUBKEY, undefined);
+    expect(result).toMatch(/^npub1[a-z0-9]{7}\.\.\.([a-z0-9]{4})$/);
+  });
+
+  it('handles profile with only unknown fields', () => {
+    // Extra fields are irrelevant; no displayName/name → falls back to npub
+    const result = formatDisplayName(TEST_PUBKEY, { about: 'bio only' } as never);
+    expect(result).toMatch(/^npub1[a-z0-9]{7}\.\.\.([a-z0-9]{4})$/);
+  });
+
+  it('handles very long display_name without truncating at parse level', () => {
+    const longName = 'a'.repeat(1000);
+    const result = formatDisplayName(TEST_PUBKEY, { displayName: longName });
+    // formatDisplayName itself does not truncate — it returns the raw value
+    expect(result).toBe(longName);
+  });
+
+  it('handles displayName as empty string (falls through to name)', () => {
+    // Empty string is falsy → falls back to name
+    const result = formatDisplayName(TEST_PUBKEY, { displayName: '', name: 'alice' });
+    expect(result).toBe('alice');
+  });
+});
+
+describe('describeProfileDisplay — malformed kind:0 data', () => {
+  it('handles completely missing profile gracefully', () => {
+    const result = describeProfileDisplay(TEST_PUBKEY, undefined);
+    expect(result.displayName).toMatch(/^npub1/);
+    expect(result.picture).toBeUndefined();
+    expect(result.nip05).toBeUndefined();
+    expect(result.formattedNip05).toBeUndefined();
+    expect(result.profileHref).toMatch(/^\/profile\/npub1/);
+  });
+
+  it('handles nip05valid null (not yet verified) — treats as unverified', () => {
+    const result = describeProfileDisplay(TEST_PUBKEY, {
+      name: 'alice',
+      nip05: 'alice@example.com',
+      nip05valid: null
+    });
+    expect(result.nip05).toBeUndefined();
+    expect(result.formattedNip05).toBeUndefined();
+  });
+
+  it('handles profile with extra unknown fields without throwing', () => {
+    const profile = {
+      displayName: 'Alice',
+      unknownField: 'unexpected',
+      anotherField: 42
+    } as never;
+    expect(() => describeProfileDisplay(TEST_PUBKEY, profile)).not.toThrow();
+  });
+});

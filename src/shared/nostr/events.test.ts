@@ -414,6 +414,44 @@ describe('buildDeletion', () => {
   });
 });
 
+describe('buildComment with parentEvent + positionMs', () => {
+  it('includes both position tag and e-tag when replying to timed comment', () => {
+    const parentEvent = { id: 'parent-timed', pubkey: 'parent-author' };
+    const event = buildComment('timed reply', trackId, provider, {
+      parentEvent,
+      positionMs: 30_000
+    });
+    expect(event.tags).toContainEqual(['e', 'parent-timed', '', 'parent-author']);
+    expect(event.tags).toContainEqual(['position', '30']);
+    // Verify both present simultaneously
+    const eTags = event.tags!.filter((t) => t[0] === 'e');
+    const posTags = event.tags!.filter((t) => t[0] === 'position');
+    expect(eTags).toHaveLength(1);
+    expect(posTags).toHaveLength(1);
+  });
+
+  it('omits position tag when replying without positionMs', () => {
+    const parentEvent = { id: 'parent-no-pos', pubkey: 'parent-author' };
+    const event = buildComment('reply no position', trackId, provider, { parentEvent });
+    expect(event.tags).toContainEqual(['e', 'parent-no-pos', '', 'parent-author']);
+    const posTag = event.tags!.find((t) => t[0] === 'position');
+    expect(posTag).toBeUndefined();
+  });
+
+  it('omits position tag when positionMs is 0', () => {
+    const parentEvent = { id: 'parent-zero', pubkey: 'parent-author' };
+    const event = buildComment('reply zero position', trackId, provider, {
+      parentEvent,
+      positionMs: 0
+    });
+    // e-tag should be present
+    expect(event.tags).toContainEqual(['e', 'parent-zero', '', 'parent-author']);
+    // position tag must NOT be present (guard: positionMs > 0)
+    const posTag = event.tags!.find((t) => t[0] === 'position');
+    expect(posTag).toBeUndefined();
+  });
+});
+
 describe('buildComment edge cases', () => {
   it('should not include position tag when positionMs is 0', () => {
     const event = buildComment('test', trackId, provider, { positionMs: 0 });
@@ -513,5 +551,79 @@ describe('extractHashtags', () => {
 
   it('should ignore # in URLs', () => {
     expect(extractHashtags('visit https://example.com#section')).toEqual([]);
+  });
+});
+
+describe('parsePosition edge cases', () => {
+  it('returns null for negative value', () => {
+    expect(parsePosition('-1')).toBeNull();
+  });
+
+  it('returns null for NaN input', () => {
+    expect(parsePosition('abc')).toBeNull();
+  });
+
+  it('returns null for empty string', () => {
+    expect(parsePosition('')).toBeNull();
+  });
+
+  it('returns null for float values (no match against integer-only regex)', () => {
+    expect(parsePosition('1.7')).toBeNull();
+  });
+
+  it('returns null for whitespace-only string', () => {
+    expect(parsePosition('   ')).toBeNull();
+  });
+
+  it('returns null for mm:ss with single-digit seconds', () => {
+    // mm:ss requires exactly 2-digit seconds
+    expect(parsePosition('1:5')).toBeNull();
+  });
+});
+
+describe('buildComment — emoji content tags', () => {
+  it('adds emoji tags when emojiTags provided regardless of shortcode presence in content', () => {
+    const emojiTags = [['emoji', 'fire', 'https://example.com/fire.png']];
+    const event = buildComment('love this :fire: part', trackId, provider, { emojiTags });
+    expect(event.tags).toContainEqual(['emoji', 'fire', 'https://example.com/fire.png']);
+  });
+
+  it('adds emoji tags even when content has no shortcodes', () => {
+    const emojiTags = [['emoji', 'fire', 'https://example.com/fire.png']];
+    const event = buildComment('plain text', trackId, provider, { emojiTags });
+    expect(event.tags).toContainEqual(['emoji', 'fire', 'https://example.com/fire.png']);
+  });
+
+  it('handles content with multiple shortcodes — both emoji tags included', () => {
+    const emojiTags = [
+      ['emoji', 'cat', 'https://example.com/cat.png'],
+      ['emoji', 'dog', 'https://example.com/dog.png']
+    ];
+    const event = buildComment(':cat: and :dog:', trackId, provider, { emojiTags });
+    expect(event.tags).toContainEqual(['emoji', 'cat', 'https://example.com/cat.png']);
+    expect(event.tags).toContainEqual(['emoji', 'dog', 'https://example.com/dog.png']);
+    const emojiTagsInEvent = event.tags!.filter((t) => t[0] === 'emoji');
+    expect(emojiTagsInEvent).toHaveLength(2);
+  });
+
+  it('handles empty emojiTags array — no emoji tags in output', () => {
+    const event = buildComment('hello :fire:', trackId, provider, { emojiTags: [] });
+    const emojiTagsInEvent = event.tags!.filter((t) => t[0] === 'emoji');
+    expect(emojiTagsInEvent).toHaveLength(0);
+  });
+});
+
+describe('formatPosition edge cases', () => {
+  it('handles negative positionMs', () => {
+    // Math.floor(-1000/1000) = -1 → '-1:-1'
+    expect(formatPosition(-1000)).toBe('-1:-1');
+  });
+
+  it('handles NaN', () => {
+    expect(formatPosition(NaN)).toBe('NaN:NaN');
+  });
+
+  it('handles zero', () => {
+    expect(formatPosition(0)).toBe('0:00');
   });
 });

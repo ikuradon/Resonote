@@ -35,6 +35,44 @@ describe('extractFollows', () => {
   });
 });
 
+describe('extractFollows — edge cases', () => {
+  it('deduplicates when event has duplicate p-tags', () => {
+    const result = extractFollows({
+      tags: [
+        ['p', 'pk1'],
+        ['p', 'pk1'],
+        ['p', 'pk2']
+      ]
+    });
+    expect(result.size).toBe(2);
+    expect(result.has('pk1')).toBe(true);
+    expect(result.has('pk2')).toBe(true);
+  });
+
+  it('ignores p-tags with empty pubkey', () => {
+    const result = extractFollows({
+      tags: [
+        ['p', ''],
+        ['p', 'pk1']
+      ]
+    });
+    // tag[1] is '' which is falsy → skipped
+    expect(result.size).toBe(1);
+    expect(result.has('pk1')).toBe(true);
+    expect(result.has('')).toBe(false);
+  });
+
+  it('returns empty set for event with no p-tags', () => {
+    const result = extractFollows({
+      tags: [
+        ['e', 'something'],
+        ['k', '3']
+      ]
+    });
+    expect(result.size).toBe(0);
+  });
+});
+
 describe('matchesFilter', () => {
   const follows = new Set(['followed']);
   const wot = new Set(['followed', 'friend-of-friend']);
