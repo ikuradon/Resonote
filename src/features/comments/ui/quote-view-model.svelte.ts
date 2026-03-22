@@ -49,9 +49,11 @@ export function createQuoteViewModel(eventId: string) {
       status = 'loaded';
 
       // Fetch profile in background for display name resolution
-      fetchProfile(event.pubkey).then(() => {
-        authorName = getDisplayName(event.pubkey);
-      });
+      fetchProfile(event.pubkey)
+        .then(() => {
+          authorName = getDisplayName(event.pubkey);
+        })
+        .catch(() => {});
     } catch (err) {
       log.warn('Failed to load quoted event', { eventId, error: err });
       status = 'not-found';
