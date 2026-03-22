@@ -36,12 +36,12 @@ describe('detectEnvFromHostname', () => {
     expect(detectEnvFromHostname('staging.resonote.pages.dev')).toBe('staging');
   });
 
-  it('maps resonote.pages.dev to production', () => {
-    expect(detectEnvFromHostname('resonote.pages.dev')).toBe('production');
+  it('maps resonote.pages.dev to staging', () => {
+    expect(detectEnvFromHostname('resonote.pages.dev')).toBe('staging');
   });
 
-  it('maps custom domain to production', () => {
-    expect(detectEnvFromHostname('resonote.app')).toBe('production');
+  it('maps resonote.cc to production', () => {
+    expect(detectEnvFromHostname('resonote.cc')).toBe('production');
   });
 
   it('maps localhost to production (DEV check is in getDeployEnv)', () => {

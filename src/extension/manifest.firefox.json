@@ -35,7 +35,7 @@
       "all_frames": true
     },
     {
-      "matches": ["*://resonote.pages.dev/*"],
+      "matches": ["*://resonote.cc/*"],
       "js": ["content-scripts/resonote-bridge.js"],
       "run_at": "document_start"
     }
