@@ -18,6 +18,10 @@
     getProvider: () => provider
   });
 
+  export function insertQuote(eventId: string, authorPubkey: string): void {
+    vm.insertQuote(eventId, authorPubkey);
+  }
+
   async function submit() {
     const result = await vm.submit();
     if (result === 'sent') {

@@ -2,6 +2,7 @@ import { getAuth } from '$shared/browser/auth.js';
 import { getPlayer } from '$shared/browser/player.js';
 import { formatPosition } from '$shared/nostr/events.js';
 import { containsPrivateKey } from '$shared/nostr/content-parser.js';
+import { neventEncode } from 'nostr-tools/nip19';
 import { createLogger } from '$shared/utils/logger.js';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import { t } from '$shared/i18n/t.js';
@@ -139,6 +140,12 @@ export function createCommentFormViewModel(options: CommentFormViewModelOptions)
     selectTimedComment,
     selectGeneralComment,
     toggleContentWarning,
-    submit
+    submit,
+    insertQuote(eventId: string, authorPubkey: string): void {
+      const nevent = neventEncode({ id: eventId, relays: [], author: authorPubkey });
+      const quoteText = `nostr:${nevent}`;
+      const prefix = content && !content.endsWith('\n') && !content.endsWith(' ') ? '\n' : '';
+      content = content + prefix + quoteText + ' ';
+    }
   };
 }
