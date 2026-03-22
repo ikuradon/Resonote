@@ -5,6 +5,7 @@
   import RelayStatus from '$lib/components/RelayStatus.svelte';
   import LanguageSwitcher from '$lib/components/LanguageSwitcher.svelte';
   import MobileOverlay from '$lib/components/MobileOverlay.svelte';
+  import EnvBanner from '$lib/components/EnvBanner.svelte';
   import { t } from '$shared/i18n/t.js';
   import { LOCALES } from '$shared/i18n/locales.js';
   import ToastContainer from '$lib/components/ToastContainer.svelte';
@@ -31,6 +32,9 @@
     </header>
   {:else}
     <header class="glass sticky top-0 z-40 border-b border-border-subtle">
+      {#if vm.envBanner}
+        <EnvBanner label={vm.envBanner.label} colorClass={vm.envBanner.colorClass} />
+      {/if}
       <div class="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
         <a
           href="/"

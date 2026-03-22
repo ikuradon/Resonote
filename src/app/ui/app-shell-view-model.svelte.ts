@@ -11,9 +11,11 @@ import {
 } from '$shared/browser/relays.js';
 import { initApp } from '$appcore/bootstrap/init-app.js';
 import { manageNotifications } from '$appcore/bootstrap/init-notifications.svelte.js';
+import { getDeployEnv, getEnvBannerConfig } from '$shared/utils/deploy-env.js';
 
 export function createAppShellViewModel() {
   const auth = getAuth();
+  const envBanner = getEnvBannerConfig(getDeployEnv(), import.meta.env.VITE_PR_NUMBER);
 
   let menuOpen = $state(false);
 
@@ -89,6 +91,7 @@ export function createAppShellViewModel() {
     get extensionMode() {
       return extensionMode;
     },
+    envBanner,
     openMenu,
     closeMenu,
     selectLocale
