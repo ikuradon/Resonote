@@ -32,6 +32,7 @@
 
 {#if vm.loggedIn}
   <form
+    data-testid="comment-form"
     onsubmit={(e) => {
       e.preventDefault();
       submit();

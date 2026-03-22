@@ -168,7 +168,7 @@ test.describe('Content page (podcast feed)', () => {
     await page.goto(feedUrl);
     await expect(page.locator('[data-testid="feed-comment-hint"]')).toBeVisible();
     // Comment form should NOT be in DOM at all (isFeed hides the entire section)
-    await expect(page.locator('form, [data-testid="comment-form"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid="comment-form"]')).toHaveCount(0);
   });
 });
 
