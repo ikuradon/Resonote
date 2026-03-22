@@ -216,6 +216,7 @@
                   onRevealCW={vm.revealCW}
                   onHideCW={vm.hideCW}
                   onMute={vm.requestMute}
+                  {onQuote}
                   onReplyContentChange={(content) => (vm.replyContent = content)}
                   onReplyEmojiTagsChange={(tags) => (vm.replyEmojiTags = tags)}
                 />
@@ -284,6 +285,7 @@
                   onRevealCW={vm.revealCW}
                   onHideCW={vm.hideCW}
                   onMute={vm.requestMute}
+                  {onQuote}
                   onReplyContentChange={(content) => (vm.replyContent = content)}
                   onReplyEmojiTagsChange={(tags) => (vm.replyEmojiTags = tags)}
                 />
