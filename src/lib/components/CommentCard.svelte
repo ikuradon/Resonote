@@ -3,7 +3,7 @@
   import type { ProfileDisplay } from '$shared/browser/profile.js';
   import { formatPosition } from '$shared/nostr/events.js';
   import { formatTimestamp } from '$shared/utils/format.js';
-  import { parseEmojiContent } from '$shared/utils/emoji.js';
+  import { parseCommentContent } from '$shared/nostr/content-parser.js';
   import { t } from '$shared/i18n/t.js';
   import EmojiPickerPopover from './EmojiPickerPopover.svelte';
   import NoteInput from './NoteInput.svelte';
@@ -88,7 +88,7 @@
     onReplyEmojiTagsChange
   }: Props = $props();
 
-  const segments = $derived(parseEmojiContent(comment.content, comment.emojiTags));
+  const segments = $derived(parseCommentContent(comment.content, comment.emojiTags));
   const avatarSize = $derived(compact ? 'h-5 w-5' : 'h-6 w-6');
 </script>
 
@@ -183,12 +183,29 @@
   {:else}
     <p class="text-sm leading-relaxed text-text-primary whitespace-pre-wrap break-words">
       {#each segments as seg, segIdx (segIdx)}
-        {#if seg.type === 'text'}{seg.value}{:else}<img
+        {#if seg.type === 'text'}{seg.value}{:else if seg.type === 'emoji'}<img
             src={seg.url}
             alt=":{seg.shortcode}:"
             class="inline h-5 w-5"
             loading="lazy"
-          />{/if}
+          />{:else if seg.type === 'nostr-link'}<a
+            href={seg.href}
+            class="text-accent hover:underline"
+            >{#if seg.decoded?.type === 'npub' || seg.decoded?.type === 'nprofile'}{#if getAuthorDisplay(seg.decoded.pubkey).displayName !== seg.decoded.pubkey}@{getAuthorDisplay(
+                  seg.decoded.pubkey
+                ).displayName}{:else}{seg.uri.slice(0, 8)}…{seg.uri.slice(
+                  -4
+                )}{/if}{:else}{seg.uri.slice(0, 8)}…{seg.uri.slice(-4)}{/if}</a
+          >{:else if seg.type === 'content-link'}<a
+            href={seg.href}
+            class="inline-flex items-center gap-1 text-accent hover:underline">{seg.displayLabel}</a
+          >{:else if seg.type === 'url'}<a
+            href={seg.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-accent hover:underline"
+            >{seg.href.length > 50 ? seg.href.slice(0, 50) + '…' : seg.href}</a
+          >{:else if seg.type === 'hashtag'}<span class="text-accent">#{seg.tag}</span>{/if}
       {/each}
     </p>
     {#if comment.contentWarning !== null}

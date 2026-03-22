@@ -210,5 +210,6 @@
   "toast.reaction_failed": "Failed to send reaction",
   "toast.delete_sent": "Comment deleted",
   "toast.delete_failed": "Failed to delete comment",
-  "toast.dismiss": "Dismiss"
+  "toast.dismiss": "Dismiss",
+  "comment.error.contains_private_key": "Your comment contains a private key (nsec). Blocked for security."
 }

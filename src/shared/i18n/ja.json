@@ -210,5 +210,6 @@
   "toast.reaction_failed": "リアクションの送信に失敗しました",
   "toast.delete_sent": "コメントを削除しました",
   "toast.delete_failed": "コメントの削除に失敗しました",
-  "toast.dismiss": "閉じる"
+  "toast.dismiss": "閉じる",
+  "comment.error.contains_private_key": "秘密鍵 (nsec) が含まれています。安全のため投稿をブロックしました。"
 }
