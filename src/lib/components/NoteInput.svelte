@@ -178,7 +178,9 @@
 
   function handleInput() {
     if (composing) return;
-    const isDeleting = content.length < prevContentLength;
+    const lengthDiff = content.length - prevContentLength;
+    // Detect single-char deletion vs external reset (e.g. form submit clearing content)
+    const isDeleting = lengthDiff === -1;
     prevContentLength = content.length;
 
     if (suppressUntilNewChar) {
@@ -187,7 +189,7 @@
     }
 
     if (isDeleting && !autocomplete) {
-      // Don't open new autocomplete while deleting
+      // Don't open new autocomplete while deleting one char at a time
       return;
     }
 
