@@ -98,7 +98,11 @@ describe('isMuted', () => {
 
   afterEach(() => {
     authState.pubkey = null;
-    globalThis.window = savedWindow;
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      writable: true,
+      value: savedWindow
+    });
   });
 
   it('ミュートされていないpubkeyはfalseを返す', () => {
