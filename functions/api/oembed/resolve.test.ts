@@ -63,6 +63,14 @@ describe('oEmbed resolve API', () => {
     expect(body.error).toBe('unsupported_platform');
   });
 
+  it('returns 400 for __proto__ platform (prototype pollution)', async () => {
+    const ctx = makeContext({ platform: '__proto__', type: 'track', id: '123' });
+    const res = await onRequestGet(ctx);
+    expect(res.status).toBe(400);
+    const body = await parseJson(res);
+    expect(body.error).toBe('unsupported_platform');
+  });
+
   it('returns 400 for unsupported type', async () => {
     const ctx = makeContext({ platform: 'youtube', type: 'playlist', id: 'PLxxxx' });
     const res = await onRequestGet(ctx);

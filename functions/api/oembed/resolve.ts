@@ -58,10 +58,10 @@ async function handleRequest(context: EventContext<Env, string, unknown>): Promi
     return json({ error: 'missing_params' }, 400);
   }
 
-  const config = PLATFORMS[platform];
-  if (!config) {
+  if (!Object.prototype.hasOwnProperty.call(PLATFORMS, platform)) {
     return json({ error: 'unsupported_platform' }, 400);
   }
+  const config = PLATFORMS[platform];
 
   if (!config.validTypes.has(type)) {
     return json({ error: 'unsupported_type' }, 400);
