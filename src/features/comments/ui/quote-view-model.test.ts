@@ -113,4 +113,40 @@ describe('createQuoteViewModel', () => {
 
     expect(vm.data).toBeNull();
   });
+
+  it('extracts content-warning tag', async () => {
+    mockCachedFetchById.mockResolvedValue({
+      id: EVENT_ID,
+      pubkey: PK_AUTHOR,
+      content: 'Sensitive content',
+      created_at: 1700000000,
+      kind: 1111,
+      tags: [['content-warning', 'NSFW']]
+    });
+
+    const { createQuoteViewModel } = await import('./quote-view-model.svelte.js');
+    const vm = createQuoteViewModel(EVENT_ID);
+
+    await vi.waitFor(() => expect(vm.status).toBe('loaded'));
+
+    expect(vm.data!.contentWarning).toBe('NSFW');
+  });
+
+  it('sets contentWarning to null when no CW tag', async () => {
+    mockCachedFetchById.mockResolvedValue({
+      id: EVENT_ID,
+      pubkey: PK_AUTHOR,
+      content: 'Normal content',
+      created_at: 1700000000,
+      kind: 1111,
+      tags: []
+    });
+
+    const { createQuoteViewModel } = await import('./quote-view-model.svelte.js');
+    const vm = createQuoteViewModel(EVENT_ID);
+
+    await vi.waitFor(() => expect(vm.status).toBe('loaded'));
+
+    expect(vm.data!.contentWarning).toBeNull();
+  });
 });

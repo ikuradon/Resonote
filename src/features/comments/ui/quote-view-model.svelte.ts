@@ -18,6 +18,8 @@ export interface QuoteData {
   content: string;
   createdAt: number;
   isComment: boolean;
+  /** Content warning reason. null = no CW. Empty string = CW without reason. */
+  contentWarning: string | null;
 }
 
 export function createQuoteViewModel(eventId: string) {
@@ -33,12 +35,14 @@ export function createQuoteViewModel(eventId: string) {
         return;
       }
 
+      const cwTag = event.tags.find((t) => t[0] === 'content-warning');
       data = {
         eventId: event.id,
         pubkey: event.pubkey,
         content: event.content,
         createdAt: event.created_at,
-        isComment: event.kind === COMMENT_KIND
+        isComment: event.kind === COMMENT_KIND,
+        contentWarning: cwTag ? (cwTag[1] ?? '') : null
       };
 
       authorName = getDisplayName(event.pubkey);

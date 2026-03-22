@@ -13,13 +13,12 @@
   const vm = createQuoteViewModel(eventId);
 
   const MAX_PREVIEW_LENGTH = 120;
-  let preview = $derived(
-    vm.data
-      ? vm.data.content.length > MAX_PREVIEW_LENGTH
-        ? vm.data.content.slice(0, MAX_PREVIEW_LENGTH) + '…'
-        : vm.data.content
-      : ''
-  );
+  let preview = $derived.by(() => {
+    if (!vm.data) return '';
+    const chars = [...vm.data.content];
+    if (chars.length <= MAX_PREVIEW_LENGTH) return vm.data.content;
+    return chars.slice(0, MAX_PREVIEW_LENGTH).join('') + '…';
+  });
 </script>
 
 <a
@@ -47,6 +46,14 @@
       <span>·</span>
       <span>{formatTimestamp(vm.data.createdAt)}</span>
     </div>
-    <div class="mt-1 text-sm leading-relaxed text-text-primary">{preview}</div>
+    {#if vm.data.contentWarning !== null}
+      <div class="mt-1 text-xs italic text-yellow-600 dark:text-yellow-400">
+        {vm.data.contentWarning
+          ? t('cw.warning_with_reason', { reason: vm.data.contentWarning })
+          : t('cw.warning')}
+      </div>
+    {:else}
+      <div class="mt-1 text-sm leading-relaxed text-text-primary">{preview}</div>
+    {/if}
   {/if}
 </a>
