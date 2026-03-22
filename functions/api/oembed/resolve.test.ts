@@ -108,6 +108,33 @@ describe('oEmbed resolve API', () => {
     expect(body.title).toBe('My Playlist');
   });
 
+  it('returns metadata for soundcloud track', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            title: 'My Track',
+            author_name: 'Artist',
+            provider_name: 'SoundCloud'
+          }),
+          { status: 200 }
+        )
+      )
+    );
+
+    const ctx = makeContext({
+      platform: 'soundcloud',
+      type: 'track',
+      id: 'artist-name/my-track'
+    });
+    const res = await onRequestGet(ctx);
+    expect(res.status).toBe(200);
+    const body = await parseJson(res);
+    expect(body.title).toBe('My Track');
+    expect(body.subtitle).toBe('Artist');
+  });
+
   it('returns metadata for spotify track', async () => {
     vi.stubGlobal(
       'fetch',

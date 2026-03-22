@@ -77,7 +77,7 @@ async function handleRequest(context: EventContext<Env, string, unknown>): Promi
   try {
     const res = await safeFetch(oembedUrl, { allowPrivateIPs });
     if (!res.ok) {
-      return json({ error: 'oembed_failed', status: res.status }, 502);
+      return json({ error: 'oembed_failed' }, 502);
     }
 
     const data = (await res.json()) as OEmbedResponse;
