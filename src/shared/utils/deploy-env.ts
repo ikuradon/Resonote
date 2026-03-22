@@ -5,15 +5,18 @@ export interface EnvBannerConfig {
   colorClass: string;
 }
 
+/** Detect deploy environment from hostname. Exported for testing. */
+export function detectEnvFromHostname(hostname: string): DeployEnv {
+  if (hostname.endsWith('.resonote-preview.pages.dev')) return 'preview';
+  if (hostname === 'staging.resonote.pages.dev') return 'staging';
+  return 'production';
+}
+
 /** Detect deploy environment from hostname (runtime) + import.meta.env.DEV (build-time). */
 export function getDeployEnv(): DeployEnv {
   if (import.meta.env.DEV) return 'dev';
   if (typeof window === 'undefined') return 'production';
-  const host = window.location.hostname;
-  if (host.endsWith('.resonote-preview.pages.dev')) return 'preview';
-  if (host === 'staging.resonote.pages.dev') return 'staging';
-  if (host === 'resonote.pages.dev') return 'production';
-  return 'production';
+  return detectEnvFromHostname(window.location.hostname);
 }
 
 /** Get banner config for the given environment. Returns null for production. */
