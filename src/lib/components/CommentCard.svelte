@@ -456,6 +456,7 @@
             {onRevealCW}
             {onHideCW}
             {onMute}
+            {onQuote}
             {onReplyContentChange}
             {onReplyEmojiTagsChange}
           />
