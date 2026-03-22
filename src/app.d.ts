@@ -10,4 +10,9 @@ declare global {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+interface ImportMetaEnv {
+  readonly VITE_PR_NUMBER?: string;
+}
+
 export {};
