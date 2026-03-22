@@ -228,6 +228,7 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
   - `src/features/comments/ui/comment-list-view-model.test.ts`
 - shared nostr テスト:
   - `src/shared/nostr/cached-query.test.ts` (TTL, invalidate, fetch dedup)
+- Codecov: `require_changes: true` のため、カバレッジ変化のない PR にはコメントが付かない
 
 ## Deployment
 
@@ -235,6 +236,7 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
 - **CI**: GitHub Actions (`ci.yml`) — lint-and-check + audit + test + e2e + build-extension (parallel) → deploy。Node.js 24
 - **Deploy trigger**: Push to `main` → staging, `v*` tag → production (`--branch=main` 必須、なしだと preview 扱い)
 - **Preview deploy**: `preview-deploy.yml` — PR ごとにプレビュー環境を自動デプロイ。内部 PR は自動、fork PR は `ok-to-test` ラベル付与で許可。`preview-cleanup.yml` で PR クローズ時に自動削除
+- **Branch protection**: main への直接 push 禁止 (GitHub Ruleset)。PR 経由のみ。CI (lint + test + e2e) パス必須
 
 ## Issue Tracking
 
@@ -286,3 +288,5 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
 - `$effect` 内で `options.getComments()` 等のリアクティブ getter を呼ぶと二重追跡される → `untrack()` でラップして依存を限定する
 - Svelte 5 `{@const}` は `{#snippet}` / `{#if}` / `{#each}` 等のブロック直下にしか置けない。`<div>` 内に置くとコンパイルエラー
 - PR review comment への返信は `gh api repos/{owner}/{repo}/pulls/{pr}/comments/{id}/replies` を使う。`gh pr comment` は issue comment を作成するため review thread に紐づかず二重投稿になる
+- `gh pr view --json comments` の `author.login` は `"github-actions"` を返す（`"github-actions[bot]"` ではない）。bot コメント検索は `startswith("github-actions")` を使うこと
+- Vite 8 では `build.rollupOptions` は deprecated → `build.rolldownOptions` を使う（`vite.config.extension.ts` で使用）
