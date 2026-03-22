@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createLoginButtonViewModel } from '$features/auth/ui/login-button-view-model.svelte.js';
   import { t } from '$shared/i18n/t.js';
+  import UserAvatar from './UserAvatar.svelte';
 
   const vm = createLoginButtonViewModel();
 </script>
@@ -8,13 +9,7 @@
 {#if vm.auth.loggedIn && vm.auth.pubkey}
   <div class="flex items-center gap-3">
     <a href={vm.profileHref} class="flex items-center gap-2 transition-opacity hover:opacity-80">
-      {#if vm.profileDisplay?.picture}
-        <img
-          src={vm.profileDisplay.picture}
-          alt=""
-          class="h-7 w-7 rounded-full object-cover ring-1 ring-border"
-        />
-      {/if}
+      <UserAvatar pubkey={vm.auth.pubkey} picture={vm.profileDisplay?.picture} size="md" />
       <span class="max-w-[120px] truncate text-sm text-text-secondary">{vm.displayText}</span>
     </a>
     <button

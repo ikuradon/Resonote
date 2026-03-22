@@ -51,6 +51,9 @@ export function createProfileHeaderViewModel(options: ProfileHeaderViewModelOpti
 
   return {
     auth,
+    get pubkey() {
+      return pubkey;
+    },
     get followsCount() {
       return followsCount;
     },

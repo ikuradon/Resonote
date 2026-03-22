@@ -13,7 +13,7 @@ export interface ReactionDisplay {
 export type NotificationActorDisplay = Pick<
   ProfileDisplay,
   'displayName' | 'picture' | 'profileHref'
->;
+> & { pubkey: string };
 
 export interface NotificationItemDisplay {
   actor: NotificationActorDisplay;
@@ -74,7 +74,7 @@ export function relativeTime(ts: number): string {
 
 export function getNotificationActorDisplay(pubkey: string): NotificationActorDisplay {
   const { displayName, picture, profileHref } = getProfileDisplay(pubkey);
-  return { displayName, picture, profileHref };
+  return { pubkey, displayName, picture, profileHref };
 }
 
 export function describeNotificationItem(

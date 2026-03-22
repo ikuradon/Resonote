@@ -32,6 +32,7 @@ describe('getNotificationActorDisplay', () => {
     });
 
     expect(getNotificationActorDisplay('f'.repeat(64))).toEqual({
+      pubkey: 'f'.repeat(64),
       displayName: 'alice',
       picture: 'https://example.com/alice.png',
       profileHref: '/profile/npub1alice'

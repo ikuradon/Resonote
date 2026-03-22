@@ -8,6 +8,7 @@
   } from '$shared/browser/notifications.js';
   import { getAuth } from '$shared/browser/auth.js';
   import { t, type TranslationKey } from '$shared/i18n/t.js';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
 
   const auth = getAuth();
   const notifs = getNotifications();
@@ -86,21 +87,9 @@
               <span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-accent"></span>
             {/if}
             <span class="mt-0.5 text-base">{item.icon}</span>
-            {#if item.actor.picture}
-              <a href={item.actor.profileHref} class="shrink-0">
-                <img
-                  src={item.actor.picture}
-                  alt=""
-                  class="h-8 w-8 rounded-full object-cover ring-1 ring-border"
-                />
-              </a>
-            {:else}
-              <div
-                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-3 text-xs text-text-muted"
-              >
-                ?
-              </div>
-            {/if}
+            <a href={item.actor.profileHref} class="shrink-0">
+              <UserAvatar pubkey={item.actor.pubkey} picture={item.actor.picture} size="lg" />
+            </a>
             <div class="min-w-0 flex-1">
               <p class="text-sm text-text-primary">
                 <a href={item.actor.profileHref} class="font-medium text-accent hover:underline"
