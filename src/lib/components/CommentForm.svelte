@@ -8,7 +8,7 @@
   import SendButton from './SendButton.svelte';
   import { getFollows } from '$shared/browser/follows.js';
   import { getAuth } from '$shared/browser/auth.js';
-  import { getProfile } from '$shared/browser/profile.js';
+  import { getProfile, fetchProfiles } from '$shared/browser/profile.js';
   import { computeMentionCandidates } from '$features/comments/ui/mention-candidates.js';
 
   interface Props {
@@ -50,8 +50,16 @@
     });
   }
 
+  let followProfilesFetched = false;
+
   function handleMentionQuery(query: string) {
     mentionQuery = query;
+
+    // Lazy-load follows' profiles on first @ trigger
+    if (!followProfilesFetched && followsState.follows.size > 0) {
+      followProfilesFetched = true;
+      fetchProfiles([...followsState.follows]);
+    }
   }
 
   async function submit() {
