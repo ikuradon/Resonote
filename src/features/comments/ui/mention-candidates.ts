@@ -45,7 +45,7 @@ function toCandidate(
     pubkey,
     displayName: formatDisplayName(pubkey, profile),
     picture: profile?.picture,
-    nip05: profile?.nip05,
+    nip05: profile?.nip05valid === true ? profile.nip05 : undefined,
     source
   };
 }

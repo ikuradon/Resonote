@@ -14,7 +14,8 @@ const PROFILES: Record<string, Profile> = {
     displayName: 'Alice',
     name: 'alice',
     picture: 'https://example.com/alice.png',
-    nip05: 'alice@example.com'
+    nip05: 'alice@example.com',
+    nip05valid: true
   },
   [PK_BOB]: { displayName: 'Bob', name: 'bob' },
   [PK_CAROL]: { displayName: 'Carol', name: 'carol' },
@@ -141,9 +142,24 @@ describe('computeMentionCandidates', () => {
     expect(result).toHaveLength(1);
   });
 
-  it('includes picture and nip05 from profile', () => {
+  it('includes picture and verified nip05 from profile', () => {
     const result = computeMentionCandidates(makeInput({ follows: new Set([PK_ALICE]) }));
     expect(result[0].picture).toBe('https://example.com/alice.png');
     expect(result[0].nip05).toBe('alice@example.com');
+  });
+
+  it('excludes unverified nip05 from candidate', () => {
+    const unverifiedPk = 'dd00'.repeat(16);
+    const profiles: Record<string, Profile> = {
+      [unverifiedPk]: { displayName: 'Unverified', nip05: 'fake@example.com', nip05valid: false }
+    };
+    const result = computeMentionCandidates(
+      makeInput({
+        follows: new Set([unverifiedPk]),
+        getProfile: (pk) => profiles[pk]
+      })
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].nip05).toBeUndefined();
   });
 });
