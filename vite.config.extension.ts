@@ -17,7 +17,7 @@ export default defineConfig({
   build: {
     outDir: 'dist-extension',
     emptyOutDir: true,
-    rollupOptions: {
+    rolldownOptions: {
       input: {
         background: resolve(__dirname, 'src/extension/background.ts'),
         'content-scripts/index': resolve(__dirname, 'src/extension/content-scripts/index.ts'),
