@@ -20,6 +20,10 @@ vi.mock('$shared/nostr/events.js', () => ({
   COMMENT_KIND: 1111
 }));
 
+vi.mock('$shared/utils/logger.js', () => ({
+  createLogger: () => ({ warn: vi.fn(), info: vi.fn(), error: vi.fn() })
+}));
+
 describe('createQuoteViewModel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -97,5 +101,16 @@ describe('createQuoteViewModel', () => {
 
     await vi.waitFor(() => expect(vm.status).toBe('loaded'));
     await vi.waitFor(() => expect(mockFetchProfile).toHaveBeenCalledWith(PK_AUTHOR));
+  });
+
+  it('sets not-found when cachedFetchById throws', async () => {
+    mockCachedFetchById.mockRejectedValue(new Error('network error'));
+
+    const { createQuoteViewModel } = await import('./quote-view-model.svelte.js');
+    const vm = createQuoteViewModel(EVENT_ID);
+
+    await vi.waitFor(() => expect(vm.status).toBe('not-found'));
+
+    expect(vm.data).toBeNull();
   });
 });

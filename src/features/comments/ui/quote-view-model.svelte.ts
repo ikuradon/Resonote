@@ -6,6 +6,9 @@
 import { cachedFetchById } from '$shared/nostr/cached-query.js';
 import { getDisplayName, fetchProfile } from '$shared/browser/profile.js';
 import { COMMENT_KIND } from '$shared/nostr/events.js';
+import { createLogger } from '$shared/utils/logger.js';
+
+const log = createLogger('quote-vm');
 
 export type QuoteStatus = 'loading' | 'loaded' | 'not-found';
 
@@ -23,27 +26,32 @@ export function createQuoteViewModel(eventId: string) {
   let authorName = $state<string>('');
 
   async function load() {
-    const event = await cachedFetchById(eventId);
-    if (!event) {
-      status = 'not-found';
-      return;
-    }
+    try {
+      const event = await cachedFetchById(eventId);
+      if (!event) {
+        status = 'not-found';
+        return;
+      }
 
-    data = {
-      eventId: event.id,
-      pubkey: event.pubkey,
-      content: event.content,
-      createdAt: event.created_at,
-      isComment: event.kind === COMMENT_KIND
-    };
+      data = {
+        eventId: event.id,
+        pubkey: event.pubkey,
+        content: event.content,
+        createdAt: event.created_at,
+        isComment: event.kind === COMMENT_KIND
+      };
 
-    authorName = getDisplayName(event.pubkey);
-    status = 'loaded';
-
-    // Fetch profile in background for display name resolution
-    fetchProfile(event.pubkey).then(() => {
       authorName = getDisplayName(event.pubkey);
-    });
+      status = 'loaded';
+
+      // Fetch profile in background for display name resolution
+      fetchProfile(event.pubkey).then(() => {
+        authorName = getDisplayName(event.pubkey);
+      });
+    } catch (err) {
+      log.warn('Failed to load quoted event', { eventId, error: err });
+      status = 'not-found';
+    }
   }
 
   load();
