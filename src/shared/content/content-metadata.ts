@@ -74,7 +74,10 @@ async function doFetch(contentId: ContentId, key: string): Promise<ContentMetada
     const res = await fetch(`/api/oembed/resolve?${params}`);
     if (!res.ok) {
       log.warn('oEmbed resolve failed', { status: res.status, key });
-      cache.set(key, { metadata: null, fetchedAt: Date.now() });
+      // Cache null only for client errors (4xx) — transient server errors (5xx) should retry
+      if (res.status < 500) {
+        cache.set(key, { metadata: null, fetchedAt: Date.now() });
+      }
       return null;
     }
 
@@ -96,7 +99,7 @@ async function doFetch(contentId: ContentId, key: string): Promise<ContentMetada
     return metadata;
   } catch (err) {
     log.warn('oEmbed fetch error', { error: err, key });
-    cache.set(key, { metadata: null, fetchedAt: Date.now() });
+    // Don't cache network errors — they are transient
     return null;
   }
 }

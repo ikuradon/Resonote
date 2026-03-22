@@ -1,4 +1,4 @@
-import { assertSafeUrl, safeFetch } from '../../lib/url-validation.js';
+import { safeFetch } from '../../lib/url-validation.js';
 
 interface Env {
   UNSAFE_ALLOW_PRIVATE_IPS?: string;
@@ -59,7 +59,6 @@ async function handleRequest(context: EventContext<Env, string, unknown>): Promi
   const oembedUrl = `${oembedBase}?format=json&url=${encodeURIComponent(contentUrl)}`;
 
   try {
-    assertSafeUrl(oembedUrl, allowPrivateIPs);
     const res = await safeFetch(oembedUrl, { allowPrivateIPs });
     if (!res.ok) {
       return json({ error: 'oembed_failed', status: res.status }, 502);

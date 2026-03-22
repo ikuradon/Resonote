@@ -73,8 +73,8 @@ describe('fetchContentMetadata', () => {
     expect(result).toBeNull();
   });
 
-  it('caches null on API failure', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('error', { status: 500 })));
+  it('caches null on 4xx client error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('not found', { status: 404 })));
 
     const result = await fetchContentMetadata(SPOTIFY_TRACK);
     expect(result).toBeNull();
@@ -83,11 +83,26 @@ describe('fetchContentMetadata', () => {
     expect(cached).toBeNull();
   });
 
-  it('caches null on fetch error', async () => {
+  it('does not cache null on 5xx server error (transient)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('error', { status: 500 })));
+
+    const result = await fetchContentMetadata(SPOTIFY_TRACK);
+    expect(result).toBeNull();
+
+    // 5xx should NOT be cached — next call should retry
+    const cached = getContentMetadata(SPOTIFY_TRACK);
+    expect(cached).toBeNull(); // null because not in cache, not because cached as null
+  });
+
+  it('does not cache null on fetch error (network)', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network')));
 
     const result = await fetchContentMetadata(SPOTIFY_TRACK);
     expect(result).toBeNull();
+
+    // Network error should NOT be cached
+    const cached = getContentMetadata(SPOTIFY_TRACK);
+    expect(cached).toBeNull();
   });
 });
 
