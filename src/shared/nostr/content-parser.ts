@@ -13,7 +13,7 @@ export type ContentSegment =
   | { type: 'url'; href: string }
   | { type: 'hashtag'; tag: string };
 
-const NSEC_RE = /nsec1[a-z0-9]{58}/;
+const NSEC_RE = /nsec1[a-z0-9]{58}/i;
 
 /**
  * Returns true if content contains a Nostr private key (nsec1...).
@@ -43,8 +43,10 @@ function isDigitsOnly(s: string): boolean {
 // 2. URLs
 // 3. Emoji shortcodes
 // 4. Hashtags
-const COMBINED_RE =
-  /nostr:(npub1|nprofile1|nevent1|note1|ncontent1)[a-z0-9]+|https?:\/\/[^\s<>"]+|:([^:\s]+):|(?:^|(?<=\s))#([a-zA-Z0-9_\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]+)/g;
+// Created fresh per call to avoid shared lastIndex state
+function createCombinedRe(): RegExp {
+  return /nostr:(npub1|nprofile1|nevent1|note1|ncontent1)[a-z0-9]+|https?:\/\/[^\s<>"]+|:([^:\s]+):|(?:^|(?<=\s))#([a-zA-Z0-9_\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]+)/g;
+}
 
 const URL_TRAILING_RE = /[.,;:!?)]+$/;
 
@@ -83,11 +85,11 @@ export function parseCommentContent(content: string, emojiTags: string[][]): Con
   }
 
   const segments: ContentSegment[] = [];
-  COMBINED_RE.lastIndex = 0;
+  const re = createCombinedRe();
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  while ((match = COMBINED_RE.exec(content)) !== null) {
+  while ((match = re.exec(content)) !== null) {
     const matchStart = match.index;
     const matchText = match[0];
 
@@ -136,7 +138,7 @@ export function parseCommentContent(content: string, emojiTags: string[][]): Con
       const trimmed = matchText.replace(URL_TRAILING_RE, '');
       segments.push({ type: 'url', href: trimmed });
       lastIndex = matchStart + trimmed.length;
-      COMBINED_RE.lastIndex = matchStart + trimmed.length;
+      re.lastIndex = matchStart + trimmed.length;
     } else if (matchText.startsWith(':')) {
       // Emoji shortcode
       const shortcode = match[2];

@@ -71,7 +71,6 @@ function appendContentTags(tags: string[][], content: string, emojiTags?: string
   for (const hashtag of tTags) {
     if (!existingT.has(hashtag)) {
       tags.push(['t', hashtag]);
-      existingT.add(hashtag);
     }
   }
 }

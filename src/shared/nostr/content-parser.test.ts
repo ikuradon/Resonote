@@ -44,6 +44,16 @@ describe('containsPrivateKey', () => {
   it('returns false for empty string', () => {
     expect(containsPrivateKey('')).toBe(false);
   });
+
+  it('detects uppercase NSEC1 (bech32 allows upper case)', () => {
+    const nsec = 'NSEC1' + 'A'.repeat(58);
+    expect(containsPrivateKey(nsec)).toBe(true);
+  });
+
+  it('detects mixed case nsec1', () => {
+    const nsec = 'Nsec1' + 'aB'.repeat(29);
+    expect(containsPrivateKey(nsec)).toBe(true);
+  });
 });
 
 // --- parseCommentContent ---
