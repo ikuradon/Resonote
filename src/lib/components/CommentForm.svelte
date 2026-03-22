@@ -22,6 +22,7 @@
   let formEl = $state<HTMLFormElement | null>(null);
 
   export function insertQuote(eventId: string, authorPubkey: string): void {
+    if (vm.busy) return;
     vm.insertQuote(eventId, authorPubkey);
     tick().then(() => {
       formEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
