@@ -75,7 +75,7 @@ function nostrLinkHref(uri: string, decoded: NonNullable<DecodedNip19>): string 
 }
 
 function contentLinkHref(contentId: ContentId): string {
-  return `/${contentId.platform}/${contentId.type}/${encodeURIComponent(contentId.id)}`;
+  return `/${encodeURIComponent(contentId.platform)}/${encodeURIComponent(contentId.type)}/${encodeURIComponent(contentId.id)}`;
 }
 
 /**
