@@ -1,9 +1,11 @@
 import { getAuth } from '$shared/browser/auth.js';
 import { getPlayer } from '$shared/browser/player.js';
 import { formatPosition } from '$shared/nostr/events.js';
+import { containsPrivateKey } from '$shared/nostr/content-parser.js';
 import { createLogger } from '$shared/utils/logger.js';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import { t } from '$shared/i18n/t.js';
+import { toastError } from '$shared/browser/toast.js';
 import { sendComment } from '../application/comment-actions.js';
 
 const log = createLogger('comment-form-vm');
@@ -53,6 +55,11 @@ export function createCommentFormViewModel(options: CommentFormViewModelOptions)
   async function submit(): Promise<CommentSubmitResult> {
     const trimmed = content.trim();
     if (!trimmed || !auth.loggedIn) return 'skipped';
+
+    if (containsPrivateKey(trimmed)) {
+      toastError(t('comment.error.contains_private_key'));
+      return 'failed';
+    }
 
     flying = true;
     try {

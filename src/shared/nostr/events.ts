@@ -1,6 +1,7 @@
 import type { EventParameters } from 'nostr-typedef';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import { isShortcode, extractShortcode } from '$shared/utils/emoji.js';
+import { extractContentTags } from './content-parser.js';
 
 export const COMMENT_KIND = 1111;
 export const REACTION_KIND = 7;
@@ -35,6 +36,10 @@ export function parsePosition(str: string): number | null {
 
 const HASHTAG_RE = /(?:^|(?<=\s))#([a-zA-Z0-9_\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]+)/g;
 
+/**
+ * @deprecated Use extractContentTags from '$shared/nostr/content-parser.js' instead.
+ * Note: unlike extractContentTags, this function does not filter out hex-string or digit-only tags.
+ */
 export function extractHashtags(content: string): string[] {
   const tags = new Set<string>();
   let match: RegExpExecArray | null;
@@ -49,8 +54,28 @@ function appendContentTags(tags: string[][], content: string, emojiTags?: string
   if (emojiTags) {
     tags.push(...emojiTags);
   }
-  for (const hashtag of extractHashtags(content)) {
-    tags.push(['t', hashtag]);
+
+  const { pTags, eTags, tTags } = extractContentTags(content);
+
+  const existingP = new Set(tags.filter((tag) => tag[0] === 'p').map((tag) => tag[1]));
+  for (const pubkey of pTags) {
+    if (!existingP.has(pubkey)) {
+      tags.push(['p', pubkey]);
+    }
+  }
+
+  const existingE = new Set(tags.filter((tag) => tag[0] === 'e').map((tag) => tag[1]));
+  for (const eventId of eTags) {
+    if (!existingE.has(eventId)) {
+      tags.push(['e', eventId]);
+    }
+  }
+
+  const existingT = new Set(tags.filter((tag) => tag[0] === 't').map((tag) => tag[1]));
+  for (const hashtag of tTags) {
+    if (!existingT.has(hashtag)) {
+      tags.push(['t', hashtag]);
+    }
   }
 }
 

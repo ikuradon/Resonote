@@ -24,6 +24,10 @@ export function addEmojiTag(emojiTags: string[][], shortcode: string, url: strin
   return [...emojiTags, ['emoji', shortcode, url]];
 }
 
+/**
+ * @deprecated Use parseCommentContent from '$shared/nostr/content-parser.js' instead.
+ * This function only handles emoji segments; parseCommentContent handles all segment types.
+ */
 export function parseEmojiContent(content: string, emojiTags: string[][]): EmojiSegment[] {
   if (emojiTags.length === 0) return [{ type: 'text', value: content }];
 

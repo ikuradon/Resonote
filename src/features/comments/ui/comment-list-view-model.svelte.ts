@@ -13,6 +13,7 @@ import {
   getMuteList
 } from '$shared/browser/mute.js';
 import { toastSuccess, toastError } from '$shared/browser/toast.js';
+import { containsPrivateKey } from '$shared/nostr/content-parser.js';
 import { createLogger } from '$shared/utils/logger.js';
 import { t } from '$shared/i18n/t.js';
 import type {
@@ -310,6 +311,11 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
     if (!replyTarget || !auth.loggedIn) return;
     const trimmed = replyContent.trim();
     if (!trimmed) return;
+
+    if (containsPrivateKey(trimmed)) {
+      toastError(t('comment.error.contains_private_key'));
+      return;
+    }
 
     replySending = true;
     try {
