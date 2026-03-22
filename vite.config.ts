@@ -32,8 +32,18 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
-      include: ['src/lib/**/*.ts', 'src/features/**/*.ts', 'src/app/**/*.ts', 'src/shared/**/*.ts'],
-      exclude: ['src/**/*.test.ts', 'src/**/*.d.ts']
+      include: [
+        'src/lib/**/*.ts',
+        'src/features/**/*.ts',
+        'src/app/**/*.ts',
+        'src/shared/**/*.ts',
+        'functions/**/*.ts'
+      ],
+      exclude: ['src/**/*.test.ts', 'src/**/*.d.ts', 'functions/**/*.test.ts']
+      // Coverage 対象外の理由:
+      // - src/web/ — Svelte コンポーネント (.svelte) が主体、コンポーネントテスト/E2E で担保
+      // - src/extension/ — chrome.* API 依存、E2E で担保
+      // - src/service-worker.ts — ブラウザ API 依存、E2E で担保
     }
   }
 });
