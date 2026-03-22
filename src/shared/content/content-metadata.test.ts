@@ -100,15 +100,21 @@ describe('fetchContentMetadata', () => {
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 
-  it('does not cache null on fetch error (network)', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network')));
+  it('does not cache null on fetch error — retries on next call', async () => {
+    const mockFetch = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_METADATA), { status: 200 }));
+    vi.stubGlobal('fetch', mockFetch);
 
-    const result = await fetchContentMetadata(SPOTIFY_TRACK);
-    expect(result).toBeNull();
+    const first = await fetchContentMetadata(SPOTIFY_TRACK);
+    expect(first).toBeNull();
+    expect(mockFetch).toHaveBeenCalledOnce();
 
-    // Network error should NOT be cached
-    const cached = getContentMetadata(SPOTIFY_TRACK);
-    expect(cached).toBeNull();
+    // Second call should retry (not return cached null)
+    const second = await fetchContentMetadata(SPOTIFY_TRACK);
+    expect(second).toEqual(MOCK_METADATA);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 });
 
