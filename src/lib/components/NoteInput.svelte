@@ -50,6 +50,15 @@
   let prevContentLength = $state(0);
   let suppressUntilNewChar = $state(false);
 
+  // Clear autocomplete when content is externally reset (e.g. form submit)
+  $effect(() => {
+    if (content === '') {
+      autocomplete = null;
+      prevContentLength = 0;
+      suppressUntilNewChar = false;
+    }
+  });
+
   const HASHTAG_SUGGESTIONS = [
     'NowPlaying',
     'Music',
