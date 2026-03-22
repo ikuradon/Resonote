@@ -47,6 +47,8 @@
     startPos: number;
   } | null>(null);
   let selectedIndex = $state(0);
+  let prevContentLength = $state(0);
+  let suppressUntilNewChar = $state(false);
 
   const HASHTAG_SUGGESTIONS = [
     'NowPlaying',
@@ -176,6 +178,19 @@
 
   function handleInput() {
     if (composing) return;
+    const isDeleting = content.length < prevContentLength;
+    prevContentLength = content.length;
+
+    if (suppressUntilNewChar) {
+      if (isDeleting) return;
+      suppressUntilNewChar = false;
+    }
+
+    if (isDeleting && !autocomplete) {
+      // Don't open new autocomplete while deleting
+      return;
+    }
+
     detectAutocomplete();
   }
 
@@ -236,6 +251,7 @@
       if (e.key === 'Escape') {
         e.preventDefault();
         autocomplete = null;
+        suppressUntilNewChar = true;
         return;
       }
     }
