@@ -135,3 +135,95 @@ describe('reactionFromEvent', () => {
     expect(reaction!.emojiUrl).toBe('https://example.com/fire.png');
   });
 });
+
+describe('commentFromEvent — malformed events', () => {
+  it('handles event with no tags at all', () => {
+    const comment = commentFromEvent({
+      id: 'ev1',
+      pubkey: 'pk1',
+      content: 'Hello',
+      created_at: 1700000000,
+      tags: []
+    });
+    expect(comment.positionMs).toBeNull();
+    expect(comment.replyTo).toBeNull();
+    expect(comment.emojiTags).toEqual([]);
+    expect(comment.contentWarning).toBeNull();
+  });
+
+  it('handles event with multiple e-tags (uses first)', () => {
+    const comment = commentFromEvent({
+      id: 'ev1',
+      pubkey: 'pk1',
+      content: 'Reply',
+      created_at: 1700000000,
+      tags: [
+        ['e', 'first-parent'],
+        ['e', 'second-parent']
+      ]
+    });
+    expect(comment.replyTo).toBe('first-parent');
+  });
+
+  it('handles event with multiple position tags (uses first)', () => {
+    const comment = commentFromEvent({
+      id: 'ev1',
+      pubkey: 'pk1',
+      content: 'Timed',
+      created_at: 1700000000,
+      tags: [
+        ['position', '30'],
+        ['position', '60']
+      ]
+    });
+    expect(comment.positionMs).toBe(30000);
+  });
+
+  it('handles position tag with non-numeric value', () => {
+    const comment = commentFromEvent({
+      id: 'ev1',
+      pubkey: 'pk1',
+      content: 'Bad position',
+      created_at: 1700000000,
+      tags: [['position', 'abc']]
+    });
+    expect(comment.positionMs).toBeNull();
+  });
+
+  it('handles position tag with empty value', () => {
+    const comment = commentFromEvent({
+      id: 'ev1',
+      pubkey: 'pk1',
+      content: 'Empty position',
+      created_at: 1700000000,
+      tags: [['position', '']]
+    });
+    expect(comment.positionMs).toBeNull();
+  });
+});
+
+describe('reactionFromEvent — malformed events', () => {
+  it('handles e-tag with empty value', () => {
+    const reaction = reactionFromEvent({
+      id: 'r1',
+      pubkey: 'pk1',
+      content: '+',
+      tags: [['e', '']]
+    });
+    expect(reaction).toBeNull();
+  });
+
+  it('handles multiple e-tags (uses first)', () => {
+    const reaction = reactionFromEvent({
+      id: 'r1',
+      pubkey: 'pk1',
+      content: '+',
+      tags: [
+        ['e', 'first-target'],
+        ['e', 'second-target']
+      ]
+    });
+    expect(reaction).not.toBeNull();
+    expect(reaction!.targetEventId).toBe('first-target');
+  });
+});

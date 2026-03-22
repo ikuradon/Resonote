@@ -553,3 +553,45 @@ describe('extractHashtags', () => {
     expect(extractHashtags('visit https://example.com#section')).toEqual([]);
   });
 });
+
+describe('parsePosition edge cases', () => {
+  it('returns null for negative value', () => {
+    expect(parsePosition('-1')).toBeNull();
+  });
+
+  it('returns null for NaN input', () => {
+    expect(parsePosition('abc')).toBeNull();
+  });
+
+  it('returns null for empty string', () => {
+    expect(parsePosition('')).toBeNull();
+  });
+
+  it('returns null for float values (no match against integer-only regex)', () => {
+    expect(parsePosition('1.7')).toBeNull();
+  });
+
+  it('returns null for whitespace-only string', () => {
+    expect(parsePosition('   ')).toBeNull();
+  });
+
+  it('returns null for mm:ss with single-digit seconds', () => {
+    // mm:ss requires exactly 2-digit seconds
+    expect(parsePosition('1:5')).toBeNull();
+  });
+});
+
+describe('formatPosition edge cases', () => {
+  it('handles negative positionMs', () => {
+    // Math.floor(-1000/1000) = -1 → '-1:-1'
+    expect(formatPosition(-1000)).toBe('-1:-1');
+  });
+
+  it('handles NaN', () => {
+    expect(formatPosition(NaN)).toBe('NaN:NaN');
+  });
+
+  it('handles zero', () => {
+    expect(formatPosition(0)).toBe('0:00');
+  });
+});

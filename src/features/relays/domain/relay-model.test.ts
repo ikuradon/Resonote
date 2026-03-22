@@ -117,3 +117,41 @@ describe('isTransitionalState', () => {
     expect(isTransitionalState('retrying')).toBe(true);
   });
 });
+
+describe('parseRelayTags — edge cases', () => {
+  it('handles duplicate relay URLs (keeps both entries)', () => {
+    const tags = [
+      ['r', 'wss://relay.example.com'],
+      ['r', 'wss://relay.example.com']
+    ];
+    // parseRelayTags does not deduplicate — caller is responsible
+    const result = parseRelayTags(tags);
+    expect(result).toHaveLength(2);
+    expect(result[0].url).toBe('wss://relay.example.com');
+    expect(result[1].url).toBe('wss://relay.example.com');
+  });
+
+  it('handles non-wss relay URL (included as-is — no scheme validation)', () => {
+    const tags = [['r', 'http://example.com']];
+    // parseRelayTags does not filter by scheme; it passes through any truthy URL
+    const result = parseRelayTags(tags);
+    expect(result).toHaveLength(1);
+    expect(result[0].url).toBe('http://example.com');
+    expect(result[0].read).toBe(true);
+    expect(result[0].write).toBe(true);
+  });
+
+  it('handles relay tag with missing URL (skips the entry)', () => {
+    const tags = [['r']];
+    expect(parseRelayTags(tags)).toEqual([]);
+  });
+
+  it('handles relay tag with empty string URL (skips the entry)', () => {
+    const tags = [['r', '']];
+    expect(parseRelayTags(tags)).toEqual([]);
+  });
+
+  it('handles empty tags array', () => {
+    expect(parseRelayTags([])).toEqual([]);
+  });
+});
