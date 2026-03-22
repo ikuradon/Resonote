@@ -160,23 +160,15 @@ export function parseCommentContent(content: string, emojiTags: string[][]): Con
       }
       lastIndex = matchStart + matchText.length;
     } else if (matchText.includes('#')) {
-      // Hashtag -- find the # and tag text
-      const hashIdx = matchText.indexOf('#');
+      // Hashtag — lookbehind ensures matchText always starts with #
       const tag = match[3];
 
       // Exclude #<64 hex chars> and #<digits only>
       if (isHexString(tag) || isDigitsOnly(tag)) {
         segments.push({ type: 'text', value: matchText });
       } else {
-        // Push any prefix before #
-        if (hashIdx > 0) {
-          segments.push({ type: 'text', value: matchText.slice(0, hashIdx) });
-        }
         segments.push({ type: 'hashtag', tag });
       }
-      lastIndex = matchStart + matchText.length;
-    } else {
-      segments.push({ type: 'text', value: matchText });
       lastIndex = matchStart + matchText.length;
     }
   }

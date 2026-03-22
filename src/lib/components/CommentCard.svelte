@@ -191,7 +191,7 @@
           />{:else if seg.type === 'nostr-link'}<a
             href={seg.href}
             class="text-accent hover:underline"
-            >{#if seg.decoded?.type === 'npub' || seg.decoded?.type === 'nprofile'}{#if getAuthorDisplay(seg.decoded.pubkey).displayName !== seg.decoded.pubkey}@{getAuthorDisplay(
+            >{#if seg.decoded.type === 'npub' || seg.decoded.type === 'nprofile'}{#if getAuthorDisplay(seg.decoded.pubkey).displayName !== seg.decoded.pubkey}@{getAuthorDisplay(
                   seg.decoded.pubkey
                 ).displayName}{:else}{seg.uri.slice(0, 8)}…{seg.uri.slice(
                   -4

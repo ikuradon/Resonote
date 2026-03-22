@@ -101,7 +101,7 @@ describe('parseCommentContent — nostr URIs', () => {
     expect(seg).toBeDefined();
     if (seg?.type === 'nostr-link') {
       expect(seg.href).toBe(`/profile/${VALID_NPUB}`);
-      expect(seg.decoded?.type).toBe('npub');
+      expect(seg.decoded.type).toBe('npub');
     }
   });
 
@@ -128,7 +128,7 @@ describe('parseCommentContent — nostr URIs', () => {
     const seg = result.find((s) => s.type === 'nostr-link');
     expect(seg).toBeDefined();
     if (seg?.type === 'nostr-link') {
-      expect(seg.decoded?.type).toBe('nevent');
+      expect(seg.decoded.type).toBe('nevent');
     }
   });
 
