@@ -50,16 +50,13 @@ function createCombinedRe(): RegExp {
 
 const URL_TRAILING_RE = /[.,;:!?)]+$/;
 
-function nostrLinkHref(uri: string, decoded: DecodedNip19): string {
-  if (!decoded) return `/${uri}`;
+function nostrLinkHref(uri: string, decoded: NonNullable<DecodedNip19>): string {
   switch (decoded.type) {
     case 'npub':
     case 'nprofile':
       return `/profile/${uri}`;
     case 'note':
     case 'nevent':
-      return `/${uri}`;
-    default:
       return `/${uri}`;
   }
 }
