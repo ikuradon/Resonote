@@ -581,6 +581,38 @@ describe('parsePosition edge cases', () => {
   });
 });
 
+describe('buildComment — emoji content tags', () => {
+  it('adds emoji tags when emojiTags provided regardless of shortcode presence in content', () => {
+    const emojiTags = [['emoji', 'fire', 'https://example.com/fire.png']];
+    const event = buildComment('love this :fire: part', trackId, provider, { emojiTags });
+    expect(event.tags).toContainEqual(['emoji', 'fire', 'https://example.com/fire.png']);
+  });
+
+  it('adds emoji tags even when content has no shortcodes', () => {
+    const emojiTags = [['emoji', 'fire', 'https://example.com/fire.png']];
+    const event = buildComment('plain text', trackId, provider, { emojiTags });
+    expect(event.tags).toContainEqual(['emoji', 'fire', 'https://example.com/fire.png']);
+  });
+
+  it('handles content with multiple shortcodes — both emoji tags included', () => {
+    const emojiTags = [
+      ['emoji', 'cat', 'https://example.com/cat.png'],
+      ['emoji', 'dog', 'https://example.com/dog.png']
+    ];
+    const event = buildComment(':cat: and :dog:', trackId, provider, { emojiTags });
+    expect(event.tags).toContainEqual(['emoji', 'cat', 'https://example.com/cat.png']);
+    expect(event.tags).toContainEqual(['emoji', 'dog', 'https://example.com/dog.png']);
+    const emojiTagsInEvent = event.tags!.filter((t) => t[0] === 'emoji');
+    expect(emojiTagsInEvent).toHaveLength(2);
+  });
+
+  it('handles empty emojiTags array — no emoji tags in output', () => {
+    const event = buildComment('hello :fire:', trackId, provider, { emojiTags: [] });
+    const emojiTagsInEvent = event.tags!.filter((t) => t[0] === 'emoji');
+    expect(emojiTagsInEvent).toHaveLength(0);
+  });
+});
+
 describe('formatPosition edge cases', () => {
   it('handles negative positionMs', () => {
     // Math.floor(-1000/1000) = -1 → '-1:-1'

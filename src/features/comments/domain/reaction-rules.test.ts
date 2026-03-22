@@ -161,6 +161,80 @@ describe('buildReactionIndex with deletedIds', () => {
   });
 });
 
+describe('applyReaction — incremental consistency', () => {
+  const makeReaction = (
+    id: string,
+    pubkey: string,
+    content: string,
+    targetEventId: string,
+    emojiUrl?: string
+  ): Reaction => ({
+    id,
+    pubkey,
+    content,
+    targetEventId,
+    emojiUrl
+  });
+
+  it('incremental applyReaction matches batch buildReactionIndex', () => {
+    const reactions: Reaction[] = [
+      makeReaction('r1', 'pk1', '+', 'e1'),
+      makeReaction('r2', 'pk2', '+', 'e1'),
+      makeReaction('r3', 'pk3', ':fire:', 'e1', 'https://example.com/fire.png'),
+      makeReaction('r4', 'pk4', '+', 'e2'),
+      makeReaction('r5', 'pk5', '🎵', 'e2')
+    ];
+
+    // Method A: incremental via applyReaction
+    let statsE1 = emptyStats();
+    let statsE2 = emptyStats();
+    for (const r of reactions) {
+      if (r.targetEventId === 'e1') statsE1 = applyReaction(statsE1, r);
+      else statsE2 = applyReaction(statsE2, r);
+    }
+
+    // Method B: batch via buildReactionIndex
+    const index = buildReactionIndex(reactions, new Set());
+    const batchE1 = index.get('e1')!;
+    const batchE2 = index.get('e2')!;
+
+    expect(statsE1.likes).toBe(batchE1.likes);
+    expect(statsE1.reactors.size).toBe(batchE1.reactors.size);
+    // emoji counts match (order may differ in incremental)
+    expect(statsE1.emojis.map((e) => e.count).sort()).toEqual(
+      batchE1.emojis.map((e) => e.count).sort()
+    );
+
+    expect(statsE2.likes).toBe(batchE2.likes);
+    expect(statsE2.emojis).toHaveLength(batchE2.emojis.length);
+  });
+
+  it('applyReaction with same pubkey reacting twice counts both but reactors.size stays 1', () => {
+    let stats = emptyStats();
+    stats = applyReaction(stats, makeReaction('r1', 'pk1', '+', 'e1'));
+    stats = applyReaction(stats, makeReaction('r2', 'pk1', '+', 'e1'));
+    // likes increments each call — applyReaction has no dedup logic
+    expect(stats.likes).toBe(2);
+    // reactors is a Set so same pubkey only counted once
+    expect(stats.reactors.size).toBe(1);
+  });
+
+  it('custom emoji reactions are sorted by count descending in buildReactionIndex', () => {
+    const reactions: Reaction[] = [
+      makeReaction('r1', 'pk1', ':fire:', 'e1', 'https://example.com/fire.png'),
+      makeReaction('r2', 'pk2', ':fire:', 'e1', 'https://example.com/fire.png'),
+      makeReaction('r3', 'pk3', ':fire:', 'e1', 'https://example.com/fire.png'),
+      makeReaction('r4', 'pk4', ':star:', 'e1', 'https://example.com/star.png')
+    ];
+    const index = buildReactionIndex(reactions, new Set());
+    const emojis = index.get('e1')!.emojis;
+    expect(emojis[0].url).toBe('https://example.com/fire.png');
+    expect(emojis[0].count).toBe(3);
+    expect(emojis[1].url).toBe('https://example.com/star.png');
+    expect(emojis[1].count).toBe(1);
+  });
+});
+
 describe('buildReactionIndex', () => {
   const reactions: Reaction[] = [
     { id: 'r1', pubkey: 'pk1', content: '+', targetEventId: 'e1' },

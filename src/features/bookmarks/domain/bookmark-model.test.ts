@@ -107,4 +107,36 @@ describe('removeBookmarkTag', () => {
     removeBookmarkTag(tags, 'val');
     expect(tags).toHaveLength(1);
   });
+
+  it('removes matching i-tag by value leaving other i-tags intact', () => {
+    const tags = [
+      ['i', 'spotify:track:abc', 'hint'],
+      ['i', 'youtube:video:xyz', 'hint2']
+    ];
+    const result = removeBookmarkTag(tags, 'spotify:track:abc');
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual(['i', 'youtube:video:xyz', 'hint2']);
+  });
+
+  it('returns original tags unchanged when value not found', () => {
+    const tags = [['i', 'spotify:track:abc', 'hint']];
+    const result = removeBookmarkTag(tags, 'nonexistent:value');
+    expect(result).toEqual(tags);
+    expect(result).toHaveLength(1);
+  });
+
+  it('does not mutate original array', () => {
+    const tags: string[][] = [
+      ['i', 'spotify:track:abc', 'hint'],
+      ['i', 'youtube:video:xyz', 'hint2']
+    ];
+    const original = [...tags];
+    removeBookmarkTag(tags, 'spotify:track:abc');
+    expect(tags).toEqual(original);
+  });
+
+  it('handles empty tags array', () => {
+    const result = removeBookmarkTag([], 'spotify:track:abc');
+    expect(result).toEqual([]);
+  });
 });
