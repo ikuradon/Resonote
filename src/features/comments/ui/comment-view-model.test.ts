@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ---------------------------------------------------------------------------
 // Hoisted mocks
@@ -1211,6 +1211,10 @@ describe('createCommentViewModel', () => {
   // 14. Loading timeout
   // -------------------------------------------------------------------------
   describe('loading timeout', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it('sets loading=false after timeout even without backward complete', async () => {
       vi.useFakeTimers();
       startSubscriptionMock.mockReturnValue([{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }]);
@@ -1221,8 +1225,6 @@ describe('createCommentViewModel', () => {
 
       vi.advanceTimersByTime(10_000);
       expect(vm.loading).toBe(false);
-
-      vi.useRealTimers();
     });
 
     it('clears loading timeout on destroy', async () => {
@@ -1235,8 +1237,6 @@ describe('createCommentViewModel', () => {
 
       // Advancing should not cause issues
       vi.advanceTimersByTime(10_000);
-
-      vi.useRealTimers();
     });
   });
 
