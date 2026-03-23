@@ -1269,10 +1269,9 @@ describe('createCommentViewModel', () => {
   // 16. subscribe error handling
   // -------------------------------------------------------------------------
   describe('subscribe error handling', () => {
-    it('cleans up subscriptions on error after partial setup', async () => {
-      const sub1 = { unsubscribe: vi.fn() };
-      startSubscriptionMock.mockReturnValue([sub1]);
-      // Make startDeletionReconcile throw after subscriptions are set up
+    it('sets loading=false and logs error when startDeletionReconcile throws', async () => {
+      // startDeletionReconcile is called BEFORE startSubscription,
+      // so an error here prevents live subscriptions from being created.
       const cachedEvent = makeCommentEvent('err-c');
       restoreFromCacheMock.mockResolvedValue([cachedEvent]);
       startDeletionReconcileMock.mockImplementation(() => {
@@ -1282,9 +1281,10 @@ describe('createCommentViewModel', () => {
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      // loading should be false after error
       expect(vm.loading).toBe(false);
       expect(logErrorMock).toHaveBeenCalled();
+      // startSubscription should not have been called
+      expect(startSubscriptionMock).not.toHaveBeenCalled();
     });
   });
 });
