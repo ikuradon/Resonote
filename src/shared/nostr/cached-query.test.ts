@@ -419,8 +419,9 @@ describe('useCachedLatest', () => {
     activeResult = useCachedLatest('pk1', 0);
     await flushAsync();
 
-    // DB failed, relay completes normally -> event null, settled true
+    // DB failed, relay completes normally without events -> source stays 'loading'
     expect(activeResult.event).toBeNull();
+    expect(activeResult.source).toBe('loading');
     expect(activeResult.settled).toBe(true);
   });
 

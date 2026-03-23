@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest';
 
 type SendCallbacks = {
   next?: (packet: { ok: boolean }) => void;
@@ -217,6 +217,10 @@ describe('castSigned', () => {
 });
 
 describe('fetchLatestEvent', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('returns the latest event by created_at', async () => {
     const { fetchLatestEvent, getRxNostr } = await import('./client.js');
     await getRxNostr();
@@ -324,8 +328,6 @@ describe('fetchLatestEvent', () => {
 
     const result = await promise;
     expect(result).toEqual(expect.objectContaining({ content: 'before timeout' }));
-
-    vi.useRealTimers();
   });
 
   it('resolves with null on timeout when no events received', async () => {
@@ -344,8 +346,6 @@ describe('fetchLatestEvent', () => {
 
     const result = await promise;
     expect(result).toBeNull();
-
-    vi.useRealTimers();
   });
 
   it('keeps event with higher created_at when out-of-order', async () => {
