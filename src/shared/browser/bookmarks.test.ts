@@ -180,7 +180,7 @@ describe('bookmarks store', () => {
       expect(bookmarks.entries[0].value).toBe('youtube:video:second');
     });
 
-    it('エラー発生時も loading を false に戻す', async () => {
+    it('エラー発生時は loading=false, loaded=true になる', async () => {
       mockLoadBookmarks.mockRejectedValueOnce(new Error('load error'));
 
       await expect(loadBookmarks(PUBKEY)).rejects.toThrow('load error');
