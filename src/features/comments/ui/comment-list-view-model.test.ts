@@ -19,7 +19,7 @@ const {
   logErrorMock
 } = vi.hoisted(() => ({
   playerState: { position: 6_000 },
-  authState: { pubkey: 'me', loggedIn: true },
+  authState: { pubkey: 'me' as string | null, loggedIn: true },
   muteListState: { mutedPubkeys: new Set(['muted-user']) },
   displayByPubkey: {
     me: { displayName: 'Me', profileHref: '/profile/me' },
@@ -934,7 +934,7 @@ describe('createCommentListViewModel', () => {
     });
 
     it('myReactionFor returns false when not logged in', () => {
-      authState.pubkey = null as unknown as string;
+      authState.pubkey = null;
       const vm = createCommentListViewModel({
         getComments: () => [],
         getReactionIndex: () => new Map(),
