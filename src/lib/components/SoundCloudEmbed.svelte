@@ -148,7 +148,7 @@
       scrolling="no"
       frameborder="no"
       allow="autoplay"
-      title="SoundCloud Player"
+      title={t('embed.player_title', { platform: 'SoundCloud' })}
     ></iframe>
   {/if}
   {#if error}

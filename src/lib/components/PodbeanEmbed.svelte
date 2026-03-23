@@ -133,7 +133,7 @@
       scrolling="no"
       frameborder="no"
       allow="autoplay"
-      title="Podbean Player"
+      title={t('embed.player_title', { platform: 'Podbean' })}
     ></iframe>
   {/if}
   {#if error}

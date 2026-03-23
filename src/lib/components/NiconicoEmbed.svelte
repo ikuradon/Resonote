@@ -112,7 +112,7 @@
     scrolling="no"
     allow="autoplay"
     allowfullscreen
-    title="Niconico Player"
+    title={t('embed.player_title', { platform: 'Niconico' })}
     class="absolute inset-0 h-full w-full"
   ></iframe>
   {#if error}

@@ -128,7 +128,7 @@
     src={provider.embedUrl(contentId)}
     class="h-full w-full"
     allow="autoplay; fullscreen; picture-in-picture"
-    title="Vimeo Player"
+    title={t('embed.player_title', { platform: 'Vimeo' })}
   ></iframe>
   {#if error}
     <div class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-surface-1">
