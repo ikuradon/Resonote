@@ -21,9 +21,18 @@ const RSS_PARAMS: Record<string, string> = {
   channel: 'channel_id'
 };
 
+function decodeXmlEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
+}
+
 function parseAtomFeed(xml: string): { title: string; videos: FeedVideo[] } {
   const titleMatch = xml.match(/<feed[^>]*>[\s\S]*?<title>([^<]*)<\/title>/);
-  const title = titleMatch?.[1] ?? '';
+  const title = decodeXmlEntities(titleMatch?.[1] ?? '');
 
   const videos: FeedVideo[] = [];
   const entryRe = /<entry>([\s\S]*?)<\/entry>/g;
@@ -39,7 +48,7 @@ function parseAtomFeed(xml: string): { title: string; videos: FeedVideo[] } {
     if (videoId && entryTitle) {
       videos.push({
         videoId,
-        title: entryTitle,
+        title: decodeXmlEntities(entryTitle),
         published: published ? Math.floor(new Date(published).getTime() / 1000) : 0,
         thumbnail: thumbnail ?? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
       });

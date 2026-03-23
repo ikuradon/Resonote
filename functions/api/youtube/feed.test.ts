@@ -180,4 +180,24 @@ describe('YouTube feed API', () => {
     expect(body.title).toBe('Empty');
     expect(body.videos).toHaveLength(0);
   });
+
+  it('decodes XML entities in titles', async () => {
+    const entityFeed = `<?xml version="1.0"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/">
+  <title>Rock &amp; Roll</title>
+  <entry>
+    <yt:videoId>abc123</yt:videoId>
+    <title>Tom &amp; Jerry &lt;3&gt;</title>
+    <published>2024-01-01T00:00:00+00:00</published>
+    <media:group><media:thumbnail url="https://i.ytimg.com/vi/abc123/hqdefault.jpg" /></media:group>
+  </entry>
+</feed>`;
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(entityFeed, { status: 200 })));
+
+    const ctx = makeContext({ type: 'playlist', id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf' });
+    const res = await onRequestGet(ctx);
+    const body = await parseJson(res);
+    expect(body.title).toBe('Rock & Roll');
+    expect(body.videos[0].title).toBe('Tom & Jerry <3>');
+  });
 });

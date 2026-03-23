@@ -28,9 +28,11 @@
   $effect(() => {
     const type = contentId.type as 'playlist' | 'channel';
     const id = contentId.id;
+    let cancelled = false;
 
     status = 'loading';
     resolveYouTubeFeed(type, id).then((result) => {
+      if (cancelled) return;
       if (result.error) {
         status = 'error';
         return;
@@ -39,6 +41,10 @@
       videos = result.videos;
       status = 'loaded';
     });
+
+    return () => {
+      cancelled = true;
+    };
   });
 </script>
 

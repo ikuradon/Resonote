@@ -121,6 +121,17 @@ describe('YouTubeProvider', () => {
       });
     });
 
+    it('should parse a mobile playlist URL', () => {
+      const result = provider.parseUrl(
+        'https://m.youtube.com/playlist?list=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf'
+      );
+      expect(result).toEqual({
+        platform: 'youtube',
+        type: 'playlist',
+        id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf'
+      });
+    });
+
     it('should return null for playlist URL without list param', () => {
       expect(provider.parseUrl('https://www.youtube.com/playlist')).toBeNull();
     });
@@ -129,6 +140,15 @@ describe('YouTubeProvider', () => {
 
     it('should parse a channel URL with UCxxxx ID', () => {
       const result = provider.parseUrl('https://www.youtube.com/channel/UCddiUEpeqJcYeBxX1IVBKvQ');
+      expect(result).toEqual({
+        platform: 'youtube',
+        type: 'channel',
+        id: 'UCddiUEpeqJcYeBxX1IVBKvQ'
+      });
+    });
+
+    it('should parse a mobile channel URL', () => {
+      const result = provider.parseUrl('https://m.youtube.com/channel/UCddiUEpeqJcYeBxX1IVBKvQ');
       expect(result).toEqual({
         platform: 'youtube',
         type: 'channel',
