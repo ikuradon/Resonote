@@ -21,6 +21,7 @@ describe('resolveYouTubeFeed', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('playlist type: returns title + videos on success', async () => {
