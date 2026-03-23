@@ -58,67 +58,56 @@ describe('locales', () => {
   // --- detectBrowserLocale ---
 
   describe('detectBrowserLocale', () => {
+    const originalLanguage = navigator.language;
+
     afterEach(() => {
       vi.unstubAllGlobals();
+      // Restore navigator.language set via Object.defineProperty
+      Object.defineProperty(navigator, 'language', {
+        value: originalLanguage,
+        configurable: true
+      });
     });
+
+    function stubLanguage(lang: string) {
+      Object.defineProperty(navigator, 'language', {
+        value: lang,
+        configurable: true
+      });
+    }
 
     it('returns default locale when navigator is undefined', () => {
       vi.stubGlobal('navigator', undefined);
-
       expect(detectBrowserLocale()).toBe('en');
     });
 
     it('returns "ja" for ja-JP browser language', () => {
-      Object.defineProperty(navigator, 'language', {
-        value: 'ja-JP',
-        configurable: true
-      });
-
+      stubLanguage('ja-JP');
       expect(detectBrowserLocale()).toBe('ja');
     });
 
     it('returns "ja" for bare "ja" browser language', () => {
-      Object.defineProperty(navigator, 'language', {
-        value: 'ja',
-        configurable: true
-      });
-
+      stubLanguage('ja');
       expect(detectBrowserLocale()).toBe('ja');
     });
 
     it('returns "en" for en-US browser language', () => {
-      Object.defineProperty(navigator, 'language', {
-        value: 'en-US',
-        configurable: true
-      });
-
+      stubLanguage('en-US');
       expect(detectBrowserLocale()).toBe('en');
     });
 
     it('returns "en" for en-GB browser language', () => {
-      Object.defineProperty(navigator, 'language', {
-        value: 'en-GB',
-        configurable: true
-      });
-
+      stubLanguage('en-GB');
       expect(detectBrowserLocale()).toBe('en');
     });
 
     it('returns "en" (default) for unsupported locale "fr-FR"', () => {
-      Object.defineProperty(navigator, 'language', {
-        value: 'fr-FR',
-        configurable: true
-      });
-
+      stubLanguage('fr-FR');
       expect(detectBrowserLocale()).toBe('en');
     });
 
     it('returns "en" (default) for unsupported locale "zh-CN"', () => {
-      Object.defineProperty(navigator, 'language', {
-        value: 'zh-CN',
-        configurable: true
-      });
-
+      stubLanguage('zh-CN');
       expect(detectBrowserLocale()).toBe('en');
     });
   });

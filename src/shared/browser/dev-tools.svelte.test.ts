@@ -123,25 +123,19 @@ describe('dev-tools.svelte', () => {
 
   describe('clearAllData', () => {
     function setupClearAllGlobals(localStorageValue: Record<string, unknown>) {
-      Object.defineProperty(globalThis, 'localStorage', {
-        value: localStorageValue,
-        writable: true,
-        configurable: true
-      });
+      vi.stubGlobal('localStorage', localStorageValue);
       const deleteDbMock = vi.fn().mockReturnValue({});
-      Object.defineProperty(globalThis, 'indexedDB', {
-        value: { deleteDatabase: deleteDbMock },
-        writable: true,
-        configurable: true
-      });
+      vi.stubGlobal('indexedDB', { deleteDatabase: deleteDbMock });
       const reloadMock = vi.fn();
-      Object.defineProperty(globalThis, 'window', {
-        value: { location: { href: 'https://resonote.pages.dev/', reload: reloadMock } },
-        writable: true,
-        configurable: true
+      vi.stubGlobal('window', {
+        location: { href: 'https://resonote.pages.dev/', reload: reloadMock }
       });
       return { deleteDbMock, reloadMock };
     }
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
 
     it('calls localStorage.clear, indexedDB.deleteDatabase, and location.reload', () => {
       const clearMock = vi.fn();
