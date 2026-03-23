@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { parseDTagEvent } from '$shared/content/podcast-resolver.js';
 
 const { verifierMock, mockGetEventsDB, mockGetRxNostr } = vi.hoisted(() => ({
@@ -57,6 +57,10 @@ function setupRelayMock(event: { tags: string[][]; content: string } | null) {
 }
 
 describe('podcast-resolver', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   describe('getSystemPubkey', () => {
     beforeEach(() => {
       vi.resetModules();
@@ -74,7 +78,6 @@ describe('podcast-resolver', () => {
       const { getSystemPubkey } = await import('$shared/content/podcast-resolver.js');
       const result = await getSystemPubkey();
       expect(result).toBe('abc123');
-      vi.unstubAllGlobals();
     });
 
     it('should return empty string and allow retry on 5xx error', async () => {
@@ -95,7 +98,6 @@ describe('podcast-resolver', () => {
       const result2 = await getSystemPubkey();
       expect(result2).toBe('recovered');
       expect(fetchMock).toHaveBeenCalledTimes(2);
-      vi.unstubAllGlobals();
     });
 
     it('should return empty string and allow retry on network error', async () => {
@@ -116,7 +118,6 @@ describe('podcast-resolver', () => {
       const result2 = await getSystemPubkey();
       expect(result2).toBe('recovered');
       expect(fetchMock).toHaveBeenCalledTimes(2);
-      vi.unstubAllGlobals();
     });
 
     it('should return empty string and allow retry when pubkey is not a string', async () => {
@@ -140,7 +141,6 @@ describe('podcast-resolver', () => {
       const result2 = await getSystemPubkey();
       expect(result2).toBe('recovered');
       expect(fetchMock).toHaveBeenCalledTimes(2);
-      vi.unstubAllGlobals();
     });
 
     it('should cache successful result', async () => {
@@ -155,7 +155,6 @@ describe('podcast-resolver', () => {
       await getSystemPubkey();
       await getSystemPubkey();
       expect(fetchMock).toHaveBeenCalledTimes(1);
-      vi.unstubAllGlobals();
     });
   });
 
@@ -171,7 +170,6 @@ describe('podcast-resolver', () => {
       const { resolveByApi } = await import('$shared/content/podcast-resolver.js');
       const result = await resolveByApi('https://example.com/feed');
       expect(result.error).toBe('fetch_failed');
-      vi.unstubAllGlobals();
     });
 
     it('should return invalid_response for non-object data', async () => {
@@ -185,7 +183,6 @@ describe('podcast-resolver', () => {
       const { resolveByApi } = await import('$shared/content/podcast-resolver.js');
       const result = await resolveByApi('https://example.com/feed');
       expect(result.error).toBe('invalid_response');
-      vi.unstubAllGlobals();
     });
 
     it('should fallback type to episode for invalid type value', async () => {
@@ -199,7 +196,6 @@ describe('podcast-resolver', () => {
       const { resolveByApi } = await import('$shared/content/podcast-resolver.js');
       const result = await resolveByApi('https://example.com/feed');
       expect(result.type).toBe('episode');
-      vi.unstubAllGlobals();
     });
 
     it('should keep verified signedEvents and discard invalid ones', async () => {
@@ -221,7 +217,6 @@ describe('podcast-resolver', () => {
       const { resolveByApi } = await import('$shared/content/podcast-resolver.js');
       const result = await resolveByApi('https://example.com/feed');
       expect(result.signedEvents).toEqual([validEvent]);
-      vi.unstubAllGlobals();
     });
 
     it('should set signedEvents to undefined when all fail verification', async () => {
@@ -241,7 +236,6 @@ describe('podcast-resolver', () => {
       const { resolveByApi } = await import('$shared/content/podcast-resolver.js');
       const result = await resolveByApi('https://example.com/feed');
       expect(result.signedEvents).toBeUndefined();
-      vi.unstubAllGlobals();
     });
 
     it('should set signedEvents to undefined when not an array', async () => {
@@ -259,7 +253,6 @@ describe('podcast-resolver', () => {
       const { resolveByApi } = await import('$shared/content/podcast-resolver.js');
       const result = await resolveByApi('https://example.com/feed');
       expect(result.signedEvents).toBeUndefined();
-      vi.unstubAllGlobals();
     });
   });
 
@@ -445,7 +438,6 @@ describe('podcast-resolver', () => {
       expect(result!.feedUrl).toBe('https://example.com/feed.xml');
       expect(result!.enclosureUrl).toBe('https://example.com/ep.mp3');
       expect(result!.description).toBe('Episode desc');
-      vi.unstubAllGlobals();
     });
 
     it('should return null when system pubkey fetch fails', async () => {
@@ -458,7 +450,6 @@ describe('podcast-resolver', () => {
 
       expect(result).toBeNull();
       expect(rxNostrQuery).not.toHaveBeenCalled();
-      vi.unstubAllGlobals();
     });
 
     it('should return null when rx-nostr query returns null (timeout)', async () => {
@@ -470,7 +461,6 @@ describe('podcast-resolver', () => {
       const result = await resolveByDTag('https://example.com/ep.mp3', rxNostrQuery);
 
       expect(result).toBeNull();
-      vi.unstubAllGlobals();
     });
 
     it('should return null when event has invalid tags (parseDTagEvent fails)', async () => {
@@ -486,7 +476,6 @@ describe('podcast-resolver', () => {
       const result = await resolveByDTag('https://example.com/ep.mp3', rxNostrQuery);
 
       expect(result).toBeNull();
-      vi.unstubAllGlobals();
     });
 
     it('should normalize URL before querying (trailing slash, scheme removal)', async () => {
@@ -502,7 +491,6 @@ describe('podcast-resolver', () => {
           '#d': ['example.com/path']
         })
       );
-      vi.unstubAllGlobals();
     });
   });
 
@@ -537,7 +525,6 @@ describe('podcast-resolver', () => {
       expect(result!.guid).toBe('ep-guid');
       expect(result!.feedUrl).toBe('https://example.com/feed.xml');
       expect(result!.description).toBe('Cached desc');
-      vi.unstubAllGlobals();
     });
 
     it('should fall through to relay when DB cache misses', async () => {
@@ -564,7 +551,6 @@ describe('podcast-resolver', () => {
       expect(result).not.toBeNull();
       expect(result!.guid).toBe('ep-guid');
       expect(result!.description).toBe('Relay desc');
-      vi.unstubAllGlobals();
     });
 
     it('should return null when system pubkey is empty', async () => {
@@ -574,7 +560,6 @@ describe('podcast-resolver', () => {
       const result = await searchBookmarkByUrl('https://example.com/ep.mp3');
 
       expect(result).toBeNull();
-      vi.unstubAllGlobals();
     });
 
     it('should return null when relay subscription times out (complete with no events)', async () => {
@@ -590,7 +575,6 @@ describe('podcast-resolver', () => {
       const result = await searchBookmarkByUrl('https://example.com/ep.mp3');
 
       expect(result).toBeNull();
-      vi.unstubAllGlobals();
     });
 
     it('should normalize URL with trailing slash before querying', async () => {
@@ -612,7 +596,6 @@ describe('podcast-resolver', () => {
       await searchBookmarkByUrl('https://Example.COM/ep.mp3/');
 
       expect(getByReplaceKeyMock).toHaveBeenCalledWith('sys-pubkey', 39701, 'example.com/ep.mp3');
-      vi.unstubAllGlobals();
     });
 
     it('should cache relay result in DB after successful fetch', async () => {
@@ -638,7 +621,6 @@ describe('podcast-resolver', () => {
       await searchBookmarkByUrl('https://example.com/ep.mp3');
 
       expect(putMock).toHaveBeenCalledWith(relayEvent);
-      vi.unstubAllGlobals();
     });
 
     it('should return null when DB and relay both fail', async () => {
@@ -654,7 +636,6 @@ describe('podcast-resolver', () => {
       const result = await searchBookmarkByUrl('https://example.com/ep.mp3');
 
       expect(result).toBeNull();
-      vi.unstubAllGlobals();
     });
 
     it('should skip invalid cached event and fall through to relay', async () => {
@@ -665,13 +646,10 @@ describe('podcast-resolver', () => {
         tags: [['d', 'something']],
         content: ''
       };
-      mockGetEventsDB
-        .mockResolvedValueOnce({
-          getByReplaceKey: vi.fn().mockResolvedValue(invalidCachedEvent)
-        })
-        .mockResolvedValueOnce({
-          put: vi.fn()
-        });
+      mockGetEventsDB.mockResolvedValue({
+        getByReplaceKey: vi.fn().mockResolvedValue(invalidCachedEvent),
+        put: vi.fn()
+      });
 
       const relayEvent = {
         tags: [
@@ -688,7 +666,6 @@ describe('podcast-resolver', () => {
 
       expect(result).not.toBeNull();
       expect(result!.guid).toBe('ep-guid');
-      vi.unstubAllGlobals();
     });
   });
 
@@ -710,7 +687,6 @@ describe('podcast-resolver', () => {
       const { resolveByApi } = await import('$shared/content/podcast-resolver.js');
       const result = await resolveByApi('https://example.com/feed');
       expect(result.error).toBe('invalid_response');
-      vi.unstubAllGlobals();
     });
 
     it('should handle verifier throwing for malformed event', async () => {
@@ -731,7 +707,6 @@ describe('podcast-resolver', () => {
       const result = await resolveByApi('https://example.com/feed');
       expect(result.type).toBe('feed');
       expect(result.signedEvents).toBeUndefined();
-      vi.unstubAllGlobals();
     });
 
     it('should return invalid_response when json() throws', async () => {
@@ -745,7 +720,6 @@ describe('podcast-resolver', () => {
       const { resolveByApi } = await import('$shared/content/podcast-resolver.js');
       const result = await resolveByApi('https://example.com/feed');
       expect(result.error).toBe('invalid_response');
-      vi.unstubAllGlobals();
     });
 
     it('should preserve valid type values: feed, redirect', async () => {
@@ -761,7 +735,6 @@ describe('podcast-resolver', () => {
       const result = await resolveByApi('https://example.com/feed');
       expect(result.type).toBe('redirect');
       expect(result.feedUrl).toBe('https://example.com/real-feed');
-      vi.unstubAllGlobals();
     });
 
     it('should set signedEvents to undefined for empty array', async () => {
@@ -779,7 +752,6 @@ describe('podcast-resolver', () => {
       const { resolveByApi } = await import('$shared/content/podcast-resolver.js');
       const result = await resolveByApi('https://example.com/feed');
       expect(result.signedEvents).toBeUndefined();
-      vi.unstubAllGlobals();
     });
   });
 });
