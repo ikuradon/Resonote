@@ -136,6 +136,12 @@ describe('YouTubeProvider', () => {
       expect(provider.parseUrl('https://www.youtube.com/playlist')).toBeNull();
     });
 
+    it('should return null for non-PL playlist IDs (LL, WL, RD)', () => {
+      expect(provider.parseUrl('https://www.youtube.com/playlist?list=LL')).toBeNull();
+      expect(provider.parseUrl('https://www.youtube.com/playlist?list=WL')).toBeNull();
+      expect(provider.parseUrl('https://www.youtube.com/playlist?list=RDMMdQw4w9WgXcQ')).toBeNull();
+    });
+
     // --- Channel URLs ---
 
     it('should parse a channel URL with UCxxxx ID', () => {

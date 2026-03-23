@@ -200,4 +200,24 @@ describe('YouTube feed API', () => {
     expect(body.title).toBe('Rock & Roll');
     expect(body.videos[0].title).toBe('Tom & Jerry <3>');
   });
+
+  it('decodes numeric character references', async () => {
+    const numRefFeed = `<?xml version="1.0"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/">
+  <title>It&#39;s a test</title>
+  <entry>
+    <yt:videoId>xyz789</yt:videoId>
+    <title>Don&#x27;t Stop &#8212; Believin&#39;</title>
+    <published>2024-01-01T00:00:00+00:00</published>
+    <media:group><media:thumbnail url="https://i.ytimg.com/vi/xyz789/hqdefault.jpg" /></media:group>
+  </entry>
+</feed>`;
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(numRefFeed, { status: 200 })));
+
+    const ctx = makeContext({ type: 'playlist', id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf' });
+    const res = await onRequestGet(ctx);
+    const body = await parseJson(res);
+    expect(body.title).toBe("It's a test");
+    expect(body.videos[0].title).toBe("Don't Stop — Believin'");
+  });
 });

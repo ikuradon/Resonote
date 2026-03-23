@@ -22,13 +22,18 @@ const RSS_PARAMS: Record<string, string> = {
 };
 
 function decodeXmlEntities(s: string): string {
-  // Decode &amp; LAST to avoid double-decoding (e.g. &amp;lt; → &lt; → <)
-  return s
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, '&');
+  return (
+    s
+      // Named entities (decode &amp; LAST to avoid double-decoding)
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      // Numeric character references: &#NN; and &#xHH;
+      .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+      .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+      .replace(/&amp;/g, '&')
+  );
 }
 
 function parseAtomFeed(xml: string): { title: string; videos: FeedVideo[] } {
