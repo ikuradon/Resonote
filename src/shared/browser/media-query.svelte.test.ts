@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import { createMediaQuery } from './media-query.svelte.js';
 
 describe('createMediaQuery', () => {
@@ -10,6 +10,10 @@ describe('createMediaQuery', () => {
     }));
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('returns an object with a boolean matches property', () => {
     const mq = createMediaQuery('(min-width: 768px)');
 
@@ -18,7 +22,9 @@ describe('createMediaQuery', () => {
   });
 
   it('returns matches=true as default $state before effect runs', () => {
-    // $state(true) is the initial value; $effect updates it after scheduling
+    // $state(true) is the initial value; $effect updates it after scheduling.
+    // This is stable because vitest runs outside a Svelte component context,
+    // so $effect never executes and the initial $state value is deterministic.
     const mq = createMediaQuery('(min-width: 768px)');
 
     expect(mq.matches).toBe(true);

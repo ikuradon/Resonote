@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LOCALES, DEFAULT_LOCALE, isLocale, detectBrowserLocale } from './locales.js';
 
 describe('locales', () => {
@@ -58,6 +58,16 @@ describe('locales', () => {
   // --- detectBrowserLocale ---
 
   describe('detectBrowserLocale', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('returns default locale when navigator is undefined', () => {
+      vi.stubGlobal('navigator', undefined);
+
+      expect(detectBrowserLocale()).toBe('en');
+    });
+
     it('returns "ja" for ja-JP browser language', () => {
       Object.defineProperty(navigator, 'language', {
         value: 'ja-JP',
