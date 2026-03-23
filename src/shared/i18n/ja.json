@@ -228,6 +228,5 @@
   "podcast.error": "フィードの読み込みに失敗しました",
   "autocomplete.emoji": "絵文字",
   "autocomplete.hashtag": "ハッシュタグ",
-  "embed.player_title": "{platform}プレイヤー",
-  "extension.navigate_prompt": "対応サイトに移動して開始してください"
+  "embed.player_title": "{platform}プレイヤー"
 }

@@ -228,6 +228,5 @@
   "podcast.error": "Failed to load feed",
   "autocomplete.emoji": "Emoji",
   "autocomplete.hashtag": "Hashtag",
-  "embed.player_title": "{platform} Player",
-  "extension.navigate_prompt": "Navigate to a supported site to start"
+  "embed.player_title": "{platform} Player"
 }
