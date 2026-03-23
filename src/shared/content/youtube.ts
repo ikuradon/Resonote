@@ -7,8 +7,9 @@ const YOUTUBE_SHORT_RE = /^https?:\/\/youtu\.be\/([a-zA-Z0-9_-]+)/;
 const YOUTUBE_EMBED_RE = /^https?:\/\/(?:www\.|m\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]+)/;
 const YOUTUBE_SHORTS_RE = /^https?:\/\/(?:www\.|m\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/;
 const YOUTUBE_PLAYLIST_RE =
-  /^https?:\/\/(?:www\.|m\.)?youtube\.com\/playlist\?(?:[^&]*&)*list=([a-zA-Z0-9_-]+)/;
-const YOUTUBE_CHANNEL_RE = /^https?:\/\/(?:www\.|m\.)?youtube\.com\/channel\/(UC[a-zA-Z0-9_-]+)/;
+  /^https?:\/\/(?:www\.|m\.|music\.)?youtube\.com\/playlist\?(?:[^&]*&)*list=([a-zA-Z0-9_-]+)/;
+const YOUTUBE_CHANNEL_RE =
+  /^https?:\/\/(?:www\.|m\.|music\.)?youtube\.com\/channel\/(UC[a-zA-Z0-9_-]+)/;
 
 export class YouTubeProvider implements ContentProvider {
   readonly platform = 'youtube';
