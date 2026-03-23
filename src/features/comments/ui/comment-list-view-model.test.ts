@@ -19,7 +19,7 @@ const {
   logErrorMock
 } = vi.hoisted(() => ({
   playerState: { position: 6_000 },
-  authState: { pubkey: 'me', loggedIn: true },
+  authState: { pubkey: 'me' as string | null, loggedIn: true },
   muteListState: { mutedPubkeys: new Set(['muted-user']) },
   displayByPubkey: {
     me: { displayName: 'Me', profileHref: '/profile/me' },
@@ -89,6 +89,14 @@ vi.mock('$features/comments/application/comment-actions.js', () => ({
   sendReaction: sendReactionMock,
   sendReply: sendReplyMock,
   deleteComment: deleteCommentMock
+}));
+
+vi.mock('$shared/nostr/content-parser.js', () => ({
+  containsPrivateKey: (content: string) => content.includes('nsec1')
+}));
+
+vi.mock('$features/comments/domain/reaction-rules.js', () => ({
+  emptyStats: () => ({ likes: 0, emojis: [], reactors: new Set() })
 }));
 
 import { createCommentListViewModel } from './comment-list-view-model.svelte.js';
@@ -446,5 +454,771 @@ describe('createCommentListViewModel', () => {
 
     expect(muteUserMock).toHaveBeenCalledWith('target');
     expect(vm.muteDialogOpen).toBe(false);
+  });
+
+  // -------------------------------------------------------------------------
+  // activeComment highlight threshold
+  // -------------------------------------------------------------------------
+  describe('isNearCurrentPosition', () => {
+    it('returns true when position is within 5 seconds of player position', () => {
+      playerState.position = 10_000;
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+      expect(vm.isNearCurrentPosition(8_000)).toBe(true);
+      expect(vm.isNearCurrentPosition(12_000)).toBe(true);
+      expect(vm.isNearCurrentPosition(10_000)).toBe(true);
+    });
+
+    it('returns false when position is more than 5 seconds away', () => {
+      playerState.position = 10_000;
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+      expect(vm.isNearCurrentPosition(3_000)).toBe(false);
+      expect(vm.isNearCurrentPosition(16_000)).toBe(false);
+    });
+
+    it('returns false when player position is 0', () => {
+      playerState.position = 0;
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+      expect(vm.isNearCurrentPosition(1_000)).toBe(false);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // sendReaction
+  // -------------------------------------------------------------------------
+  describe('sendReaction', () => {
+    it('sends reaction and shows success toast', async () => {
+      const comment = createComment({ id: 'r-target', pubkey: 'other', content: 'hello' });
+      const vm = createCommentListViewModel({
+        getComments: () => [comment],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      await vm.sendReaction(comment);
+
+      expect(sendReactionMock).toHaveBeenCalledWith({
+        comment,
+        contentId,
+        provider,
+        reaction: '+',
+        emojiUrl: undefined
+      });
+      expect(toastSuccessMock).toHaveBeenCalledWith('toast.reaction_sent');
+    });
+
+    it('sends custom emoji reaction', async () => {
+      const comment = createComment({ id: 'r-emoji', pubkey: 'other', content: 'hello' });
+      const vm = createCommentListViewModel({
+        getComments: () => [comment],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      await vm.sendReaction(comment, ':fire:', 'https://example.com/fire.png');
+
+      expect(sendReactionMock).toHaveBeenCalledWith({
+        comment,
+        contentId,
+        provider,
+        reaction: ':fire:',
+        emojiUrl: 'https://example.com/fire.png'
+      });
+    });
+
+    it('shows error toast on failure', async () => {
+      sendReactionMock.mockRejectedValue(new Error('send failed'));
+      const comment = createComment({ id: 'r-fail', pubkey: 'other', content: 'hello' });
+      const vm = createCommentListViewModel({
+        getComments: () => [comment],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      await vm.sendReaction(comment);
+
+      expect(toastErrorMock).toHaveBeenCalledWith('toast.reaction_failed');
+      expect(logErrorMock).toHaveBeenCalled();
+    });
+
+    it('does nothing when not logged in', async () => {
+      authState.loggedIn = false;
+      const comment = createComment({ id: 'r-no-auth', pubkey: 'other', content: 'hello' });
+      const vm = createCommentListViewModel({
+        getComments: () => [comment],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      await vm.sendReaction(comment);
+
+      expect(sendReactionMock).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when already acting on another comment', async () => {
+      let resolveFirst!: () => void;
+      sendReactionMock.mockImplementation(
+        () =>
+          new Promise<void>((r) => {
+            resolveFirst = r;
+          })
+      );
+      const c1 = createComment({ id: 'acting-1', pubkey: 'other', content: 'a' });
+      const c2 = createComment({ id: 'acting-2', pubkey: 'other', content: 'b' });
+      const vm = createCommentListViewModel({
+        getComments: () => [c1, c2],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      const p1 = vm.sendReaction(c1);
+      expect(vm.isActing('acting-1')).toBe(true);
+
+      // Second reaction should be blocked
+      await vm.sendReaction(c2);
+      expect(sendReactionMock).toHaveBeenCalledTimes(1);
+
+      resolveFirst();
+      await p1;
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // deleteComment
+  // -------------------------------------------------------------------------
+  describe('deleteComment', () => {
+    it('shows error toast on deletion failure', async () => {
+      deleteCommentMock.mockRejectedValue(new Error('delete failed'));
+      const ownComment = createComment({ id: 'del-fail', pubkey: 'me', content: 'my comment' });
+      const vm = createCommentListViewModel({
+        getComments: () => [ownComment],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      vm.requestDelete(ownComment);
+      await vm.confirmDelete();
+
+      expect(toastErrorMock).toHaveBeenCalledWith('toast.delete_failed');
+      expect(logErrorMock).toHaveBeenCalled();
+    });
+
+    it('cancelDelete closes the dialog without deleting', () => {
+      const ownComment = createComment({ id: 'cancel-del', pubkey: 'me', content: 'my comment' });
+      const vm = createCommentListViewModel({
+        getComments: () => [ownComment],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      vm.requestDelete(ownComment);
+      expect(vm.deleteDialogOpen).toBe(true);
+
+      vm.cancelDelete();
+      expect(vm.deleteDialogOpen).toBe(false);
+    });
+
+    it('does nothing when deleteTarget is null', async () => {
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      await vm.confirmDelete();
+      expect(deleteCommentMock).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when trying to delete another user comment', async () => {
+      const otherComment = createComment({ id: 'not-mine', pubkey: 'other', content: 'not mine' });
+      const vm = createCommentListViewModel({
+        getComments: () => [otherComment],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      vm.requestDelete(otherComment);
+      await vm.confirmDelete();
+
+      expect(deleteCommentMock).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when not logged in', async () => {
+      authState.loggedIn = false;
+      const ownComment = createComment({ id: 'no-auth-del', pubkey: 'me', content: 'mine' });
+      const vm = createCommentListViewModel({
+        getComments: () => [ownComment],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      vm.requestDelete(ownComment);
+      await vm.confirmDelete();
+
+      expect(deleteCommentMock).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // muteUser
+  // -------------------------------------------------------------------------
+  describe('muteUser', () => {
+    it('handles mute failure gracefully', async () => {
+      muteUserMock.mockRejectedValue(new Error('mute failed'));
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      vm.requestMute('bad-actor');
+      await vm.confirmMute();
+
+      expect(logErrorMock).toHaveBeenCalled();
+      expect(vm.muteDialogOpen).toBe(false);
+    });
+
+    it('cancelMute closes dialog without muting', () => {
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      vm.requestMute('target');
+      expect(vm.muteDialogOpen).toBe(true);
+
+      vm.cancelMute();
+      expect(vm.muteDialogOpen).toBe(false);
+    });
+
+    it('does nothing when muteTarget is null', async () => {
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      await vm.confirmMute();
+      expect(muteUserMock).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // muted user / word-muted content filtering
+  // -------------------------------------------------------------------------
+  describe('filtering', () => {
+    it('filters out muted user comments', () => {
+      const comments = [
+        createComment({ id: 'visible', pubkey: 'other', content: 'ok' }),
+        createComment({ id: 'muted', pubkey: 'muted-user', content: 'hidden' })
+      ];
+      const vm = createCommentListViewModel({
+        getComments: () => comments,
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.filteredComments.map((c) => c.id)).toEqual(['visible']);
+    });
+
+    it('filters out word-muted comments', () => {
+      const comments = [
+        createComment({ id: 'ok', pubkey: 'other', content: 'fine' }),
+        createComment({ id: 'bad', pubkey: 'other', content: 'blocked-word here' })
+      ];
+      const vm = createCommentListViewModel({
+        getComments: () => comments,
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.filteredComments.map((c) => c.id)).toEqual(['ok']);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // submitReply edge cases
+  // -------------------------------------------------------------------------
+  describe('submitReply edge cases', () => {
+    it('shows error toast on reply failure', async () => {
+      sendReplyMock.mockRejectedValue(new Error('send failed'));
+      const parent = createComment({ id: 'reply-fail', pubkey: 'other', content: 'hello' });
+      const vm = createCommentListViewModel({
+        getComments: () => [parent],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      vm.startReply(parent);
+      vm.replyContent = 'my reply';
+      await vm.submitReply();
+
+      expect(toastErrorMock).toHaveBeenCalledWith('toast.reply_failed');
+      expect(logErrorMock).toHaveBeenCalled();
+      // Reply form should NOT be cleared on failure (replySending resets)
+      expect(vm.replySending).toBe(false);
+    });
+
+    it('does nothing when reply content is empty/whitespace', async () => {
+      const parent = createComment({ id: 'empty-reply', pubkey: 'other', content: 'hello' });
+      const vm = createCommentListViewModel({
+        getComments: () => [parent],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      vm.startReply(parent);
+      vm.replyContent = '   ';
+      await vm.submitReply();
+
+      expect(sendReplyMock).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when replyTarget is null', async () => {
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      vm.replyContent = 'no target';
+      await vm.submitReply();
+
+      expect(sendReplyMock).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when not logged in', async () => {
+      authState.loggedIn = false;
+      const parent = createComment({ id: 'no-auth-reply', pubkey: 'other', content: 'hello' });
+      const vm = createCommentListViewModel({
+        getComments: () => [parent],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      vm.startReply(parent);
+      vm.replyContent = 'reply';
+      await vm.submitReply();
+
+      expect(sendReplyMock).not.toHaveBeenCalled();
+    });
+
+    it('omits emojiTags when empty', async () => {
+      const parent = createComment({ id: 'no-emoji', pubkey: 'other', content: 'hello' });
+      const vm = createCommentListViewModel({
+        getComments: () => [parent],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      vm.startReply(parent);
+      vm.replyContent = 'plain reply';
+      await vm.submitReply();
+
+      expect(sendReplyMock).toHaveBeenCalledWith(expect.objectContaining({ emojiTags: undefined }));
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // containsPrivateKey detection
+  // -------------------------------------------------------------------------
+  describe('containsPrivateKey detection', () => {
+    it('blocks submission and shows error when reply contains private key', async () => {
+      const parent = createComment({ id: 'pk-parent', pubkey: 'other', content: 'hello' });
+      const vm = createCommentListViewModel({
+        getComments: () => [parent],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      vm.startReply(parent);
+      vm.replyContent = 'nsec1abc123';
+      await vm.submitReply();
+
+      expect(sendReplyMock).not.toHaveBeenCalled();
+      expect(toastErrorMock).toHaveBeenCalledWith('comment.error.contains_private_key');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // statsFor and myReactionFor
+  // -------------------------------------------------------------------------
+  describe('statsFor / myReactionFor', () => {
+    it('returns empty stats for unknown event', () => {
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      const stats = vm.statsFor('unknown');
+      expect(stats.likes).toBe(0);
+      expect(stats.emojis).toEqual([]);
+    });
+
+    it('returns stats from reaction index', () => {
+      const reactionIndex = new Map([
+        ['c1', { likes: 3, emojis: [], reactors: new Set(['a', 'b', 'c']) }]
+      ]);
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => reactionIndex,
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.statsFor('c1').likes).toBe(3);
+    });
+
+    it('myReactionFor returns true when auth pubkey is in reactors', () => {
+      const reactionIndex = new Map([['c1', { likes: 1, emojis: [], reactors: new Set(['me']) }]]);
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => reactionIndex,
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.myReactionFor('c1')).toBe(true);
+    });
+
+    it('myReactionFor returns false when auth pubkey is not in reactors', () => {
+      const reactionIndex = new Map([
+        ['c1', { likes: 1, emojis: [], reactors: new Set(['other']) }]
+      ]);
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => reactionIndex,
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.myReactionFor('c1')).toBe(false);
+    });
+
+    it('myReactionFor returns false when not logged in', () => {
+      authState.pubkey = null;
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.myReactionFor('c1')).toBe(false);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // isOwn
+  // -------------------------------------------------------------------------
+  describe('isOwn', () => {
+    it('returns true for own pubkey', () => {
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.isOwn('me')).toBe(true);
+    });
+
+    it('returns false for other pubkey', () => {
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.isOwn('other')).toBe(false);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // CW reveal/hide
+  // -------------------------------------------------------------------------
+  describe('content warning reveal/hide', () => {
+    it('reveals and hides content warning', () => {
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.isRevealed('cw-1')).toBe(false);
+      vm.revealCW('cw-1');
+      expect(vm.isRevealed('cw-1')).toBe(true);
+      vm.hideCW('cw-1');
+      expect(vm.isRevealed('cw-1')).toBe(false);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // reply open state
+  // -------------------------------------------------------------------------
+  describe('reply state management', () => {
+    it('startReply opens reply form and cancelReply closes it', () => {
+      const parent = createComment({ id: 'p1', pubkey: 'other', content: 'hi' });
+      const vm = createCommentListViewModel({
+        getComments: () => [parent],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.isReplyOpen('p1')).toBe(false);
+      vm.startReply(parent);
+      expect(vm.isReplyOpen('p1')).toBe(true);
+      vm.cancelReply();
+      expect(vm.isReplyOpen('p1')).toBe(false);
+      expect(vm.replyContent).toBe('');
+      expect(vm.replyEmojiTags).toEqual([]);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // timedComments / generalComments classification
+  // -------------------------------------------------------------------------
+  describe('timedComments / generalComments classification', () => {
+    it('classifies comments with positionMs as timed', () => {
+      const comments = [
+        createComment({ id: 't1', pubkey: 'me', content: 'timed', positionMs: 5_000 }),
+        createComment({ id: 'g1', pubkey: 'me', content: 'general' })
+      ];
+      const vm = createCommentListViewModel({
+        getComments: () => comments,
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.timedComments).toHaveLength(1);
+      expect(vm.timedComments[0].id).toBe('t1');
+      expect(vm.generalComments).toHaveLength(1);
+      expect(vm.generalComments[0].id).toBe('g1');
+    });
+
+    it('sorts timed comments by positionMs ascending', () => {
+      const comments = [
+        createComment({ id: 't3', pubkey: 'me', content: 'late', positionMs: 30_000 }),
+        createComment({ id: 't1', pubkey: 'me', content: 'early', positionMs: 10_000 }),
+        createComment({ id: 't2', pubkey: 'me', content: 'mid', positionMs: 20_000 })
+      ];
+      const vm = createCommentListViewModel({
+        getComments: () => comments,
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.timedComments.map((c) => c.id)).toEqual(['t1', 't2', 't3']);
+    });
+
+    it('sorts general comments by createdAt descending', () => {
+      const comments = [
+        createComment({ id: 'g1', pubkey: 'me', content: 'old', createdAt: 100 }),
+        createComment({ id: 'g3', pubkey: 'me', content: 'new', createdAt: 300 }),
+        createComment({ id: 'g2', pubkey: 'me', content: 'mid', createdAt: 200 })
+      ];
+      const vm = createCommentListViewModel({
+        getComments: () => comments,
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.generalComments.map((c) => c.id)).toEqual(['g3', 'g2', 'g1']);
+    });
+
+    it('excludes replies from both timed and general lists', () => {
+      const comments = [
+        createComment({ id: 'parent', pubkey: 'me', content: 'parent', positionMs: 5_000 }),
+        createComment({
+          id: 'reply',
+          pubkey: 'me',
+          content: 'reply',
+          replyTo: 'parent',
+          positionMs: 6_000
+        })
+      ];
+      const vm = createCommentListViewModel({
+        getComments: () => comments,
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.timedComments).toHaveLength(1);
+      expect(vm.timedComments[0].id).toBe('parent');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // orphanParents placeholder resolution
+  // -------------------------------------------------------------------------
+  describe('orphanParents', () => {
+    it('returns placeholder comments for orphan parent IDs', () => {
+      const reply = createComment({
+        id: 'orphan-reply',
+        pubkey: 'me',
+        content: 'reply',
+        replyTo: 'missing'
+      });
+      const placeholders = new Map([
+        ['missing', { id: 'missing', status: 'loading' as const, positionMs: null }]
+      ]);
+      const vm = createCommentListViewModel({
+        getComments: () => [reply],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider,
+        getPlaceholders: () => placeholders
+      });
+
+      expect(vm.orphanParents).toHaveLength(1);
+      expect(vm.orphanParents[0].id).toBe('missing');
+      expect(vm.orphanParents[0].status).toBe('loading');
+    });
+
+    it('returns empty when no placeholders provided', () => {
+      const reply = createComment({
+        id: 'orphan-reply',
+        pubkey: 'me',
+        content: 'reply',
+        replyTo: 'missing'
+      });
+      const vm = createCommentListViewModel({
+        getComments: () => [reply],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.orphanParents).toHaveLength(0);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleTimedRangeChange / jumpToNow
+  // -------------------------------------------------------------------------
+  describe('handleTimedRangeChange and jumpToNow', () => {
+    it('sets userScrolledAway when visible range does not contain target', () => {
+      const comments = [
+        createComment({ id: 't1', pubkey: 'me', content: 'a', positionMs: 1_000 }),
+        createComment({ id: 't2', pubkey: 'me', content: 'b', positionMs: 5_000 }),
+        createComment({ id: 't3', pubkey: 'me', content: 'c', positionMs: 10_000 })
+      ];
+      const mockScroller = {
+        scrollToIndex: vi.fn(),
+        isAutoScrolling: () => false
+      };
+      playerState.position = 10_000;
+      const vm = createCommentListViewModel({
+        getComments: () => comments,
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider,
+        getTimedList: () => mockScroller
+      });
+
+      // target index for position 10_000 should be 2
+      // Visible range is 0-1 (doesn't contain 2)
+      vm.handleTimedRangeChange(0, 1);
+      expect(vm.userScrolledAway).toBe(true);
+    });
+
+    it('jumpToNow resets userScrolledAway and scrolls to nearest index', () => {
+      const comments = [
+        createComment({ id: 't1', pubkey: 'me', content: 'a', positionMs: 1_000 }),
+        createComment({ id: 't2', pubkey: 'me', content: 'b', positionMs: 5_000 })
+      ];
+      const mockScroller = {
+        scrollToIndex: vi.fn(),
+        isAutoScrolling: () => false
+      };
+      playerState.position = 5_000;
+      const vm = createCommentListViewModel({
+        getComments: () => comments,
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider,
+        getTimedList: () => mockScroller
+      });
+
+      vm.handleTimedRangeChange(0, 0);
+      expect(vm.userScrolledAway).toBe(true);
+
+      vm.jumpToNow();
+      expect(vm.userScrolledAway).toBe(false);
+      expect(mockScroller.scrollToIndex).toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // followFilter
+  // -------------------------------------------------------------------------
+  describe('followFilter', () => {
+    it('defaults to all', () => {
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.followFilter).toBe('all');
+    });
+
+    it('updates when setFollowFilter is called', () => {
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      vm.setFollowFilter('follows');
+      expect(vm.followFilter).toBe('follows');
+    });
   });
 });
