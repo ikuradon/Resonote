@@ -52,4 +52,20 @@ describe('getEmbedComponentLoader', () => {
     expect(typeof loader1).toBe('function');
     expect(typeof loader2).toBe('function');
   });
+
+  it('returns null for platforms with special characters', () => {
+    expect(getEmbedComponentLoader('spotify!')).toBeNull();
+    expect(getEmbedComponentLoader('you tube')).toBeNull();
+  });
+
+  it('each loader returns a promise when invoked', () => {
+    for (const platform of SUPPORTED_PLATFORMS) {
+      const loader = getEmbedComponentLoader(platform);
+      // The loader is a dynamic import function, calling it returns a Promise
+      const result = loader!();
+      expect(result).toBeInstanceOf(Promise);
+      // Catch to avoid unhandled rejection in test (dynamic import will fail in test env)
+      result.catch(() => {});
+    }
+  });
 });

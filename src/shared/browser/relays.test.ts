@@ -141,6 +141,76 @@ describe('initRelayStatus', () => {
     expect(rxNostr.createConnectionStateObservable).toHaveBeenCalledOnce();
     expect(subscribeMock).toHaveBeenCalledOnce();
   });
+
+  it('接続状態コールバックで既存リレーの状態を更新する', async () => {
+    let subscribedCallback: ((packet: { from: string; state: string }) => void) | undefined;
+    const subscribeMock = vi.fn((cb: (packet: { from: string; state: string }) => void) => {
+      subscribedCallback = cb;
+      return { unsubscribe: vi.fn() };
+    });
+    const rxNostr = {
+      getRelayStatus: vi.fn(() => null),
+      createConnectionStateObservable: vi.fn(() => ({ subscribe: subscribeMock }))
+    };
+    getRxNostrMock.mockResolvedValue(rxNostr);
+
+    await initRelayStatus();
+
+    subscribedCallback!({ from: 'wss://relay.damus.io', state: 'connected' });
+
+    const relays = getRelays();
+    const damusRelay = relays.find((r) => r.url === 'wss://relay.damus.io');
+    expect(damusRelay?.state).toBe('connected');
+  });
+
+  it('接続状態コールバックで未知リレーを追加する', async () => {
+    let subscribedCallback: ((packet: { from: string; state: string }) => void) | undefined;
+    const subscribeMock = vi.fn((cb: (packet: { from: string; state: string }) => void) => {
+      subscribedCallback = cb;
+      return { unsubscribe: vi.fn() };
+    });
+    const rxNostr = {
+      getRelayStatus: vi.fn(() => null),
+      createConnectionStateObservable: vi.fn(() => ({ subscribe: subscribeMock }))
+    };
+    getRxNostrMock.mockResolvedValue(rxNostr);
+
+    await initRelayStatus();
+
+    subscribedCallback!({ from: 'wss://new-relay.example.com', state: 'connected' });
+
+    const relays = getRelays();
+    const newRelay = relays.find((r) => r.url === 'wss://new-relay.example.com');
+    expect(newRelay).toBeDefined();
+    expect(newRelay?.state).toBe('connected');
+  });
+
+  it('destroy 後に再度 initRelayStatus できる', async () => {
+    const rxNostr = makeRxNostrMock();
+    getRxNostrMock.mockResolvedValue(rxNostr);
+
+    await initRelayStatus();
+    destroyRelayStatus();
+    expect(getRelays()).toEqual([]);
+
+    await initRelayStatus();
+    expect(getRelays()).toHaveLength(2);
+  });
+
+  it('destroyRelayStatus は subscription を解除する', async () => {
+    const unsubscribeMock = vi.fn();
+    const subscribeMock = vi.fn(() => ({ unsubscribe: unsubscribeMock }));
+    const rxNostr = {
+      getRelayStatus: vi.fn(() => null),
+      createConnectionStateObservable: vi.fn(() => ({ subscribe: subscribeMock }))
+    };
+    getRxNostrMock.mockResolvedValue(rxNostr);
+
+    await initRelayStatus();
+    destroyRelayStatus();
+
+    expect(unsubscribeMock).toHaveBeenCalledOnce();
+  });
 });
 
 describe('refreshRelayList', () => {

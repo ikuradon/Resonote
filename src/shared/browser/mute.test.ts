@@ -39,7 +39,8 @@ import {
   isMuted,
   isWordMuted,
   loadMuteList,
-  muteUser
+  muteUser,
+  muteWord
 } from './mute.svelte.js';
 
 // ---- helpers ----
@@ -314,5 +315,161 @@ describe('muteUser', () => {
     await muteUser(USER_A);
 
     expect(publishMuteListMock).not.toHaveBeenCalled();
+  });
+
+  it('ログインしていない場合は例外を投げる', async () => {
+    authState.pubkey = null;
+
+    await expect(muteUser(USER_A)).rejects.toThrow('Not logged in');
+  });
+
+  it('NIP-44がない場合は例外を投げる', async () => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      writable: true,
+      value: { nostr: {} }
+    });
+
+    await expect(muteUser(USER_A)).rejects.toThrow('NIP-44 not available');
+  });
+});
+
+describe('loadMuteList — NIP-44 encrypted content', () => {
+  const originalWindow = globalThis.window;
+
+  beforeEach(() => {
+    clearMuteList();
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      writable: true,
+      value: originalWindow
+    });
+  });
+
+  it('暗号化されたプライベートタグからpubkeyとwordをマージする', async () => {
+    const privateTags = [
+      ['p', USER_B],
+      ['word', 'secret']
+    ];
+
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      writable: true,
+      value: {
+        nostr: {
+          nip44: {
+            encrypt: vi.fn(),
+            decrypt: vi.fn().mockResolvedValue(JSON.stringify(privateTags))
+          }
+        }
+      }
+    });
+
+    fetchLatestEventMock.mockResolvedValue(
+      makeKind10000Event([USER_A], ['publicword'], 'encrypted-content')
+    );
+
+    await loadMuteList(MY_PUBKEY);
+
+    const m = getMuteList();
+    expect(m.mutedPubkeys.has(USER_A)).toBe(true);
+    expect(m.mutedPubkeys.has(USER_B)).toBe(true);
+    expect(m.mutedWords).toContain('publicword');
+    expect(m.mutedWords).toContain('secret');
+  });
+
+  it('NIP-44復号が失敗しても公開タグは読み込まれる', async () => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      writable: true,
+      value: {
+        nostr: {
+          nip44: {
+            encrypt: vi.fn(),
+            decrypt: vi.fn().mockRejectedValue(new Error('Decryption failed'))
+          }
+        }
+      }
+    });
+
+    fetchLatestEventMock.mockResolvedValue(
+      makeKind10000Event([USER_A], ['visible'], 'encrypted-content')
+    );
+
+    await loadMuteList(MY_PUBKEY);
+
+    const m = getMuteList();
+    expect(m.mutedPubkeys.has(USER_A)).toBe(true);
+    expect(m.mutedWords).toContain('visible');
+    expect(m.loading).toBe(false);
+  });
+
+  it('contentがあるがNIP-44非対応の場合は暗号化タグをスキップする', async () => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      writable: true,
+      value: { nostr: {} }
+    });
+
+    fetchLatestEventMock.mockResolvedValue(makeKind10000Event([USER_A], [], 'encrypted-content'));
+
+    await loadMuteList(MY_PUBKEY);
+
+    const m = getMuteList();
+    expect(m.mutedPubkeys.has(USER_A)).toBe(true);
+    expect(m.mutedPubkeys.size).toBe(1);
+    expect(logWarnMock).toHaveBeenCalledWith(
+      'NIP-44 not available, skipping encrypted mute entries'
+    );
+  });
+});
+
+describe('muteUser — publishMuteList integration', () => {
+  const originalWindow = globalThis.window;
+
+  beforeEach(() => {
+    clearMuteList();
+    vi.clearAllMocks();
+    authState.pubkey = MY_PUBKEY;
+
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      writable: true,
+      value: {
+        nostr: {
+          nip44: {
+            encrypt: vi.fn().mockResolvedValue('encrypted'),
+            decrypt: vi.fn()
+          }
+        }
+      }
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      writable: true,
+      value: originalWindow
+    });
+  });
+
+  it('encrypt に全タグ (pubkeys + words) を渡す', async () => {
+    publishMuteListMock.mockResolvedValue(undefined);
+
+    await muteUser(USER_A);
+    await muteWord('badword');
+
+    const encryptFn = (
+      globalThis.window as unknown as { nostr: { nip44: { encrypt: ReturnType<typeof vi.fn> } } }
+    ).nostr.nip44.encrypt;
+    const lastCall = encryptFn.mock.calls[encryptFn.mock.calls.length - 1];
+    const tags = JSON.parse(lastCall[1] as string) as string[][];
+    expect(tags).toContainEqual(['p', USER_A]);
+    expect(tags).toContainEqual(['word', 'badword']);
   });
 });
