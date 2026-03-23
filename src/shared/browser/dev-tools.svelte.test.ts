@@ -1,6 +1,18 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+
+const { getEventsDBMock } = vi.hoisted(() => ({
+  getEventsDBMock: vi.fn()
+}));
+
+vi.mock('$shared/nostr/gateway.js', () => ({
+  getEventsDB: getEventsDBMock
+}));
+
 import {
+  loadDbStats,
+  clearIndexedDB,
   clearLocalStorage,
+  clearAllData,
   checkServiceWorkerStatus,
   checkServiceWorkerUpdate,
   buildDebugInfo,
@@ -30,6 +42,125 @@ describe('dev-tools.svelte', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  describe('loadDbStats', () => {
+    it('returns kind-by-kind counts from DB', async () => {
+      const mockDb = {
+        getAllByKind: vi
+          .fn()
+          .mockResolvedValue([]) // fallback for any kind not listed below
+          .mockResolvedValueOnce([{ id: '1' }, { id: '2' }]) // kind 0: 2 events
+          .mockResolvedValueOnce([]) // kind 3: 0
+          .mockResolvedValueOnce([]) // kind 5: 0
+          .mockResolvedValueOnce([{ id: '3' }]) // kind 7: 1
+          .mockResolvedValueOnce([]) // kind 1111: 0
+          .mockResolvedValueOnce([]) // kind 10000: 0
+          .mockResolvedValueOnce([]) // kind 10002: 0
+          .mockResolvedValueOnce([]) // kind 10003: 0
+          .mockResolvedValueOnce([]) // kind 10030: 0
+          .mockResolvedValueOnce([]) // kind 30030: 0
+      };
+      getEventsDBMock.mockResolvedValue(mockDb);
+
+      const result = await loadDbStats();
+
+      expect(result.total).toBe(3);
+      expect(result.byKind).toEqual([
+        { kind: 0, count: 2 },
+        { kind: 7, count: 1 }
+      ]);
+    });
+
+    it('skips kinds with zero events in byKind array', async () => {
+      const mockDb = {
+        getAllByKind: vi.fn().mockResolvedValue([])
+      };
+      getEventsDBMock.mockResolvedValue(mockDb);
+
+      const result = await loadDbStats();
+
+      expect(result.total).toBe(0);
+      expect(result.byKind).toEqual([]);
+    });
+
+    it('returns { total: 0, byKind: [] } on getEventsDB rejection', async () => {
+      getEventsDBMock.mockRejectedValue(new Error('DB open failed'));
+
+      const result = await loadDbStats();
+
+      expect(result).toEqual({ total: 0, byKind: [] });
+    });
+
+    it('returns { total: 0, byKind: [] } when getAllByKind throws', async () => {
+      const mockDb = {
+        getAllByKind: vi.fn().mockRejectedValue(new Error('read error'))
+      };
+      getEventsDBMock.mockResolvedValue(mockDb);
+
+      const result = await loadDbStats();
+
+      expect(result).toEqual({ total: 0, byKind: [] });
+    });
+  });
+
+  describe('clearIndexedDB', () => {
+    it('calls db.clearAll()', async () => {
+      const mockDb = { clearAll: vi.fn().mockResolvedValue(undefined) };
+      getEventsDBMock.mockResolvedValue(mockDb);
+
+      await clearIndexedDB();
+
+      expect(mockDb.clearAll).toHaveBeenCalledOnce();
+    });
+
+    it('propagates DB error', async () => {
+      const mockDb = { clearAll: vi.fn().mockRejectedValue(new Error('clear failed')) };
+      getEventsDBMock.mockResolvedValue(mockDb);
+
+      await expect(clearIndexedDB()).rejects.toThrow('clear failed');
+    });
+  });
+
+  describe('clearAllData', () => {
+    function setupClearAllGlobals(localStorageValue: Record<string, unknown>) {
+      vi.stubGlobal('localStorage', localStorageValue);
+      const deleteDbMock = vi.fn().mockReturnValue({});
+      vi.stubGlobal('indexedDB', { deleteDatabase: deleteDbMock });
+      const reloadMock = vi.fn();
+      vi.stubGlobal('window', {
+        location: { href: 'https://resonote.pages.dev/', reload: reloadMock }
+      });
+      return { deleteDbMock, reloadMock };
+    }
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('calls localStorage.clear, indexedDB.deleteDatabase, and location.reload', () => {
+      const clearMock = vi.fn();
+      const { deleteDbMock, reloadMock } = setupClearAllGlobals({ clear: clearMock });
+
+      clearAllData();
+
+      expect(clearMock).toHaveBeenCalledOnce();
+      expect(deleteDbMock).toHaveBeenCalledWith('resonote-events');
+      expect(reloadMock).toHaveBeenCalledOnce();
+    });
+
+    it('still deletes DB and reloads when localStorage.clear throws', () => {
+      const { deleteDbMock, reloadMock } = setupClearAllGlobals({
+        clear() {
+          throw new Error('denied');
+        }
+      });
+
+      clearAllData();
+
+      expect(deleteDbMock).toHaveBeenCalledWith('resonote-events');
+      expect(reloadMock).toHaveBeenCalledOnce();
+    });
   });
 
   describe('clearLocalStorage', () => {
