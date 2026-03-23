@@ -752,34 +752,13 @@ describe('createCommentViewModel', () => {
   // -------------------------------------------------------------------------
   describe('deletion event processing', () => {
     it('adds verified targets to deletedIds and rebuilds reaction index', async () => {
-      let capturedOnPacket!: (event: {
-        id: string;
-        pubkey: string;
-        kind: number;
-        tags: string[][];
-        content: string;
-        created_at: number;
-      }) => void;
-
-      startSubscriptionMock.mockImplementation(
-        (
-          _refs: unknown,
-          _filters: unknown,
-          _maxCreatedAt: unknown,
-          onPacket: typeof capturedOnPacket,
-          onBackwardComplete: () => void
-        ) => {
-          capturedOnPacket = onPacket;
-          onBackwardComplete();
-          return [{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }];
-        }
-      );
+      const { getOnPacket } = captureOnPacket();
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
       verifyDeletionTargetsMock.mockReturnValue(['target-1', 'target-2']);
-      capturedOnPacket({
+      getOnPacket()({
         id: 'del-1',
         pubkey: 'author',
         kind: 5,
@@ -797,38 +776,17 @@ describe('createCommentViewModel', () => {
     });
 
     it('purges deleted events from cache', async () => {
-      let capturedOnPacket!: (event: {
-        id: string;
-        pubkey: string;
-        kind: number;
-        tags: string[][];
-        content: string;
-        created_at: number;
-      }) => void;
-
       // Set up a comment first so commentIds has 'c1'
       const cachedComment = makeCommentEvent('c1');
       restoreFromCacheMock.mockResolvedValue([cachedComment]);
 
-      startSubscriptionMock.mockImplementation(
-        (
-          _refs: unknown,
-          _filters: unknown,
-          _maxCreatedAt: unknown,
-          onPacket: typeof capturedOnPacket,
-          onBackwardComplete: () => void
-        ) => {
-          capturedOnPacket = onPacket;
-          onBackwardComplete();
-          return [{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }];
-        }
-      );
+      const { getOnPacket } = captureOnPacket();
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
       verifyDeletionTargetsMock.mockReturnValue(['c1']);
-      capturedOnPacket({
+      getOnPacket()({
         id: 'del-c1',
         pubkey: 'pubkey-c1',
         kind: 5,
@@ -841,34 +799,13 @@ describe('createCommentViewModel', () => {
     });
 
     it('invalidates fetch cache for deleted events', async () => {
-      let capturedOnPacket!: (event: {
-        id: string;
-        pubkey: string;
-        kind: number;
-        tags: string[][];
-        content: string;
-        created_at: number;
-      }) => void;
-
-      startSubscriptionMock.mockImplementation(
-        (
-          _refs: unknown,
-          _filters: unknown,
-          _maxCreatedAt: unknown,
-          onPacket: typeof capturedOnPacket,
-          onBackwardComplete: () => void
-        ) => {
-          capturedOnPacket = onPacket;
-          onBackwardComplete();
-          return [{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }];
-        }
-      );
+      const { getOnPacket } = captureOnPacket();
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
       verifyDeletionTargetsMock.mockReturnValue(['inv-1']);
-      capturedOnPacket({
+      getOnPacket()({
         id: 'del-inv',
         pubkey: 'author',
         kind: 5,
@@ -881,34 +818,13 @@ describe('createCommentViewModel', () => {
     });
 
     it('ignores deletion event with no verified targets', async () => {
-      let capturedOnPacket!: (event: {
-        id: string;
-        pubkey: string;
-        kind: number;
-        tags: string[][];
-        content: string;
-        created_at: number;
-      }) => void;
-
-      startSubscriptionMock.mockImplementation(
-        (
-          _refs: unknown,
-          _filters: unknown,
-          _maxCreatedAt: unknown,
-          onPacket: typeof capturedOnPacket,
-          onBackwardComplete: () => void
-        ) => {
-          capturedOnPacket = onPacket;
-          onBackwardComplete();
-          return [{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }];
-        }
-      );
+      const { getOnPacket } = captureOnPacket();
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
       verifyDeletionTargetsMock.mockReturnValue([]);
-      capturedOnPacket({
+      getOnPacket()({
         id: 'del-none',
         pubkey: 'author',
         kind: 5,
@@ -922,31 +838,10 @@ describe('createCommentViewModel', () => {
     });
 
     it('updates orphan placeholder to deleted when deletion arrives', async () => {
-      let capturedOnPacket!: (event: {
-        id: string;
-        pubkey: string;
-        kind: number;
-        tags: string[][];
-        content: string;
-        created_at: number;
-      }) => void;
-
-      startSubscriptionMock.mockImplementation(
-        (
-          _refs: unknown,
-          _filters: unknown,
-          _maxCreatedAt: unknown,
-          onPacket: typeof capturedOnPacket,
-          onBackwardComplete: () => void
-        ) => {
-          capturedOnPacket = onPacket;
-          onBackwardComplete();
-          return [{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }];
-        }
-      );
-
       // Set up: fetch orphan parent that returns null → not-found placeholder
       cachedFetchByIdMock.mockResolvedValue(null);
+
+      const { getOnPacket } = captureOnPacket();
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
@@ -956,7 +851,7 @@ describe('createCommentViewModel', () => {
 
       // Now deletion arrives for that orphan
       verifyDeletionTargetsMock.mockReturnValue(['orphan-ph']);
-      capturedOnPacket({
+      getOnPacket()({
         id: 'del-orphan',
         pubkey: 'author',
         kind: 5,
@@ -969,31 +864,10 @@ describe('createCommentViewModel', () => {
     });
 
     it('creates deleted placeholder for fetched parent that gets deleted', async () => {
-      let capturedOnPacket!: (event: {
-        id: string;
-        pubkey: string;
-        kind: number;
-        tags: string[][];
-        content: string;
-        created_at: number;
-      }) => void;
-
       const parentEvent = makeCommentEvent('fetched-then-del');
       cachedFetchByIdMock.mockResolvedValue(parentEvent);
 
-      startSubscriptionMock.mockImplementation(
-        (
-          _refs: unknown,
-          _filters: unknown,
-          _maxCreatedAt: unknown,
-          onPacket: typeof capturedOnPacket,
-          onBackwardComplete: () => void
-        ) => {
-          capturedOnPacket = onPacket;
-          onBackwardComplete();
-          return [{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }];
-        }
-      );
+      const { getOnPacket } = captureOnPacket();
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
@@ -1004,7 +878,7 @@ describe('createCommentViewModel', () => {
 
       // Now deletion arrives for that parent
       verifyDeletionTargetsMock.mockReturnValue(['fetched-then-del']);
-      capturedOnPacket({
+      getOnPacket()({
         id: 'del-fetched',
         pubkey: 'pubkey-fetched-then-del',
         kind: 5,
@@ -1025,28 +899,7 @@ describe('createCommentViewModel', () => {
   // -------------------------------------------------------------------------
   describe('reaction event processing', () => {
     it('adds reaction to reactionIndex via dispatchPacket', async () => {
-      let capturedOnPacket!: (event: {
-        id: string;
-        pubkey: string;
-        kind: number;
-        tags: string[][];
-        content: string;
-        created_at: number;
-      }) => void;
-
-      startSubscriptionMock.mockImplementation(
-        (
-          _refs: unknown,
-          _filters: unknown,
-          _maxCreatedAt: unknown,
-          onPacket: typeof capturedOnPacket,
-          onBackwardComplete: () => void
-        ) => {
-          capturedOnPacket = onPacket;
-          onBackwardComplete();
-          return [{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }];
-        }
-      );
+      const { getOnPacket } = captureOnPacket();
 
       reactionFromEventMock.mockReturnValue({
         id: 'r1',
@@ -1058,7 +911,7 @@ describe('createCommentViewModel', () => {
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      capturedOnPacket({
+      getOnPacket()({
         id: 'r1',
         pubkey: 'reactor',
         content: '+',
@@ -1072,28 +925,7 @@ describe('createCommentViewModel', () => {
     });
 
     it('deduplicates reactions with same id', async () => {
-      let capturedOnPacket!: (event: {
-        id: string;
-        pubkey: string;
-        kind: number;
-        tags: string[][];
-        content: string;
-        created_at: number;
-      }) => void;
-
-      startSubscriptionMock.mockImplementation(
-        (
-          _refs: unknown,
-          _filters: unknown,
-          _maxCreatedAt: unknown,
-          onPacket: typeof capturedOnPacket,
-          onBackwardComplete: () => void
-        ) => {
-          capturedOnPacket = onPacket;
-          onBackwardComplete();
-          return [{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }];
-        }
-      );
+      const { getOnPacket } = captureOnPacket();
 
       reactionFromEventMock.mockReturnValue({
         id: 'r-dup',
@@ -1105,7 +937,7 @@ describe('createCommentViewModel', () => {
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      capturedOnPacket({
+      getOnPacket()({
         id: 'r-dup',
         pubkey: 'reactor',
         content: '+',
@@ -1113,7 +945,7 @@ describe('createCommentViewModel', () => {
         tags: [['e', 'comment-1']],
         kind: 7
       });
-      capturedOnPacket({
+      getOnPacket()({
         id: 'r-dup',
         pubkey: 'reactor',
         content: '+',
@@ -1127,35 +959,14 @@ describe('createCommentViewModel', () => {
     });
 
     it('does not apply reaction that is already in deletedIds', async () => {
-      let capturedOnPacket!: (event: {
-        id: string;
-        pubkey: string;
-        kind: number;
-        tags: string[][];
-        content: string;
-        created_at: number;
-      }) => void;
-
-      startSubscriptionMock.mockImplementation(
-        (
-          _refs: unknown,
-          _filters: unknown,
-          _maxCreatedAt: unknown,
-          onPacket: typeof capturedOnPacket,
-          onBackwardComplete: () => void
-        ) => {
-          capturedOnPacket = onPacket;
-          onBackwardComplete();
-          return [{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }];
-        }
-      );
+      const { getOnPacket } = captureOnPacket();
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
       // First, create a deletion for the reaction id
       verifyDeletionTargetsMock.mockReturnValue(['r-del']);
-      capturedOnPacket({
+      getOnPacket()({
         id: 'del-r',
         pubkey: 'reactor',
         kind: 5,
@@ -1171,7 +982,7 @@ describe('createCommentViewModel', () => {
         content: '+',
         targetEventId: 'comment-1'
       });
-      capturedOnPacket({
+      getOnPacket()({
         id: 'r-del',
         pubkey: 'reactor',
         content: '+',
@@ -1185,35 +996,14 @@ describe('createCommentViewModel', () => {
     });
 
     it('ignores reaction event where reactionFromEvent returns null', async () => {
-      let capturedOnPacket!: (event: {
-        id: string;
-        pubkey: string;
-        kind: number;
-        tags: string[][];
-        content: string;
-        created_at: number;
-      }) => void;
-
-      startSubscriptionMock.mockImplementation(
-        (
-          _refs: unknown,
-          _filters: unknown,
-          _maxCreatedAt: unknown,
-          onPacket: typeof capturedOnPacket,
-          onBackwardComplete: () => void
-        ) => {
-          capturedOnPacket = onPacket;
-          onBackwardComplete();
-          return [{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }];
-        }
-      );
+      const { getOnPacket } = captureOnPacket();
 
       reactionFromEventMock.mockReturnValue(null);
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      capturedOnPacket({
+      getOnPacket()({
         id: 'r-null',
         pubkey: 'reactor',
         content: '+',
@@ -1226,28 +1016,7 @@ describe('createCommentViewModel', () => {
     });
 
     it('sorts custom emoji reactions by count', async () => {
-      let capturedOnPacket!: (event: {
-        id: string;
-        pubkey: string;
-        kind: number;
-        tags: string[][];
-        content: string;
-        created_at: number;
-      }) => void;
-
-      startSubscriptionMock.mockImplementation(
-        (
-          _refs: unknown,
-          _filters: unknown,
-          _maxCreatedAt: unknown,
-          onPacket: typeof capturedOnPacket,
-          onBackwardComplete: () => void
-        ) => {
-          capturedOnPacket = onPacket;
-          onBackwardComplete();
-          return [{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }];
-        }
-      );
+      const { getOnPacket } = captureOnPacket();
 
       isLikeReactionMock.mockReturnValue(false);
       applyReactionMock.mockReturnValue({
@@ -1269,7 +1038,7 @@ describe('createCommentViewModel', () => {
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      capturedOnPacket({
+      getOnPacket()({
         id: 'r-emoji',
         pubkey: 'reactor',
         content: ':fire:',
@@ -1290,105 +1059,42 @@ describe('createCommentViewModel', () => {
   // -------------------------------------------------------------------------
   describe('comment event processing', () => {
     it('adds new comment via live subscription', async () => {
-      let capturedOnPacket!: (event: {
-        id: string;
-        pubkey: string;
-        kind: number;
-        tags: string[][];
-        content: string;
-        created_at: number;
-      }) => void;
-
-      startSubscriptionMock.mockImplementation(
-        (
-          _refs: unknown,
-          _filters: unknown,
-          _maxCreatedAt: unknown,
-          onPacket: typeof capturedOnPacket,
-          onBackwardComplete: () => void
-        ) => {
-          capturedOnPacket = onPacket;
-          onBackwardComplete();
-          return [{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }];
-        }
-      );
+      const { getOnPacket } = captureOnPacket();
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      capturedOnPacket(makeCommentEvent('live-c1'));
+      getOnPacket()(makeCommentEvent('live-c1'));
 
       expect(vm.comments).toHaveLength(1);
       expect(vm.comments[0].id).toBe('live-c1');
     });
 
     it('deduplicates comments with same id', async () => {
-      let capturedOnPacket!: (event: {
-        id: string;
-        pubkey: string;
-        kind: number;
-        tags: string[][];
-        content: string;
-        created_at: number;
-      }) => void;
-
-      startSubscriptionMock.mockImplementation(
-        (
-          _refs: unknown,
-          _filters: unknown,
-          _maxCreatedAt: unknown,
-          onPacket: typeof capturedOnPacket,
-          onBackwardComplete: () => void
-        ) => {
-          capturedOnPacket = onPacket;
-          onBackwardComplete();
-          return [{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }];
-        }
-      );
+      const { getOnPacket } = captureOnPacket();
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      capturedOnPacket(makeCommentEvent('dup-c'));
-      capturedOnPacket(makeCommentEvent('dup-c'));
+      getOnPacket()(makeCommentEvent('dup-c'));
+      getOnPacket()(makeCommentEvent('dup-c'));
 
       expect(vm.comments).toHaveLength(1);
     });
 
     it('excludes deleted comments from visible list', async () => {
-      let capturedOnPacket!: (event: {
-        id: string;
-        pubkey: string;
-        kind: number;
-        tags: string[][];
-        content: string;
-        created_at: number;
-      }) => void;
-
-      startSubscriptionMock.mockImplementation(
-        (
-          _refs: unknown,
-          _filters: unknown,
-          _maxCreatedAt: unknown,
-          onPacket: typeof capturedOnPacket,
-          onBackwardComplete: () => void
-        ) => {
-          capturedOnPacket = onPacket;
-          onBackwardComplete();
-          return [{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }];
-        }
-      );
+      const { getOnPacket } = captureOnPacket();
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
       // Add comment
-      capturedOnPacket(makeCommentEvent('visible-c'));
+      getOnPacket()(makeCommentEvent('visible-c'));
       expect(vm.comments).toHaveLength(1);
 
       // Delete the comment
       verifyDeletionTargetsMock.mockReturnValue(['visible-c']);
-      capturedOnPacket({
+      getOnPacket()({
         id: 'del-visible',
         pubkey: 'pubkey-visible-c',
         kind: 5,
