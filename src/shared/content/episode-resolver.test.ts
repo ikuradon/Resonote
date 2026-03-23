@@ -29,6 +29,25 @@ vi.mock('rx-nostr', () => ({
 
 import { resolveEpisode } from '$shared/content/episode-resolver.js';
 
+/** Set up rx-nostr mock that emits a single event asynchronously, or completes immediately. */
+function setupRelayMock(event: { tags: string[][]; content: string } | null) {
+  const mockReq = { emit: vi.fn(), over: vi.fn() };
+  mockCreateRxBackwardReq.mockReturnValue(mockReq);
+  mockUniq.mockReturnValue((source: unknown) => source);
+
+  const mockSubscribe = vi.fn().mockImplementation(({ next, complete }) => {
+    if (event) {
+      Promise.resolve().then(() => next({ event }));
+    } else {
+      complete();
+    }
+    return { unsubscribe: vi.fn() };
+  });
+  const mockPipe = vi.fn().mockReturnValue({ subscribe: mockSubscribe });
+  const mockUse = vi.fn().mockReturnValue({ pipe: mockPipe });
+  mockGetRxNostr.mockResolvedValue({ use: mockUse });
+}
+
 const FEED_URL = 'https://example.com/feed.xml';
 const GUID = 'episode-guid-123';
 const FEED_BASE64 = toBase64url(FEED_URL);
@@ -491,6 +510,247 @@ describe('episode-resolver', () => {
       const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
 
       expect(result).toBeNull();
+    });
+
+    it('should return null for invalid base64url guid', async () => {
+      // fromBase64url returns null for empty string
+      const result = await resolveEpisode(FEED_BASE64, '');
+
+      expect(result).toBeNull();
+      expect(mockResolveByApi).not.toHaveBeenCalled();
+    });
+
+    it('should return null for invalid base64url feedUrl', async () => {
+      const result = await resolveEpisode('', GUID_BASE64);
+
+      expect(result).toBeNull();
+      expect(mockResolveByApi).not.toHaveBeenCalled();
+    });
+
+    it('should fall back to Nostr when API episodes array has no guid match', async () => {
+      const pubkey = 'abc123pubkey';
+      mockGetSystemPubkey.mockResolvedValue(pubkey);
+      mockGetEventsDB.mockResolvedValue({
+        getByTagValue: vi.fn().mockResolvedValue([
+          {
+            pubkey,
+            tags: [
+              ['i', `podcast:item:guid:${GUID}`, 'https://example.com/ep1-nostr.mp3'],
+              ['i', 'podcast:guid:feed-guid', FEED_URL]
+            ],
+            content: 'Nostr desc'
+          }
+        ])
+      });
+      mockParseDTagEvent.mockReturnValue(makeNostrResult({ description: 'Nostr desc' }));
+
+      // API has episodes but none match
+      mockResolveByApi.mockResolvedValue({
+        type: 'feed',
+        feed: { guid: 'fg', title: 'T', feedUrl: FEED_URL, imageUrl: '' },
+        episodes: [
+          {
+            guid: 'no-match-guid',
+            title: 'Other',
+            enclosureUrl: 'https://example.com/other.mp3',
+            duration: 100,
+            publishedAt: 1700000000
+          }
+        ]
+      });
+
+      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
+
+      expect(result).not.toBeNull();
+      expect(result!.enclosureUrl).toBe('https://example.com/ep1-nostr.mp3');
+      expect(result!.description).toBe('Nostr desc');
+    });
+
+    it('should use API episode.guid match when episodes array is absent', async () => {
+      mockGetSystemPubkey.mockResolvedValue('');
+      mockResolveByApi.mockResolvedValue({
+        type: 'episode',
+        feed: {
+          guid: 'fg',
+          title: 'Podcast',
+          feedUrl: FEED_URL,
+          imageUrl: 'https://example.com/img.jpg'
+        },
+        episode: {
+          guid: GUID,
+          title: 'Direct Episode',
+          enclosureUrl: 'https://example.com/direct.mp3',
+          duration: 600,
+          publishedAt: 1700000000,
+          description: 'Direct desc'
+        }
+      });
+
+      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
+
+      expect(result).not.toBeNull();
+      expect(result!.title).toBe('Direct Episode');
+      expect(result!.enclosureUrl).toBe('https://example.com/direct.mp3');
+      expect(result!.feedTitle).toBe('Podcast');
+      expect(result!.image).toBe('https://example.com/img.jpg');
+    });
+  });
+
+  describe('queryNostrForEpisode (via resolveEpisode)', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      mockGetSystemPubkey.mockResolvedValue('');
+      mockResolveByApi.mockResolvedValue({ type: 'episode' });
+      mockGetEventsDB.mockRejectedValue(new Error('DB not available'));
+    });
+
+    it('should query relay when DB cache is empty and return result', async () => {
+      const pubkey = 'relay-pubkey';
+      mockGetSystemPubkey.mockResolvedValue(pubkey);
+
+      // DB returns empty array (no cached events)
+      mockGetEventsDB.mockResolvedValue({
+        getByTagValue: vi.fn().mockResolvedValue([]),
+        put: vi.fn()
+      });
+
+      const relayEvent = {
+        tags: [
+          ['i', `podcast:item:guid:${GUID}`, 'https://example.com/relay-ep.mp3'],
+          ['i', 'podcast:guid:feed-guid', FEED_URL]
+        ],
+        content: 'Relay description'
+      };
+
+      setupRelayMock(relayEvent);
+
+      mockParseDTagEvent.mockReturnValue({
+        guid: GUID,
+        feedUrl: FEED_URL,
+        enclosureUrl: 'https://example.com/relay-ep.mp3',
+        description: 'Relay description'
+      });
+
+      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
+
+      expect(result).not.toBeNull();
+      expect(result!.enclosureUrl).toBe('https://example.com/relay-ep.mp3');
+      expect(result!.description).toBe('Relay description');
+    });
+
+    it('should return null when relay subscription completes with no events', async () => {
+      const pubkey = 'relay-pubkey';
+      mockGetSystemPubkey.mockResolvedValue(pubkey);
+
+      mockGetEventsDB.mockResolvedValue({
+        getByTagValue: vi.fn().mockResolvedValue([])
+      });
+
+      setupRelayMock(null);
+
+      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
+
+      expect(result).toBeNull();
+    });
+
+    it('should skip DB events from non-system pubkeys', async () => {
+      const pubkey = 'sys-pubkey';
+      mockGetSystemPubkey.mockResolvedValue(pubkey);
+
+      // DB returns event with different pubkey
+      mockGetEventsDB.mockResolvedValue({
+        getByTagValue: vi.fn().mockResolvedValue([
+          {
+            pubkey: 'other-pubkey',
+            tags: [
+              ['i', `podcast:item:guid:${GUID}`, 'https://example.com/other.mp3'],
+              ['i', 'podcast:guid:feed-guid', FEED_URL]
+            ],
+            content: 'Other desc'
+          }
+        ])
+      });
+
+      setupRelayMock(null);
+
+      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
+
+      expect(result).toBeNull();
+    });
+
+    it('should cache relay result in DB after successful Nostr fetch', async () => {
+      const pubkey = 'sys-pubkey';
+      mockGetSystemPubkey.mockResolvedValue(pubkey);
+
+      const putMock = vi.fn();
+      mockGetEventsDB.mockResolvedValue({
+        getByTagValue: vi.fn().mockResolvedValue([]),
+        put: putMock
+      });
+
+      const relayEvent = {
+        tags: [
+          ['i', `podcast:item:guid:${GUID}`, 'https://example.com/relay-ep.mp3'],
+          ['i', 'podcast:guid:feed-guid', FEED_URL]
+        ],
+        content: 'desc'
+      };
+
+      setupRelayMock(relayEvent);
+
+      mockParseDTagEvent.mockReturnValue({
+        guid: GUID,
+        feedUrl: FEED_URL,
+        enclosureUrl: 'https://example.com/relay-ep.mp3',
+        description: 'desc'
+      });
+
+      await resolveEpisode(FEED_BASE64, GUID_BASE64);
+
+      expect(putMock).toHaveBeenCalledWith(relayEvent);
+    });
+
+    it('should merge API + Nostr: prefer API enclosureUrl and Nostr description', async () => {
+      const pubkey = 'sys-pubkey';
+      mockGetSystemPubkey.mockResolvedValue(pubkey);
+
+      mockGetEventsDB.mockResolvedValue({
+        getByTagValue: vi.fn().mockResolvedValue([
+          {
+            pubkey,
+            tags: [
+              ['i', `podcast:item:guid:${GUID}`, 'https://example.com/nostr.mp3'],
+              ['i', 'podcast:guid:feed-guid', FEED_URL]
+            ],
+            content: 'Detailed Nostr description'
+          }
+        ])
+      });
+      mockParseDTagEvent.mockReturnValue(
+        makeNostrResult({ description: 'Detailed Nostr description' })
+      );
+
+      mockResolveByApi.mockResolvedValue(
+        makeApiResponse({
+          episodes: [
+            {
+              guid: GUID,
+              title: 'Episode Title',
+              enclosureUrl: 'https://example.com/api.mp3',
+              duration: 3600,
+              publishedAt: 1700000000,
+              description: 'Short API desc'
+            }
+          ]
+        })
+      );
+
+      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
+
+      expect(result).not.toBeNull();
+      expect(result!.enclosureUrl).toBe('https://example.com/api.mp3');
+      expect(result!.title).toBe('Episode Title');
+      expect(result!.description).toBe('Detailed Nostr description');
     });
   });
 });
