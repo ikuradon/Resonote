@@ -380,11 +380,12 @@ describe('useCachedLatest', () => {
     expect(activeResult.source).toBe('loading');
   });
 
-  // Note: source='relay' path cannot be reliably unit-tested in this configuration.
-  // subscribeMock is never called by useCachedLatest's startRelay() despite all dynamic
-  // imports being mocked — the fire-and-forget async chain (startRelay is called without
-  // await) does not resolve within flushAsync(). The relay next handler (event = incoming,
-  // source = 'relay') is exercised by cachedFetchById tests and integration tests.
+  // Note: source='relay' path is not testable in this unit test configuration.
+  // startRelay() never reaches rxNostr.use(req).subscribe() — the fire-and-forget
+  // async chain throws before reaching subscribe, and the catch block sets settled=true.
+  // subscribeMock call count remains 0 across all useCachedLatest tests.
+  // The relay next handler (event = incoming, source = 'relay') is exercised
+  // by cachedFetchById tests (which await the relay path) and integration tests.
 
   it('returns DB cached event even when DB is slow', async () => {
     // Simulate a slow DB that resolves after a delay
