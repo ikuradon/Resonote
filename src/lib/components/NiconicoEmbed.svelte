@@ -16,7 +16,7 @@
     type NiconicoPlayerMessage
   } from '$shared/browser/niconico-bridge.js';
   import { setContent, updatePlayback } from '$shared/browser/player.js';
-  import { onSeek } from '../../shared/browser/seek-bridge.js';
+  import { onSeek } from '$shared/browser/seek-bridge.js';
   import { t } from '$shared/i18n/t.js';
   import EmbedLoading from './EmbedLoading.svelte';
 

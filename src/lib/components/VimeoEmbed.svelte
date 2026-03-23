@@ -4,7 +4,7 @@
   import type { ContentId } from '$shared/content/types.js';
   import { VimeoProvider } from '$shared/content/vimeo.js';
   import { updatePlayback } from '$shared/browser/player.js';
-  import { onSeek } from '../../shared/browser/seek-bridge.js';
+  import { onSeek } from '$shared/browser/seek-bridge.js';
   import { t } from '$shared/i18n/t.js';
   import { createLogger } from '$shared/utils/logger.js';
   import EmbedLoading from './EmbedLoading.svelte';

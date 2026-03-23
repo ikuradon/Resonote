@@ -6,7 +6,7 @@
   import { formatCompactDuration, formatDateOnly } from '$shared/utils/format.js';
   import WaveformLoader from './WaveformLoader.svelte';
   import { t } from '$shared/i18n/t.js';
-  import { resolvePodcastFeed } from '../../features/content-resolution/application/resolve-feed.js';
+  import { resolvePodcastFeed } from '$features/content-resolution/application/resolve-feed.js';
 
   interface Props {
     contentId: ContentId;

@@ -4,7 +4,7 @@
   import type { ContentId } from '$shared/content/types.js';
   import { setContent, updatePlayback } from '$shared/browser/player.js';
   import { createLogger } from '$shared/utils/logger.js';
-  import { onSeek } from '../../shared/browser/seek-bridge.js';
+  import { onSeek } from '$shared/browser/seek-bridge.js';
   import { t } from '$shared/i18n/t.js';
   import EmbedLoading from './EmbedLoading.svelte';
 
@@ -43,15 +43,22 @@
       sourceUrl = `https://${parts[0]}.podbean.com/e/${parts[1]}`;
     }
 
-    import('../../features/content-resolution/infra/podbean-api-client.js')
+    let cancelled = false;
+    import('$features/content-resolution/infra/podbean-api-client.js')
       .then(({ resolvePodbeanEmbed }) => resolvePodbeanEmbed(sourceUrl))
       .then((src) => {
-        embedSrc = src;
+        if (!cancelled) embedSrc = src;
       })
       .catch((err) => {
-        log.error('Failed to resolve Podbean oEmbed', err);
-        error = true;
+        if (!cancelled) {
+          log.error('Failed to resolve Podbean oEmbed', err);
+          error = true;
+        }
       });
+
+    return () => {
+      cancelled = true;
+    };
   });
 
   // Initialize widget once iframe loads

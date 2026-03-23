@@ -18,7 +18,7 @@
   import { startIntervalTask, type IntervalTaskHandle } from '$shared/browser/interval-task.js';
   import type { ContentId } from '$shared/content/types.js';
   import { setContent, updatePlayback } from '$shared/browser/player.js';
-  import { onSeek } from '../../shared/browser/seek-bridge.js';
+  import { onSeek } from '$shared/browser/seek-bridge.js';
   import { t } from '$shared/i18n/t.js';
   import EmbedLoading from './EmbedLoading.svelte';
 

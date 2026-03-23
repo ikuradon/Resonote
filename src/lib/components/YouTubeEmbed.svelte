@@ -21,7 +21,7 @@
   import type { ContentId } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
   import { updatePlayback } from '$shared/browser/player.js';
-  import { onSeek } from '../../shared/browser/seek-bridge.js';
+  import { onSeek } from '$shared/browser/seek-bridge.js';
   import EmbedLoading from './EmbedLoading.svelte';
 
   const POLL_INTERVAL_MS = 250;
