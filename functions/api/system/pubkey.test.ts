@@ -99,11 +99,12 @@ describe('system/pubkey', () => {
       expect(body1.pubkey).not.toBe(body2.pubkey);
     });
 
-    it('should throw for invalid hex string in SYSTEM_NOSTR_PRIVKEY', async () => {
-      // hexToBytes will throw for invalid hex — the handler does not catch this
-      await expect(
-        onRequestGet(buildContext({ SYSTEM_NOSTR_PRIVKEY: 'not-valid-hex' }))
-      ).rejects.toThrow();
+    it('should return 503 for invalid hex string in SYSTEM_NOSTR_PRIVKEY', async () => {
+      const res = await onRequestGet(buildContext({ SYSTEM_NOSTR_PRIVKEY: 'not-valid-hex' }));
+
+      expect(res.status).toBe(503);
+      const body = await parseJsonResponse(res);
+      expect(body.error).toBe('invalid_key');
     });
   });
 });

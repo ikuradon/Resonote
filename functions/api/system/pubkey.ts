@@ -14,8 +14,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     });
   }
 
-  const privkey = hexToBytes(privkeyHex);
-  const pubkey = getPublicKey(privkey);
+  let pubkey: string;
+  try {
+    const privkey = hexToBytes(privkeyHex);
+    pubkey = getPublicKey(privkey);
+  } catch {
+    return new Response(JSON.stringify({ error: 'invalid_key' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
 
   return new Response(JSON.stringify({ pubkey }), {
     status: 200,
