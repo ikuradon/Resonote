@@ -49,6 +49,7 @@ describe('dev-tools.svelte', () => {
       const mockDb = {
         getAllByKind: vi
           .fn()
+          .mockResolvedValue([]) // fallback for any kind not listed below
           .mockResolvedValueOnce([{ id: '1' }, { id: '2' }]) // kind 0: 2 events
           .mockResolvedValueOnce([]) // kind 3: 0
           .mockResolvedValueOnce([]) // kind 5: 0
