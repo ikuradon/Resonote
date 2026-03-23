@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getEnvBannerConfig, detectEnvFromHostname } from '$shared/utils/deploy-env.js';
+import {
+  getEnvBannerConfig,
+  detectEnvFromHostname,
+  getDeployEnv
+} from '$shared/utils/deploy-env.js';
 
 describe('getEnvBannerConfig', () => {
   it('returns green banner for dev', () => {
@@ -24,6 +28,12 @@ describe('getEnvBannerConfig', () => {
 
   it('returns null for production', () => {
     expect(getEnvBannerConfig('production')).toBeNull();
+  });
+});
+
+describe('getDeployEnv', () => {
+  it('returns "dev" when import.meta.env.DEV is true (vitest default)', () => {
+    expect(getDeployEnv()).toBe('dev');
   });
 });
 
