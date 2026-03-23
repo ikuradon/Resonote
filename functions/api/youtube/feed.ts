@@ -30,8 +30,8 @@ function decodeXmlEntities(s: string): string {
       .replace(/&quot;/g, '"')
       .replace(/&apos;/g, "'")
       // Numeric character references: &#NN; and &#xHH;
-      .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-      .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+      .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+      .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)))
       .replace(/&amp;/g, '&')
   );
 }
