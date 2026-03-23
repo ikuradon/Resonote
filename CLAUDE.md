@@ -137,6 +137,7 @@ Web embed 対応: Spotify, YouTube, Vimeo, SoundCloud, Mixcloud, Spreaker, Nicon
 - `functions/api/podcast/resolve.ts`: RSS パース + NIP-B0 ブックマーク署名 + 音声メタデータ解析
 - `functions/api/podbean/resolve.ts`: Podbean oEmbed プロキシ
 - `functions/api/oembed/resolve.ts`: oEmbed メタデータプロキシ (Spotify, YouTube, SoundCloud, Vimeo) — プラットフォーム別 type/id バリデーション付き
+- `functions/api/youtube/feed.ts`: YouTube プレイリスト/チャンネルの Atom RSS フィードパース (最新 15 件)
 - `functions/api/system/pubkey.ts`: システム鍵の pubkey 公開
 - `functions/lib/audio-metadata.ts`: ID3v2/Vorbis/FLAC メタデータパーサー
 - `functions/lib/url-validation.ts`: SSRF 防御 — `safeFetch()` で全 server-side fetch を行う (リダイレクト各ホップで `assertSafeUrl()` 検証)

@@ -21,6 +21,9 @@
   let isValid = $derived(provider !== undefined && contentType !== '' && contentIdParam !== '');
   let isCollection = $derived(contentType === 'show');
   let isFeed = $derived(platform === 'podcast' && contentType === 'feed');
+  let isYouTubeFeed = $derived(
+    platform === 'youtube' && (contentType === 'playlist' || contentType === 'channel')
+  );
   let initialTimeSec = $derived(Number(page.url.searchParams.get('t')) || 0);
 
   // --- View model (single facade for all content page logic) ---
@@ -134,7 +137,7 @@
       </div>
 
       <div class="mt-6 min-w-0 flex-1 md:mt-0">
-        {#if isFeed}
+        {#if isFeed || isYouTubeFeed}
           <section class="animate-slide-up stagger-2 space-y-5">
             <div class="flex items-center gap-3">
               <h2 class="font-display text-lg font-semibold text-text-primary">
@@ -143,7 +146,7 @@
               <div class="h-px flex-1 bg-border-subtle"></div>
             </div>
             <p data-testid="feed-comment-hint" class="py-8 text-center text-sm text-text-muted">
-              {t('comment.feed.select_episode')}
+              {isFeed ? t('comment.feed.select_episode') : t('youtube.feed.select_video')}
             </p>
           </section>
         {:else}

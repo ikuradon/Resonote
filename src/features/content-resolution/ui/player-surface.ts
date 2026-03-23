@@ -3,6 +3,7 @@ import { getEmbedComponentLoader } from './embed-component-loader.js';
 
 export type PlayerSurfaceKind =
   | 'podcast-feed'
+  | 'youtube-feed'
   | 'audio'
   | 'embed'
   | 'install-extension'
@@ -25,6 +26,13 @@ export function resolvePlayerSurface(options: ResolvePlayerSurfaceOptions): Play
 
   if (contentId.platform === 'podcast' && contentId.type === 'feed') {
     return { kind: 'podcast-feed' };
+  }
+
+  if (
+    contentId.platform === 'youtube' &&
+    (contentId.type === 'playlist' || contentId.type === 'channel')
+  ) {
+    return { kind: 'youtube-feed' };
   }
 
   if (
