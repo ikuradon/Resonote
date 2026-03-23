@@ -292,6 +292,62 @@ describe('fetchLatestEvent', () => {
     expect(result).toBeNull();
   });
 
+  it('resolves with latest event on timeout when subscription hangs', async () => {
+    vi.useFakeTimers();
+
+    const { fetchLatestEvent, getRxNostr } = await import('./client.js');
+    await getRxNostr();
+
+    const event = {
+      tags: [],
+      content: 'before timeout',
+      created_at: 100,
+      kind: 0,
+      pubkey: 'pk1',
+      id: 'e1'
+    };
+
+    // Subscribe sends one event but never completes
+    useSubscribeMock.mockImplementation((callbacks: UseCallbacks) => {
+      Promise.resolve().then(() => {
+        callbacks.next?.({ event });
+        // never calls complete or error
+      });
+      return { unsubscribe: vi.fn() };
+    });
+
+    const promise = fetchLatestEvent('pk1', 0);
+    // Flush microtasks so subscribe callback fires
+    await vi.advanceTimersByTimeAsync(0);
+    // Advance past the 10s timeout
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    const result = await promise;
+    expect(result).toEqual(expect.objectContaining({ content: 'before timeout' }));
+
+    vi.useRealTimers();
+  });
+
+  it('resolves with null on timeout when no events received', async () => {
+    vi.useFakeTimers();
+
+    const { fetchLatestEvent, getRxNostr } = await import('./client.js');
+    await getRxNostr();
+
+    // Subscribe never completes or sends events
+    useSubscribeMock.mockImplementation(() => {
+      return { unsubscribe: vi.fn() };
+    });
+
+    const promise = fetchLatestEvent('pk1', 0);
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    const result = await promise;
+    expect(result).toBeNull();
+
+    vi.useRealTimers();
+  });
+
   it('keeps event with higher created_at when out-of-order', async () => {
     const { fetchLatestEvent, getRxNostr } = await import('./client.js');
     await getRxNostr();

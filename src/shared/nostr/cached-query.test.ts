@@ -380,10 +380,11 @@ describe('useCachedLatest', () => {
     expect(activeResult.source).toBe('loading');
   });
 
-  // Note: source='relay' path (subscribeMock.next → event + source='relay') cannot be
-  // reliably tested because useCachedLatest's startRelay has multiple async awaits
-  // (dynamic import + getRxNostr) that make mock callback timing non-deterministic.
-  // The relay next handler is covered by integration tests.
+  // Note: source='relay' path cannot be reliably unit-tested in this configuration.
+  // subscribeMock is never called by useCachedLatest's startRelay() despite all dynamic
+  // imports being mocked — the fire-and-forget async chain (startRelay is called without
+  // await) does not resolve within flushAsync(). The relay next handler (event = incoming,
+  // source = 'relay') is exercised by cachedFetchById tests and integration tests.
 
   it('returns DB cached event even when DB is slow', async () => {
     // Simulate a slow DB that resolves after a delay
