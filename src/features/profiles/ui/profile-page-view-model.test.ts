@@ -13,7 +13,8 @@ const {
   followUserMock,
   unfollowUserMock,
   muteUserMock,
-  logErrorMock
+  logErrorMock,
+  tMock
 } = vi.hoisted(() => {
   const followsState = { follows: new Set<string>(['existing-follow']) };
   const muteListState = { mutedPubkeys: new Set<string>(['muted-user']) };
@@ -37,7 +38,8 @@ const {
     followUserMock: vi.fn(async () => {}),
     unfollowUserMock: vi.fn(async () => {}),
     muteUserMock: vi.fn(async () => {}),
-    logErrorMock: vi.fn()
+    logErrorMock: vi.fn(),
+    tMock: vi.fn((key: string) => key)
   };
 });
 
@@ -62,7 +64,7 @@ vi.mock('$shared/browser/mute.js', () => ({
 }));
 
 vi.mock('$shared/i18n/t.js', () => ({
-  t: (key: string) => key
+  t: tMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -97,6 +99,7 @@ describe('createProfilePageViewModel', () => {
     unfollowUserMock.mockReset();
     muteUserMock.mockReset();
     logErrorMock.mockReset();
+    tMock.mockClear();
   });
 
   describe('initial state', () => {
@@ -173,7 +176,7 @@ describe('createProfilePageViewModel', () => {
       expect(vm.confirmDialog.variant).toBe('danger');
     });
 
-    it('includes mute count in confirm message', () => {
+    it('passes mute count parameters to confirm message', () => {
       muteListState.mutedPubkeys = new Set(['a', 'b', 'c']);
       decodeNip19Mock.mockReturnValue(null);
       const vm = createProfilePageViewModel(() => 'x');
@@ -181,7 +184,7 @@ describe('createProfilePageViewModel', () => {
       vm.requestMuteUser('new-target');
 
       expect(vm.confirmDialog.open).toBe(true);
-      expect(vm.confirmDialog.message).toBe('confirm.mute.detail');
+      expect(tMock).toHaveBeenCalledWith('confirm.mute.detail', { before: 3, after: 4 });
     });
   });
 
@@ -342,14 +345,14 @@ describe('createProfilePageViewModel', () => {
       expect(vm.error).toBe(false);
     });
 
-    it('nevent type is not accepted (not npub/nprofile)', () => {
+    it('nevent type is not accepted (before $effect)', () => {
       decodeNip19Mock.mockReturnValue({ type: 'nevent', eventId: 'abc', relays: [] });
       const vm = createProfilePageViewModel(() => 'nevent1...');
 
       expect(vm.pubkey).toBeNull();
     });
 
-    it('note type is not accepted (not npub/nprofile)', () => {
+    it('note type is not accepted (before $effect)', () => {
       decodeNip19Mock.mockReturnValue({ type: 'note', eventId: 'abc' });
       const vm = createProfilePageViewModel(() => 'note1...');
 
