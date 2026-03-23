@@ -33,6 +33,28 @@ describe('resolvePlayerSurface', () => {
     ).toEqual({ kind: 'audio' });
   });
 
+  it('should treat youtube playlists as youtube-feed surface', () => {
+    expect(
+      resolvePlayerSurface({
+        contentId: { platform: 'youtube', type: 'playlist', id: 'PLxxxx' },
+        requiresExtension: false,
+        extensionMode: false,
+        extensionAvailable: false
+      })
+    ).toEqual({ kind: 'youtube-feed' });
+  });
+
+  it('should treat youtube channels as youtube-feed surface', () => {
+    expect(
+      resolvePlayerSurface({
+        contentId: { platform: 'youtube', type: 'channel', id: 'UCxxxx' },
+        requiresExtension: false,
+        extensionMode: false,
+        extensionAvailable: false
+      })
+    ).toEqual({ kind: 'youtube-feed' });
+  });
+
   it('should suppress external embed players in extension mode', () => {
     expect(
       resolvePlayerSurface({

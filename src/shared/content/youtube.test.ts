@@ -97,16 +97,82 @@ describe('YouTubeProvider', () => {
       expect(provider.parseUrl('https://www.youtube.com/watch?v=')).toBeNull();
     });
 
-    it('should return null for a YouTube channel URL', () => {
-      expect(provider.parseUrl('https://www.youtube.com/@channelname')).toBeNull();
+    // --- Playlist URLs ---
+
+    it('should parse a playlist URL', () => {
+      const result = provider.parseUrl(
+        'https://www.youtube.com/playlist?list=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf'
+      );
+      expect(result).toEqual({
+        platform: 'youtube',
+        type: 'playlist',
+        id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf'
+      });
     });
 
-    it('should return null for a YouTube playlist URL', () => {
-      expect(
-        provider.parseUrl(
-          'https://www.youtube.com/playlist?list=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf'
-        )
-      ).toBeNull();
+    it('should parse a playlist URL without www', () => {
+      const result = provider.parseUrl(
+        'https://youtube.com/playlist?list=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf'
+      );
+      expect(result).toEqual({
+        platform: 'youtube',
+        type: 'playlist',
+        id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf'
+      });
+    });
+
+    it('should parse a mobile playlist URL', () => {
+      const result = provider.parseUrl(
+        'https://m.youtube.com/playlist?list=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf'
+      );
+      expect(result).toEqual({
+        platform: 'youtube',
+        type: 'playlist',
+        id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf'
+      });
+    });
+
+    it('should return null for playlist URL without list param', () => {
+      expect(provider.parseUrl('https://www.youtube.com/playlist')).toBeNull();
+    });
+
+    it('should return null for non-PL playlist IDs (LL, WL, RD)', () => {
+      expect(provider.parseUrl('https://www.youtube.com/playlist?list=LL')).toBeNull();
+      expect(provider.parseUrl('https://www.youtube.com/playlist?list=WL')).toBeNull();
+      expect(provider.parseUrl('https://www.youtube.com/playlist?list=RDMMdQw4w9WgXcQ')).toBeNull();
+    });
+
+    // --- Channel URLs ---
+
+    it('should parse a channel URL with UCxxxx ID', () => {
+      const result = provider.parseUrl('https://www.youtube.com/channel/UCddiUEpeqJcYeBxX1IVBKvQ');
+      expect(result).toEqual({
+        platform: 'youtube',
+        type: 'channel',
+        id: 'UCddiUEpeqJcYeBxX1IVBKvQ'
+      });
+    });
+
+    it('should parse a mobile channel URL', () => {
+      const result = provider.parseUrl('https://m.youtube.com/channel/UCddiUEpeqJcYeBxX1IVBKvQ');
+      expect(result).toEqual({
+        platform: 'youtube',
+        type: 'channel',
+        id: 'UCddiUEpeqJcYeBxX1IVBKvQ'
+      });
+    });
+
+    it('should parse a channel URL without www', () => {
+      const result = provider.parseUrl('https://youtube.com/channel/UCddiUEpeqJcYeBxX1IVBKvQ');
+      expect(result).toEqual({
+        platform: 'youtube',
+        type: 'channel',
+        id: 'UCddiUEpeqJcYeBxX1IVBKvQ'
+      });
+    });
+
+    it('should return null for @handle URLs (Phase 2)', () => {
+      expect(provider.parseUrl('https://www.youtube.com/@channelname')).toBeNull();
     });
 
     it('should return null for random text', () => {
@@ -138,6 +204,30 @@ describe('YouTubeProvider', () => {
         'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
       ]);
     });
+
+    it('should return [value, hint] for a playlist', () => {
+      const tag = provider.toNostrTag({
+        platform: 'youtube',
+        type: 'playlist',
+        id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf'
+      });
+      expect(tag).toEqual([
+        'youtube:playlist:PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf',
+        'https://www.youtube.com/playlist?list=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf'
+      ]);
+    });
+
+    it('should return [value, hint] for a channel', () => {
+      const tag = provider.toNostrTag({
+        platform: 'youtube',
+        type: 'channel',
+        id: 'UCddiUEpeqJcYeBxX1IVBKvQ'
+      });
+      expect(tag).toEqual([
+        'youtube:channel:UCddiUEpeqJcYeBxX1IVBKvQ',
+        'https://www.youtube.com/channel/UCddiUEpeqJcYeBxX1IVBKvQ'
+      ]);
+    });
   });
 
   describe('contentKind', () => {
@@ -145,6 +235,26 @@ describe('YouTubeProvider', () => {
       expect(provider.contentKind({ platform: 'youtube', type: 'video', id: 'dQw4w9WgXcQ' })).toBe(
         'youtube:video'
       );
+    });
+
+    it('should return "youtube:playlist" for a playlist', () => {
+      expect(
+        provider.contentKind({
+          platform: 'youtube',
+          type: 'playlist',
+          id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf'
+        })
+      ).toBe('youtube:playlist');
+    });
+
+    it('should return "youtube:channel" for a channel', () => {
+      expect(
+        provider.contentKind({
+          platform: 'youtube',
+          type: 'channel',
+          id: 'UCddiUEpeqJcYeBxX1IVBKvQ'
+        })
+      ).toBe('youtube:channel');
     });
   });
 
