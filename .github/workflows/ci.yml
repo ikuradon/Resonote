@@ -101,10 +101,11 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@6ba3fdeec616fb91fd6a389b788a2366835a0fa2 # v1.2.1
+        uses: codecov/codecov-action@4481f553995cc5011b158ce191746ac1a1d0f815 # v5.5.3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: test-results/junit.xml
+          report_type: test_results
           fail_ci_if_error: false
 
       - name: Upload coverage artifact
