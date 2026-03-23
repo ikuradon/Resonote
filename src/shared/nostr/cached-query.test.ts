@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type SubscribeCallbacks = {
   next?: (packet: { event: Record<string, unknown> }) => void;
@@ -6,8 +6,9 @@ type SubscribeCallbacks = {
   error?: () => void;
 };
 
-const { dbGetByIdMock, subscribeMock } = vi.hoisted(() => ({
+const { dbGetByIdMock, dbGetByPubkeyAndKindMock, subscribeMock } = vi.hoisted(() => ({
   dbGetByIdMock: vi.fn(async (): Promise<Record<string, unknown> | null> => null),
+  dbGetByPubkeyAndKindMock: vi.fn(async (): Promise<Record<string, unknown> | null> => null),
   subscribeMock: vi.fn((callbacks: SubscribeCallbacks) => {
     // Default: synchronous EOSE (no setTimeout to avoid fake timer issues)
     Promise.resolve().then(() => callbacks.complete?.());
@@ -18,6 +19,7 @@ const { dbGetByIdMock, subscribeMock } = vi.hoisted(() => ({
 vi.mock('$shared/nostr/gateway.js', () => ({
   getEventsDB: async () => ({
     getById: dbGetByIdMock,
+    getByPubkeyAndKind: dbGetByPubkeyAndKindMock,
     put: vi.fn()
   }),
   getRxNostr: async () => ({
@@ -42,7 +44,8 @@ vi.mock('$shared/utils/logger.js', () => ({
 import {
   cachedFetchById,
   invalidateFetchByIdCache,
-  resetFetchByIdCache
+  resetFetchByIdCache,
+  useCachedLatest
 } from './cached-query.svelte.js';
 
 describe('cachedFetchById', () => {
@@ -188,7 +191,7 @@ describe('invalidatedDuringFetch race condition', () => {
   });
 
   it('does not serve stale relay result after invalidation', async () => {
-    // Scenario: relay returns an event (DB miss → relay hit → cached).
+    // Scenario: relay returns an event (DB miss -> relay hit -> cached).
     // Then invalidation is called. The next fetch must bypass the cache.
     //
     // This tests the relay path for the invalidation contract.
@@ -204,7 +207,7 @@ describe('invalidatedDuringFetch race condition', () => {
       return { unsubscribe: vi.fn() };
     });
 
-    // First fetch: DB miss → relay returns event → result is cached
+    // First fetch: DB miss -> relay returns event -> result is cached
     const result1 = await cachedFetchById('race-relay2');
     expect(result1).toEqual(expect.objectContaining({ content: 'relay-result' }));
 
@@ -297,5 +300,201 @@ describe('invalidateFetchByIdCache', () => {
     const result = await cachedFetchById('event-6');
     expect(result).toEqual(expect.objectContaining({ content: 'found' }));
     expect(dbGetByIdMock.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+});
+
+/**
+ * Helper to flush async operations including dynamic import() resolution.
+ * Uses setTimeout to yield to the macrotask queue, ensuring pending
+ * microtasks (including those from mocked dynamic imports) settle.
+ *
+ * Note: Both startDB and startRelay resolve normally via mocked modules.
+ * The relay path completes via subscribeMock's complete() callback,
+ * which sets settled=true.
+ */
+async function flushAsync(): Promise<void> {
+  await new Promise((r) => setTimeout(r, 200));
+}
+
+describe('useCachedLatest', () => {
+  let activeResult: ReturnType<typeof useCachedLatest> | undefined;
+
+  beforeEach(async () => {
+    resetFetchByIdCache();
+    // Drain any leaked async chains from previous tests before resetting mocks
+    await new Promise((r) => setTimeout(r, 50));
+    dbGetByPubkeyAndKindMock.mockClear();
+    dbGetByPubkeyAndKindMock.mockResolvedValue(null);
+    subscribeMock.mockClear();
+    subscribeMock.mockImplementation((callbacks: SubscribeCallbacks) => {
+      Promise.resolve().then(() => callbacks.complete?.());
+      return { unsubscribe: vi.fn() };
+    });
+  });
+
+  afterEach(async () => {
+    activeResult?.destroy();
+    activeResult = undefined;
+    await new Promise((r) => setTimeout(r, 50));
+  });
+
+  it('returns event with source=cache on DB cache hit', async () => {
+    const cachedEvent = {
+      id: 'c1',
+      pubkey: 'pk1',
+      content: 'cached',
+      created_at: 100,
+      tags: [],
+      kind: 0
+    };
+    dbGetByPubkeyAndKindMock.mockResolvedValueOnce(cachedEvent);
+
+    activeResult = useCachedLatest('pk1', 0);
+    await flushAsync();
+
+    expect(activeResult.event).toEqual(expect.objectContaining({ content: 'cached' }));
+    expect(activeResult.source).toBe('cache');
+  });
+
+  it('eventually settles after all async paths complete', async () => {
+    // Both DB miss and relay error/complete lead to settled=true
+    activeResult = useCachedLatest('pk1', 0);
+    await flushAsync();
+
+    expect(activeResult.settled).toBe(true);
+  });
+
+  it('event stays null when neither DB nor relay provides data', async () => {
+    activeResult = useCachedLatest('pk1', 0);
+    await flushAsync();
+
+    expect(activeResult.event).toBeNull();
+    expect(activeResult.settled).toBe(true);
+  });
+
+  it('DB cache miss keeps source as loading', async () => {
+    activeResult = useCachedLatest('pk1', 0);
+    await flushAsync();
+
+    // No DB result, relay completes without events -> source stays 'loading'
+    expect(activeResult.source).toBe('loading');
+  });
+
+  // Note: source='relay' path (subscribeMock.next → event + source='relay') cannot be
+  // reliably tested because useCachedLatest's startRelay has multiple async awaits
+  // (dynamic import + getRxNostr) that make mock callback timing non-deterministic.
+  // The relay next handler is covered by integration tests.
+
+  it('returns DB cached event even when DB is slow', async () => {
+    // Simulate a slow DB that resolves after a delay
+    dbGetByPubkeyAndKindMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(
+            () =>
+              resolve({
+                id: 'slow1',
+                pubkey: 'pk1',
+                content: 'slow db',
+                created_at: 50,
+                tags: [],
+                kind: 0
+              }),
+            50
+          )
+        )
+    );
+
+    activeResult = useCachedLatest('pk1', 0);
+    await flushAsync();
+
+    expect(activeResult.event).toEqual(expect.objectContaining({ content: 'slow db' }));
+    expect(activeResult.source).toBe('cache');
+  });
+
+  it('handles DB error gracefully (source stays loading)', async () => {
+    dbGetByPubkeyAndKindMock.mockRejectedValueOnce(new Error('DB unavailable'));
+
+    activeResult = useCachedLatest('pk1', 0);
+    await flushAsync();
+
+    // DB failed, relay completes normally -> event null, settled true
+    expect(activeResult.event).toBeNull();
+    expect(activeResult.settled).toBe(true);
+  });
+
+  it('destroy() prevents DB result from updating state', async () => {
+    // Make DB resolve after a delay
+    let resolveDb!: (val: Record<string, unknown> | null) => void;
+    dbGetByPubkeyAndKindMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveDb = resolve;
+        })
+    );
+
+    activeResult = useCachedLatest('pk1', 0);
+
+    // Wait for startDB to reach the getByPubkeyAndKind call (sets resolveDb)
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Destroy before DB resolves
+    activeResult.destroy();
+
+    // Now resolve DB with an event
+    resolveDb({
+      id: 'late-db',
+      pubkey: 'pk1',
+      content: 'should not appear',
+      created_at: 100,
+      tags: [],
+      kind: 0
+    });
+
+    await flushAsync();
+
+    // Event should still be null because we destroyed before DB resolved
+    expect(activeResult.event).toBeNull();
+  });
+
+  it('destroy() is safe to call multiple times', async () => {
+    activeResult = useCachedLatest('pk1', 0);
+    await flushAsync();
+
+    expect(() => {
+      activeResult!.destroy();
+      activeResult!.destroy();
+    }).not.toThrow();
+  });
+
+  it('initial state is loading with no event', () => {
+    activeResult = useCachedLatest('pk1', 0);
+
+    // Synchronously after creation, before any async resolves
+    expect(activeResult.event).toBeNull();
+    expect(activeResult.source).toBe('loading');
+    expect(activeResult.settled).toBe(false);
+  });
+
+  it('exposes reactive getters', async () => {
+    const cachedEvent = {
+      id: 'g1',
+      pubkey: 'pk1',
+      content: 'getter test',
+      created_at: 100,
+      tags: [],
+      kind: 0
+    };
+    dbGetByPubkeyAndKindMock.mockResolvedValueOnce(cachedEvent);
+
+    activeResult = useCachedLatest('pk1', 0);
+
+    // Before resolution
+    expect(activeResult.event).toBeNull();
+
+    await flushAsync();
+
+    // After resolution -- same object reference provides updated values
+    expect(activeResult.event).toEqual(expect.objectContaining({ content: 'getter test' }));
   });
 });
