@@ -54,7 +54,8 @@ import {
   loadFollows,
   matchesFilter,
   followUser,
-  unfollowUser
+  unfollowUser,
+  refreshFollows
 } from './follows.svelte.js';
 
 // ---- helpers ----
@@ -386,5 +387,132 @@ describe('unfollowUser', () => {
 
     expect(getFollows().follows.has(FOLLOW_A)).toBe(true);
     expect(getFollows().follows.has(STRANGER)).toBe(false);
+  });
+});
+
+describe('refreshFollows', () => {
+  beforeEach(() => {
+    clearFollows();
+    vi.clearAllMocks();
+  });
+
+  it('refreshFollows は fetchWot を呼びフォローを更新する', async () => {
+    getByPubkeyAndKindMock.mockResolvedValue(null);
+    getEventsDBMock.mockResolvedValue({
+      getByPubkeyAndKind: getByPubkeyAndKindMock,
+      getAllByKind: getAllByKindMock
+    });
+    fetchWotMock.mockImplementation(
+      async (
+        pubkey: string,
+        callbacks: { onDirectFollows: (f: Set<string>) => void; isCancelled: () => boolean }
+      ) => {
+        callbacks.onDirectFollows(new Set([FOLLOW_A, FOLLOW_B]));
+        return {
+          directFollows: new Set([FOLLOW_A, FOLLOW_B]),
+          wot: new Set([FOLLOW_A, FOLLOW_B, pubkey])
+        };
+      }
+    );
+
+    await refreshFollows(MY_PUBKEY);
+
+    expect(fetchWotMock).toHaveBeenCalledOnce();
+    const f = getFollows();
+    expect(f.follows.has(FOLLOW_A)).toBe(true);
+    expect(f.follows.has(FOLLOW_B)).toBe(true);
+    expect(f.loading).toBe(false);
+    expect(f.cachedAt).not.toBeNull();
+  });
+
+  it('refreshFollows 完了後 loading=false になる', async () => {
+    fetchWotMock.mockImplementation(
+      async (
+        pubkey: string,
+        callbacks: { onDirectFollows: (f: Set<string>) => void; isCancelled: () => boolean }
+      ) => {
+        callbacks.onDirectFollows(new Set());
+        return { directFollows: new Set(), wot: new Set([pubkey]) };
+      }
+    );
+
+    await refreshFollows(MY_PUBKEY);
+
+    expect(getFollows().loading).toBe(false);
+  });
+
+  it('refreshFollows は loading を true に設定してから開始する', async () => {
+    let capturedLoading: boolean | null = null;
+
+    fetchWotMock.mockImplementation(
+      async (
+        _pubkey: string,
+        callbacks: { onDirectFollows: (f: Set<string>) => void; isCancelled: () => boolean }
+      ) => {
+        capturedLoading = getFollows().loading;
+        callbacks.onDirectFollows(new Set());
+        return { directFollows: new Set(), wot: new Set([MY_PUBKEY]) };
+      }
+    );
+
+    await refreshFollows(MY_PUBKEY);
+
+    expect(capturedLoading).toBe(true);
+  });
+});
+
+describe('loadFollows — fetchWot エラーパス', () => {
+  beforeEach(() => {
+    clearFollows();
+    vi.clearAllMocks();
+  });
+
+  it('fetchWot がエラーを投げても loading=false にリセットされる', async () => {
+    getByPubkeyAndKindMock.mockResolvedValue(null);
+    getEventsDBMock.mockResolvedValue({
+      getByPubkeyAndKind: getByPubkeyAndKindMock,
+      getAllByKind: getAllByKindMock
+    });
+    fetchWotMock.mockRejectedValue(new Error('network error'));
+
+    await expect(loadFollows(MY_PUBKEY)).rejects.toThrow('network error');
+
+    expect(getFollows().loading).toBe(false);
+  });
+});
+
+describe('loadFollows — generation キャンセル', () => {
+  beforeEach(() => {
+    clearFollows();
+    vi.clearAllMocks();
+  });
+
+  it('clearFollows で generation が進むと fetchWot コールバックは state を更新しない', async () => {
+    getByPubkeyAndKindMock.mockResolvedValue(null);
+    getEventsDBMock.mockResolvedValue({
+      getByPubkeyAndKind: getByPubkeyAndKindMock,
+      getAllByKind: getAllByKindMock
+    });
+
+    fetchWotMock.mockImplementation(
+      async (
+        pubkey: string,
+        callbacks: { onDirectFollows: (f: Set<string>) => void; isCancelled: () => boolean }
+      ) => {
+        // clearFollows を呼んで generation を進める
+        clearFollows();
+        // 古い generation のコールバックを呼んでも state は更新されない
+        callbacks.onDirectFollows(new Set([FOLLOW_A]));
+        return {
+          directFollows: new Set([FOLLOW_A]),
+          wot: new Set([FOLLOW_A, pubkey])
+        };
+      }
+    );
+
+    await loadFollows(MY_PUBKEY).catch(() => {});
+
+    // clearFollows で generation が進んだので、onDirectFollows の結果は反映されない
+    expect(getFollows().follows.size).toBe(0);
   });
 });

@@ -117,4 +117,167 @@ describe('onNiconicoMessage', () => {
     cleanup();
     expect(callback).not.toHaveBeenCalled();
   });
+
+  it('should accept messages from http origin', () => {
+    const { dispatchMessage } = setupFakeWindow();
+    const seen: NiconicoPlayerMessage[] = [];
+    const cleanup = onNiconicoMessage((message) => seen.push(message));
+
+    dispatchMessage({
+      origin: 'http://embed.nicovideo.jp',
+      data: { eventName: 'loadComplete' }
+    } as MessageEvent);
+
+    cleanup();
+    expect(seen).toEqual([{ type: 'ready' }]);
+  });
+
+  it('should ignore messages with non-string eventName', () => {
+    const { dispatchMessage } = setupFakeWindow();
+    const callback = vi.fn();
+    const cleanup = onNiconicoMessage(callback);
+
+    dispatchMessage({
+      origin: 'https://embed.nicovideo.jp',
+      data: { eventName: 123 }
+    } as MessageEvent);
+
+    cleanup();
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it('should ignore messages with undefined eventName', () => {
+    const { dispatchMessage } = setupFakeWindow();
+    const callback = vi.fn();
+    const cleanup = onNiconicoMessage(callback);
+
+    dispatchMessage({
+      origin: 'https://embed.nicovideo.jp',
+      data: {}
+    } as MessageEvent);
+
+    cleanup();
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it('should ignore unknown eventName', () => {
+    const { dispatchMessage } = setupFakeWindow();
+    const callback = vi.fn();
+    const cleanup = onNiconicoMessage(callback);
+
+    dispatchMessage({
+      origin: 'https://embed.nicovideo.jp',
+      data: { eventName: 'unknownEvent' }
+    } as MessageEvent);
+
+    cleanup();
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it('should emit error message', () => {
+    const { dispatchMessage } = setupFakeWindow();
+    const seen: NiconicoPlayerMessage[] = [];
+    const cleanup = onNiconicoMessage((message) => seen.push(message));
+
+    dispatchMessage({
+      origin: 'https://embed.nicovideo.jp',
+      data: { eventName: 'error', data: { code: 'PLAYBACK_ERROR' } }
+    } as MessageEvent);
+
+    cleanup();
+    expect(seen).toEqual([{ type: 'error', data: { code: 'PLAYBACK_ERROR' } }]);
+  });
+
+  it('should handle playerStatusChange with status=2 (playing)', () => {
+    const { dispatchMessage } = setupFakeWindow();
+    const seen: NiconicoPlayerMessage[] = [];
+    const cleanup = onNiconicoMessage((message) => seen.push(message));
+
+    dispatchMessage({
+      origin: 'https://embed.nicovideo.jp',
+      data: {
+        eventName: 'playerStatusChange',
+        data: { currentTime: 5, duration: 60, playerStatus: 2 }
+      }
+    } as MessageEvent);
+
+    cleanup();
+    expect(seen[0]).toEqual({
+      type: 'status',
+      currentTimeMs: 5_000,
+      durationMs: 60_000,
+      isPaused: false
+    });
+  });
+
+  it('should handle missing data in metadata message', () => {
+    const { dispatchMessage } = setupFakeWindow();
+    const seen: NiconicoPlayerMessage[] = [];
+    const cleanup = onNiconicoMessage((message) => seen.push(message));
+
+    dispatchMessage({
+      origin: 'https://embed.nicovideo.jp',
+      data: { eventName: 'playerMetadataChange' }
+    } as MessageEvent);
+
+    cleanup();
+    expect(seen[0]).toEqual({
+      type: 'metadata',
+      currentTimeMs: undefined,
+      durationMs: undefined
+    });
+  });
+
+  it('should convert non-number values in metadata to undefined', () => {
+    const { dispatchMessage } = setupFakeWindow();
+    const seen: NiconicoPlayerMessage[] = [];
+    const cleanup = onNiconicoMessage((message) => seen.push(message));
+
+    dispatchMessage({
+      origin: 'https://embed.nicovideo.jp',
+      data: {
+        eventName: 'playerMetadataChange',
+        data: { currentTime: 'not-a-number', duration: null }
+      }
+    } as MessageEvent);
+
+    cleanup();
+    expect(seen[0]).toEqual({
+      type: 'metadata',
+      currentTimeMs: undefined,
+      durationMs: undefined
+    });
+  });
+
+  it('cleanup removes event listener', () => {
+    const { windowStub } = setupFakeWindow();
+    const cleanup = onNiconicoMessage(vi.fn());
+
+    cleanup();
+
+    expect(windowStub.removeEventListener).toHaveBeenCalledWith('message', expect.any(Function));
+  });
+});
+
+describe('seekNiconicoPlayer — edge cases', () => {
+  it('should handle contentWindow being null', () => {
+    const iframeEl = {
+      contentWindow: null
+    } as unknown as HTMLIFrameElement;
+
+    expect(() => seekNiconicoPlayer(iframeEl, 1000)).not.toThrow();
+  });
+
+  it('should convert milliseconds to seconds correctly', () => {
+    const postMessage = vi.fn();
+    const iframeEl = {
+      contentWindow: { postMessage }
+    } as unknown as HTMLIFrameElement;
+
+    seekNiconicoPlayer(iframeEl, 0);
+    expect(postMessage.mock.calls[0][0].data.time).toBe(0);
+
+    seekNiconicoPlayer(iframeEl, 1500);
+    expect(postMessage.mock.calls[1][0].data.time).toBe(1.5);
+  });
 });
