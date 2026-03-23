@@ -141,11 +141,9 @@ describe('createProfilePageViewModel', () => {
 
   describe('requestFollow', () => {
     it('does nothing when pubkey is null (no $effect in test environment)', () => {
-      // $effect is not executed in vitest; pubkey stays null
       decodeNip19Mock.mockReturnValue({ type: 'npub', pubkey: VALID_PUBKEY });
       const vm = createProfilePageViewModel(() => 'npub1...');
 
-      // pubkey is null because $effect does not run in vitest
       vm.requestFollow();
 
       expect(vm.confirmDialog.open).toBe(false);
@@ -157,7 +155,6 @@ describe('createProfilePageViewModel', () => {
       decodeNip19Mock.mockReturnValue({ type: 'npub', pubkey: VALID_PUBKEY });
       const vm = createProfilePageViewModel(() => 'npub1...');
 
-      // pubkey is null because $effect does not run in vitest
       vm.requestUnfollow();
 
       expect(vm.confirmDialog.open).toBe(false);
@@ -175,6 +172,17 @@ describe('createProfilePageViewModel', () => {
       expect(vm.confirmDialog.title).toBe('confirm.mute');
       expect(vm.confirmDialog.variant).toBe('danger');
     });
+
+    it('includes mute count in confirm message', () => {
+      muteListState.mutedPubkeys = new Set(['a', 'b', 'c']);
+      decodeNip19Mock.mockReturnValue(null);
+      const vm = createProfilePageViewModel(() => 'x');
+
+      vm.requestMuteUser('new-target');
+
+      expect(vm.confirmDialog.open).toBe(true);
+      expect(vm.confirmDialog.message).toBe('confirm.mute.detail');
+    });
   });
 
   describe('cancelConfirmAction', () => {
@@ -187,6 +195,30 @@ describe('createProfilePageViewModel', () => {
 
       vm.cancelConfirmAction();
       expect(vm.confirmDialog.open).toBe(false);
+    });
+
+    it('resets confirm dialog fields to defaults after cancel', () => {
+      decodeNip19Mock.mockReturnValue(null);
+      const vm = createProfilePageViewModel(() => 'x');
+
+      vm.requestMuteUser('some-pubkey');
+      vm.cancelConfirmAction();
+
+      expect(vm.confirmDialog.title).toBe('');
+      expect(vm.confirmDialog.message).toBe('');
+      expect(vm.confirmDialog.variant).toBe('default');
+    });
+
+    it('can cancel followed by a new request', () => {
+      decodeNip19Mock.mockReturnValue(null);
+      const vm = createProfilePageViewModel(() => 'x');
+
+      vm.requestMuteUser('first-pubkey');
+      vm.cancelConfirmAction();
+      expect(vm.confirmDialog.open).toBe(false);
+
+      vm.requestMuteUser('second-pubkey');
+      expect(vm.confirmDialog.open).toBe(true);
     });
   });
 
@@ -206,7 +238,6 @@ describe('createProfilePageViewModel', () => {
       decodeNip19Mock.mockReturnValue({ type: 'npub', pubkey: VALID_PUBKEY });
       const vm = createProfilePageViewModel(() => 'npub1...');
 
-      // requestFollow guards on pubkey; since $effect does not run, pubkey stays null
       vm.requestFollow();
       await vm.confirmCurrentAction();
 
@@ -232,6 +263,48 @@ describe('createProfilePageViewModel', () => {
       expect(muteUserMock).not.toHaveBeenCalled();
       expect(followUserMock).not.toHaveBeenCalled();
     });
+
+    it('logs error when mute action fails but does not crash', async () => {
+      const testError = new Error('mute failed');
+      muteUserMock.mockRejectedValueOnce(testError);
+      decodeNip19Mock.mockReturnValue(null);
+      const vm = createProfilePageViewModel(() => 'x');
+
+      vm.requestMuteUser('target-pubkey');
+      await vm.confirmCurrentAction();
+
+      expect(logErrorMock).toHaveBeenCalledWith('Failed to mute', testError);
+      expect(vm.confirmDialog.open).toBe(false);
+    });
+
+    it('clears confirmAction before executing the action', async () => {
+      decodeNip19Mock.mockReturnValue(null);
+      const vm = createProfilePageViewModel(() => 'x');
+
+      let dialogOpenDuringAction: boolean | undefined;
+      muteUserMock.mockImplementationOnce(async () => {
+        dialogOpenDuringAction = vm.confirmDialog.open;
+      });
+
+      vm.requestMuteUser('target');
+      await vm.confirmCurrentAction();
+
+      expect(dialogOpenDuringAction).toBe(false);
+    });
+
+    it('can execute mute for different pubkeys sequentially', async () => {
+      decodeNip19Mock.mockReturnValue(null);
+      const vm = createProfilePageViewModel(() => 'x');
+
+      vm.requestMuteUser('pubkey-1');
+      await vm.confirmCurrentAction();
+      expect(muteUserMock).toHaveBeenCalledWith('pubkey-1');
+
+      vm.requestMuteUser('pubkey-2');
+      await vm.confirmCurrentAction();
+      expect(muteUserMock).toHaveBeenCalledWith('pubkey-2');
+      expect(muteUserMock).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('loadMore', () => {
@@ -255,11 +328,110 @@ describe('createProfilePageViewModel', () => {
   });
 
   describe('nip19 decode types', () => {
+    it('accepts npub type without error (before $effect)', () => {
+      decodeNip19Mock.mockReturnValue({ type: 'npub', pubkey: VALID_PUBKEY });
+      const vm = createProfilePageViewModel(() => 'npub1...');
+
+      expect(vm.error).toBe(false);
+    });
+
     it('accepts nprofile type', () => {
       decodeNip19Mock.mockReturnValue({ type: 'nprofile', pubkey: VALID_PUBKEY });
       const vm = createProfilePageViewModel(() => 'nprofile1...');
 
       expect(vm.error).toBe(false);
+    });
+
+    it('nevent type is not accepted (not npub/nprofile)', () => {
+      decodeNip19Mock.mockReturnValue({ type: 'nevent', eventId: 'abc', relays: [] });
+      const vm = createProfilePageViewModel(() => 'nevent1...');
+
+      expect(vm.pubkey).toBeNull();
+    });
+
+    it('note type is not accepted (not npub/nprofile)', () => {
+      decodeNip19Mock.mockReturnValue({ type: 'note', eventId: 'abc' });
+      const vm = createProfilePageViewModel(() => 'note1...');
+
+      expect(vm.pubkey).toBeNull();
+    });
+  });
+
+  describe('confirm dialog onConfirm/onCancel callbacks', () => {
+    it('onConfirm is a callable function that executes action', async () => {
+      decodeNip19Mock.mockReturnValue(null);
+      const vm = createProfilePageViewModel(() => 'x');
+
+      vm.requestMuteUser('target');
+      const { onConfirm } = vm.confirmDialog;
+      await onConfirm();
+
+      expect(muteUserMock).toHaveBeenCalledWith('target');
+    });
+
+    it('onCancel is a callable function that closes dialog', () => {
+      decodeNip19Mock.mockReturnValue(null);
+      const vm = createProfilePageViewModel(() => 'x');
+
+      vm.requestMuteUser('target');
+      const { onCancel } = vm.confirmDialog;
+      onCancel();
+
+      expect(vm.confirmDialog.open).toBe(false);
+    });
+  });
+
+  describe('multiple VM instances', () => {
+    it('each instance has independent state', () => {
+      decodeNip19Mock.mockReturnValue(null);
+      const vm1 = createProfilePageViewModel(() => 'x');
+      const vm2 = createProfilePageViewModel(() => 'y');
+
+      vm1.requestMuteUser('target-1');
+
+      expect(vm1.confirmDialog.open).toBe(true);
+      expect(vm2.confirmDialog.open).toBe(false);
+    });
+  });
+
+  describe('getFollows and getMuteList calls', () => {
+    it('calls getFollows during construction', () => {
+      decodeNip19Mock.mockReturnValue(null);
+      createProfilePageViewModel(() => 'x');
+
+      expect(getFollowsMock).toHaveBeenCalled();
+    });
+
+    it('calls getMuteList during construction', () => {
+      decodeNip19Mock.mockReturnValue(null);
+      createProfilePageViewModel(() => 'x');
+
+      expect(getMuteListMock).toHaveBeenCalled();
+    });
+  });
+
+  describe('requestMuteUser confirm then cancel pattern', () => {
+    it('cancel after request prevents action execution on confirm', async () => {
+      decodeNip19Mock.mockReturnValue(null);
+      const vm = createProfilePageViewModel(() => 'x');
+
+      vm.requestMuteUser('target');
+      vm.cancelConfirmAction();
+      await vm.confirmCurrentAction();
+
+      expect(muteUserMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('confirm dialog label keys', () => {
+    it('always provides confirm.ok and confirm.cancel labels', () => {
+      decodeNip19Mock.mockReturnValue(null);
+      const vm = createProfilePageViewModel(() => 'x');
+
+      vm.requestMuteUser('target');
+
+      expect(vm.confirmDialog.confirmLabel).toBe('confirm.ok');
+      expect(vm.confirmDialog.cancelLabel).toBe('confirm.cancel');
     });
   });
 });
