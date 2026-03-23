@@ -191,7 +191,7 @@ describe('invalidatedDuringFetch race condition', () => {
   });
 
   it('does not serve stale relay result after invalidation', async () => {
-    // Scenario: relay returns an event (DB miss → relay hit → cached).
+    // Scenario: relay returns an event (DB miss -> relay hit -> cached).
     // Then invalidation is called. The next fetch must bypass the cache.
     //
     // This tests the relay path for the invalidation contract.
@@ -207,7 +207,7 @@ describe('invalidatedDuringFetch race condition', () => {
       return { unsubscribe: vi.fn() };
     });
 
-    // First fetch: DB miss → relay returns event → result is cached
+    // First fetch: DB miss -> relay returns event -> result is cached
     const result1 = await cachedFetchById('race-relay2');
     expect(result1).toEqual(expect.objectContaining({ content: 'relay-result' }));
 
@@ -308,10 +308,9 @@ describe('invalidateFetchByIdCache', () => {
  * Uses setTimeout to yield to the macrotask queue, ensuring pending
  * microtasks (including those from mocked dynamic imports) settle.
  *
- * Note: useCachedLatest's startRelay uses fire-and-forget dynamic imports
- * that may not fully resolve in the test environment (vitest + Svelte runes).
- * The startDB path resolves reliably; the relay path hits the catch block
- * and sets settled=true. Tests focus on the DB path and error handling behavior.
+ * Note: Both startDB and startRelay resolve normally via mocked modules.
+ * The relay path completes via subscribeMock's complete() callback,
+ * which sets settled=true.
  */
 async function flushAsync(): Promise<void> {
   await new Promise((r) => setTimeout(r, 200));
@@ -377,9 +376,14 @@ describe('useCachedLatest', () => {
     activeResult = useCachedLatest('pk1', 0);
     await flushAsync();
 
-    // No DB result, relay path hits catch → source stays 'loading'
+    // No DB result, relay completes without events -> source stays 'loading'
     expect(activeResult.source).toBe('loading');
   });
+
+  // Note: source='relay' path (subscribeMock.next → event + source='relay') cannot be
+  // reliably tested because useCachedLatest's startRelay has multiple async awaits
+  // (dynamic import + getRxNostr) that make mock callback timing non-deterministic.
+  // The relay next handler is covered by integration tests.
 
   it('returns DB cached event even when DB is slow', async () => {
     // Simulate a slow DB that resolves after a delay
@@ -414,7 +418,7 @@ describe('useCachedLatest', () => {
     activeResult = useCachedLatest('pk1', 0);
     await flushAsync();
 
-    // DB failed, relay path catches → event null, settled true
+    // DB failed, relay completes normally -> event null, settled true
     expect(activeResult.event).toBeNull();
     expect(activeResult.settled).toBe(true);
   });
@@ -490,7 +494,7 @@ describe('useCachedLatest', () => {
 
     await flushAsync();
 
-    // After resolution — same object reference provides updated values
+    // After resolution -- same object reference provides updated values
     expect(activeResult.event).toEqual(expect.objectContaining({ content: 'getter test' }));
   });
 });
