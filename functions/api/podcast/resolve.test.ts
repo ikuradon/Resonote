@@ -622,9 +622,11 @@ describe('handleRequest (onRequestGet)', () => {
 
       vi.stubGlobal(
         'fetch',
-        vi.fn().mockImplementation((url: string) => {
-          if (url.includes('bytes=')) {
-            return Promise.resolve(new Response(new ArrayBuffer(0), { status: 200 }));
+        vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+          // fetchAudioMetadata sends Range header — return empty audio data
+          const headers = init?.headers as Record<string, string> | undefined;
+          if (headers?.Range) {
+            return Promise.resolve(new Response(new ArrayBuffer(0), { status: 206 }));
           }
           return Promise.resolve(new Response(siteHtml, { status: 200 }));
         })
@@ -646,9 +648,11 @@ describe('handleRequest (onRequestGet)', () => {
     it('handles root discovery failure gracefully', async () => {
       vi.stubGlobal(
         'fetch',
-        vi.fn().mockImplementation((url: string) => {
-          if (url.includes('bytes=')) {
-            return Promise.resolve(new Response(new ArrayBuffer(0), { status: 200 }));
+        vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+          // fetchAudioMetadata sends Range header — return empty audio data
+          const headers = init?.headers as Record<string, string> | undefined;
+          if (headers?.Range) {
+            return Promise.resolve(new Response(new ArrayBuffer(0), { status: 206 }));
           }
           return Promise.resolve(new Response('Server Error', { status: 500 }));
         })
