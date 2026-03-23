@@ -691,12 +691,11 @@ describe('handleRequest (onRequestGet)', () => {
       const rootHtml =
         '<html><head><link type="application/rss+xml" href="/feed.xml"></head></html>';
 
-      let callCount = 0;
       vi.stubGlobal(
         'fetch',
-        vi.fn().mockImplementation(() => {
-          callCount++;
-          if (callCount === 1) {
+        vi.fn().mockImplementation((url: string | URL) => {
+          const urlStr = url.toString();
+          if (urlStr === 'https://example.com/blog/post') {
             return Promise.resolve(new Response(pageHtml, { status: 200 }));
           }
           return Promise.resolve(new Response(rootHtml, { status: 200 }));

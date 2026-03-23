@@ -105,7 +105,7 @@ import {
   subscribeNotifications
 } from './notifications-view-model.svelte.js';
 
-/** Generate a unique 64-char hex-like ID with no collisions from padEnd */
+/** Generate a unique 64-char hex-like ID with no collisions from padStart */
 function testId(prefix: string): string {
   return prefix.padStart(64, '0');
 }
