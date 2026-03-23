@@ -283,6 +283,15 @@ describe('bookmarks store', () => {
     it('他のブックマークは残る', async () => {
       mockAuthPubkey.value = PUBKEY;
 
+      // Add two bookmarks first
+      mockPublishAddBookmark.mockResolvedValueOnce([
+        ['i', CONTENT_VALUE, OPEN_URL],
+        ['i', 'youtube:video:vid-1', 'https://youtube.com/watch?v=vid-1']
+      ]);
+      await addBookmark(contentId, mockProvider);
+      expect(getBookmarks().entries).toHaveLength(2);
+
+      // Remove one bookmark - publishRemoveBookmark returns remaining tags
       const remaining = [['i', 'youtube:video:vid-1', 'https://youtube.com/watch?v=vid-1']];
       mockPublishRemoveBookmark.mockResolvedValueOnce(remaining);
 
@@ -291,6 +300,8 @@ describe('bookmarks store', () => {
       const bookmarks = getBookmarks();
       expect(bookmarks.entries).toHaveLength(1);
       expect(bookmarks.entries[0].value).toBe('youtube:video:vid-1');
+      // Verify the removed bookmark is no longer present
+      expect(isBookmarked(contentId)).toBe(false);
     });
   });
 });

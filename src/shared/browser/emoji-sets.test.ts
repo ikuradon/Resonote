@@ -341,6 +341,11 @@ describe('loadCustomEmojis', () => {
 
     const e = getCustomEmojis();
     expect(e.loading).toBe(false);
+    // Verify that the last call wins and data is consistent
+    // Both calls use the same mock data, so categories should reflect a single load result
+    expect(e.categories).toHaveLength(1);
+    expect(e.categories[0].id).toBe('custom-inline');
+    expect(e.categories[0].emojis[0].id).toBe('first');
   });
 
   it('不正な setRef (parts < 3) はスキップする', async () => {
