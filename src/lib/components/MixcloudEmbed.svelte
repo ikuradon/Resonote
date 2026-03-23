@@ -120,7 +120,7 @@
     scrolling="no"
     frameborder="no"
     allow="autoplay; encrypted-media"
-    title="Mixcloud Player"
+    title={t('embed.player_title', { platform: 'Mixcloud' })}
   ></iframe>
   {#if error}
     <div class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-surface-1">

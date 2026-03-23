@@ -54,7 +54,7 @@
 
       if (result.error) {
         status = 'error';
-        errorMessage = 'フィードの読み込みに失敗しました';
+        errorMessage = t('podcast.error');
         return;
       }
 
@@ -64,7 +64,7 @@
       status = 'loaded';
     } catch {
       status = 'error';
-      errorMessage = 'フィードの読み込みに失敗しました';
+      errorMessage = t('podcast.error');
     }
   }
 </script>

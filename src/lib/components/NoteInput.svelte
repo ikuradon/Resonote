@@ -9,6 +9,7 @@
   import MobileOverlay from './MobileOverlay.svelte';
   import type { MentionCandidate } from '$features/comments/ui/mention-candidates.js';
   import { npubEncode } from 'nostr-tools/nip19';
+  import { t } from '$shared/i18n/t.js';
 
   interface Props {
     content: string;
@@ -328,7 +329,7 @@
         onclose={() => {
           autocomplete = null;
         }}
-        title={autocomplete.type === 'emoji' ? 'Emoji' : 'Hashtag'}
+        title={autocomplete.type === 'emoji' ? t('autocomplete.emoji') : t('autocomplete.hashtag')}
       >
         <div class="flex flex-col gap-1">
           {#each suggestions as item, i (item.shortcode)}

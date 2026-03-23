@@ -45,14 +45,14 @@
         </a>
 
         <!-- Desktop nav -->
-        <nav aria-label="Main navigation" class="hidden items-center gap-3 lg:flex">
+        <nav aria-label={t('nav.main')} class="hidden items-center gap-3 lg:flex">
           <LanguageSwitcher />
           {#if vm.auth.loggedIn}
             <RelayStatus />
             <a
               href="/bookmarks"
               class="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-surface-1 hover:text-text-secondary"
-              aria-label="Bookmarks"
+              aria-label={t('nav.bookmarks')}
             >
               <svg
                 class="h-4 w-4"
@@ -70,7 +70,7 @@
             <a
               href="/settings"
               class="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-surface-1 hover:text-text-secondary"
-              aria-label="Settings"
+              aria-label={t('nav.settings')}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -103,7 +103,7 @@
             type="button"
             onclick={vm.openMenu}
             class="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-surface-1 hover:text-text-secondary lg:hidden"
-            aria-label="Menu"
+            aria-label={t('nav.menu')}
             aria-expanded={vm.menuOpen}
             data-testid="hamburger-menu-button"
           >
@@ -126,10 +126,10 @@
       </div>
     </header>
 
-    <MobileOverlay open={vm.menuOpen} onclose={vm.closeMenu} title="Menu">
+    <MobileOverlay open={vm.menuOpen} onclose={vm.closeMenu} title={t('nav.menu')}>
       <nav class="flex flex-col gap-1">
         <div class="py-3">
-          <p class="mb-2 text-xs font-medium uppercase text-text-muted">Language</p>
+          <p class="mb-2 text-xs font-medium uppercase text-text-muted">{t('nav.language')}</p>
           <div class="flex gap-2">
             {#each LOCALES as locale (locale.code)}
               <button
@@ -152,7 +152,7 @@
         {#if vm.auth.loggedIn}
           <div class="flex items-center gap-3 rounded-lg px-2 py-3 text-text-secondary">
             <span class="text-lg">📡</span>
-            <span>Relays ({vm.relayConnectedCount}/{vm.relayList.length})</span>
+            <span>{t('nav.relays')} ({vm.relayConnectedCount}/{vm.relayList.length})</span>
           </div>
 
           <a
@@ -161,7 +161,7 @@
             class="flex items-center gap-3 rounded-lg px-2 py-3 text-text-secondary transition-colors hover:bg-surface-1"
           >
             <span class="text-lg">🔖</span>
-            <span>Bookmarks</span>
+            <span>{t('nav.bookmarks')}</span>
           </a>
 
           <a
@@ -170,7 +170,7 @@
             class="flex items-center gap-3 rounded-lg px-2 py-3 text-text-secondary transition-colors hover:bg-surface-1"
           >
             <span class="text-lg">⚙️</span>
-            <span>Settings</span>
+            <span>{t('nav.settings')}</span>
           </a>
         {/if}
 

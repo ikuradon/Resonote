@@ -218,5 +218,16 @@
   "comment.error.contains_private_key": "秘密鍵 (nsec) が含まれています。安全のため投稿をブロックしました。",
   "quote.loading": "読み込み中…",
   "quote.not_found": "引用元が見つかりません",
-  "quote.title": "引用"
+  "quote.title": "引用",
+  "nav.bookmarks": "ブックマーク",
+  "nav.settings": "設定",
+  "nav.menu": "メニュー",
+  "nav.language": "言語",
+  "nav.relays": "リレー",
+  "nav.main": "メインナビゲーション",
+  "podcast.error": "フィードの読み込みに失敗しました",
+  "autocomplete.emoji": "絵文字",
+  "autocomplete.hashtag": "ハッシュタグ",
+  "embed.player_title": "{platform}プレイヤー",
+  "extension.navigate_prompt": "対応サイトに移動して開始してください"
 }

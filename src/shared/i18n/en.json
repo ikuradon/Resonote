@@ -218,5 +218,16 @@
   "comment.error.contains_private_key": "Your comment contains a private key (nsec). Blocked for security.",
   "quote.loading": "Loading…",
   "quote.not_found": "Quoted event not found",
-  "quote.title": "Quote"
+  "quote.title": "Quote",
+  "nav.bookmarks": "Bookmarks",
+  "nav.settings": "Settings",
+  "nav.menu": "Menu",
+  "nav.language": "Language",
+  "nav.relays": "Relays",
+  "nav.main": "Main navigation",
+  "podcast.error": "Failed to load feed",
+  "autocomplete.emoji": "Emoji",
+  "autocomplete.hashtag": "Hashtag",
+  "embed.player_title": "{platform} Player",
+  "extension.navigate_prompt": "Navigate to a supported site to start"
 }
