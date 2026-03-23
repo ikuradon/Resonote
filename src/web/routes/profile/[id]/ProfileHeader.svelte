@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createProfileHeaderViewModel } from '$features/profiles/ui/profile-header-view-model.svelte.js';
   import { t } from '$shared/i18n/t.js';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
 
   interface Props {
     pubkey: string;
@@ -23,19 +24,7 @@
 
 <div class="rounded-xl border border-border-subtle bg-surface-1 p-6">
   <div class="flex items-start gap-4">
-    {#if vm.profileDisplay.picture}
-      <img
-        src={vm.profileDisplay.picture}
-        alt=""
-        class="h-16 w-16 rounded-full object-cover ring-2 ring-border"
-      />
-    {:else}
-      <div
-        class="flex h-16 w-16 items-center justify-center rounded-full bg-surface-3 text-xl text-text-muted"
-      >
-        ?
-      </div>
-    {/if}
+    <UserAvatar pubkey={vm.pubkey} picture={vm.profileDisplay.picture} size="xl" />
     <div class="min-w-0 flex-1">
       <h1 class="font-display text-xl font-semibold text-text-primary">{vm.displayName}</h1>
       {#if vm.profileDisplay.formattedNip05}
@@ -76,19 +65,7 @@
           href={follow.profileHref}
           class="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface-1"
         >
-          {#if follow.picture}
-            <img
-              src={follow.picture}
-              alt=""
-              class="h-6 w-6 rounded-full object-cover ring-1 ring-border"
-            />
-          {:else}
-            <div
-              class="flex h-6 w-6 items-center justify-center rounded-full bg-surface-3 text-xs text-text-muted"
-            >
-              ?
-            </div>
-          {/if}
+          <UserAvatar pubkey={pk} picture={follow.picture} size="sm" />
           <span class="truncate text-sm text-text-primary">{follow.displayName}</span>
         </a>
       {/each}

@@ -9,6 +9,7 @@
   import NoteInput from './NoteInput.svelte';
   import CommentCard from './CommentCard.svelte';
   import QuoteCard from './QuoteCard.svelte';
+  import UserAvatar from './UserAvatar.svelte';
 
   interface Props {
     comment: Comment;
@@ -92,7 +93,6 @@
   }: Props = $props();
 
   const segments = $derived(parseCommentContent(comment.content, comment.emojiTags));
-  const avatarSize = $derived(compact ? 'h-5 w-5' : 'h-6 w-6');
 </script>
 
 {#snippet heartIcon(filled: boolean)}
@@ -122,19 +122,7 @@
 >
   <div class="{compact ? 'mb-1.5' : 'mb-2'} flex items-center justify-between">
     <div class="flex items-center gap-2">
-      {#if author.picture}
-        <img
-          src={author.picture}
-          alt=""
-          class="{avatarSize} rounded-full object-cover ring-1 ring-border"
-        />
-      {:else}
-        <div
-          class="flex {avatarSize} items-center justify-center rounded-full bg-surface-3 text-xs text-text-muted"
-        >
-          ?
-        </div>
-      {/if}
+      <UserAvatar pubkey={comment.pubkey} picture={author.picture} size={compact ? 'xs' : 'sm'} />
       <a href={author.profileHref} class="text-xs font-medium text-accent hover:underline"
         >{author.displayName}</a
       >
