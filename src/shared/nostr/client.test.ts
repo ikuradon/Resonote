@@ -123,6 +123,7 @@ describe('castSigned', () => {
       // 2 relays, threshold 0.5 → need 1 OK
       Promise.resolve().then(() => {
         callbacks.next?.({ ok: true });
+        callbacks.complete?.();
       });
       return { unsubscribe: vi.fn() };
     });
