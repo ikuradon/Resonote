@@ -5,8 +5,8 @@ const { logInfoMock, logErrorMock, mockEventsDB, mockRxNostr } = vi.hoisted(() =
   logInfoMock: vi.fn(),
   logErrorMock: vi.fn(),
   mockEventsDB: {
-    getByPubkeyAndKind: vi.fn(async () => null),
-    getByReplaceKey: vi.fn(async () => null),
+    getByPubkeyAndKind: vi.fn(async (): Promise<Record<string, unknown> | null> => null),
+    getByReplaceKey: vi.fn(async (): Promise<Record<string, unknown> | null> => null),
     put: vi.fn(async () => {})
   },
   mockRxNostr: {

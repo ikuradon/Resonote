@@ -49,7 +49,7 @@ const CONTENT_VALUE = 'spotify:track:track-1';
 const OPEN_URL = 'https://open.spotify.com/track/track-1';
 
 const mockProvider = {
-  openUrl: (_id: ContentId) => OPEN_URL
+  openUrl: () => OPEN_URL
 };
 
 describe('bookmarks store', () => {
