@@ -12,8 +12,12 @@ type UseCallbacks = {
   error?: () => void;
 };
 
-const sendSubscribeMock = vi.fn((_callbacks: SendCallbacks) => ({ unsubscribe: vi.fn() }));
-const useSubscribeMock = vi.fn((_callbacks: UseCallbacks) => ({ unsubscribe: vi.fn() }));
+const sendSubscribeMock = vi.fn<(callbacks: SendCallbacks) => { unsubscribe: () => void }>(() => ({
+  unsubscribe: vi.fn()
+}));
+const useSubscribeMock = vi.fn<(callbacks: UseCallbacks) => { unsubscribe: () => void }>(() => ({
+  unsubscribe: vi.fn()
+}));
 
 const mockRxNostr = {
   setDefaultRelays: vi.fn(),
