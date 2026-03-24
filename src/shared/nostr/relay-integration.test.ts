@@ -10,7 +10,16 @@ import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { COMMENT_KIND, REACTION_KIND, RELAY_LIST_KIND } from './events.js';
-import { DEFAULT_RELAYS } from './relays.js';
+
+// Use .test TLD relays to prevent leaks if MockPool fails to intercept WebSocket
+const TEST_RELAYS = [
+  'wss://relay1.test',
+  'wss://relay2.test',
+  'wss://relay3.test',
+  'wss://relay4.test'
+];
+
+vi.mock('./relays.js', () => ({ DEFAULT_RELAYS: TEST_RELAYS }));
 
 let pool: MockPool;
 let relays: MockRelay[];
@@ -20,7 +29,7 @@ let sk: Uint8Array;
 
 beforeEach(() => {
   pool = new MockPool();
-  relays = DEFAULT_RELAYS.map((url) => pool.relay(url));
+  relays = TEST_RELAYS.map((url) => pool.relay(url));
   pool.install();
 
   sk = generateSecretKey();
@@ -203,7 +212,7 @@ describe('Multi-relay behavior (integration)', () => {
 
   it('should succeed when one relay is slow', async () => {
     // Make first relay slow
-    pool.relay(DEFAULT_RELAYS[0], { latency: 3000 });
+    pool.relay(TEST_RELAYS[0], { latency: 3000 });
 
     const event = await EventBuilder.kind(0)
       .content(JSON.stringify({ name: 'from-fast-relay' }))

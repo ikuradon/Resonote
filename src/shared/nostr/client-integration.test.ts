@@ -3,7 +3,15 @@ import { EventBuilder, waitFor } from '@ikuradon/tsunagiya/testing';
 import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DEFAULT_RELAYS } from './relays.js';
+// Use .test TLD relays to prevent leaks if MockPool fails to intercept WebSocket
+const TEST_RELAYS = [
+  'wss://relay1.test',
+  'wss://relay2.test',
+  'wss://relay3.test',
+  'wss://relay4.test'
+];
+
+vi.mock('./relays.js', () => ({ DEFAULT_RELAYS: TEST_RELAYS }));
 
 let pool: MockPool;
 let relays: MockRelay[];
@@ -13,7 +21,7 @@ let sk: Uint8Array;
 
 beforeEach(() => {
   pool = new MockPool();
-  relays = DEFAULT_RELAYS.map((url) => pool.relay(url));
+  relays = TEST_RELAYS.map((url) => pool.relay(url));
   pool.install();
 
   sk = generateSecretKey();
