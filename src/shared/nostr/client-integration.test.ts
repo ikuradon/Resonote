@@ -3,7 +3,7 @@ import { EventBuilder, waitFor } from '@ikuradon/tsunagiya/testing';
 import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { TEST_RELAYS } from '../../../e2e/helpers/test-relays.js';
+import { TEST_RELAYS } from './test-relays.js';
 
 vi.mock('./relays.js', () => ({ DEFAULT_RELAYS: TEST_RELAYS }));
 

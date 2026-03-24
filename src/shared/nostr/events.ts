@@ -169,7 +169,7 @@ export function buildShare(
   appendContentTags(tags, content, emojiTags);
 
   return {
-    kind: 1,
+    kind: SHORT_TEXT_KIND,
     content,
     tags
   };

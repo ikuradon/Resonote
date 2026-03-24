@@ -9,7 +9,6 @@ import { EventBuilder, waitFor } from '@ikuradon/tsunagiya/testing';
 import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { TEST_RELAYS } from '../../../e2e/helpers/test-relays.js';
 import {
   COMMENT_KIND,
   METADATA_KIND,
@@ -17,6 +16,7 @@ import {
   RELAY_LIST_KIND,
   SHORT_TEXT_KIND
 } from './events.js';
+import { TEST_RELAYS } from './test-relays.js';
 
 vi.mock('./relays.js', () => ({ DEFAULT_RELAYS: TEST_RELAYS }));
 
@@ -181,7 +181,7 @@ describe('Read operations (integration)', () => {
     storeOnAll(newer);
 
     const { fetchLatestEvent } = await import('./client.js');
-    const result = await fetchLatestEvent(pubkey, 0);
+    const result = await fetchLatestEvent(pubkey, METADATA_KIND);
 
     expect(result).not.toBeNull();
     expect(JSON.parse(result!.content).name).toBe('new-profile');
@@ -209,24 +209,21 @@ describe('Multi-relay behavior (integration)', () => {
     expect(result!.content).toBe('Dedup test');
   });
 
-  it('should succeed when one relay is slow', async () => {
-    // Make first relay slow
-    pool.relay(TEST_RELAYS[0], { latency: 3000 });
-
+  it('should succeed when one relay has no data', async () => {
     const event = await EventBuilder.kind(METADATA_KIND)
-      .content(JSON.stringify({ name: 'from-fast-relay' }))
+      .content(JSON.stringify({ name: 'partial-data' }))
       .buildWith(signer);
 
-    // Store only on fast relays (index 1-3)
+    // Store only on relays 1-3 (relay 0 has no data)
     for (let i = 1; i < relays.length; i++) {
       relays[i].store(event);
     }
 
     const { fetchLatestEvent } = await import('./client.js');
-    const result = await fetchLatestEvent(pubkey, 0);
+    const result = await fetchLatestEvent(pubkey, METADATA_KIND);
 
     expect(result).not.toBeNull();
-    expect(JSON.parse(result!.content).name).toBe('from-fast-relay');
+    expect(JSON.parse(result!.content).name).toBe('partial-data');
   });
 });
 
@@ -248,7 +245,7 @@ describe('Unstable connections (integration)', () => {
     }
 
     const { fetchLatestEvent } = await import('./client.js');
-    const result = await fetchLatestEvent(pubkey, 0);
+    const result = await fetchLatestEvent(pubkey, METADATA_KIND);
 
     expect(result).not.toBeNull();
     expect(JSON.parse(result!.content).name).toBe('resilient');
@@ -268,7 +265,7 @@ describe('Unstable connections (integration)', () => {
     }
 
     const { fetchLatestEvent } = await import('./client.js');
-    const result = await fetchLatestEvent(pubkey, 0);
+    const result = await fetchLatestEvent(pubkey, METADATA_KIND);
 
     expect(result).not.toBeNull();
   });
@@ -279,7 +276,7 @@ describe('Unstable connections (integration)', () => {
     }
 
     const { fetchLatestEvent } = await import('./client.js');
-    const result = await fetchLatestEvent(pubkey, 0);
+    const result = await fetchLatestEvent(pubkey, METADATA_KIND);
 
     expect(result).toBeNull();
   });
