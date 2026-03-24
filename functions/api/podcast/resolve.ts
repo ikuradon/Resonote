@@ -1,5 +1,6 @@
 import { finalizeEvent } from 'nostr-tools/pure';
 import { hexToBytes } from 'nostr-tools/utils';
+
 import { fetchAudioMetadata } from '../../lib/audio-metadata.js';
 import { assertSafeUrl, safeFetch, safeReadText } from '../../lib/url-validation.js';
 

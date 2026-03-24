@@ -1,12 +1,13 @@
 <script lang="ts">
   import { createAsyncReadyTimeout } from '$shared/browser/async-ready-timeout.js';
-  import { loadExternalScript } from '$shared/browser/script-loader.js';
-  import type { ContentId } from '$shared/content/types.js';
-  import { MixcloudProvider } from '$shared/content/mixcloud.js';
   import { updatePlayback } from '$shared/browser/player.js';
+  import { loadExternalScript } from '$shared/browser/script-loader.js';
   import { onSeek } from '$shared/browser/seek-bridge.js';
+  import { MixcloudProvider } from '$shared/content/mixcloud.js';
+  import type { ContentId } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
   import { createLogger } from '$shared/utils/logger.js';
+
   import EmbedLoading from './EmbedLoading.svelte';
 
   const log = createLogger('MixcloudEmbed');

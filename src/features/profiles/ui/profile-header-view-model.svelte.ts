@@ -3,9 +3,8 @@ import { getFollows } from '$shared/browser/follows.js';
 import { hasNip44Support, isMuted } from '$shared/browser/mute.js';
 import {
   fetchProfiles,
-  getProfileDisplay,
   getProfile,
-  type Profile,
+  getProfileDisplay,
   type ProfileDisplay
 } from '$shared/browser/profile.js';
 
@@ -25,7 +24,7 @@ export function createProfileHeaderViewModel(options: ProfileHeaderViewModelOpti
   let pubkey = $derived(options.getPubkey());
   let followsCount = $derived(options.getFollowsCount());
   let followsPubkeys = $derived(options.getFollowsPubkeys());
-  let profile = $derived(getProfile(pubkey) as Profile | undefined);
+  let profile = $derived(getProfile(pubkey));
   let profileDisplay = $derived(getProfileDisplay(pubkey));
   let isOwnProfile = $derived(auth.pubkey !== null && pubkey === auth.pubkey);
   let isFollowing = $derived(follows.follows.has(pubkey));
@@ -37,7 +36,7 @@ export function createProfileHeaderViewModel(options: ProfileHeaderViewModelOpti
     preloadedFollowsKey = nextKey;
 
     for (let i = 0; i < followsPubkeys.length; i += 50) {
-      fetchProfiles(followsPubkeys.slice(i, i + 50));
+      void fetchProfiles(followsPubkeys.slice(i, i + 50));
     }
   }
 

@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-type SubscribeCallbacks = {
+interface SubscribeCallbacks {
   next?: (packet: { event: Record<string, unknown> }) => void;
   complete?: () => void;
   error?: () => void;
-};
+}
 
 const { dbGetByIdMock, dbGetByPubkeyAndKindMock, subscribeMock } = vi.hoisted(() => ({
   dbGetByIdMock: vi.fn(async (): Promise<Record<string, unknown> | null> => null),
   dbGetByPubkeyAndKindMock: vi.fn(async (): Promise<Record<string, unknown> | null> => null),
   subscribeMock: vi.fn((callbacks: SubscribeCallbacks) => {
     // Default: synchronous EOSE (no setTimeout to avoid fake timer issues)
-    Promise.resolve().then(() => callbacks.complete?.());
+    void Promise.resolve().then(() => callbacks.complete?.());
     return { unsubscribe: vi.fn() };
   })
 }));
@@ -56,7 +56,7 @@ describe('cachedFetchById', () => {
     dbGetByIdMock.mockResolvedValue(null);
     subscribeMock.mockClear();
     subscribeMock.mockImplementation((callbacks: SubscribeCallbacks) => {
-      Promise.resolve().then(() => callbacks.complete?.());
+      void Promise.resolve().then(() => callbacks.complete?.());
       return { unsubscribe: vi.fn() };
     });
   });
@@ -108,7 +108,7 @@ describe('cachedFetchById', () => {
 
     // DB returns null (default), but relay fires next before complete
     subscribeMock.mockImplementation((callbacks: SubscribeCallbacks) => {
-      Promise.resolve().then(() => {
+      void Promise.resolve().then(() => {
         callbacks.next?.({ event: relayEvent });
         callbacks.complete?.();
       });
@@ -156,7 +156,7 @@ describe('invalidatedDuringFetch race condition', () => {
     dbGetByIdMock.mockResolvedValue(null);
     subscribeMock.mockReset();
     subscribeMock.mockImplementation((callbacks: SubscribeCallbacks) => {
-      Promise.resolve().then(() => callbacks.complete?.());
+      void Promise.resolve().then(() => callbacks.complete?.());
       return { unsubscribe: vi.fn() };
     });
   });
@@ -200,7 +200,7 @@ describe('invalidatedDuringFetch race condition', () => {
     const relayEvent = { id: 'race-relay2', content: 'relay-result', kind: 1111 };
 
     subscribeMock.mockImplementation((callbacks: SubscribeCallbacks) => {
-      Promise.resolve().then(() => {
+      void Promise.resolve().then(() => {
         callbacks.next?.({ event: relayEvent });
         callbacks.complete?.();
       });
@@ -223,7 +223,7 @@ describe('invalidatedDuringFetch race condition', () => {
     const callsBefore = dbGetByIdMock.mock.calls.length;
     dbGetByIdMock.mockResolvedValueOnce({ id: 'race-relay2', content: 'updated', kind: 1111 });
     subscribeMock.mockImplementation((callbacks: SubscribeCallbacks) => {
-      Promise.resolve().then(() => callbacks.complete?.());
+      void Promise.resolve().then(() => callbacks.complete?.());
       return { unsubscribe: vi.fn() };
     });
     const result2 = await cachedFetchById('race-relay2');
@@ -327,7 +327,7 @@ describe('useCachedLatest', () => {
     dbGetByPubkeyAndKindMock.mockResolvedValue(null);
     subscribeMock.mockClear();
     subscribeMock.mockImplementation((callbacks: SubscribeCallbacks) => {
-      Promise.resolve().then(() => callbacks.complete?.());
+      void Promise.resolve().then(() => callbacks.complete?.());
       return { unsubscribe: vi.fn() };
     });
   });

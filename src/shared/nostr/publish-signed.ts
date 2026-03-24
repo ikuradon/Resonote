@@ -1,10 +1,11 @@
 import type { EventParameters } from 'nostr-typedef';
+
 import type { PendingEvent } from './pending-publishes.js';
 import {
   addPendingPublish,
+  cleanExpired,
   getPendingPublishes,
-  removePendingPublish,
-  cleanExpired
+  removePendingPublish
 } from './pending-publishes.js';
 
 type PublishableEvent = PendingEvent | EventParameters;

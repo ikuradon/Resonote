@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import { getProvider, parseContentUrl } from '$shared/content/registry.js';
 
 describe('registry', () => {

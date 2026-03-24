@@ -4,11 +4,11 @@
  */
 
 export {
-  getToasts,
   dismiss,
-  toastSuccess,
+  getToasts,
+  type Toast,
   toastError,
   toastInfo,
-  type Toast,
+  toastSuccess,
   type ToastType
 } from './toast.svelte.js';

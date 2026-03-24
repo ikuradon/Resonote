@@ -231,6 +231,7 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
 - shared nostr テスト:
   - `src/shared/nostr/cached-query.test.ts` (TTL, invalidate, fetch dedup)
 - Codecov: `require_changes: true` のため、カバレッジ変化のない PR にはコメントが付かない
+- ESLint: テストファイル (`*.test.ts`) では `@typescript-eslint/require-await` を off。Mock 関数は `async` でもインターフェース準拠のために `await` 不要なケースが多い
 
 ## Deployment
 

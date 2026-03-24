@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 const embedLocator = '[data-testid="spotify-embed"]';
 
@@ -16,7 +16,7 @@ test.describe('Resilience', () => {
   test('should handle very long URL input without crashing', async ({ page }) => {
     await page.goto('/');
     const input = page.locator('[data-testid="track-url-input"]');
-    const longUrl = 'https://open.spotify.com/track/' + 'a'.repeat(1000);
+    const longUrl = `https://open.spotify.com/track/${'a'.repeat(1000)}`;
     await input.fill(longUrl);
     await page.locator('[data-testid="track-submit-button"]').click();
     // Should navigate (the regex will match the long ID)

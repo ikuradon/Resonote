@@ -1,12 +1,14 @@
 import 'fake-indexeddb/auto';
-import { describe, it, expect, beforeEach } from 'vitest';
+
+import { beforeEach, describe, expect, it } from 'vitest';
+
 import {
   addPendingPublish,
-  getPendingPublishes,
-  removePendingPublish,
   cleanExpired,
-  resetPendingDB,
-  PENDING_TTL_MS
+  getPendingPublishes,
+  PENDING_TTL_MS,
+  removePendingPublish,
+  resetPendingDB
 } from './pending-publishes.js';
 
 let dbCounter = 0;

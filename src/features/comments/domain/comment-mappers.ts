@@ -3,9 +3,11 @@
  * No side effects, no infra dependencies.
  */
 
-import type { Comment, PlaceholderComment, Reaction, NostrEvent } from './comment-model.js';
+// eslint-disable-next-line no-restricted-imports -- parsePosition is a pure string parser with no infra side effects
 import { parsePosition } from '$shared/nostr/events.js';
 import { isEmojiTag } from '$shared/utils/emoji.js';
+
+import type { Comment, NostrEvent, PlaceholderComment, Reaction } from './comment-model.js';
 
 /** Convert a kind:1111 Nostr event into a Comment domain model. */
 export function commentFromEvent(

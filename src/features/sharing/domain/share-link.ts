@@ -1,4 +1,5 @@
 import type { ContentId } from '$shared/content/types.js';
+// eslint-disable-next-line no-restricted-imports -- encodeContentLink is a pure encoding function with no infra side effects
 import { encodeContentLink } from '$shared/nostr/content-link.js';
 
 export function buildDefaultShareContent(openUrl: string, pageUrl: string): string {

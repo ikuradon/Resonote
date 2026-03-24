@@ -1,4 +1,6 @@
 import { afterNavigate } from '$app/navigation';
+import { initApp } from '$appcore/bootstrap/init-app.js';
+import { manageNotifications } from '$appcore/bootstrap/init-notifications.svelte.js';
 import { getAuth } from '$shared/browser/auth.js';
 import { isExtensionMode } from '$shared/browser/extension.js';
 import { getFollows } from '$shared/browser/follows.js';
@@ -9,8 +11,6 @@ import {
   initRelayStatus,
   isTransitionalState
 } from '$shared/browser/relays.js';
-import { initApp } from '$appcore/bootstrap/init-app.js';
-import { manageNotifications } from '$appcore/bootstrap/init-notifications.svelte.js';
 import { getDeployEnv, getEnvBannerConfig } from '$shared/utils/deploy-env.js';
 
 export function createAppShellViewModel() {

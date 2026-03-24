@@ -38,7 +38,7 @@ export function resetFetchByIdCache(): void {
 
 export async function cachedFetchById(eventId: string): Promise<FetchedEventFull | null> {
   if (fetchByIdCache.has(eventId)) {
-    const cached = fetchByIdCache.get(eventId)!;
+    const cached = fetchByIdCache.get(eventId) ?? null;
     if (cached !== null) return cached;
     // Null entry — check TTL
     const ts = nullCacheTimestamps.get(eventId);
@@ -94,15 +94,17 @@ async function cachedFetchByIdInner(eventId: string): Promise<FetchedEventFull |
       }, 5000);
 
       const sub = rxNostr.use(req).subscribe({
-        next: async (packet) => {
+        next: (packet) => {
           found = packet.event as FetchedEventFull;
-          try {
-            const { getEventsDB } = await import('$shared/nostr/gateway.js');
-            const db = await getEventsDB();
-            await db.put(packet.event);
-          } catch {
-            // DB not available
-          }
+          void (async () => {
+            try {
+              const { getEventsDB } = await import('$shared/nostr/gateway.js');
+              const db = await getEventsDB();
+              await db.put(packet.event);
+            } catch {
+              // DB not available
+            }
+          })();
         },
         complete: () => {
           clearTimeout(timeout);
@@ -190,8 +192,10 @@ export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestRe
         import('rx-nostr'),
         import('$shared/nostr/gateway.js')
       ]);
+
       if (destroyed) return;
       const rxNostr = await getRxNostr();
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- destroyed may become true during preceding awaits
       if (destroyed) return;
 
       const req = createRxBackwardReq();
@@ -204,7 +208,7 @@ export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestRe
       }, 10_000);
 
       sub = rxNostr.use(req).subscribe({
-        next: async (packet) => {
+        next: (packet) => {
           if (destroyed) return;
           const incoming = packet.event as CachedEvent;
           if (event === null || incoming.created_at > event.created_at) {
@@ -215,13 +219,15 @@ export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestRe
               kind
             });
           }
-          try {
-            const { getEventsDB } = await import('$shared/nostr/gateway.js');
-            const db = await getEventsDB();
-            await db.put(packet.event);
-          } catch {
-            // DB not available
-          }
+          void (async () => {
+            try {
+              const { getEventsDB } = await import('$shared/nostr/gateway.js');
+              const db = await getEventsDB();
+              await db.put(packet.event);
+            } catch {
+              // DB not available
+            }
+          })();
         },
         complete: () => {
           if (!destroyed) {
@@ -246,8 +252,8 @@ export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestRe
     }
   };
 
-  startDB();
-  startRelay();
+  void startDB();
+  void startRelay();
 
   return {
     get event() {

@@ -25,8 +25,8 @@ vi.mock('$shared/i18n/t.js', () => ({
   t: (key: string) => key
 }));
 
-import { createRelaySettingsViewModel } from './relay-settings-view-model.svelte.js';
 import type { RelayState } from '../domain/relay-model.js';
+import { createRelaySettingsViewModel } from './relay-settings-view-model.svelte.js';
 
 const liveRelays: RelayState[] = [
   { url: 'wss://relay.damus.io', state: 'connected' },

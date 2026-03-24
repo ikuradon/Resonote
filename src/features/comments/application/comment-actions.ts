@@ -5,10 +5,11 @@
  */
 
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
-import type { Comment } from '../domain/comment-model.js';
-import { buildComment, buildReaction, buildDeletion, COMMENT_KIND } from '$shared/nostr/events.js';
+import { buildComment, buildDeletion, buildReaction, COMMENT_KIND } from '$shared/nostr/events.js';
 import { castSigned } from '$shared/nostr/gateway.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
+
+import type { Comment } from '../domain/comment-model.js';
 
 const log = createLogger('comment-actions');
 

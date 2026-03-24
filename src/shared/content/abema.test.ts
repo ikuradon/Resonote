@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import { AbemaProvider } from '$shared/content/abema.js';
 
 const provider = new AbemaProvider();

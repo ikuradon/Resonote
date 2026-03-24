@@ -50,12 +50,12 @@ vi.mock('$shared/utils/logger.js', () => ({
 
 import {
   clearFollows,
+  followUser,
   getFollows,
   loadFollows,
   matchesFilter,
-  followUser,
-  unfollowUser,
-  refreshFollows
+  refreshFollows,
+  unfollowUser
 } from './follows.svelte.js';
 
 // ---- helpers ----
@@ -66,7 +66,7 @@ const STRANGER = '33333333'.repeat(8);
 
 function makeKind3Event(pubkey: string, followPubkeys: string[]) {
   return {
-    id: 'evt-' + pubkey.slice(0, 4),
+    id: `evt-${pubkey.slice(0, 4)}`,
     pubkey,
     kind: 3,
     created_at: 1_000_000,

@@ -3,24 +3,24 @@
  * Relays state bridge — re-exports for route/component access.
  */
 export {
-  getRelays,
-  publishRelayList,
-  refreshRelayList,
-  initRelayStatus,
   destroyRelayStatus,
   fetchRelayList,
+  getRelays,
+  initRelayStatus,
+  publishRelayList,
+  refreshRelayList,
   type RelayListResult
 } from './relays.svelte.js';
 export type {
-  RelayEntry,
   ConnectionState,
+  RelayEntry,
   RelayState
-} from '../../features/relays/domain/relay-model.js';
+} from '$features/relays/domain/relay-model.js';
 export {
-  parseRelayTags,
-  shortUrl,
-  stateColor,
   isTransitionalState,
-  relayStateLabelKey
-} from '../../features/relays/domain/relay-model.js';
-export { createRelaySettingsViewModel } from '../../features/relays/ui/relay-settings-view-model.svelte.js';
+  parseRelayTags,
+  relayStateLabelKey,
+  shortUrl,
+  stateColor
+} from '$features/relays/domain/relay-model.js';
+export { createRelaySettingsViewModel } from '$features/relays/ui/relay-settings-view-model.svelte.js';

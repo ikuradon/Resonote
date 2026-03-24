@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
   mountPodbeanWidget,
-  type PodbeanWidgetApi,
-  type PodbeanProgressEvent
+  type PodbeanProgressEvent,
+  type PodbeanWidgetApi
 } from '$shared/browser/podbean-widget.js';
 
 const { loadExternalScriptMock } = vi.hoisted(() => ({

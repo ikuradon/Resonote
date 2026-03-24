@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { MockPool, type MockRelay, type EventSigner } from '@ikuradon/tsunagiya';
+import { type EventSigner, MockPool, type MockRelay } from '@ikuradon/tsunagiya';
 import { EventBuilder, waitFor } from '@ikuradon/tsunagiya/testing';
-import { generateSecretKey, getPublicKey, finalizeEvent } from 'nostr-tools/pure';
+import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { DEFAULT_RELAYS } from './relays.js';
 
 let pool: MockPool;
@@ -27,7 +28,7 @@ beforeEach(() => {
 
   // Mock window.nostr for castSigned (NIP-07)
   vi.stubGlobal('window', {
-    ...(globalThis.window ?? {}),
+    ...globalThis.window,
     nostr: {
       getPublicKey: async () => pubkey,
       signEvent: async (event: {

@@ -34,6 +34,7 @@ vi.mock('./auth.svelte.js', () => ({
 }));
 
 import type { ContentId } from '$shared/content/types.js';
+
 import {
   addBookmark,
   clearBookmarks,

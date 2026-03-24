@@ -1,9 +1,10 @@
-import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import { getAuth } from '$shared/browser/auth.js';
 import { copyToClipboard } from '$shared/browser/clipboard.js';
 import { getPlayer } from '$shared/browser/player.js';
+import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import { DEFAULT_RELAYS } from '$shared/nostr/relays.js';
 import { createLogger } from '$shared/utils/logger.js';
+
 import { sendShare } from '../application/share-actions.js';
 import { buildDefaultShareContent, buildResonoteShareUrl } from '../domain/share-link.js';
 

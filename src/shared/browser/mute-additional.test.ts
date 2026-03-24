@@ -1,4 +1,4 @@
-import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { authState, publishMuteListMock } = vi.hoisted(() => ({
   authState: { pubkey: null as string | null },
@@ -35,8 +35,8 @@ import {
   clearMuteList,
   getMuteList,
   muteUser,
-  unmuteUser,
   muteWord,
+  unmuteUser,
   unmuteWord
 } from './mute.svelte.js';
 

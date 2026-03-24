@@ -2,8 +2,9 @@
  * WoT fetcher — encapsulates rx-nostr subscription for follows + 2-hop WoT.
  */
 
-import { extractFollows } from '../domain/follow-model.js';
 import { createLogger } from '$shared/utils/logger.js';
+
+import { extractFollows } from '../domain/follow-model.js';
 
 const log = createLogger('wot-fetcher');
 const FOLLOW_KIND = 3;
@@ -36,7 +37,7 @@ export async function fetchWot(pubkey: string, callbacks: WotProgressCallback): 
     const sub = rxNostr.use(req).subscribe({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       next: (packet: any) => {
-        eventsDB.put(packet.event);
+        void eventsDB.put(packet.event);
         if (!latestEvent || packet.event.created_at > latestEvent.created_at) {
           latestEvent = packet.event;
         }
@@ -75,7 +76,7 @@ export async function fetchWot(pubkey: string, callbacks: WotProgressCallback): 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       next: (packet: any) => {
         if (callbacks.isCancelled()) return;
-        eventsDB.put(packet.event);
+        void eventsDB.put(packet.event);
         for (const tag of packet.event.tags) {
           if (tag[0] === 'p' && tag[1]) allWot.add(tag[1]);
         }

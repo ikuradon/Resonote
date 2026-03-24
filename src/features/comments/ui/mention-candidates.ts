@@ -4,8 +4,9 @@
  * a ranked, deduplicated candidate list.
  */
 
-import { formatDisplayName, type Profile } from '$features/profiles/domain/profile-model.js';
 import { npubEncode } from 'nostr-tools/nip19';
+
+import { formatDisplayName, type Profile } from '$features/profiles/domain/profile-model.js';
 
 export interface MentionCandidate {
   pubkey: string;

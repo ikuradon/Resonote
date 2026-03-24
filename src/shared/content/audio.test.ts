@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import { AudioProvider } from '$shared/content/audio.js';
 import { toBase64url } from '$shared/content/url-utils.js';
 

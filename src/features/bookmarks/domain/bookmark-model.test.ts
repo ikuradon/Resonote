@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import {
-  parseBookmarkTags,
-  isAlreadyBookmarked,
   addBookmarkTag,
+  isAlreadyBookmarked,
+  parseBookmarkTags,
   removeBookmarkTag
 } from './bookmark-model.js';
 

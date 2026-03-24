@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { isSafeUrl, isValidContentId, isKnownMessageType } from './messages.js';
+
+import { isKnownMessageType, isSafeUrl, isValidContentId } from './messages.js';
 
 describe('isSafeUrl', () => {
   it('accepts https URLs', () => {

@@ -1,16 +1,16 @@
-import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-type SendCallbacks = {
+interface SendCallbacks {
   next?: (packet: { ok: boolean }) => void;
   complete?: () => void;
   error?: (err: unknown) => void;
-};
+}
 
-type UseCallbacks = {
+interface UseCallbacks {
   next?: (packet: { event: Record<string, unknown> }) => void;
   complete?: () => void;
   error?: () => void;
-};
+}
 
 const sendSubscribeMock = vi.fn<(callbacks: SendCallbacks) => { unsubscribe: () => void }>(() => ({
   unsubscribe: vi.fn()
@@ -121,7 +121,7 @@ describe('castSigned', () => {
 
     sendSubscribeMock.mockImplementation((callbacks: SendCallbacks) => {
       // 2 relays, threshold 0.5 → need 1 OK
-      Promise.resolve().then(() => {
+      void Promise.resolve().then(() => {
         callbacks.next?.({ ok: true });
         callbacks.complete?.();
       });
@@ -136,7 +136,7 @@ describe('castSigned', () => {
     await getRxNostr();
 
     sendSubscribeMock.mockImplementation((callbacks: SendCallbacks) => {
-      Promise.resolve().then(() => {
+      void Promise.resolve().then(() => {
         callbacks.next?.({ ok: false });
         callbacks.next?.({ ok: true });
         callbacks.complete?.();
@@ -152,7 +152,7 @@ describe('castSigned', () => {
     await getRxNostr();
 
     sendSubscribeMock.mockImplementation((callbacks: SendCallbacks) => {
-      Promise.resolve().then(() => {
+      void Promise.resolve().then(() => {
         callbacks.next?.({ ok: false });
         callbacks.next?.({ ok: false });
         callbacks.complete?.();
@@ -170,7 +170,7 @@ describe('castSigned', () => {
     await getRxNostr();
 
     sendSubscribeMock.mockImplementation((callbacks: SendCallbacks) => {
-      Promise.resolve().then(() => {
+      void Promise.resolve().then(() => {
         callbacks.error?.(new Error('Network failure'));
       });
       return { unsubscribe: vi.fn() };
@@ -186,7 +186,7 @@ describe('castSigned', () => {
     await getRxNostr();
 
     sendSubscribeMock.mockImplementation((callbacks: SendCallbacks) => {
-      Promise.resolve().then(() => {
+      void Promise.resolve().then(() => {
         callbacks.next?.({ ok: true });
         // Second OK and complete arrive after resolve — should not cause issues
         callbacks.next?.({ ok: true });
@@ -205,7 +205,7 @@ describe('castSigned', () => {
     await getRxNostr();
 
     sendSubscribeMock.mockImplementation((callbacks: SendCallbacks) => {
-      Promise.resolve().then(() => {
+      void Promise.resolve().then(() => {
         callbacks.next?.({ ok: true });
         // Error after resolve — should be harmless
         callbacks.error?.(new Error('late error'));
@@ -230,7 +230,7 @@ describe('fetchLatestEvent', () => {
     const event2 = { tags: [], content: 'new', created_at: 200, kind: 0, pubkey: 'pk1', id: 'e2' };
 
     useSubscribeMock.mockImplementation((callbacks: UseCallbacks) => {
-      Promise.resolve().then(() => {
+      void Promise.resolve().then(() => {
         callbacks.next?.({ event: event1 });
         callbacks.next?.({ event: event2 });
         callbacks.complete?.();
@@ -247,7 +247,7 @@ describe('fetchLatestEvent', () => {
     await getRxNostr();
 
     useSubscribeMock.mockImplementation((callbacks: UseCallbacks) => {
-      Promise.resolve().then(() => {
+      void Promise.resolve().then(() => {
         callbacks.complete?.();
       });
       return { unsubscribe: vi.fn() };
@@ -271,7 +271,7 @@ describe('fetchLatestEvent', () => {
     };
 
     useSubscribeMock.mockImplementation((callbacks: UseCallbacks) => {
-      Promise.resolve().then(() => {
+      void Promise.resolve().then(() => {
         callbacks.next?.({ event });
         callbacks.error?.();
       });
@@ -287,7 +287,7 @@ describe('fetchLatestEvent', () => {
     await getRxNostr();
 
     useSubscribeMock.mockImplementation((callbacks: UseCallbacks) => {
-      Promise.resolve().then(() => {
+      void Promise.resolve().then(() => {
         callbacks.error?.();
       });
       return { unsubscribe: vi.fn() };
@@ -314,7 +314,7 @@ describe('fetchLatestEvent', () => {
 
     // Subscribe sends one event but never completes
     useSubscribeMock.mockImplementation((callbacks: UseCallbacks) => {
-      Promise.resolve().then(() => {
+      void Promise.resolve().then(() => {
         callbacks.next?.({ event });
         // never calls complete or error
       });
@@ -357,7 +357,7 @@ describe('fetchLatestEvent', () => {
     const older = { tags: [], content: 'older', created_at: 100, kind: 0, pubkey: 'pk1', id: 'e2' };
 
     useSubscribeMock.mockImplementation((callbacks: UseCallbacks) => {
-      Promise.resolve().then(() => {
+      void Promise.resolve().then(() => {
         callbacks.next?.({ event: newer });
         callbacks.next?.({ event: older });
         callbacks.complete?.();

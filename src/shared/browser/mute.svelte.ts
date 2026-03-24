@@ -1,15 +1,20 @@
 import { MUTE_KIND } from '$shared/nostr/events.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
+
 import { getAuth } from './auth.svelte.js';
 
 const log = createLogger('mute');
 
 async function encryptTags(pubkey: string, tags: string[][]): Promise<string> {
-  return await window.nostr!.nip44!.encrypt(pubkey, JSON.stringify(tags));
+  const nip44 = window.nostr?.nip44;
+  if (!nip44) throw new Error('NIP-44 encryption not available');
+  return await nip44.encrypt(pubkey, JSON.stringify(tags));
 }
 
 async function decryptTags(pubkey: string, ciphertext: string): Promise<string[][]> {
-  const plaintext = await window.nostr!.nip44!.decrypt(pubkey, ciphertext);
+  const nip44 = window.nostr?.nip44;
+  if (!nip44) throw new Error('NIP-44 decryption not available');
+  const plaintext = await nip44.decrypt(pubkey, ciphertext);
   return JSON.parse(plaintext);
 }
 

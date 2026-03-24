@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createLoginButtonViewModel } from '$features/auth/ui/login-button-view-model.svelte.js';
   import { t } from '$shared/i18n/t.js';
+
   import UserAvatar from './UserAvatar.svelte';
 
   const vm = createLoginButtonViewModel();

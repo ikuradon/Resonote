@@ -57,9 +57,9 @@ vi.mock('rxjs', () => ({
 import {
   buildContentFilters,
   loadSubscriptionDeps,
-  startSubscription,
+  startDeletionReconcile,
   startMergedSubscription,
-  startDeletionReconcile
+  startSubscription
 } from './comment-subscription.js';
 
 // ---- helpers ----

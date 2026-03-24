@@ -3,8 +3,9 @@
  * Used by content-link segments in comment rendering.
  */
 
-import type { ContentId } from './types.js';
 import { createLogger } from '$shared/utils/logger.js';
+
+import type { ContentId } from './types.js';
 
 const log = createLogger('content-metadata');
 

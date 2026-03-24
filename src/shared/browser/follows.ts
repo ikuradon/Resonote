@@ -3,13 +3,13 @@
  * Follows state bridge — re-exports for route/component/feature access.
  */
 export {
-  getFollows,
-  matchesFilter,
+  clearFollows,
   followUser,
-  unfollowUser,
+  getFollows,
   loadFollows,
+  matchesFilter,
   refreshFollows,
-  clearFollows
+  unfollowUser
 } from './follows.svelte.js';
-export type { FollowFilter } from '../../features/follows/domain/follow-model.js';
-export { extractFollows } from '../../features/follows/domain/follow-model.js';
+export type { FollowFilter } from '$features/follows/domain/follow-model.js';
+export { extractFollows } from '$features/follows/domain/follow-model.js';

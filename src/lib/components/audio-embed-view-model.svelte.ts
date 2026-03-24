@@ -1,8 +1,9 @@
 import type { Action } from 'svelte/action';
-import type { ContentId } from '$shared/content/types.js';
-import { fromBase64url } from '$shared/content/url-utils.js';
+
 import { setContent, updatePlayback } from '$shared/browser/player.js';
 import { onSeek } from '$shared/browser/seek-bridge.js';
+import type { ContentId } from '$shared/content/types.js';
+import { fromBase64url } from '$shared/content/url-utils.js';
 
 interface AudioEmbedViewModelOptions {
   getContentId: () => ContentId;

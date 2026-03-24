@@ -68,7 +68,7 @@ export function stateColor(state: ConnectionState | null): string {
     case 'waiting-for-retrying':
     case 'dormant':
     case 'initialized':
-    default:
+    case null:
       return 'bg-text-muted';
   }
 }

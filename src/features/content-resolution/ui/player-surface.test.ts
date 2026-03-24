@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { resolvePlayerSurface } from '$features/content-resolution/ui/player-surface.js';
 
 describe('resolvePlayerSurface', () => {

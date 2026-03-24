@@ -1,18 +1,18 @@
 <script lang="ts">
+  import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import { getAuth } from '$shared/browser/auth.js';
   import { copyToClipboard } from '$shared/browser/clipboard.js';
   import {
-    type DbStats,
-    loadDbStats as fetchDbStats,
-    clearIndexedDB as clearIdb,
-    clearLocalStorage,
-    clearAllData as clearAll,
+    buildDebugInfo,
     checkServiceWorkerStatus,
     checkServiceWorkerUpdate,
-    buildDebugInfo
+    clearAllData as clearAll,
+    clearIndexedDB as clearIdb,
+    clearLocalStorage,
+    type DbStats,
+    loadDbStats as fetchDbStats
   } from '$shared/browser/dev-tools.js';
   import { getRelays } from '$shared/browser/relays.js';
-  import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import { t } from '$shared/i18n/t.js';
 
   const auth = getAuth();

@@ -96,12 +96,12 @@ const localStorageMock = {
 Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true });
 
 import {
-  getNotifFilter,
-  setNotifFilter,
+  destroyNotifications,
   getLastRead,
+  getNotifFilter,
   getNotifications,
   markAllAsRead,
-  destroyNotifications,
+  setNotifFilter,
   subscribeNotifications
 } from './notifications-view-model.svelte.js';
 

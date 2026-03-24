@@ -1,6 +1,6 @@
+import { codecovVitePlugin } from '@codecov/vite-plugin';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
-import { codecovVitePlugin } from '@codecov/vite-plugin';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({

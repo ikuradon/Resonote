@@ -5,6 +5,7 @@ import {
 } from '$features/follows/domain/follow-model.js';
 import { FOLLOW_KIND } from '$shared/nostr/events.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
+
 import { getAuth } from './auth.svelte.js';
 
 const log = createLogger('follows');

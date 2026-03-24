@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { buildDefaultShareContent, buildResonoteShareUrl } from './share-link.js';
 
 describe('buildDefaultShareContent', () => {

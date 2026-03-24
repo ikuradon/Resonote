@@ -1,5 +1,6 @@
 import { bech32 } from '@scure/base';
 import { decode } from 'nostr-tools/nip19';
+
 import type { ContentId } from '$shared/content/types.js';
 
 export const DEFAULT_RELAYS = [
@@ -34,7 +35,8 @@ export function decodeNip19(str: string): DecodedNip19 {
         };
       case 'note':
         return { type: 'note', eventId: decoded.data };
-      default:
+      case 'naddr':
+      case 'nsec':
         return null;
     }
   } catch {

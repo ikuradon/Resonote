@@ -1,11 +1,12 @@
 <script lang="ts">
   import { createAsyncReadyTimeout } from '$shared/browser/async-ready-timeout.js';
-  import { mountPodbeanWidget, type PodbeanWidgetHandle } from '$shared/browser/podbean-widget.js';
-  import type { ContentId } from '$shared/content/types.js';
   import { setContent, updatePlayback } from '$shared/browser/player.js';
-  import { createLogger } from '$shared/utils/logger.js';
+  import { mountPodbeanWidget, type PodbeanWidgetHandle } from '$shared/browser/podbean-widget.js';
   import { onSeek } from '$shared/browser/seek-bridge.js';
+  import type { ContentId } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
+  import { createLogger } from '$shared/utils/logger.js';
+
   import EmbedLoading from './EmbedLoading.svelte';
 
   interface Props {

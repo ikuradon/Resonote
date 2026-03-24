@@ -1,5 +1,6 @@
 import { detectExtension, isExtensionMode, requestOpenContent } from '$shared/browser/extension.js';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
+
 import { getEmbedComponentLoader } from './embed-component-loader.js';
 import { resolvePlayerSurface } from './player-surface.js';
 
@@ -14,7 +15,7 @@ export function createPlayerColumnViewModel(options: PlayerColumnViewModelOption
     options.getProvider()
       ? resolvePlayerSurface({
           contentId: options.getContentId(),
-          requiresExtension: options.getProvider()!.requiresExtension,
+          requiresExtension: options.getProvider()?.requiresExtension ?? false,
           extensionMode: isExtensionMode(),
           extensionAvailable: detectExtension()
         })

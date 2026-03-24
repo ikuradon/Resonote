@@ -62,7 +62,7 @@ const PUBKEY_B = 'bbbb2222'.repeat(8);
 
 function makeKind0Event(pubkey: string, content: Record<string, unknown>) {
   return {
-    id: 'evt-' + pubkey.slice(0, 4),
+    id: `evt-${pubkey.slice(0, 4)}`,
     pubkey,
     kind: 0,
     created_at: 1_000_000,
@@ -72,11 +72,11 @@ function makeKind0Event(pubkey: string, content: Record<string, unknown>) {
   };
 }
 
-type SubscribeObserver = {
+interface SubscribeObserver {
   next: (p: unknown) => void;
   complete: () => void;
   error: (e: unknown) => void;
-};
+}
 
 /** DB モック (空配列) と relay モックをまとめてセットアップする */
 function setupMocks(

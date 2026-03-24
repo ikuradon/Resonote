@@ -129,6 +129,7 @@ export function mountPodbeanWidget(
       if (destroyed) return;
 
       const PodbeanWidget = await loadPodbeanWidgetApi();
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- destroyed may become true during preceding awaits
       if (destroyed) return;
 
       widget = new PodbeanWidget(iframeEl);

@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
 import { getPublicKey } from 'nostr-tools/pure';
 import { hexToBytes } from 'nostr-tools/utils';
+import { describe, expect, it } from 'vitest';
+
 import { onRequestGet } from './pubkey.js';
 
 // --- Helper to build Cloudflare Pages Function context ---

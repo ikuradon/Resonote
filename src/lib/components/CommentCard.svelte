@@ -1,13 +1,14 @@
 <script lang="ts">
   import type { Comment, ReactionStats } from '$features/comments/domain/comment-model.js';
   import type { ProfileDisplay } from '$shared/browser/profile.js';
+  import { t } from '$shared/i18n/t.js';
+  import { parseCommentContent } from '$shared/nostr/content-parser.js';
   import { formatPosition } from '$shared/nostr/events.js';
   import { formatTimestamp } from '$shared/utils/format.js';
-  import { parseCommentContent } from '$shared/nostr/content-parser.js';
-  import { t } from '$shared/i18n/t.js';
+
+  import CommentCard from './CommentCard.svelte';
   import EmojiPickerPopover from './EmojiPickerPopover.svelte';
   import NoteInput from './NoteInput.svelte';
-  import CommentCard from './CommentCard.svelte';
   import QuoteCard from './QuoteCard.svelte';
   import UserAvatar from './UserAvatar.svelte';
 
@@ -196,7 +197,7 @@
             target="_blank"
             rel="noopener noreferrer"
             class="text-accent hover:underline"
-            >{seg.href.length > 50 ? seg.href.slice(0, 50) + '…' : seg.href}</a
+            >{seg.href.length > 50 ? `${seg.href.slice(0, 50)}…` : seg.href}</a
           >{:else if seg.type === 'hashtag'}<span class="text-accent">#{seg.tag}</span>{/if}
       {/each}
     </div>

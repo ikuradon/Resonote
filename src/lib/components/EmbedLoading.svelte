@@ -1,8 +1,10 @@
 <script lang="ts">
-  import { startIntervalTask } from '$shared/browser/interval-task.js';
-  import WaveformLoader from './WaveformLoader.svelte';
-  import { t } from '$shared/i18n/t.js';
   import type { Snippet } from 'svelte';
+
+  import { startIntervalTask } from '$shared/browser/interval-task.js';
+  import { t } from '$shared/i18n/t.js';
+
+  import WaveformLoader from './WaveformLoader.svelte';
 
   interface Props {
     /** Tailwind bg color class for waveform bars */

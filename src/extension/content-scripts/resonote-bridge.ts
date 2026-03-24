@@ -1,4 +1,4 @@
-import { RESONOTE_EXT_ATTR, RESONOTE_ACTION_ATTR } from '../shared/constants.js';
+import { RESONOTE_ACTION_ATTR, RESONOTE_EXT_ATTR } from '../shared/constants.js';
 import { isKnownMessageType } from '../shared/messages.js';
 
 document.documentElement.setAttribute(RESONOTE_EXT_ATTR, 'true');

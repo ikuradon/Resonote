@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import { DEFAULT_RELAYS } from './relays.js';
 
 describe('DEFAULT_RELAYS', () => {

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const PK_AUTHOR = 'aaaa'.repeat(16);
 const EVENT_ID = 'bbbb'.repeat(16);

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   mockResolveEpisode,
@@ -40,7 +40,7 @@ vi.mock('$shared/utils/logger.js', () => ({
   createLogger: () => ({ error: mockLogError })
 }));
 
-import { resolvePodcastEpisode, resolveAudioUrl } from './resolve-content.js';
+import { resolveAudioUrl, resolvePodcastEpisode } from './resolve-content.js';
 
 const FEED_URL = 'https://example.com/feed.xml';
 const GUID = 'episode-guid-123';

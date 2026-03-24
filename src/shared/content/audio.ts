@@ -1,6 +1,6 @@
 // @public — Stable API for route/component/feature consumers
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
-import { toBase64url, fromBase64url } from '$shared/content/url-utils.js';
+import { fromBase64url, toBase64url } from '$shared/content/url-utils.js';
 
 const AUDIO_EXTENSIONS = /\.(mp3|m4a|ogg|wav|opus|flac|aac)$/i;
 

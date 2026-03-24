@@ -3,18 +3,18 @@
  * Profile state bridge — re-exports for route/component access.
  */
 export {
-  getProfile,
-  getProfileDisplay,
-  getDisplayName,
+  clearProfiles,
   fetchProfile,
   fetchProfiles,
-  clearProfiles
+  getDisplayName,
+  getProfile,
+  getProfileDisplay
 } from './profile.svelte.js';
-export type { Profile, ProfileDisplay } from '../../features/profiles/domain/profile-model.js';
+export type { Profile, ProfileDisplay } from '$features/profiles/domain/profile-model.js';
 export {
   describeProfileDisplay,
+  formatDisplayName,
   formatNip05,
   getProfileHref,
-  truncateProfileName as truncate,
-  formatDisplayName
-} from '../../features/profiles/domain/profile-model.js';
+  truncateProfileName as truncate
+} from '$features/profiles/domain/profile-model.js';

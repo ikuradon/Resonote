@@ -42,5 +42,5 @@ export function formatDateOnly(
 }
 
 export function truncateString(str: string, maxLength: number): string {
-  return str.length > maxLength ? str.slice(0, maxLength - 1) + '\u2026' : str;
+  return str.length > maxLength ? `${str.slice(0, maxLength - 1)}\u2026` : str;
 }

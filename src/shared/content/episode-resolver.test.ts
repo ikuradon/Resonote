@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { toBase64url } from '$shared/content/url-utils.js';
 
 // Mock podcast-resolver exports
@@ -37,7 +38,7 @@ function setupRelayMock(event: { tags: string[][]; content: string } | null) {
 
   const mockSubscribe = vi.fn().mockImplementation(({ next, complete }) => {
     if (event) {
-      Promise.resolve().then(() => next({ event }));
+      void Promise.resolve().then(() => next({ event }));
     } else {
       complete();
     }

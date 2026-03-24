@@ -1,6 +1,7 @@
 <script lang="ts">
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import VirtualScrollList from '$lib/components/VirtualScrollList.svelte';
+
   import {
     createPlaybookContentViewModel,
     type PlaybookVirtualList

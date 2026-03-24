@@ -6,9 +6,10 @@
 import type { ContentId } from '$shared/content/types.js';
 import { contentIdToString } from '$shared/content/types.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
+
 import {
-  isAlreadyBookmarked,
   addBookmarkTag,
+  isAlreadyBookmarked,
   removeBookmarkTag
 } from '../domain/bookmark-model.js';
 

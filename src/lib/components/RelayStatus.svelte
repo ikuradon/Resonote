@@ -1,14 +1,15 @@
 <script lang="ts">
+  import { isNodeInsideElements, manageClickOutside } from '$shared/browser/click-outside.js';
+  import { createMediaQuery } from '$shared/browser/media-query.js';
   import {
+    type ConnectionState,
     getRelays,
     relayStateLabelKey,
     shortUrl,
-    stateColor,
-    type ConnectionState
+    stateColor
   } from '$shared/browser/relays.js';
-  import { isNodeInsideElements, manageClickOutside } from '$shared/browser/click-outside.js';
-  import { createMediaQuery } from '$shared/browser/media-query.js';
   import { t } from '$shared/i18n/t.js';
+
   import MobileOverlay from './MobileOverlay.svelte';
 
   const desktop = createMediaQuery('(min-width: 1024px)');

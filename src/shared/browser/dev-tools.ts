@@ -4,13 +4,13 @@
  */
 
 export {
-  loadDbStats,
-  clearIndexedDB,
-  clearLocalStorage,
-  clearAllData,
+  buildDebugInfo,
   checkServiceWorkerStatus,
   checkServiceWorkerUpdate,
-  buildDebugInfo,
+  clearAllData,
+  clearIndexedDB,
+  clearLocalStorage,
   type DbStats,
-  type DebugInfo
+  type DebugInfo,
+  loadDbStats
 } from './dev-tools.svelte.js';

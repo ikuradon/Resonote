@@ -1,6 +1,7 @@
+import { startIntervalTask } from '$shared/browser/interval-task.js';
 import type { TranslationKey } from '$shared/i18n/t.js';
 import { t } from '$shared/i18n/t.js';
-import { startIntervalTask } from '$shared/browser/interval-task.js';
+
 import { resolveContentNavigation } from '../application/content-navigation.js';
 
 const TRACK_PLACEHOLDER_KEYS = [

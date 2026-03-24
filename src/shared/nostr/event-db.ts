@@ -4,8 +4,9 @@
  * Handles replaceable event rules per NIP-01.
  */
 
-import { openDB, type IDBPDatabase } from 'idb';
+import { type IDBPDatabase, openDB } from 'idb';
 import type { Event as NostrEvent } from 'nostr-typedef';
+
 import { createLogger } from '$shared/utils/logger.js';
 
 export type { Event as NostrEvent } from 'nostr-typedef';
@@ -58,7 +59,7 @@ function toNostrEvent(stored: StoredEvent): NostrEvent {
   return event;
 }
 
-type EventsDBSchema = {
+interface EventsDBSchema {
   events: {
     key: string;
     value: StoredEvent;
@@ -69,7 +70,7 @@ type EventsDBSchema = {
       tag_values: string;
     };
   };
-};
+}
 
 let instancePromise: Promise<EventsDB> | undefined;
 
@@ -151,7 +152,7 @@ export class EventsDB {
     }
     if (regular.length > 0) {
       const tx = this.db.transaction(STORE_NAME, 'readwrite');
-      for (const stored of regular) tx.store.put(stored);
+      for (const stored of regular) void tx.store.put(stored);
       await tx.done;
     }
     for (const event of replaceable) await this.put(event);
@@ -220,7 +221,7 @@ export class EventsDB {
     if (ids.length === 0) return;
     const tx = this.db.transaction(STORE_NAME, 'readwrite');
     for (const id of ids) {
-      tx.store.delete(id);
+      void tx.store.delete(id);
     }
     await tx.done;
     log.debug('Deleted events from DB', { count: ids.length });
@@ -233,20 +234,18 @@ export class EventsDB {
 }
 
 export async function getEventsDB(): Promise<EventsDB> {
-  if (!instancePromise) {
-    instancePromise = (async () => {
-      // Fire-and-forget: delete legacy DB ('resonote') that was renamed to 'resonote-events'.
-      // If another tab holds the old DB open, deletion is queued silently — this is fine
-      // because the two DB names never conflict.
-      try {
-        indexedDB.deleteDatabase('resonote');
-      } catch {
-        // Ignore — old DB may not exist in fresh installs
-      }
-      const db = await openEventsDB();
-      return new EventsDB(db);
-    })();
-  }
+  instancePromise ??= (async () => {
+    // Fire-and-forget: delete legacy DB ('resonote') that was renamed to 'resonote-events'.
+    // If another tab holds the old DB open, deletion is queued silently — this is fine
+    // because the two DB names never conflict.
+    try {
+      indexedDB.deleteDatabase('resonote');
+    } catch {
+      // Ignore — old DB may not exist in fresh installs
+    }
+    const db = await openEventsDB();
+    return new EventsDB(db);
+  })();
   return instancePromise;
 }
 

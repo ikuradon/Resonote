@@ -1,12 +1,12 @@
 <script lang="ts" generics="T">
-  import { onMount, onDestroy, untrack } from 'svelte';
+  import { onDestroy, onMount, type Snippet, untrack } from 'svelte';
 
   interface Props {
     items: T[];
     keyFn: (item: T) => string;
     estimateHeight?: number;
     overscan?: number;
-    children: import('svelte').Snippet<[{ item: T; index: number }]>;
+    children: Snippet<[{ item: T; index: number }]>;
     onRangeChange?: (start: number, end: number) => void;
   }
 
@@ -58,10 +58,10 @@
   // Partial update: recompute offsets from index k onward.
   // Uses frozenEstimate (set at last rebuild) for unmeasured items.
   function updateOffsetsFrom(k: number) {
-    if (k < 0) k = 0;
-    if (k >= items.length) return;
+    const start = Math.max(k, 0);
+    if (start >= items.length) return;
     const arr = offsets.slice();
-    for (let i = k; i < items.length; i++) {
+    for (let i = start; i < items.length; i++) {
       arr[i + 1] = arr[i] + heightOf(keyFn(items[i]));
     }
     offsets = arr;

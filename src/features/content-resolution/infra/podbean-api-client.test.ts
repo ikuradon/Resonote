@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { resolvePodbeanEmbed } from './podbean-api-client.js';
 
 describe('resolvePodbeanEmbed', () => {

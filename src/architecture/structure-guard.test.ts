@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
 
 const ROOT = 'src';
 const SOURCE_FILE = /\.(ts|svelte)$/;

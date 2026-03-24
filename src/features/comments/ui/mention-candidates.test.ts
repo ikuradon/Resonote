@@ -1,7 +1,9 @@
-import { describe, it, expect } from 'vitest';
-import { computeMentionCandidates, type MentionCandidateInput } from './mention-candidates.js';
-import type { Profile } from '$features/profiles/domain/profile-model.js';
 import { npubEncode } from 'nostr-tools/nip19';
+import { describe, expect, it } from 'vitest';
+
+import type { Profile } from '$features/profiles/domain/profile-model.js';
+
+import { computeMentionCandidates, type MentionCandidateInput } from './mention-candidates.js';
 
 const PK_ALICE = 'aaaa'.repeat(16);
 const PK_BOB = 'bbbb'.repeat(16);

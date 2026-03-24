@@ -8,17 +8,18 @@
  * 3. other platforms — no resolution needed
  */
 
-import type { ResolutionResult, EpisodeMetadata } from '../domain/resolution-result.js';
-import { emptyResult } from '../domain/resolution-result.js';
-import { fromBase64url, toBase64url } from '$shared/content/url-utils.js';
 import {
-  resolveEpisode,
+  buildEpisodeContentId,
   resolveByApi,
-  searchBookmarkByUrl,
-  buildEpisodeContentId
+  resolveEpisode,
+  searchBookmarkByUrl
 } from '$shared/content/resolution.js';
+import { fromBase64url, toBase64url } from '$shared/content/url-utils.js';
 import { publishSignedEvents } from '$shared/nostr/gateway.js';
 import { createLogger } from '$shared/utils/logger.js';
+
+import type { EpisodeMetadata, ResolutionResult } from '../domain/resolution-result.js';
+import { emptyResult } from '../domain/resolution-result.js';
 
 const log = createLogger('resolve-content');
 

@@ -1,11 +1,12 @@
 import { parseContentUrl } from '$shared/content/registry.js';
-import { findAdapter } from './adapters/registry.js';
-import type { SiteAdapter } from './adapters/types.js';
+
 import type {
-  SiteDetectedMessage,
   PlaybackStateMessage,
+  SiteDetectedMessage,
   SiteLostMessage
 } from '../shared/messages.js';
+import { findAdapter } from './adapters/registry.js';
+import type { SiteAdapter } from './adapters/types.js';
 
 const MEDIA_EVENTS = ['timeupdate', 'pause', 'play'] as const;
 
@@ -20,7 +21,8 @@ let lastPaused = true;
 function handleTimeUpdate(): void {
   if (!currentElement) return;
   const position = currentElement.currentTime * 1000;
-  const duration = (currentElement.duration || 0) * 1000;
+  const rawDuration = currentElement.duration;
+  const duration = (Number.isFinite(rawDuration) ? rawDuration : 0) * 1000;
   const isPaused = currentElement.paused;
 
   const roundedPosition = Math.round(position);
@@ -65,9 +67,7 @@ function detach(): void {
 }
 
 function detect(): void {
-  if (!currentAdapter) {
-    currentAdapter = findAdapter(location.hostname);
-  }
+  currentAdapter ??= findAdapter(location.hostname);
   if (!currentAdapter) return;
 
   if (!detected) {
@@ -123,6 +123,7 @@ const observer = new MutationObserver(() => {
 
 detect();
 
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- document.body can be null in early content script injection
 observer.observe(document.body || document.documentElement, {
   childList: true,
   subtree: true

@@ -1,5 +1,6 @@
 import { decodeContentLink, iTagToContentPath } from '$shared/nostr/helpers.js';
 import { decodeNip19 } from '$shared/nostr/nip19-decode.js';
+
 import { fetchNostrEvent } from './fetch-event.js';
 
 const VALID_PREFIXES = ['npub1', 'nprofile1', 'nevent1', 'note1', 'ncontent1'];

@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import { AppleMusicProvider } from '$shared/content/apple-music.js';
 
 const provider = new AppleMusicProvider();

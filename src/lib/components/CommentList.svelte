@@ -1,20 +1,21 @@
 <script lang="ts">
-  import { useCommentProfilePreload } from '$features/comments/ui/comment-profile-preload.svelte.js';
   import type {
     Comment,
     PlaceholderComment,
     ReactionStats
   } from '$features/comments/domain/comment-model.js';
   import { createCommentListViewModel } from '$features/comments/ui/comment-list-view-model.svelte.js';
-  import { allocateEmojiPopoverId } from './emoji-popover-id.js';
-  import WaveformLoader from './WaveformLoader.svelte';
+  import { useCommentProfilePreload } from '$features/comments/ui/comment-profile-preload.svelte.js';
   import type { ContentId, ContentProvider } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
   import { formatPosition } from '$shared/nostr/events.js';
-  import ConfirmDialog from './ConfirmDialog.svelte';
-  import VirtualScrollList from './VirtualScrollList.svelte';
+
   import CommentCard from './CommentCard.svelte';
   import CommentFilterBar from './CommentFilterBar.svelte';
+  import ConfirmDialog from './ConfirmDialog.svelte';
+  import { allocateEmojiPopoverId } from './emoji-popover-id.js';
+  import VirtualScrollList from './VirtualScrollList.svelte';
+  import WaveformLoader from './WaveformLoader.svelte';
 
   interface Props {
     comments: Comment[];

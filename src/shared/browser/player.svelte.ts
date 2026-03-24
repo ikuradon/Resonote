@@ -1,4 +1,5 @@
 import type { ContentId } from '$shared/content/types.js';
+
 import { isExtensionMode, sendSeekRequest } from './extension.svelte.js';
 import { dispatchSeek } from './seek-bridge.js';
 

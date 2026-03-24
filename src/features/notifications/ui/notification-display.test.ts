@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { parseReactionDisplay, typeIcon, relativeTime, typeLabel } from './notification-display.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { parseReactionDisplay, relativeTime, typeIcon, typeLabel } from './notification-display.js';
 
 describe('parseReactionDisplay', () => {
   it('should return heart for plus content', () => {

@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { parseContentUrl, getProvider } from '$shared/content/registry.js';
+import { describe, expect, it } from 'vitest';
+
+import { getProvider, parseContentUrl } from '$shared/content/registry.js';
 import { SpotifyProvider } from '$shared/content/spotify.js';
 import { YouTubeProvider } from '$shared/content/youtube.js';
 

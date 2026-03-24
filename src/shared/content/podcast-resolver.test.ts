@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { parseDTagEvent } from '$shared/content/podcast-resolver.js';
 
 const { verifierMock, mockGetEventsDB, mockGetRxNostr } = vi.hoisted(() => ({
@@ -45,7 +46,7 @@ function setupRelayMock(event: { tags: string[][]; content: string } | null) {
 
   const mockSubscribe = vi.fn().mockImplementation(({ next, complete }) => {
     if (event) {
-      Promise.resolve().then(() => next({ event }));
+      void Promise.resolve().then(() => next({ event }));
     } else {
       complete();
     }

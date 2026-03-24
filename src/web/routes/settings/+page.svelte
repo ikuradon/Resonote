@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { t, type TranslationKey } from '$shared/i18n/t.js';
-  import { getNotifFilter, setNotifFilter } from '$shared/browser/notifications.js';
   import type { FollowFilter } from '$shared/browser/follows.js';
-  import RelaySettings from './RelaySettings.svelte';
-  import MuteSettings from './MuteSettings.svelte';
+  import { getNotifFilter, setNotifFilter } from '$shared/browser/notifications.js';
+  import { t, type TranslationKey } from '$shared/i18n/t.js';
+
   import DeveloperTools from './DeveloperTools.svelte';
+  import MuteSettings from './MuteSettings.svelte';
+  import RelaySettings from './RelaySettings.svelte';
 
   // --- Notification filter ---
   let currentNotifFilter = $state<FollowFilter>(getNotifFilter());

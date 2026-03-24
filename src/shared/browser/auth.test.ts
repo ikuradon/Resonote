@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // nostr-login-gateway のモック (動的インポート経由で使われる)
 vi.mock('$features/auth/infra/nostr-login-gateway.js', () => ({

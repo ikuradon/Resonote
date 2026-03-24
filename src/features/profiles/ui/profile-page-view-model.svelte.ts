@@ -1,9 +1,10 @@
-import { decodeNip19 } from '$shared/nostr/nip19-decode.js';
-import { fetchProfile, getProfileDisplay } from '$shared/browser/profile.js';
-import { getFollows, followUser, unfollowUser } from '$shared/browser/follows.js';
+import { followUser, getFollows, unfollowUser } from '$shared/browser/follows.js';
 import { getMuteList, muteUser } from '$shared/browser/mute.js';
+import { fetchProfile, getProfileDisplay } from '$shared/browser/profile.js';
 import { t } from '$shared/i18n/t.js';
+import { decodeNip19 } from '$shared/nostr/nip19-decode.js';
 import { createLogger } from '$shared/utils/logger.js';
+
 import { fetchFollowsCount as fetchFollowsCountAction } from '../application/profile-actions.js';
 import { fetchProfileComments, type ProfileComment } from '../application/profile-queries.js';
 
@@ -119,7 +120,7 @@ export function createProfilePageViewModel(getProfileId: () => string) {
   $effect(() => {
     const currentPubkey = pubkey;
     if (!currentPubkey) return;
-    fetchProfile(currentPubkey);
+    void fetchProfile(currentPubkey);
   });
 
   $effect(() => {

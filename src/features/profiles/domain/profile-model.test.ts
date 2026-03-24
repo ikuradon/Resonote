@@ -1,11 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import {
   describeProfileDisplay,
-  truncateProfileName,
   formatDisplayName,
   formatNip05,
   getProfileHref,
-  MAX_NAME_LENGTH
+  MAX_NAME_LENGTH,
+  truncateProfileName
 } from './profile-model.js';
 
 const TEST_PUBKEY = 'd7e1bd910193e1b04e1db95e7a837a90fcb696bf4e0a716392569fac71da5268';
@@ -22,12 +23,12 @@ describe('truncateProfileName', () => {
 
   it('should truncate strings longer than the limit', () => {
     const value = 'a'.repeat(MAX_NAME_LENGTH + 1);
-    expect(truncateProfileName(value)).toBe('a'.repeat(MAX_NAME_LENGTH) + '…');
+    expect(truncateProfileName(value)).toBe(`${'a'.repeat(MAX_NAME_LENGTH)}…`);
   });
 
   it('should truncate multibyte characters at character boundaries', () => {
     const value = 'あ'.repeat(MAX_NAME_LENGTH + 1);
-    expect(truncateProfileName(value)).toBe('あ'.repeat(MAX_NAME_LENGTH) + '…');
+    expect(truncateProfileName(value)).toBe(`${'あ'.repeat(MAX_NAME_LENGTH)}…`);
   });
 });
 

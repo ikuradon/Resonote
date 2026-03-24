@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+
 import { isNodeInsideElements } from '$shared/browser/click-outside.js';
 
 function createFakeNode(children: unknown[] = []): Node {

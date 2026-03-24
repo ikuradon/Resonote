@@ -1,7 +1,7 @@
 import {
+  type ExtensionFrameMessage,
   isExtensionFrameMessage,
-  isExtensionRuntimeOrigin,
-  type ExtensionFrameMessage
+  isExtensionRuntimeOrigin
 } from '$features/extension-bridge/domain/bridge-events.js';
 
 interface PostMessageTarget {

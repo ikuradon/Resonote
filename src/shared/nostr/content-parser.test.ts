@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { containsPrivateKey, parseCommentContent, extractContentTags } from './content-parser.js';
-import { npubEncode, neventEncode, nprofileEncode, noteEncode } from 'nostr-tools/nip19';
+import { neventEncode, noteEncode, nprofileEncode, npubEncode } from 'nostr-tools/nip19';
+import { describe, expect, it } from 'vitest';
+
+import { containsPrivateKey, extractContentTags, parseCommentContent } from './content-parser.js';
 import { encodeContentLink } from './helpers.js';
 
 // Valid test pubkey (64 hex chars)
@@ -19,17 +20,17 @@ const VALID_NCONTENT = encodeContentLink(SPOTIFY_CONTENT_ID, []);
 
 describe('containsPrivateKey', () => {
   it('returns true for nsec1 + 58 lowercase chars', () => {
-    const nsec = 'nsec1' + 'a'.repeat(58);
+    const nsec = `nsec1${'a'.repeat(58)}`;
     expect(containsPrivateKey(nsec)).toBe(true);
   });
 
   it('returns true when nsec1 is embedded in text', () => {
-    const nsec = 'nsec1' + 'b'.repeat(58);
+    const nsec = `nsec1${'b'.repeat(58)}`;
     expect(containsPrivateKey(`my key is ${nsec} please ignore`)).toBe(true);
   });
 
   it('returns false for nsec1 + 57 chars (too short)', () => {
-    const nsec = 'nsec1' + 'a'.repeat(57);
+    const nsec = `nsec1${'a'.repeat(57)}`;
     expect(containsPrivateKey(nsec)).toBe(false);
   });
 
@@ -38,7 +39,7 @@ describe('containsPrivateKey', () => {
   });
 
   it('returns false for "nsec" without the 1', () => {
-    expect(containsPrivateKey('nsec' + 'a'.repeat(62))).toBe(false);
+    expect(containsPrivateKey(`nsec${'a'.repeat(62)}`)).toBe(false);
   });
 
   it('returns false for empty string', () => {
@@ -46,12 +47,12 @@ describe('containsPrivateKey', () => {
   });
 
   it('detects uppercase NSEC1 (bech32 allows upper case)', () => {
-    const nsec = 'NSEC1' + 'A'.repeat(58);
+    const nsec = `NSEC1${'A'.repeat(58)}`;
     expect(containsPrivateKey(nsec)).toBe(true);
   });
 
   it('detects mixed case nsec1', () => {
-    const nsec = 'Nsec1' + 'aB'.repeat(29);
+    const nsec = `Nsec1${'aB'.repeat(29)}`;
     expect(containsPrivateKey(nsec)).toBe(true);
   });
 });
@@ -145,7 +146,7 @@ describe('parseCommentContent — nostr URIs', () => {
   });
 
   it('renders nsec1... as plain text (NOT linked)', () => {
-    const nsecLike = 'nsec1' + 'a'.repeat(58);
+    const nsecLike = `nsec1${'a'.repeat(58)}`;
     const result = parseCommentContent(nsecLike, []);
     expect(result.every((s) => s.type === 'text')).toBe(true);
     const joined = result.map((s) => (s.type === 'text' ? s.value : '')).join('');
@@ -337,7 +338,7 @@ describe('extractContentTags', () => {
   });
 
   it('does not generate tags from nostr:nsec1...', () => {
-    const nsecLike = 'nsec1' + 'a'.repeat(58);
+    const nsecLike = `nsec1${'a'.repeat(58)}`;
     const { pTags, eTags } = extractContentTags(nsecLike);
     expect(pTags).toHaveLength(0);
     expect(eTags).toHaveLength(0);

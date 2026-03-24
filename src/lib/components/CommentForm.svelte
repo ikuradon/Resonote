@@ -1,15 +1,17 @@
 <script lang="ts">
+  import { tick } from 'svelte';
+
   import { createCommentFormViewModel } from '$features/comments/ui/comment-form-view-model.svelte.js';
-  import { toastSuccess, toastError } from '$shared/browser/toast.js';
+  import { computeMentionCandidates } from '$features/comments/ui/mention-candidates.js';
+  import { getAuth } from '$shared/browser/auth.js';
+  import { getFollows } from '$shared/browser/follows.js';
+  import { fetchProfiles, getProfile } from '$shared/browser/profile.js';
+  import { toastError, toastSuccess } from '$shared/browser/toast.js';
   import type { ContentId, ContentProvider } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
-  import { tick } from 'svelte';
+
   import NoteInput from './NoteInput.svelte';
   import SendButton from './SendButton.svelte';
-  import { getFollows } from '$shared/browser/follows.js';
-  import { getAuth } from '$shared/browser/auth.js';
-  import { getProfile, fetchProfiles } from '$shared/browser/profile.js';
-  import { computeMentionCandidates } from '$features/comments/ui/mention-candidates.js';
 
   interface Props {
     contentId: ContentId;

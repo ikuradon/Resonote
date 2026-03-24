@@ -17,11 +17,12 @@
 
 <script lang="ts">
   import { createAsyncReadyTimeout } from '$shared/browser/async-ready-timeout.js';
-  import { startIntervalTask, type IntervalTaskHandle } from '$shared/browser/interval-task.js';
-  import type { ContentId } from '$shared/content/types.js';
-  import { t } from '$shared/i18n/t.js';
+  import { type IntervalTaskHandle, startIntervalTask } from '$shared/browser/interval-task.js';
   import { updatePlayback } from '$shared/browser/player.js';
   import { onSeek } from '$shared/browser/seek-bridge.js';
+  import type { ContentId } from '$shared/content/types.js';
+  import { t } from '$shared/i18n/t.js';
+
   import EmbedLoading from './EmbedLoading.svelte';
 
   const POLL_INTERVAL_MS = 250;

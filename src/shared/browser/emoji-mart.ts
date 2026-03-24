@@ -3,4 +3,4 @@
  * Emoji Mart bridge — shared browser entry point for emoji picker preload/cache.
  */
 
-export { preloadEmojiMart, getEmojiMartModules } from './emoji-mart.svelte.js';
+export { getEmojiMartModules, preloadEmojiMart } from './emoji-mart.svelte.js';

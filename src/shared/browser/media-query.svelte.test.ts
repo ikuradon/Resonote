@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { createMediaQuery } from './media-query.svelte.js';
 
 describe('createMediaQuery', () => {

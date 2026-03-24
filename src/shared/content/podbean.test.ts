@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import { PodbeanProvider } from '$shared/content/podbean.js';
 
 const provider = new PodbeanProvider();

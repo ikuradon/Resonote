@@ -1,12 +1,14 @@
 <script lang="ts">
+  // eslint-disable-next-line no-restricted-imports -- orchestrates embed URL resolution; full refactor deferred
   import { resolveSoundCloudEmbed } from '$features/content-resolution/application/resolve-soundcloud-embed.js';
   import { createAsyncReadyTimeout } from '$shared/browser/async-ready-timeout.js';
-  import { loadExternalScript } from '$shared/browser/script-loader.js';
-  import type { ContentId } from '$shared/content/types.js';
   import { setContent, updatePlayback } from '$shared/browser/player.js';
+  import { loadExternalScript } from '$shared/browser/script-loader.js';
   import { onSeek } from '$shared/browser/seek-bridge.js';
+  import type { ContentId } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
   import { createLogger } from '$shared/utils/logger.js';
+
   import EmbedLoading from './EmbedLoading.svelte';
 
   const log = createLogger('SoundCloudEmbed');

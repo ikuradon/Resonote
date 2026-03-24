@@ -1,8 +1,9 @@
 <script lang="ts">
   import type { Action } from 'svelte/action';
-  import { getCustomEmojis, type EmojiCategory } from '$shared/browser/emoji-sets.js';
-  import { getLocale } from '$shared/browser/locale.js';
+
   import { getEmojiMartModules } from '$shared/browser/emoji-mart.js';
+  import { type EmojiCategory, getCustomEmojis } from '$shared/browser/emoji-sets.js';
+  import { getLocale } from '$shared/browser/locale.js';
   import { extractShortcode } from '$shared/utils/emoji.js';
 
   interface Props {

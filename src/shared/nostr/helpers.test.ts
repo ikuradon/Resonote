@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { DEFAULT_RELAYS, getContentPathFromTags } from './helpers.js';
 
 describe('DEFAULT_RELAYS', () => {

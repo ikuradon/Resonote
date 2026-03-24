@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import type { Notification } from '$features/notifications/domain/notification-model.js';
 import {
   describeNotificationItem,
   getNotificationActorDisplay
 } from '$features/notifications/ui/notification-display.js';
-import type { Notification } from '$features/notifications/domain/notification-model.js';
 
 const { getProfileDisplayMock, getContentPathFromTagsMock } = vi.hoisted(() => ({
   getProfileDisplayMock: vi.fn(),

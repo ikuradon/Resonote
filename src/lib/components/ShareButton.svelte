@@ -1,8 +1,9 @@
 <script lang="ts">
   import { createShareButtonViewModel } from '$features/sharing/ui/share-button-view-model.svelte.js';
-  import { t } from '$shared/i18n/t.js';
   import type { ContentId, ContentProvider } from '$shared/content/types.js';
+  import { t } from '$shared/i18n/t.js';
   import { formatDuration } from '$shared/utils/format.js';
+
   import NoteInput from './NoteInput.svelte';
 
   interface Props {

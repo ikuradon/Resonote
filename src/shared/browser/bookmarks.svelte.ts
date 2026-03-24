@@ -1,8 +1,9 @@
-import type { ContentId } from '$shared/content/types.js';
-import { contentIdToString } from '$shared/content/types.js';
 import type { BookmarkEntry } from '$features/bookmarks/domain/bookmark-model.js';
 import { parseBookmarkTags } from '$features/bookmarks/domain/bookmark-model.js';
+import type { ContentId } from '$shared/content/types.js';
+import { contentIdToString } from '$shared/content/types.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
+
 import { getAuth } from './auth.svelte.js';
 
 const log = createLogger('bookmarks');

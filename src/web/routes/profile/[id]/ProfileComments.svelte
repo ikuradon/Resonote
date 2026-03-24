@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { ProfileComment } from '$features/profiles/application/profile-queries.js';
+  import { t } from '$shared/i18n/t.js';
   import { iTagToContentPath } from '$shared/nostr/helpers.js';
   import { formatTimestamp } from '$shared/utils/format.js';
-  import { t } from '$shared/i18n/t.js';
 
   interface Props {
     comments: ProfileComment[];

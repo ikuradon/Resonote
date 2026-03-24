@@ -19,6 +19,7 @@ export function createSeekEvent(positionMs: number): CustomEvent<SeekEventDetail
 /** Extract positionMs from a resonote:seek CustomEvent safely. */
 export function parseSeekEvent(e: Event): number | null {
   const detail = (e as CustomEvent<SeekEventDetail>).detail;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- detail may be null/undefined at runtime for non-CustomEvent inputs
   return typeof detail?.positionMs === 'number' ? detail.positionMs : null;
 }
 

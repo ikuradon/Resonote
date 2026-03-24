@@ -1,6 +1,9 @@
-type EmbedComponentModule = {
-  default: typeof import('$lib/components/SpotifyEmbed.svelte').default;
-};
+import type { Component } from 'svelte';
+
+interface EmbedComponentModule {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- embed components have varying props
+  default: Component<any>;
+}
 
 export type EmbedComponentLoader = () => Promise<EmbedComponentModule>;
 

@@ -1,4 +1,4 @@
-import { openDB, type IDBPDatabase } from 'idb';
+import { type IDBPDatabase, openDB } from 'idb';
 
 const DEFAULT_DB_NAME = 'resonote-pending-publishes';
 const DB_VERSION = 1;
@@ -19,15 +19,13 @@ let dbPromise: Promise<IDBPDatabase> | undefined;
 let currentDbName = DEFAULT_DB_NAME;
 
 function getDB(): Promise<IDBPDatabase> {
-  if (!dbPromise) {
-    dbPromise = openDB(currentDbName, DB_VERSION, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-        }
+  dbPromise ??= openDB(currentDbName, DB_VERSION, {
+    upgrade(db) {
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
       }
-    });
-  }
+    }
+  });
   return dbPromise;
 }
 

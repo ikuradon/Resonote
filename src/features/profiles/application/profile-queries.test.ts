@@ -34,11 +34,11 @@ import { fetchProfileComments } from './profile-queries.js';
 
 const PUBKEY = 'aabbccdd'.repeat(8);
 
-type Observer = {
+interface Observer {
   next: (p: unknown) => void;
   complete: () => void;
   error: (e: unknown) => void;
-};
+}
 
 /**
  * subscribe 呼び出し時は一旦 subscription オブジェクトを返してから
@@ -57,7 +57,7 @@ function makeReq(
     use: vi.fn(() => ({
       subscribe: vi.fn((obs: Observer) => {
         // Return subscription first, then drive events asynchronously
-        Promise.resolve().then(() => {
+        void Promise.resolve().then(() => {
           if (errorToThrow !== undefined) {
             obs.error(errorToThrow);
           } else {

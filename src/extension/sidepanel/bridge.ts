@@ -1,9 +1,10 @@
-import { SIDEPANEL_PORT_NAME, RESONOTE_ORIGIN } from '../shared/constants.js';
 import {
   onExtensionFrameMessage,
   postExtensionMode,
   postPlaybackUpdate
 } from '$shared/browser/extension-message-bridge.js';
+
+import { RESONOTE_ORIGIN, SIDEPANEL_PORT_NAME } from '../shared/constants.js';
 
 const frame = document.getElementById('resonote-frame') as HTMLIFrameElement;
 const loading = document.getElementById('loading') as HTMLDivElement;

@@ -1,13 +1,13 @@
 <script lang="ts">
+  import { getAuth } from '$shared/browser/auth.js';
   import {
+    type ConnectionState,
     createRelaySettingsViewModel,
     getRelays,
     publishRelayList,
     shortUrl,
-    stateColor,
-    type ConnectionState
+    stateColor
   } from '$shared/browser/relays.js';
-  import { getAuth } from '$shared/browser/auth.js';
   import { t } from '$shared/i18n/t.js';
 
   const auth = getAuth();

@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
 import { assertSafeUrl, safeFetch, safeReadText } from './url-validation.js';
 
 describe('assertSafeUrl', () => {

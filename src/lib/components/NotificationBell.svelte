@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { isNodeInsideElements, manageClickOutside } from '$shared/browser/click-outside.js';
+  import { createMediaQuery } from '$shared/browser/media-query.js';
   import {
     createNotificationFeedViewModel,
     describeNotificationItem,
@@ -6,8 +8,7 @@
     type NotificationItemDisplay
   } from '$shared/browser/notifications.js';
   import { t } from '$shared/i18n/t.js';
-  import { isNodeInsideElements, manageClickOutside } from '$shared/browser/click-outside.js';
-  import { createMediaQuery } from '$shared/browser/media-query.js';
+
   import MobileOverlay from './MobileOverlay.svelte';
 
   const notifs = getNotifications();

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import type { RelayEntry } from '../domain/relay-model.js';
 
 const { castSignedMock, fetchLatestEventMock, setDefaultRelaysMock, getRxNostrMock } = vi.hoisted(

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createProfileHeaderViewModel } from '$features/profiles/ui/profile-header-view-model.svelte.js';
-  import { t } from '$shared/i18n/t.js';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import { t } from '$shared/i18n/t.js';
 
   interface Props {
     pubkey: string;

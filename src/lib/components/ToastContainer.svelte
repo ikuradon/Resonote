@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getToasts, dismiss, type ToastType } from '$shared/browser/toast.js';
+  import { dismiss, getToasts, type ToastType } from '$shared/browser/toast.js';
   import { t } from '$shared/i18n/t.js';
 
   const TOAST_STYLE: Record<

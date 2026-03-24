@@ -1,6 +1,7 @@
+import type { ContentId } from '$shared/content/types.js';
+
 import { openSidePanel } from './shared/compat.js';
 import { SIDEPANEL_PORT_NAME } from './shared/constants.js';
-import type { ContentId } from '$shared/content/types.js';
 import { type ExtensionMessage, isSafeUrl, isValidContentId } from './shared/messages.js';
 
 interface TabState {
@@ -36,7 +37,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender) => {
         siteUrl: message.siteUrl
       });
       activeTabId = tabId;
-      openSidePanel(tabId);
+      void openSidePanel(tabId);
       forwardToSidePanel(message);
       break;
     }
@@ -68,13 +69,13 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender) => {
 
     case 'resonote:open-content': {
       if (tabId && isSafeUrl(message.siteUrl) && isValidContentId(message.contentId)) {
-        chrome.tabs.update(tabId, { url: message.siteUrl });
+        void chrome.tabs.update(tabId, { url: message.siteUrl });
         tabStates.set(tabId, {
           contentId: message.contentId,
           siteUrl: message.siteUrl
         });
         activeTabId = tabId;
-        openSidePanel(tabId);
+        void openSidePanel(tabId);
       }
       break;
     }
@@ -84,7 +85,8 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, sender) => {
 chrome.tabs.onActivated.addListener(({ tabId }) => {
   if (tabStates.has(tabId)) {
     activeTabId = tabId;
-    const state = tabStates.get(tabId)!;
+    const state = tabStates.get(tabId);
+    if (!state) return;
     forwardToSidePanel({
       type: 'resonote:site-detected',
       contentId: state.contentId,

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { createPlayerColumnViewModel } from '$features/content-resolution/ui/player-column-view-model.svelte.js';
   import AudioEmbed from '$lib/components/AudioEmbed.svelte';
+  import EpisodeDescription from '$lib/components/EpisodeDescription.svelte';
   import PodcastEpisodeList from '$lib/components/PodcastEpisodeList.svelte';
   import YouTubeFeedList from '$lib/components/YouTubeFeedList.svelte';
-  import EpisodeDescription from '$lib/components/EpisodeDescription.svelte';
   import type { ContentId, ContentProvider } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
 

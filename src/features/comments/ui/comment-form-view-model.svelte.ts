@@ -1,12 +1,14 @@
+import { neventEncode } from 'nostr-tools/nip19';
+
 import { getAuth } from '$shared/browser/auth.js';
 import { getPlayer } from '$shared/browser/player.js';
-import { formatPosition } from '$shared/nostr/events.js';
-import { containsPrivateKey } from '$shared/nostr/content-parser.js';
-import { neventEncode } from 'nostr-tools/nip19';
-import { createLogger } from '$shared/utils/logger.js';
+import { toastError } from '$shared/browser/toast.js';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import { t } from '$shared/i18n/t.js';
-import { toastError } from '$shared/browser/toast.js';
+import { containsPrivateKey } from '$shared/nostr/content-parser.js';
+import { formatPosition } from '$shared/nostr/events.js';
+import { createLogger } from '$shared/utils/logger.js';
+
 import { sendComment } from '../application/comment-actions.js';
 
 const log = createLogger('comment-form-vm');
@@ -145,7 +147,7 @@ export function createCommentFormViewModel(options: CommentFormViewModelOptions)
       const nevent = neventEncode({ id: eventId, relays: [], author: authorPubkey });
       const quoteText = `nostr:${nevent}`;
       const prefix = content && !content.endsWith('\n') && !content.endsWith(' ') ? '\n' : '';
-      content = content + prefix + quoteText + ' ';
+      content = `${content + prefix + quoteText} `;
     }
   };
 }

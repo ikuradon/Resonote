@@ -3,8 +3,8 @@
  * Fetches the event via cachedFetchById and resolves author display.
  */
 
+import { fetchProfile, getDisplayName } from '$shared/browser/profile.js';
 import { cachedFetchById } from '$shared/nostr/cached-query.js';
-import { getDisplayName, fetchProfile } from '$shared/browser/profile.js';
 import { COMMENT_KIND } from '$shared/nostr/events.js';
 import { createLogger } from '$shared/utils/logger.js';
 
@@ -60,7 +60,7 @@ export function createQuoteViewModel(eventId: string) {
     }
   }
 
-  load();
+  void load();
 
   return {
     get status() {

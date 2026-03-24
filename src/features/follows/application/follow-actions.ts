@@ -4,6 +4,7 @@
  */
 
 import { createLogger, shortHex } from '$shared/utils/logger.js';
+
 import { extractFollows } from '../domain/follow-model.js';
 
 const log = createLogger('follow-actions');

@@ -64,8 +64,8 @@ describe('emoji mart helper', () => {
   it('should preload only once', async () => {
     const { preloadEmojiMart, getEmojiMartModules } = await import('./emoji-mart.js');
 
-    preloadEmojiMart();
-    preloadEmojiMart();
+    void preloadEmojiMart();
+    void preloadEmojiMart();
     const result = await getEmojiMartModules();
 
     expect(result.Picker).toBe(pickerModule.Picker);
