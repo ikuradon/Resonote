@@ -176,8 +176,8 @@ describe('createNotificationFeedViewModel', () => {
       const source = { items: [] };
       const vm = createNotificationFeedViewModel(source, { contentPreviewLength: 10 });
       const result = vm.contentPreview('0123456789abcdef');
-      // slice(0, maxLength - 2) + '…' = 8 chars + 1 = 9 chars total
-      expect(result.length).toBe(9);
+      // truncateString: slice(0, maxLength - 1) + '…' = 9 chars + 1 = 10 chars total
+      expect(result.length).toBe(10);
       expect(result.endsWith('\u2026')).toBe(true);
     });
   });
