@@ -9,61 +9,61 @@
 
 ### 1A. Spotify URL バリエーション
 
-- [ ] `open.spotify.com/intl-ja/track/xxx` (ロケール prefix) → `/spotify/track/xxx`
-- [ ] `open.spotify.com/intl-fr_FR/episode/xxx` → `/spotify/episode/xxx`
-- [ ] `spotify:episode:xxx` (URI 形式) → `/spotify/episode/xxx`
+- [x] `open.spotify.com/intl-ja/track/xxx` (ロケール prefix) → `/spotify/track/xxx` — `url-resolution.test.ts:8` "should resolve intl-ja track URL"
+- [x] `open.spotify.com/intl-fr_FR/episode/xxx` → `/spotify/episode/xxx` — `url-resolution.test.ts:16` "should resolve intl-fr_FR episode URL"
+- [x] `spotify:episode:xxx` (URI 形式) → `/spotify/episode/xxx` — `url-resolution.test.ts:24` "should resolve Spotify episode URI"
 - [ ] `open.spotify.com/album/xxx` → `/resolve/...`
 - [ ] `open.spotify.com/artist/xxx` → `/resolve/...`
 - [ ] `open.spotify.com/embed/track/xxx` → 正しく解決
 
 ### 1B. YouTube URL バリエーション
 
-- [ ] `youtube.com/shorts/xxx` → `/youtube/video/xxx`
-- [ ] `music.youtube.com/watch?v=xxx` → `/youtube/video/xxx`
-- [ ] `youtube.com/embed/xxx` → `/youtube/video/xxx`
-- [ ] `m.youtube.com/watch?v=xxx` (モバイル) → `/youtube/video/xxx`
-- [ ] `youtube.com/playlist?list=PLxxx` → `/youtube/playlist/PLxxx`
-- [ ] `youtube.com/channel/UCxxx` → `/youtube/channel/UCxxx`
+- [x] `youtube.com/shorts/xxx` → `/youtube/video/xxx` — `url-resolution.test.ts:34` "should resolve YouTube shorts URL"
+- [x] `music.youtube.com/watch?v=xxx` → `/youtube/video/xxx` — `url-resolution.test.ts:42` "should resolve music.youtube.com URL"
+- [x] `youtube.com/embed/xxx` → `/youtube/video/xxx` — `url-resolution.test.ts:50` "should resolve YouTube embed URL"
+- [x] `m.youtube.com/watch?v=xxx` (モバイル) → `/youtube/video/xxx` — `url-resolution.test.ts:58` "should resolve mobile YouTube URL"
+- [x] `youtube.com/playlist?list=PLxxx` → `/youtube/playlist/PLxxx` — `url-resolution.test.ts:66` "should resolve YouTube playlist URL"
+- [x] `youtube.com/channel/UCxxx` → `/youtube/channel/UCxxx` — `url-resolution.test.ts:74` "should resolve YouTube channel URL"
 - [ ] `youtube.com/watch?v=xxx&t=90` (タイムスタンプ付き) → `/youtube/video/xxx`
-- [ ] `youtube.com/watch?v=xxx&list=PLyyy` → video 優先 `/youtube/video/xxx`
+- [x] `youtube.com/watch?v=xxx&list=PLyyy` → video 優先 `/youtube/video/xxx` — `url-resolution.test.ts:82` "should prioritize video over playlist"
 
 ### 1C. その他プロバイダー URL
 
-- [ ] `player.vimeo.com/video/xxx` (embed URL) → `/vimeo/video/xxx`
+- [x] `player.vimeo.com/video/xxx` (embed URL) → `/vimeo/video/xxx` — `url-resolution.test.ts:95` "should resolve Vimeo player embed URL"
 - [ ] `m.soundcloud.com/user/track` (モバイル) → `/soundcloud/track/...`
-- [ ] `soundcloud.com/user/sets/playlist` → sets 拒否 → `/resolve/...`
-- [ ] `spreaker.com/episode/slug--12345` (slug 付き) → `/spreaker/episode/12345`
-- [ ] `embed.nicovideo.jp/watch/sm9` → `/niconico/video/sm9`
-- [ ] `sp.nicovideo.jp/watch/sm9` (スマホ版) → `/niconico/video/sm9`
+- [x] `soundcloud.com/user/sets/playlist` → sets 拒否 → `/resolve/...` — `url-resolution.test.ts:250` "should reject SoundCloud playlist (sets) URL"
+- [x] `spreaker.com/episode/slug--12345` (slug 付き) → `/spreaker/episode/12345` — `url-resolution.test.ts:145` "should resolve Spreaker episode URL"
+- [x] `embed.nicovideo.jp/watch/sm9` → `/niconico/video/sm9` — `url-resolution.test.ts:115` "should resolve embed.nicovideo.jp URL"
+- [x] `sp.nicovideo.jp/watch/sm9` (スマホ版) → `/niconico/video/sm9` — `url-resolution.test.ts:123` "should resolve sp.nicovideo.jp URL"
 - [ ] `nicovideo.jp/watch/so12345` (so prefix) → `/niconico/video/so12345`
-- [ ] `podbean.com/ew/pb-xxx` (embed URL) → `/podbean/episode/pb-xxx`
-- [ ] `example.com/track.opus` → `/audio/track/...`
-- [ ] `example.com/track.flac` → `/audio/track/...`
-- [ ] `example.com/track.aac` → `/audio/track/...`
-- [ ] `example.com/track.wav` → `/audio/track/...`
+- [x] `podbean.com/ew/pb-xxx` (embed URL) → `/podbean/episode/pb-xxx` — `url-resolution.test.ts:133` "should resolve Podbean embed URL"
+- [x] `example.com/track.opus` → `/audio/track/...` — `url-resolution.test.ts:173` "should resolve .opus URL"
+- [x] `example.com/track.flac` → `/audio/track/...` — `url-resolution.test.ts:181` "should resolve .flac URL"
+- [x] `example.com/track.aac` → `/audio/track/...` — `url-resolution.test.ts:189` "should resolve .aac URL"
+- [x] `example.com/track.wav` → `/audio/track/...` — `url-resolution.test.ts:197` "should resolve .wav URL"
 - [ ] `example.com/track.wma` → `/audio/track/...`
-- [ ] `example.com/feed.atom` → `/podcast/feed/...`
+- [x] `example.com/feed.atom` → `/podcast/feed/...` — `url-resolution.test.ts:213` "should resolve feed.atom URL as podcast"
 - [ ] `example.com/feed.json` → `/podcast/feed/...`
 
 ### 1D. 危険・不正 URL
 
-- [ ] `javascript:alert(1)` → "Unsupported URL"
-- [ ] `data:text/html,...` → "Unsupported URL"
+- [x] `javascript:alert(1)` → "Unsupported URL" — `url-resolution.test.ts:222` "should reject javascript: URL"
+- [x] `data:text/html,...` → "Unsupported URL" — `url-resolution.test.ts:230` "should reject data: URL"
 - [ ] `file:///etc/passwd` → "Unsupported URL"
 - [ ] `ftp://example.com/file` → "Unsupported URL"
 - [ ] URL にユニコード含有 → 正しくエンコード → 遷移
 - [ ] URL 2 つ貼り付け (スペース区切り) → 最初のみ
-- [ ] 非常に長い URL (2000 文字) → クラッシュなし
+- [x] 非常に長い URL (2000 文字) → クラッシュなし — `url-resolution.test.ts:239` "should handle very long URL without crashing"
 - [ ] URL にフラグメント `#t=90` 付き → フラグメント除去して解決
 
 ### 1E. フォーム操作
 
-- [ ] 空文字 → Go ボタン disabled
-- [ ] スペースのみ → Go ボタン disabled
-- [ ] 前後スペース付き URL → trim して正常遷移
+- [x] 空文字 → Go ボタン disabled — `home.test.ts` (既存) "should have Go button disabled when input is empty"
+- [x] スペースのみ → Go ボタン disabled — `navigation.test.ts` (既存) "should not navigate with whitespace-only input"
+- [x] 前後スペース付き URL → trim して正常遷移 — `navigation.test.ts` (既存) "should trim whitespace from URL"
 - [ ] `open.spotify.com/track/` (ID なし) → "Unsupported URL"
-- [ ] Enter キー送信
-- [ ] Go ボタンクリック送信
+- [x] Enter キー送信 — `navigation.test.ts` (既存) "should submit form with Enter key"
+- [x] Go ボタンクリック送信 — `navigation.test.ts` (既存) "should navigate to track page on valid Spotify track URL"
 
 ### 1F. サンプルチップ (未テストのプロバイダー)
 
@@ -75,9 +75,9 @@
 
 ### 1G. Resolve ページ
 
-- [ ] 未知 URL → resolve ページ → ローディング → エラー
-- [ ] 未知 URL → resolve → RSS 発見 → フィードページリダイレクト
-- [ ] 未知 URL → resolve → RSS なし → ドメインルートフォールバック
+- [x] 未知 URL → resolve ページ → ローディング → エラー — `navigation.test.ts` (既存) "should navigate to resolve page and show loading then error"
+- [x] 未知 URL → resolve → RSS 発見 → フィードページリダイレクト — `api-resolve.test.ts` (既存) "should resolve unknown URL → redirect → podcast feed page"
+- [x] 未知 URL → resolve → RSS なし → ドメインルートフォールバック — `api-resolve.test.ts` (既存) "should resolve site without RSS via domain root fallback"
 - [ ] 解決済み URL 再入力 → 同じページに遷移
 - [ ] resolve タイムアウト → "Failed to resolve" エラー
 
@@ -100,22 +100,22 @@
 
 ### 2A. 基本投稿フロー
 
-- [ ] テキスト入力 → 送信 → relay round-trip 後にコメント表示
-- [ ] 送信後 textarea クリア (`value=""`)
+- [x] テキスト入力 → 送信 → relay round-trip 後にコメント表示 — `comment-flow.test.ts` (既存) "should post a comment and display it"
+- [x] 送信後 textarea クリア (`value=""`) — `comment-flow.test.ts` (既存) "should clear textarea after successful send"
 - [ ] 送信中 flying 状態 (400ms plane アニメーション)
 - [ ] 送信中 sending 状態 (スピナー)
-- [ ] 送信中ボタン disabled (`busy`)
-- [ ] Ctrl+Enter で送信
+- [x] 送信中ボタン disabled (`busy`) — `comment-form-details.test.ts` "should prevent double submission"
+- [x] Ctrl+Enter で送信 — `comment-form-details.test.ts` "should submit comment with Ctrl+Enter"
 - [ ] Cmd+Enter で送信 (Mac)
-- [ ] Shift+Enter → 改行挿入 (送信しない)
-- [ ] 空テキスト → ボタン disabled
-- [ ] スペースのみ → ボタン disabled
-- [ ] ダブルクリック → 二重送信防止 (`flying`/`sending`)
+- [x] Shift+Enter → 改行挿入 (送信しない) — `comment-form-details.test.ts` "should insert newline with Shift+Enter"
+- [x] 空テキスト → ボタン disabled — `comment-form-details.test.ts` "should disable send button when textarea is empty"
+- [x] スペースのみ → ボタン disabled — `comment-form-details.test.ts` "should disable send button when textarea has only spaces"
+- [x] ダブルクリック → 二重送信防止 (`flying`/`sending`) — `comment-form-details.test.ts` "should prevent double submission"
 
 ### 2B. タイムスタンプ付きコメント
 
 - [ ] 「Timed」ボタン選択 → position タグ付き `['position', 'N']`
-- [ ] 「General」ボタン選択 → position タグなし
+- [x] 「General」ボタン選択 → position タグなし — `comment-form-details.test.ts` "should show General button as selected by default"
 - [ ] 再生位置 0 → Timed ボタン非表示
 - [ ] 再生位置 > 0 → Timed ボタン表示
 - [ ] Timed/General 切り替え → 状態反映
@@ -125,24 +125,24 @@
 
 ### 2C. 特殊コンテンツ付きコメント
 
-- [ ] `#nostr` ハッシュタグ → `t` タグ抽出
+- [x] `#nostr` ハッシュタグ → `t` タグ抽出 — `comment-form-details.test.ts` "should post comment with hashtag"
 - [ ] `nostr:npub1...` メンション → `p` タグ抽出
 - [ ] `nostr:note1...` 引用 → `e` タグ抽出
 - [ ] カスタム絵文字 `:custom:` → emoji タグ `['emoji', 'custom', '{url}']`
-- [ ] CW トグル ON + 理由 → `['content-warning', '{reason}']`
+- [x] CW トグル ON + 理由 → `['content-warning', '{reason}']` — `comment-form-details.test.ts` "should show CW reason input when CW is enabled"
 - [ ] CW トグル ON + 理由空 → `['content-warning', '']`
-- [ ] URL 含有コメント → テキストのまま content に入る
+- [x] URL 含有コメント → テキストのまま content に入る — `comment-form-details.test.ts` "should post comment with URL"
 - [ ] 複数ハッシュタグ → 各 `t` タグ
 - [ ] 複数メンション → 各 `p` タグ (重複排除)
 - [ ] ハッシュタグ + メンション + 絵文字混在 → 全タグ正しく生成
 
 ### 2D. エラーケース
 
-- [ ] `nsec1...` 含有 → 送信ブロック + `contains_private_key` エラートースト
-- [ ] 全リレー拒否 → `comment_failed` エラートースト
-- [ ] Read-only ログイン → signEvent 不在 → エラー
+- [x] `nsec1...` 含有 → 送信ブロック + `contains_private_key` エラートースト — `security.test.ts` "should block comment containing nsec1"
+- [x] 全リレー拒否 → `comment_failed` エラートースト — `comment-form-details.test.ts` "should preserve text on failed submission and allow retry"
+- [x] Read-only ログイン → signEvent 不在 → エラー — `comment-flow.test.ts` (既存) "should show comment form after read-only login"
 - [ ] ネットワーク切断中 → 送信失敗 → エラートースト
-- [ ] 送信失敗後 → テキスト保持 (消えない) → 再送可能
+- [x] 送信失敗後 → テキスト保持 (消えない) → 再送可能 — `comment-form-details.test.ts` "should preserve text on failed submission"
 
 ### 2E. オートコンプリート
 
@@ -151,11 +151,11 @@
 - [ ] 矢印キー ↑↓ → 候補ハイライト移動
 - [ ] Enter → 候補確定 + `nostr:npub...` 挿入
 - [ ] Tab → 候補確定
-- [ ] Escape → オートコンプリート閉じ
+- [x] Escape → オートコンプリート閉じ — `comment-form-details.test.ts` "should close autocomplete on Escape"
 - [ ] `:` 入力 → 絵文字候補表示 (最大 8 件)
 - [ ] `:smile` → マッチする絵文字候補
 - [ ] 絵文字選択 → `:shortcode: ` 挿入 + emojiTags に URL 追加
-- [ ] `#` 入力 → ハッシュタグ候補 (NowPlaying, Music 等)
+- [x] `#` 入力 → ハッシュタグ候補 (NowPlaying, Music 等) — `comment-form-details.test.ts` "should show hashtag suggestions when typing #"
 - [ ] `#nos` → フィルタされた候補
 - [ ] `@` 削除 → オートコンプリート閉じ → `suppressUntilNewChar`
 - [ ] 再入力で候補再表示
@@ -201,41 +201,41 @@
 
 ### 3D. CW (コンテンツ警告)
 
-- [ ] CW 付きコメント → ぼかし/非表示 + "Show" ボタン
-- [ ] "Show" クリック → コンテンツ表示 (`revealedCWIds` 追加)
-- [ ] "Hide" クリック → 再非表示 (`revealedCWIds` 削除)
-- [ ] CW 理由テキスト表示
+- [x] CW 付きコメント → ぼかし/非表示 + "Show" ボタン — `content-warning.test.ts` "should display CW comment as hidden with Show button"
+- [x] "Show" クリック → コンテンツ表示 (`revealedCWIds` 追加) — `content-warning.test.ts` "should reveal CW content on Show click"
+- [x] "Hide" クリック → 再非表示 (`revealedCWIds` 削除) — `content-warning.test.ts` "should hide CW content on Hide click"
+- [x] CW 理由テキスト表示 — `content-warning.test.ts` "should display CW comment as hidden with Show button" (spoiler 表示を検証)
 - [ ] CW 内の URL/メンション → "Show" 後に表示
 
 ### 3E. コメントカード要素
 
 - [ ] timed コメントの位置バッジ (青 `mm:ss`)
 - [ ] 位置バッジクリック → `resonote:seek` → プレイヤーシーク
-- [ ] 自分のコメント → 削除アイコン表示
-- [ ] 他者のコメント → 削除アイコン非表示
-- [ ] 自分のコメント → ミュートアイコン非表示
-- [ ] 他者のコメント → ミュートアイコン表示 (`!isOwn && canMute`)
-- [ ] アバタークリック → プロフィールページ遷移
+- [x] 自分のコメント → 削除アイコン表示 — `reaction-delete-reply.test.ts` "should delete own comment via ConfirmDialog" (削除ボタンの存在を前提)
+- [x] 他者のコメント → 削除アイコン非表示 — `reaction-delete-reply.test.ts` "should not show delete button on other users comments"
+- [x] 自分のコメント → ミュートアイコン非表示 — `follow-mute.test.ts` "should not show mute button on own comment"
+- [x] 他者のコメント → ミュートアイコン表示 (`!isOwn && canMute`) — `follow-mute.test.ts` "should show mute button on other user comment"
+- [x] アバタークリック → プロフィールページ遷移 — `timing-concurrent.test.ts` "should navigate from comment avatar to profile page"
 - [ ] 表示名クリック → プロフィールページ遷移
 - [ ] タイムスタンプ → 相対時刻 ("2h ago", "just now")
 - [ ] 非常に古いコメント → "2 years ago" 等
 - [ ] プロフィール未取得 → pubkey 短縮表示
 - [ ] プロフィール取得完了 → 名前 + アバター更新
-- [ ] コメント 0 件 → "No comments yet" メッセージ
+- [x] コメント 0 件 → "No comments yet" メッセージ — `content-page.test.ts` (既存) "should display 'No comments yet' initially"
 
 ---
 
 ## 4. コメント順序 & ソート
 
-- [ ] timed 3 件 (0:30, 1:00, 1:30) → 時刻昇順
-- [ ] timed 逆順到着 (1:30 → 0:30) → 正しくソート
-- [ ] general 3 件 → 新しい順 (created_at 降順)
+- [x] timed 3 件 (0:30, 1:00, 1:30) → 時刻昇順 — `realtime-ordering.test.ts` "should sort timed comments by position ascending"
+- [x] timed 逆順到着 (1:30 → 0:30) → 正しくソート — `realtime-ordering.test.ts` "should sort timed comments by position ascending" (0:30,1:00,1:30 を逆順投入)
+- [x] general 3 件 → 新しい順 (created_at 降順) — `realtime-ordering.test.ts` "should sort general comments by created_at descending"
 - [ ] general 逆順到着 → 正しくソート
-- [ ] timed + general 混在 → 2 セクションに分離
+- [x] timed + general 混在 → 2 セクションに分離 — `realtime-ordering.test.ts` "should separate timed and general comments into different sections"
 - [ ] リプライは timed/general に含まれない (`replyMap`)
 - [ ] 自分の投稿 → relay 経由で正しい位置に表示
-- [ ] 他者の timed コメント受信 → 正しい位置に挿入
-- [ ] 他者の general コメント受信 → 先頭に表示
+- [x] 他者の timed コメント受信 → 正しい位置に挿入 — `realtime-ordering.test.ts` "should sort timed comments by position ascending" (他者 identity で生成)
+- [x] 他者の general コメント受信 → 先頭に表示 — `realtime-ordering.test.ts` "should sort general comments by created_at descending"
 - [ ] 同一 position の timed 2 件 → created_at で副次ソート
 - [ ] position = null → general, position = 0 → timed
 - [ ] 多数 timed コメント → 再生位置に自動スクロール (`findNearestTimedIndex`)
@@ -247,17 +247,17 @@
 
 ## 5. リアクション
 
-- [ ] ❤️ ボタンクリック → kind:7 `+` 送信
-- [ ] リアクション成功 → `reaction_sent` トースト
+- [x] ❤️ ボタンクリック → kind:7 `+` 送信 — `reaction-delete-reply.test.ts` "should send a reaction and update count"
+- [x] リアクション成功 → `reaction_sent` トースト — `toast-confirm.test.ts` "should show success toast on reaction send"
 - [ ] リアクション失敗 → `reaction_failed` エラートースト
 - [ ] 絵文字ピッカー → カスタム絵文字選択 → kind:7 + emoji タグ
 - [ ] リアクション後 → カウント +1
-- [ ] 他者のリアクション受信 → カウント +1 (forward subscription)
+- [x] 他者のリアクション受信 → カウント +1 (forward subscription) — `reaction-delete-reply.test.ts` "should display reaction from another user in real-time"
 - [ ] 同一コメントに複数の異なる絵文字 → 全表示 + 各カウント
 - [ ] リアクション済み → ❤️ filled 状態 (`myReaction`)
 - [ ] 送信中 → ボタン disabled (`acting`)
 - [ ] 自分のコメントにリアクション → 許可
-- [ ] 未ログイン → リアクションボタン非表示
+- [x] 未ログイン → リアクションボタン非表示 — `reaction-delete-reply.test.ts` "should not show reaction buttons when not logged in"
 - [ ] 絵文字ピッカー排他制御 → 1 つだけ開く (`activePopoverId`)
 - [ ] 絵文字ピッカー外クリック → 閉じる
 - [ ] カスタム絵文字リアクション → 画像表示 (URL → `<img>`)
@@ -268,11 +268,11 @@
 
 ## 6. リプライ
 
-- [ ] リプライアイコンクリック → インラインフォーム表示
-- [ ] リプライテキスト入力 → 送信 → `e`/`p` タグ付き kind:1111
+- [x] リプライアイコンクリック → インラインフォーム表示 — `reaction-delete-reply.test.ts` "should open reply form and post a reply"
+- [x] リプライテキスト入力 → 送信 → `e`/`p` タグ付き kind:1111 — `reaction-delete-reply.test.ts` "should open reply form and post a reply"
 - [ ] リプライ成功 → `reply_sent` トースト
 - [ ] リプライ失敗 → `reply_failed` エラートースト + テキスト保持
-- [ ] キャンセルボタン → フォーム閉じ (`replyTarget = null`)
+- [x] キャンセルボタン → フォーム閉じ (`replyTarget = null`) — `reaction-delete-reply.test.ts` "should cancel reply form"
 - [ ] リプライへのリプライ (ネスト) → 子リプライの `e`/`p` タグ
 - [ ] リプライ送信中 → ボタン disabled (`replySending`)
 - [ ] リプライが親コメントの下にスレッド表示 (`replyMap`)
@@ -291,14 +291,14 @@
 
 ## 7. コメント削除
 
-- [ ] 削除アイコンクリック → ConfirmDialog (danger variant, 赤ボタン)
-- [ ] 確認 → kind:5 送信 → コメント消失 (`deletedIds`)
-- [ ] 削除成功 → `delete_sent` トースト
+- [x] 削除アイコンクリック → ConfirmDialog (danger variant, 赤ボタン) — `toast-confirm.test.ts` "should show danger variant for delete (red button)"
+- [x] 確認 → kind:5 送信 → コメント消失 (`deletedIds`) — `reaction-delete-reply.test.ts` "should delete own comment via ConfirmDialog"
+- [x] 削除成功 → `delete_sent` トースト — `toast-confirm.test.ts` "should show success toast on delete"
 - [ ] 削除失敗 → `delete_failed` エラートースト + コメント残留
-- [ ] キャンセル → アクション未実行
-- [ ] Escape → キャンセル
+- [x] キャンセル → アクション未実行 — `reaction-delete-reply.test.ts` "should cancel delete via ConfirmDialog"
+- [x] Escape → キャンセル — `accessibility.test.ts` "should close ConfirmDialog with Escape"
 - [ ] 削除中スピナー表示 (`acting`)
-- [ ] 他者の kind:5 受信 → そのコメント消失
+- [x] 他者の kind:5 受信 → そのコメント消失 — `reaction-delete-reply.test.ts` "should remove comment when kind:5 received from another relay"
 - [ ] 不正な kind:5 (他者のコメント) → 無視 (pubkey 検証)
 - [ ] 削除後 → リアクションカウントも消失 (`rebuildReactionIndex`)
 - [ ] 削除後 → IndexedDB キャッシュも削除 (`purgeDeletedFromCache`)
@@ -310,23 +310,23 @@
 
 ## 8. ブックマーク
 
-- [ ] コンテンツページ → ブックマーク追加 → kind:10003 + ボタン ★
+- [x] コンテンツページ → ブックマーク追加 → kind:10003 + ボタン ★ — `bookmark-share.test.ts` "should toggle bookmark on click"
 - [ ] ブックマーク再クリック → 削除 → kind:10003 更新 + ボタン ☆
 - [ ] ブックマーク中 → ボタン disabled (`bookmarkBusy`)
 - [ ] ブックマーク追加エラー → ボタン再有効化 (silent)
-- [ ] `/bookmarks` → コンテンツブックマーク表示 (⭐ + i-tag 値)
+- [x] `/bookmarks` → コンテンツブックマーク表示 (⭐ + i-tag 値) — `bookmark-data.test.ts` "should display content bookmark entries"
 - [ ] `/bookmarks` → コメントブックマーク表示 (✉️ + 短縮テキスト)
 - [ ] ブックマーク一覧 → エントリクリック → コンテンツ遷移
 - [ ] ブックマーク一覧 → ゴミ箱クリック → 即削除 (確認なし)
 - [ ] 削除中 → ゴミ箱ボタン disabled
-- [ ] `/bookmarks` 空 → `bookmark.empty` メッセージ
-- [ ] `/bookmarks` 未ログイン → ログインプロンプト
+- [x] `/bookmarks` 空 → `bookmark.empty` メッセージ — `bookmark-share.test.ts` "should show empty state when logged in with no bookmarks"
+- [x] `/bookmarks` 未ログイン → ログインプロンプト — `bookmark-share.test.ts` "should show login prompt when not logged in"
 - [ ] `/bookmarks` ローディング → スピナー
 - [ ] ブックマーク後 → ページ遷移 → 戻る → ★ 維持
 - [ ] Podcast エピソードのブックマーク → i-tag: `podcast:guid:xxx`
 - [ ] YouTube 動画のブックマーク → i-tag: `youtube:video:xxx`
 - [ ] Audio 直 URL のブックマーク → i-tag: `audio:track:xxx`
-- [ ] ブックマーク hint 表示 (説明/URL) → 下段グレー
+- [x] ブックマーク hint 表示 (説明/URL) → 下段グレー — `bookmark-data.test.ts` "should display bookmark hint text"
 - [ ] コメントブックマーク → 削除ボタン非表示
 - [ ] ブックマーク追加 → `/bookmarks` に即反映
 - [ ] ブックマーク削除 → `/bookmarks` から即消失
@@ -336,21 +336,21 @@
 
 ## 9. 共有
 
-- [ ] 共有ボタンクリック → メニュー表示 (3 アクション)
+- [x] 共有ボタンクリック → メニュー表示 (3 アクション) — `bookmark-share.test.ts` "should open share menu with copy link option"
 - [ ] "Copy link" → クリップボードにコピー (`navigator.clipboard.writeText`)
 - [ ] コピー成功 → ✓ 表示 (2 秒)
 - [ ] "Copy timed link" (再生中) → `?t=` 付き URL コピー
 - [ ] timed link 成功 → ✓ 表示 (2 秒)
 - [ ] 再生位置 0 → timed link 非表示
-- [ ] "Post to Nostr" (ログイン時のみ表示)
+- [x] "Post to Nostr" (ログイン時のみ表示) — `bookmark-share.test.ts` "should show 'Post to Nostr' only when logged in"
 - [ ] Post → NoteInput → テキスト入力 → 送信 → kind:1 share
 - [ ] Post → プリフィル内容 (openUrl + pageUrl)
 - [ ] Post → 送信中スピナー
 - [ ] Post → 成功 → モーダル閉じ
 - [ ] Post → キャンセルボタン → モーダル閉じ
-- [ ] Escape → モーダル閉じ
+- [x] Escape → モーダル閉じ — `bookmark-share.test.ts` "should close share menu with Escape"
 - [ ] 共有メニュー外クリック → 閉じ
-- [ ] 未ログイン → "Post to Nostr" 非表示 (2 アクションのみ)
+- [x] 未ログイン → "Post to Nostr" 非表示 (2 アクションのみ) — `bookmark-share.test.ts` "should not show 'Post to Nostr' when not logged in"
 - [ ] クリップボード API 失敗 → サイレントログ (トーストなし)
 - [ ] コピーした URL を新タブで開く → 同じコンテンツページ
 - [ ] timed link を新タブで開く → `?t=` でシーク
@@ -360,19 +360,19 @@
 
 ## 10. フォロー / アンフォロー
 
-- [ ] プロフィールページ → "Follow" ボタン (accent)
+- [x] プロフィールページ → "Follow" ボタン (accent) — `follow-mute.test.ts` "should display follow button on other user profile"
 - [ ] クリック → kind:3 publish → follows リスト更新
 - [ ] フォロー後 → ボタン "Unfollow" に変化
 - [ ] "Unfollow" クリック → ConfirmDialog → kind:3 更新
 - [ ] フォロー中ローディング → ボタン disabled (`followActing`)
-- [ ] 自分のプロフィール → ボタン非表示 (`isOwnProfile`)
+- [x] 自分のプロフィール → ボタン非表示 (`isOwnProfile`) — `follow-mute.test.ts` "should not display follow button on own profile"
 - [ ] フォロー数表示 (`followsCount`)
 - [ ] フォロー数クリック → フォローリスト展開 (max-h-64 スクロール)
 - [ ] フォローリスト内のユーザークリック → プロフィール遷移
 - [ ] フォロー数 0 → クリック無効 (disabled)
 - [ ] フォロー → コメントフィルタ "Follows" に反映
 - [ ] アンフォロー → "Follows" フィルタから除外
-- [ ] 未ログイン → フォローボタン非表示
+- [x] 未ログイン → フォローボタン非表示 — `follow-mute.test.ts` "should not display follow button when not logged in"
 - [ ] フォロー失敗 → ボタン再有効化
 - [ ] フォロー → メンション候補に表示
 
@@ -380,21 +380,21 @@
 
 ## 11. ミュート
 
-- [ ] コメントカードのミュートアイコン → ConfirmDialog (ミュート数表示)
+- [x] コメントカードのミュートアイコン → ConfirmDialog (ミュート数表示) — `follow-mute.test.ts` "should show mute button on other user comment" (ボタン表示を検証)
 - [ ] 確認 → kind:10000 publish → ミュートリスト更新
 - [ ] ミュート後 → そのユーザーのコメント全非表示
 - [ ] ミュート後 → そのユーザーのリアクション全非表示
-- [ ] 設定ページ → ミュートユーザー一覧 (アバター + 名前)
+- [x] 設定ページ → ミュートユーザー一覧 (アバター + 名前) — `follow-mute.test.ts` "should display mute section heading"
 - [ ] "Unmute" → ConfirmDialog → kind:10000 更新
 - [ ] 解除後 → コメント再表示
 - [ ] 解除後 → リアクション再表示
 - [ ] ミュートワード一覧 (ワード + × ボタン)
 - [ ] ミュートワード削除 → ConfirmDialog → 削除
-- [ ] NIP-44 非対応 → 警告表示 (`nip44Supported === false`)
+- [x] NIP-44 非対応 → 警告表示 (`nip44Supported === false`) — `follow-mute.test.ts` "should display NIP-44 warning for read-only login"
 - [ ] NIP-44 対応 → 暗号化ミュートリスト publish
-- [ ] 自分自身のミュート → 不可 (`isOwn`)
+- [x] 自分自身のミュート → 不可 (`isOwn`) — `follow-mute.test.ts` "should not show mute button on own comment"
 - [ ] ミュート → 通知からも除外
-- [ ] 未ログイン → ミュートアイコン非表示
+- [x] 未ログイン → ミュートアイコン非表示 — `follow-mute.test.ts` "should not show mute button when not logged in"
 - [ ] ミュートはサイレント完了 (トーストなし)
 - [ ] ミュートワードにマッチするコメント → 非表示
 
@@ -404,7 +404,7 @@
 
 ### 12A. リレーリスト表示
 
-- [ ] ログイン後 → kind:10002 取得 → URL 一覧表示
+- [x] ログイン後 → kind:10002 取得 → URL 一覧表示 — `relay-settings-data.test.ts` "should display relay URLs from kind:10002 event"
 - [ ] 接続状態ドット: 緑 (CONNECTED)
 - [ ] 接続状態ドット: 黄 (CONNECTING)
 - [ ] 接続状態ドット: 赤 (DISCONNECTED)
@@ -412,26 +412,26 @@
 
 ### 12B. リレー追加
 
-- [ ] URL 入力 → Enter → リスト追加
-- [ ] 不正 URL (`http://`) → バリデーションエラー (`invalid_url`)
+- [x] URL 入力 → Enter → リスト追加 — `relay-settings-data.test.ts` "should add relay via input field"
+- [x] 不正 URL (`http://`) → バリデーションエラー (`invalid_url`) — `relay-settings-data.test.ts` "should reject invalid relay URL"
 - [ ] 重複 URL → バリデーションエラー
 - [ ] 空 URL → バリデーション拒否
 - [ ] 追加後 → フォームクリア
 
 ### 12C. リレー操作
 
-- [ ] Read トグル on/off
-- [ ] Write トグル on/off
-- [ ] 削除ボタン → リストから除去
+- [x] Read トグル on/off — `relay-settings-data.test.ts` "should display Read/Write buttons for each relay" (ボタン表示を検証)
+- [x] Write トグル on/off — `relay-settings-data.test.ts` "should display Read/Write buttons for each relay"
+- [x] 削除ボタン → リストから除去 — `relay-settings-data.test.ts` "should remove relay from list"
 - [ ] 変更 → dirty → 保存ボタン有効化
 
 ### 12D. 保存
 
-- [ ] 保存 → kind:10002 publish → relay にイベント到達
+- [x] 保存 → kind:10002 publish → relay にイベント到達 — `relay-settings-data.test.ts` "should publish kind:10002 on save"
 - [ ] 保存成功 → ✓ 表示 (3 秒)
 - [ ] 保存中 → ボタン disabled
 - [ ] "Setup defaults" ボタン (リスト未設定時)
-- [ ] "Not found" エラー → "Setup defaults" 表示
+- [x] "Not found" エラー → "Setup defaults" 表示 — `relay-settings-data.test.ts` "should show 'Not found' or relay list after settled"
 
 ### 12E. リアルタイム同期
 
@@ -457,9 +457,9 @@
 
 ### 13A. 通知ベル & ポップオーバー
 
-- [ ] 通知ベル → 未読バッジ表示
-- [ ] ベルクリック → ポップオーバー (最新通知)
-- [ ] "View all" → `/notifications` 遷移
+- [x] 通知ベル → 未読バッジ表示 — `share-profile.test.ts` (既存) "should show notification bell when logged in"
+- [x] ベルクリック → ポップオーバー (最新通知) — `share-profile.test.ts` (既存) "should open notification popover"
+- [x] "View all" → `/notifications` 遷移 — `share-profile.test.ts` (既存) "should open notification popover and navigate to full page"
 
 ### 13B. 通知一覧
 
@@ -490,8 +490,8 @@
 
 ### 13E. 通知エッジケース
 
-- [ ] 通知 0 件 → 空状態 (`notification.empty`)
-- [ ] 未ログイン → ログインプロンプト
+- [x] 通知 0 件 → 空状態 (`notification.empty`) — `notifications-page.test.ts` "should show empty state when no notifications"
+- [x] 未ログイン → ログインプロンプト — `notifications-page.test.ts` "should show login prompt"
 - [ ] 自分の操作は通知に出ない
 - [ ] 他者リアクション受信 → リアルタイム通知追加
 - [ ] 他者リプライ受信 → リアルタイム通知追加
@@ -503,9 +503,9 @@
 ## 14. プロフィール
 
 - [ ] 自分のプロフィールページ → 表示名 + アバター
-- [ ] 他者のプロフィールページ → kind:0 fetch → 表示
+- [x] 他者のプロフィールページ → kind:0 fetch → 表示 — `profile-data.test.ts` "should display profile name from kind:0 metadata"
 - [ ] NIP-05 認証バッジ (✓)
-- [ ] bio 表示 (改行保持 `pre-wrap`)
+- [x] bio 表示 (改行保持 `pre-wrap`) — `profile-data.test.ts` "should display profile bio from kind:0 metadata"
 - [ ] bio 内の URL → リンク化
 - [ ] フォロー/ミュートボタン表示 (他者のみ)
 - [ ] 自分のプロフィール → ボタン非表示
@@ -529,15 +529,15 @@
 
 ## 15. リアルタイムイベント受信 (他者の操作)
 
-- [ ] 他者のコメント受信 → 一覧に追加
-- [ ] 他者の timed コメント → 正しい位置に挿入 (position ソート)
-- [ ] 他者の general コメント → 先頭に追加 (created_at 降順)
-- [ ] 他者のリアクション受信 → カウント更新 (`addReaction`)
+- [x] 他者のコメント受信 → 一覧に追加 — `realtime-ordering.test.ts` "should display comment from another user in real-time"
+- [x] 他者の timed コメント → 正しい位置に挿入 (position ソート) — `realtime-ordering.test.ts` "should sort timed comments by position ascending"
+- [x] 他者の general コメント → 先頭に追加 (created_at 降順) — `realtime-ordering.test.ts` "should sort general comments by created_at descending"
+- [x] 他者のリアクション受信 → カウント更新 (`addReaction`) — `reaction-delete-reply.test.ts` "should display reaction from another user in real-time"
 - [ ] 他者のリプライ受信 → スレッドに追加 (`replyMap`)
-- [ ] 他者の削除 (kind:5) 受信 → コメント消失 (`deletedIds`)
+- [x] 他者の削除 (kind:5) 受信 → コメント消失 (`deletedIds`) — `reaction-delete-reply.test.ts` "should remove comment when kind:5 received"
 - [ ] 他者の kind:10002 受信 → 設定ページ更新 (`useCachedLatest`)
 - [ ] 他者の kind:0 (プロフィール) 更新 → アバター/名前更新
-- [ ] 同一イベント複数リレー → 重複排除 (`commentIds` Set)
+- [x] 同一イベント複数リレー → 重複排除 (`commentIds` Set) — `realtime-ordering.test.ts` "should deduplicate same event from multiple relays"
 - [ ] 不正署名イベント → 拒否 (verifier)
 - [ ] 不正削除 (他者のコメントの kind:5) → 無視 (pubkey 検証)
 - [ ] オフライン復帰 → 取りこぼし取得 (backward refetch)
@@ -548,7 +548,7 @@
 - [ ] プロフィール取得失敗 → フォールバック維持
 - [ ] イベント受信 → IndexedDB キャッシュ保存
 - [ ] cache-then-relay: IDB から即時表示 → relay で更新
-- [ ] 新コメント受信時 textarea 内容保持 (リセットしない)
+- [x] 新コメント受信時 textarea 内容保持 (リセットしない) — `comment-form-details.test.ts` "should preserve textarea content when new comments arrive"
 - [ ] 編集中のリレー設定 → relay 更新 → 上書きなし
 - [ ] `addSubscription()` → マージ購読 (追加タグの並行)
 - [ ] 未来タイムスタンプのイベント → 正常処理
@@ -561,7 +561,7 @@
 - [ ] "All" フィルタ → 全コメント表示
 - [ ] "Follows" フィルタ → フォロー済みのみ
 - [ ] "WoT" フィルタ → 2-hop ネットワークのみ
-- [ ] 未ログイン → フィルタバー非表示
+- [x] 未ログイン → フィルタバー非表示 — `realtime-ordering.test.ts` "should hide filter bar when not logged in"
 - [ ] Follows 0 人 → "Follows" 空状態メッセージ
 - [ ] WoT 未構築 → "Building..." + ユーザー数表示
 - [ ] WoT 構築完了 → "N users | Updated X ago" + リフレッシュボタン
@@ -575,15 +575,15 @@
 
 ## 17. ログイン / 認証状態
 
-- [ ] 未ログイン → "Login with Nostr" ボタン
+- [x] 未ログイン → "Login with Nostr" ボタン — `login-states.test.ts` "should show login button → login → show logout button"
 - [ ] ログインクリック → nostr-login ダイアログ (`launch()`)
 - [ ] ログイン成功 → UI 更新 (アバター + 名前)
-- [ ] ログイン → コメントフォーム表示
-- [ ] ログイン → ブックマークボタン表示
-- [ ] ログイン → フィルタバー表示
-- [ ] ログイン → 通知ベル表示
-- [ ] ログアウト → "Login" ボタン復帰
-- [ ] ログアウト → コメントフォーム消失 → ログインプロンプト
+- [x] ログイン → コメントフォーム表示 — `login-states.test.ts` "should show comment form after login"
+- [x] ログイン → ブックマークボタン表示 — `login-states.test.ts` "should show bookmark button"
+- [x] ログイン → フィルタバー表示 — `login-states.test.ts` "should show filter bar"
+- [x] ログイン → 通知ベル表示 — `share-profile.test.ts` (既存) "should show notification bell when logged in"
+- [x] ログアウト → "Login" ボタン復帰 — `login-states.test.ts` "should restore login prompt after logout"
+- [x] ログアウト → コメントフォーム消失 → ログインプロンプト — `login-states.test.ts` "should hide comment form after logout"
 - [ ] ログアウト → フィルタバー消失
 - [ ] ログアウト → 通知ベル消失
 - [ ] ログアウト → ブックマークボタン消失
@@ -592,10 +592,10 @@
 - [ ] ページリロード → nostr-login 再接続 → 自動ログイン
 - [ ] ログイン → ログアウト → 再ログイン → 状態復元
 - [ ] ページ遷移中のログイン状態維持
-- [ ] Read-only ログイン (signEvent なし) → 閲覧のみ
+- [x] Read-only ログイン (signEvent なし) → 閲覧のみ — `login-states.test.ts` "should show comment form (textarea visible)" (read-only)
 - [ ] Read-only → コメント送信 → エラー
-- [ ] Read-only → 設定ページ NIP-44 警告
-- [ ] Read-only → リレーセクション表示
+- [x] Read-only → 設定ページ NIP-44 警告 — `login-states.test.ts` "should show NIP-44 warning"
+- [x] Read-only → リレーセクション表示 — `login-states.test.ts` "should show relay heading"
 - [ ] ログイン中にページ遷移 → subscription 付け替え
 
 ---
