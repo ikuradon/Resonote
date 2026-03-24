@@ -2,13 +2,29 @@
  * Shared E2E test setup helpers.
  *
  * Centralizes tsunagiya MockPool injection, window.nostr mock,
- * and login simulation to avoid duplication across test files.
+ * login simulation, and event injection to avoid duplication across test files.
  */
 import type { Page } from '@playwright/test';
 import fs from 'fs';
+import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import path from 'path';
 
 import { TEST_RELAYS } from './test-relays.js';
+
+// Kind constants mirrored from src/shared/nostr/events.ts.
+// Direct import is not possible because events.ts transitively imports helpers.ts
+// which uses import.meta.env (unavailable in Playwright's Node.js context).
+const COMMENT_KIND = 1111;
+const REACTION_KIND = 7;
+const DELETION_KIND = 5;
+const BOOKMARK_KIND = 10003;
+
+export { BOOKMARK_KIND, COMMENT_KIND, DELETION_KIND, REACTION_KIND, TEST_RELAYS };
+
+/** Common test content ID for Spotify track used across E2E tests. */
+export const TEST_I_TAG = 'spotify:track:4C6zDr6e86HYqLxPAhO8jA';
+export const TEST_K_TAG = 'spotify:track';
+export const TEST_TRACK_URL = '/spotify/track/4C6zDr6e86HYqLxPAhO8jA';
 
 // Read and patch the tsunagiya bundle ONCE at module load.
 // Playwright's addInitScript wraps code in a function scope,
@@ -84,4 +100,189 @@ export async function simulateLogin(page: Page): Promise<void> {
   await page.evaluate(() => {
     document.dispatchEvent(new CustomEvent('nlAuth', { detail: { type: 'login' } }));
   });
+}
+
+// ---------------------------------------------------------------------------
+// Test identity helpers
+// ---------------------------------------------------------------------------
+
+export interface TestIdentity {
+  sk: Uint8Array;
+  pubkey: string;
+  sign: (event: {
+    kind: number;
+    content: string;
+    tags: string[][];
+    created_at: number;
+  }) => ReturnType<typeof finalizeEvent>;
+}
+
+/** Create a random test identity with signing capability. */
+export function createTestIdentity(): TestIdentity {
+  const sk = generateSecretKey();
+  return {
+    sk,
+    pubkey: getPublicKey(sk),
+    sign: (event) => finalizeEvent(event, sk)
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Nostr event builders (run in Node.js, pass serialized events to browser)
+// ---------------------------------------------------------------------------
+
+const COMMENT_KIND_STR = String(COMMENT_KIND);
+
+/** Build a signed kind:1111 comment event. */
+export function buildComment(
+  identity: TestIdentity,
+  content: string,
+  iTagValue: string,
+  kTagValue: string,
+  opts?: {
+    positionSec?: number;
+    parentId?: string;
+    parentPubkey?: string;
+    cwReason?: string;
+    createdAt?: number;
+  }
+): ReturnType<typeof finalizeEvent> {
+  const tags: string[][] = [
+    ['I', iTagValue],
+    ['K', kTagValue]
+  ];
+  if (opts?.parentId && opts.parentPubkey) {
+    tags.push(
+      ['e', opts.parentId, '', opts.parentPubkey],
+      ['k', COMMENT_KIND_STR],
+      ['p', opts.parentPubkey]
+    );
+  }
+  if (opts?.positionSec !== undefined) {
+    tags.push(['position', String(opts.positionSec)]);
+  }
+  if (opts?.cwReason !== undefined) {
+    tags.push(['content-warning', opts.cwReason]);
+  }
+  return identity.sign({
+    kind: COMMENT_KIND,
+    content,
+    tags,
+    created_at: opts?.createdAt ?? Math.floor(Date.now() / 1000)
+  });
+}
+
+/** Build a signed kind:7 reaction event. Includes I-tag for subscription filter match. */
+export function buildReaction(
+  identity: TestIdentity,
+  targetEventId: string,
+  targetPubkey: string,
+  iTagValue: string,
+  reaction = '+'
+): ReturnType<typeof finalizeEvent> {
+  return identity.sign({
+    kind: REACTION_KIND,
+    content: reaction,
+    tags: [
+      ['e', targetEventId],
+      ['p', targetPubkey],
+      ['k', COMMENT_KIND_STR],
+      ['I', iTagValue]
+    ],
+    created_at: Math.floor(Date.now() / 1000)
+  });
+}
+
+/** Build a signed kind:5 deletion event. Includes I-tag for subscription filter match. */
+export function buildDeletion(
+  identity: TestIdentity,
+  targetEventIds: string[],
+  iTagValue: string
+): ReturnType<typeof finalizeEvent> {
+  const tags: string[][] = targetEventIds.map((id) => ['e', id]);
+  tags.push(['I', iTagValue]);
+  return identity.sign({
+    kind: DELETION_KIND,
+    content: '',
+    tags,
+    created_at: Math.floor(Date.now() / 1000)
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Browser-side event injection & verification
+// ---------------------------------------------------------------------------
+
+/**
+ * Send events to all mock relays.
+ * @param broadcast If true, also broadcasts to active subscriptions (real-time).
+ *                  If false, only stores for backward REQ fetch.
+ */
+async function sendEventsToRelays(
+  page: Page,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  events: any[],
+  broadcast: boolean
+): Promise<void> {
+  await page.evaluate(
+    ({ events: evts, relays, doBroadcast }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pool = (window as any).__mockPool;
+      for (const url of relays) {
+        const relay = pool.relay(url);
+        for (const ev of evts) {
+          relay.store(ev);
+          if (doBroadcast) relay.broadcast(ev);
+        }
+      }
+    },
+    { events, relays: TEST_RELAYS, doBroadcast: broadcast }
+  );
+}
+
+/**
+ * Store events on all mock relays for backward (REQ) fetch.
+ * Use BEFORE page.goto() to pre-populate data.
+ */
+export async function storeEventsOnAllRelays(
+  page: Page,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  events: any[]
+): Promise<void> {
+  await sendEventsToRelays(page, events, false);
+}
+
+/**
+ * Broadcast events to all mock relays for real-time (forward) subscription.
+ * Use AFTER page.goto() to simulate events arriving in real-time.
+ * Also stores them so subsequent REQ fetches can find them.
+ */
+export async function broadcastEventsOnAllRelays(
+  page: Page,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  events: any[]
+): Promise<void> {
+  await sendEventsToRelays(page, events, true);
+}
+
+/**
+ * Get EVENT messages published by the app to mock relays.
+ * Optionally filter by event kind.
+ */
+export async function getPublishedEvents(page: Page, kind?: number): Promise<unknown[]> {
+  return page.evaluate(
+    ({ relayUrl, filterKind }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pool = (window as any).__mockPool;
+      const relay = pool.relay(relayUrl);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return relay.received.filter((m: any) => {
+        if (m[0] !== 'EVENT') return false;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (filterKind !== undefined && (m[1] as any)?.kind !== filterKind) return false;
+        return true;
+      });
+    },
+    { relayUrl: TEST_RELAYS[0], filterKind: kind }
+  );
 }
