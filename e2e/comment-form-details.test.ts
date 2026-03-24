@@ -353,3 +353,96 @@ test.describe('Comment form — receiving comments while editing', () => {
     await expect(textarea).toHaveValue('My draft comment');
   });
 });
+
+test.describe('Comment form — CW empty reason', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupMockPool(page);
+    await setupFullLogin(page, user.pubkey, user.sign);
+  });
+
+  test('should submit CW comment with empty reason', async ({ page }) => {
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    const textarea = page.locator('textarea');
+    await expect(textarea).toBeVisible({ timeout: 10_000 });
+
+    // Enable CW without typing a reason
+    const cwBtn = page.getByRole('button', { name: /^CW$/i }).first();
+    await cwBtn.click();
+    await expect(page.locator('input[type="text"]').first()).toBeVisible({ timeout: 5_000 });
+
+    await textarea.fill('CW with empty reason');
+
+    const sendButton = page.locator('button[type="submit"]');
+    await sendButton.click();
+
+    await expect(textarea).toHaveValue('', { timeout: 10_000 });
+  });
+});
+
+test.describe('Comment form — network failure', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupMockPool(page);
+    await setupFullLogin(page, user.pubkey, user.sign);
+  });
+
+  test('should show error when all relays reject', async ({ page }) => {
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    // Configure all relays to reject
+    await page.evaluate((relays: string[]) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pool = (window as any).__mockPool;
+      for (const url of relays) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        pool.relay(url).onEVENT((event: any) => ['OK', event.id, false, 'blocked']);
+      }
+    }, TEST_RELAYS);
+
+    const textarea = page.locator('textarea');
+    await expect(textarea).toBeVisible({ timeout: 10_000 });
+    await textarea.fill('Network failure test');
+
+    const sendButton = page.locator('button[type="submit"]');
+    await sendButton.click();
+
+    // Text should remain (not cleared)
+    await expect(textarea).toHaveValue('Network failure test', { timeout: 15_000 });
+  });
+});
+
+test.describe('Comment form — autocomplete filtering', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupMockPool(page);
+    await setupFullLogin(page, user.pubkey, user.sign);
+  });
+
+  test('should filter hashtag suggestions with #nos', async ({ page }) => {
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    const textarea = page.locator('textarea');
+    await expect(textarea).toBeVisible({ timeout: 10_000 });
+    await textarea.pressSequentially('#Mus');
+
+    await expect(page.getByText('Music').first()).toBeVisible({ timeout: 5_000 });
+  });
+
+  test('should hide autocomplete when no candidates match', async ({ page }) => {
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    const textarea = page.locator('textarea');
+    await expect(textarea).toBeVisible({ timeout: 10_000 });
+    await textarea.pressSequentially('#zzzznonexistent');
+
+    // No matches → autocomplete should not be visible
+    await expect(page.locator('[role="listbox"]')).toHaveCount(0, { timeout: 3_000 });
+  });
+});
