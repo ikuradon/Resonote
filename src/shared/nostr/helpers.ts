@@ -10,7 +10,8 @@ const PRODUCTION_RELAYS = [
   'wss://relay.nostr.wirednet.jp'
 ];
 
-function parseRelayOverride(raw: string): string[] | null {
+/** @internal Exported for testing only */
+export function parseRelayOverride(raw: string): string[] | null {
   try {
     const parsed: unknown = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0 && parsed.every((r) => typeof r === 'string')) {

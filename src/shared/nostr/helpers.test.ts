@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_RELAYS, getContentPathFromTags } from './helpers.js';
+import { DEFAULT_RELAYS, getContentPathFromTags, parseRelayOverride } from './helpers.js';
 
 describe('DEFAULT_RELAYS', () => {
   it('should be a non-empty array', () => {
@@ -17,6 +17,35 @@ describe('DEFAULT_RELAYS', () => {
   it('should not contain duplicate entries', () => {
     const unique = new Set(DEFAULT_RELAYS);
     expect(unique.size).toBe(DEFAULT_RELAYS.length);
+  });
+});
+
+describe('parseRelayOverride', () => {
+  it('parses valid JSON string array', () => {
+    expect(parseRelayOverride('["wss://r1.test","wss://r2.test"]')).toEqual([
+      'wss://r1.test',
+      'wss://r2.test'
+    ]);
+  });
+
+  it('returns null for empty array', () => {
+    expect(parseRelayOverride('[]')).toBeNull();
+  });
+
+  it('returns null for non-array JSON', () => {
+    expect(parseRelayOverride('"wss://single.test"')).toBeNull();
+  });
+
+  it('returns null for array with non-string elements', () => {
+    expect(parseRelayOverride('[1, 2, 3]')).toBeNull();
+  });
+
+  it('returns null for invalid JSON', () => {
+    expect(parseRelayOverride('not json')).toBeNull();
+  });
+
+  it('returns null for mixed types', () => {
+    expect(parseRelayOverride('["wss://ok.test", 42]')).toBeNull();
   });
 });
 
