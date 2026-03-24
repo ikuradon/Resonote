@@ -88,7 +88,9 @@ describe('MixcloudProvider.toNostrTag', () => {
 
 describe('MixcloudProvider.contentKind', () => {
   it('returns mixcloud:mix', () => {
-    expect(provider.contentKind()).toBe('mixcloud:mix');
+    expect(
+      provider.contentKind({ platform: 'mixcloud', type: 'mix', id: 'djname/mix-title' })
+    ).toBe('mixcloud:mix');
   });
 });
 

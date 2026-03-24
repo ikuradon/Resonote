@@ -78,7 +78,10 @@ export function startSubscription(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       next: (packet: any) => onPacket(packet.event),
       complete: onBackwardComplete,
-      error: onBackwardComplete
+      error: (err: unknown) => {
+        console.error('[comment-subscription] Backward fetch error:', err);
+        onBackwardComplete();
+      }
     });
 
   const forwardSub = refs.rxNostr

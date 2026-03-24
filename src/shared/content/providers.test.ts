@@ -282,13 +282,14 @@ describe('MixcloudProvider', () => {
   });
 
   it('contentKind: returns "mixcloud:mix"', () => {
-    expect(provider.contentKind()).toBe('mixcloud:mix');
+    const contentId = { platform: 'mixcloud', type: 'mix', id: 'djname/mix-title' };
+    expect(provider.contentKind(contentId)).toBe('mixcloud:mix');
   });
 
   it('toNostrTag()[0] prefix matches contentKind()', () => {
     const contentId = { platform: 'mixcloud', type: 'mix', id: 'djname/mix-title' };
     const [tagValue] = provider.toNostrTag(contentId);
-    const kind = provider.contentKind();
+    const kind = provider.contentKind(contentId);
     expect(tagValue.startsWith(kind + ':')).toBe(true);
   });
 });
@@ -921,13 +922,14 @@ describe('TVerProvider', () => {
   });
 
   it('contentKind: returns "tver:episode"', () => {
-    expect(provider.contentKind()).toBe('tver:episode');
+    const contentId = { platform: 'tver', type: 'episode', id: 'ep12345678' };
+    expect(provider.contentKind(contentId)).toBe('tver:episode');
   });
 
   it('toNostrTag()[0] prefix matches contentKind()', () => {
     const contentId = { platform: 'tver', type: 'episode', id: 'ep12345678' };
     const [tagValue] = provider.toNostrTag(contentId);
-    const kind = provider.contentKind();
+    const kind = provider.contentKind(contentId);
     expect(tagValue.startsWith(kind + ':')).toBe(true);
   });
 });

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { resolveSoundCloudEmbed } from '$features/content-resolution/infra/soundcloud-api-client.js';
+  import { resolveSoundCloudEmbed } from '$features/content-resolution/application/resolve-soundcloud-embed.js';
   import { createAsyncReadyTimeout } from '$shared/browser/async-ready-timeout.js';
   import { loadExternalScript } from '$shared/browser/script-loader.js';
   import type { ContentId } from '$shared/content/types.js';
@@ -138,6 +138,7 @@
       }
       widget = undefined;
       ready = false;
+      error = false;
     };
   });
 </script>

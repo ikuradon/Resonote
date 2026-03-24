@@ -44,7 +44,7 @@
     }
 
     let cancelled = false;
-    import('$features/content-resolution/infra/podbean-api-client.js')
+    import('$features/content-resolution/application/resolve-podbean-embed.js')
       .then(({ resolvePodbeanEmbed }) => resolvePodbeanEmbed(sourceUrl))
       .then((src) => {
         if (!cancelled) embedSrc = src;
@@ -121,6 +121,7 @@
       widgetHandle?.destroy();
       widgetHandle = undefined;
       ready = false;
+      error = false;
     };
   });
 </script>

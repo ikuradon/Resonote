@@ -21,7 +21,10 @@ export class NiconicoProvider implements ContentProvider {
   }
 
   toNostrTag(contentId: ContentId): [string, string] {
-    return [`niconico:video:${contentId.id}`, `https://www.nicovideo.jp/watch/${contentId.id}`];
+    return [
+      `niconico:${contentId.type}:${contentId.id}`,
+      `https://www.nicovideo.jp/watch/${contentId.id}`
+    ];
   }
 
   contentKind(contentId: ContentId): string {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { assertSafeUrl, safeFetch } from './url-validation.js';
+import { assertSafeUrl, safeFetch, safeReadText } from './url-validation.js';
 
 describe('assertSafeUrl', () => {
   it('should allow valid public URLs', () => {
@@ -237,5 +237,35 @@ describe('safeFetch', () => {
     const secondCallOptions = mockFetch.mock.calls[1][1];
     const headers = new Headers(secondCallOptions.headers);
     expect(headers.has('proxy-authorization')).toBe(false);
+  });
+});
+
+describe('safeReadText', () => {
+  function makeResponse(body: string, headers?: Record<string, string>): Response {
+    return new Response(body, { headers });
+  }
+
+  it('should read normal response body', async () => {
+    const res = makeResponse('hello world');
+    const text = await safeReadText(res);
+    expect(text).toBe('hello world');
+  });
+
+  it('should reject response when Content-Length exceeds limit', async () => {
+    const res = makeResponse('x', { 'content-length': '10000000' });
+    await expect(safeReadText(res, 1024)).rejects.toThrow('Response too large');
+  });
+
+  it('should reject response when stream exceeds limit', async () => {
+    const largeBody = 'x'.repeat(2048);
+    const res = makeResponse(largeBody);
+    await expect(safeReadText(res, 1024)).rejects.toThrow('exceeded');
+  });
+
+  it('should accept response within limit', async () => {
+    const body = 'x'.repeat(512);
+    const res = makeResponse(body);
+    const text = await safeReadText(res, 1024);
+    expect(text).toBe(body);
   });
 });

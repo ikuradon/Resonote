@@ -97,7 +97,8 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
                 verifyNip05(profile.nip05!, packet.event.pubkey).then((result) => {
                   const existing = profiles.get(packet.event.pubkey);
                   if (existing && existing.nip05 === profile.nip05) {
-                    existing.nip05valid = result.valid;
+                    const updated = { ...existing, nip05valid: result.valid };
+                    profiles.set(packet.event.pubkey, updated);
                     profiles = new Map(profiles);
                   }
                 })

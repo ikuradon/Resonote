@@ -88,12 +88,14 @@ export function createResolvedContentViewModel(
     const platform = getPlatform();
     const contentIdParam = getContentIdParam();
     const contentType = getContentType();
+    const signal = { cancelled: false };
 
     if (platform === 'audio') {
       resolvedEnclosureUrl = fromBase64url(contentIdParam) ?? undefined;
     } else if (platform === 'podcast' && contentType === 'episode') {
       resolvePodcastEpisode(contentIdParam)
         .then((result) => {
+          if (signal.cancelled) return;
           resolvedEnclosureUrl = result.metadata.enclosureUrl;
           episodeTitle = result.metadata.title;
           episodeFeedTitle = result.metadata.feedTitle;
@@ -106,10 +108,15 @@ export function createResolvedContentViewModel(
           });
         })
         .catch((err: unknown) => {
+          if (signal.cancelled) return;
           console.error('[resolved-content-vm] resolvePodcastEpisode failed:', err);
           resolvedEnclosureUrl = '';
         });
     }
+
+    return () => {
+      signal.cancelled = true;
+    };
   });
 
   // --- Resolution: audio URL guid discovery ---

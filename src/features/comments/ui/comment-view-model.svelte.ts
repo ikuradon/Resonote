@@ -365,8 +365,13 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     if (newComments.length > 0) commentsRaw = [...commentsRaw, ...newComments];
 
     // Start merged subscription
+    if (destroyed) return;
     const filters = buildContentFilters(idValue);
     const sub = startMergedSubscription(subscriptionRefs, filters, dispatchPacket);
+    if (destroyed) {
+      sub.unsubscribe();
+      return;
+    }
     subscriptions.push(sub);
   }
 
