@@ -1,69 +1,15 @@
-/**
- * E2E tests for settings page flows:
- * - Relay list display after login
- * - Relay add/remove
- * - Notification filter change
- * - Mute NIP-44 warning
- */
-import { expect, type Page, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
-import path from 'path';
 
-import { TEST_RELAYS } from './helpers/test-relays.js';
+import { setupFullLogin, setupMockPool, simulateLogin } from './helpers/e2e-setup.js';
 
 const sk = generateSecretKey();
 const testPubkey = getPublicKey(sk);
 
-async function setupMockPool(page: Page) {
-  const fs = await import('fs');
-  const bundleSrc = fs.readFileSync(path.resolve('e2e/helpers/tsunagiya-bundle.js'), 'utf8');
-  await page.addInitScript(bundleSrc.replace('var Tsunagiya', 'window.Tsunagiya'));
-  await page.addInitScript((relays: string[]) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const pool = new (window as any).Tsunagiya.MockPool();
-    for (const url of relays) {
-      pool.relay(url);
-    }
-    pool.install();
-  }, TEST_RELAYS);
-}
-
-async function setupFullLogin(page: Page) {
-  await page.exposeFunction(
-    '__nostrSignEvent',
-    (event: { kind: number; content: string; tags: string[][]; created_at: number }) =>
-      finalizeEvent(event, sk)
-  );
-  await page.addInitScript((pubkey: string) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const nostrMock: any = {
-      getPublicKey: async () => pubkey,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      signEvent: async (e: any) => (window as any).__nostrSignEvent(e)
-    };
-    try {
-      Object.defineProperty(window, 'nostr', {
-        value: nostrMock,
-        writable: false,
-        configurable: false
-      });
-    } catch {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).nostr = nostrMock;
-    }
-  }, testPubkey);
-}
-
-async function simulateLogin(page: Page) {
-  await page.evaluate(() => {
-    document.dispatchEvent(new CustomEvent('nlAuth', { detail: { type: 'login' } }));
-  });
-}
-
 test.describe('Settings page', () => {
   test.beforeEach(async ({ page }) => {
     await setupMockPool(page);
-    await setupFullLogin(page);
+    await setupFullLogin(page, testPubkey, (event) => finalizeEvent(event, sk));
   });
 
   test('should display relay section after login', async ({ page }) => {
@@ -83,7 +29,6 @@ test.describe('Settings page', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
-    // Should show loading indicator while fetching relay list
     const loadingText = page.getByText(/Loading relay list|リレーリストを読み込み中/).first();
     await expect(loadingText).toBeVisible({ timeout: 10_000 });
   });
@@ -103,7 +48,6 @@ test.describe('Settings page', () => {
     await page.goto('/settings');
     await page.waitForLoadState('networkidle');
 
-    // Notification filter buttons
     const allButton = page.getByRole('button', { name: /^All$|^全員$/ });
     const followsButton = page.getByRole('button', { name: /^Follows$|^フォロー$/ });
     const wotButton = page.getByRole('button', { name: /^WoT$/ });
@@ -120,7 +64,6 @@ test.describe('Settings page', () => {
     await expect(followsButton).toBeVisible({ timeout: 10_000 });
     await followsButton.click();
 
-    // Verify the button becomes active (has accent styling)
     await expect(followsButton).toHaveClass(/shadow-sm/, { timeout: 5_000 });
   });
 

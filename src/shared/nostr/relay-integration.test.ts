@@ -9,15 +9,11 @@ import { EventBuilder, waitFor } from '@ikuradon/tsunagiya/testing';
 import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { TEST_RELAYS } from '../../../e2e/helpers/test-relays.js';
 import { COMMENT_KIND, REACTION_KIND, RELAY_LIST_KIND } from './events.js';
 
-// Use .test TLD relays to prevent leaks if MockPool fails to intercept WebSocket
-const TEST_RELAYS = [
-  'wss://relay1.test',
-  'wss://relay2.test',
-  'wss://relay3.test',
-  'wss://relay4.test'
-];
+const METADATA_KIND = 0;
+const SHORT_TEXT_KIND = 1;
 
 vi.mock('./relays.js', () => ({ DEFAULT_RELAYS: TEST_RELAYS }));
 
@@ -125,7 +121,7 @@ describe('Write operations (integration)', () => {
 
     // Should still resolve because 2/4 (50%) accepted
     await castSigned({
-      kind: 1,
+      kind: SHORT_TEXT_KIND,
       content: 'partial success',
       tags: []
     });
@@ -169,11 +165,11 @@ describe('Read operations (integration)', () => {
   });
 
   it('should pick the latest event when multiple exist', async () => {
-    const older = await EventBuilder.kind(0)
+    const older = await EventBuilder.kind(METADATA_KIND)
       .content(JSON.stringify({ name: 'old-profile' }))
       .createdAt(1000)
       .buildWith(signer);
-    const newer = await EventBuilder.kind(0)
+    const newer = await EventBuilder.kind(METADATA_KIND)
       .content(JSON.stringify({ name: 'new-profile' }))
       .createdAt(2000)
       .buildWith(signer);
@@ -214,7 +210,7 @@ describe('Multi-relay behavior (integration)', () => {
     // Make first relay slow
     pool.relay(TEST_RELAYS[0], { latency: 3000 });
 
-    const event = await EventBuilder.kind(0)
+    const event = await EventBuilder.kind(METADATA_KIND)
       .content(JSON.stringify({ name: 'from-fast-relay' }))
       .buildWith(signer);
 
@@ -239,7 +235,7 @@ describe('Unstable connections (integration)', () => {
   it('should succeed when one relay refuses connections', { timeout: 15_000 }, async () => {
     relays[0].refuse();
 
-    const event = await EventBuilder.kind(0)
+    const event = await EventBuilder.kind(METADATA_KIND)
       .content(JSON.stringify({ name: 'resilient' }))
       .buildWith(signer);
 
@@ -259,7 +255,7 @@ describe('Unstable connections (integration)', () => {
     // First relay will disconnect 100ms after connection
     relays[0].disconnectAfter(100);
 
-    const event = await EventBuilder.kind(0)
+    const event = await EventBuilder.kind(METADATA_KIND)
       .content(JSON.stringify({ name: 'still-works' }))
       .buildWith(signer);
 
@@ -291,7 +287,7 @@ describe('Unstable connections (integration)', () => {
     const { castSigned } = await import('./client.js');
 
     await castSigned({
-      kind: 1,
+      kind: SHORT_TEXT_KIND,
       content: 'Published despite failure',
       tags: []
     });
