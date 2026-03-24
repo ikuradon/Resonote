@@ -10,10 +10,13 @@ import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TEST_RELAYS } from '../../../e2e/helpers/test-relays.js';
-import { COMMENT_KIND, REACTION_KIND, RELAY_LIST_KIND } from './events.js';
-
-const METADATA_KIND = 0;
-const SHORT_TEXT_KIND = 1;
+import {
+  COMMENT_KIND,
+  METADATA_KIND,
+  REACTION_KIND,
+  RELAY_LIST_KIND,
+  SHORT_TEXT_KIND
+} from './events.js';
 
 vi.mock('./relays.js', () => ({ DEFAULT_RELAYS: TEST_RELAYS }));
 
