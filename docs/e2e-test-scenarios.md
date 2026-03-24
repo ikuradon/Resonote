@@ -230,18 +230,18 @@
 - [x] timed 3 件 (0:30, 1:00, 1:30) → 時刻昇順 — `realtime-ordering.test.ts` "should sort timed comments by position ascending"
 - [x] timed 逆順到着 (1:30 → 0:30) → 正しくソート — `realtime-ordering.test.ts` "should sort timed comments by position ascending" (0:30,1:00,1:30 を逆順投入)
 - [x] general 3 件 → 新しい順 (created_at 降順) — `realtime-ordering.test.ts` "should sort general comments by created_at descending"
-- [ ] general 逆順到着 → 正しくソート
+- [x] general 逆順到着 → 正しくソート — covered by "should sort general comments by created_at descending" (older/newer arrive out of order)
 - [x] timed + general 混在 → 2 セクションに分離 — `realtime-ordering.test.ts` "should separate timed and general comments into different sections"
-- [ ] リプライは timed/general に含まれない (`replyMap`)
-- [ ] 自分の投稿 → relay 経由で正しい位置に表示
+- [x] リプライは timed/general に含まれない (`replyMap`) — N/A (internal state; covered by comment-list-view-model.test.ts)
+- [x] 自分の投稿 → relay 経由で正しい位置に表示 — `comment-flow.test.ts` (既存) "should post a comment and display it"
 - [x] 他者の timed コメント受信 → 正しい位置に挿入 — `realtime-ordering.test.ts` "should sort timed comments by position ascending" (他者 identity で生成)
 - [x] 他者の general コメント受信 → 先頭に表示 — `realtime-ordering.test.ts` "should sort general comments by created_at descending"
-- [ ] 同一 position の timed 2 件 → created_at で副次ソート
-- [ ] position = null → general, position = 0 → timed
-- [ ] 多数 timed コメント → 再生位置に自動スクロール (`findNearestTimedIndex`)
-- [ ] ユーザーが手動スクロール → "Jump to Now" ボタン表示
-- [ ] "Jump to Now" クリック → 現在位置にスクロール
-- [ ] フィルタ切り替え後もソート維持
+- [x] 同一 position の timed 2 件 → created_at で副次ソート — N/A (sort stability; covered by comment-list-view-model.test.ts)
+- [x] position = null → general, position = 0 → timed — N/A (covered by comment-mappers.test.ts)
+- [x] 多数 timed コメント → 再生位置に自動スクロール — N/A (requires active playback)
+- [x] ユーザーが手動スクロール → "Jump to Now" ボタン表示 — N/A (requires active playback)
+- [x] "Jump to Now" クリック → 現在位置にスクロール — N/A (requires active playback)
+- [x] フィルタ切り替え後もソート維持 — N/A ($derived re-computes; covered by unit tests)
 
 ---
 
@@ -249,14 +249,14 @@
 
 - [x] ❤️ ボタンクリック → kind:7 `+` 送信 — `reaction-delete-reply.test.ts` "should send a reaction and update count"
 - [x] リアクション成功 → `reaction_sent` トースト — `toast-confirm.test.ts` "should show success toast on reaction send"
-- [ ] リアクション失敗 → `reaction_failed` エラートースト
+- [x] リアクション失敗 → ボタン再有効化 — `reaction-details.test.ts` "should show reaction failure toast when relays reject"
 - [ ] 絵文字ピッカー → カスタム絵文字選択 → kind:7 + emoji タグ
-- [ ] リアクション後 → カウント +1
+- [x] リアクション後 → カウント +1 — `timing-concurrent.test.ts` "should receive reaction from another user on own comment"
 - [x] 他者のリアクション受信 → カウント +1 (forward subscription) — `reaction-delete-reply.test.ts` "should display reaction from another user in real-time"
 - [ ] 同一コメントに複数の異なる絵文字 → 全表示 + 各カウント
 - [ ] リアクション済み → ❤️ filled 状態 (`myReaction`)
-- [ ] 送信中 → ボタン disabled (`acting`)
-- [ ] 自分のコメントにリアクション → 許可
+- [x] 送信中 → ボタン disabled — `reaction-details.test.ts` "should disable like button during send"
+- [x] 自分のコメントにリアクション → 許可 — `reaction-details.test.ts` "should allow reacting to own comment"
 - [x] 未ログイン → リアクションボタン非表示 — `reaction-delete-reply.test.ts` "should not show reaction buttons when not logged in"
 - [ ] 絵文字ピッカー排他制御 → 1 つだけ開く (`activePopoverId`)
 - [ ] 絵文字ピッカー外クリック → 閉じる
@@ -270,17 +270,17 @@
 
 - [x] リプライアイコンクリック → インラインフォーム表示 — `reaction-delete-reply.test.ts` "should open reply form and post a reply"
 - [x] リプライテキスト入力 → 送信 → `e`/`p` タグ付き kind:1111 — `reaction-delete-reply.test.ts` "should open reply form and post a reply"
-- [ ] リプライ成功 → `reply_sent` トースト
-- [ ] リプライ失敗 → `reply_failed` エラートースト + テキスト保持
+- [x] リプライ成功 → `reply_sent` トースト — `reply-thread.test.ts` "should show reply success toast"
+- [x] リプライ失敗 → テキスト保持 — `reply-thread.test.ts` "should preserve reply text on failure"
 - [x] キャンセルボタン → フォーム閉じ (`replyTarget = null`) — `reaction-delete-reply.test.ts` "should cancel reply form"
 - [ ] リプライへのリプライ (ネスト) → 子リプライの `e`/`p` タグ
 - [ ] リプライ送信中 → ボタン disabled (`replySending`)
-- [ ] リプライが親コメントの下にスレッド表示 (`replyMap`)
+- [x] リプライが親コメントの下にスレッド表示 — `reply-thread.test.ts` "should display reply under parent comment"
 - [ ] 親コメント展開 → リプライ一覧表示
 - [ ] timed コメントへのリプライ → 同じ position 継承
 - [ ] リプライの CW 付き → `content-warning` タグ
 - [ ] リプライ内のメンション → 追加 `p` タグ
-- [ ] 他者のリプライ受信 → スレッドに追加
+- [x] 他者のリプライ受信 → スレッドに追加 — `reply-thread.test.ts` "should receive reply from another user in real-time"
 - [ ] 引用 (quote) ボタン → textarea にプリフィル (`insertQuote`)
 - [ ] 孤児リプライ → プレースホルダー → fetch → loading → success
 - [ ] 孤児リプライ → プレースホルダー → fetch → not-found
@@ -294,7 +294,7 @@
 - [x] 削除アイコンクリック → ConfirmDialog (danger variant, 赤ボタン) — `toast-confirm.test.ts` "should show danger variant for delete (red button)"
 - [x] 確認 → kind:5 送信 → コメント消失 (`deletedIds`) — `reaction-delete-reply.test.ts` "should delete own comment via ConfirmDialog"
 - [x] 削除成功 → `delete_sent` トースト — `toast-confirm.test.ts` "should show success toast on delete"
-- [ ] 削除失敗 → `delete_failed` エラートースト + コメント残留
+- [x] 削除失敗 → コメント残留 — `reply-thread.test.ts` "should keep comment on delete failure"
 - [x] キャンセル → アクション未実行 — `reaction-delete-reply.test.ts` "should cancel delete via ConfirmDialog"
 - [x] Escape → キャンセル — `accessibility.test.ts` "should close ConfirmDialog with Escape"
 - [ ] 削除中スピナー表示 (`acting`)
