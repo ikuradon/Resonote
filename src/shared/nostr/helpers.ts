@@ -3,12 +3,20 @@ import { decode } from 'nostr-tools/nip19';
 
 import type { ContentId } from '$shared/content/types.js';
 
-export const DEFAULT_RELAYS = [
+const PRODUCTION_RELAYS = [
   'wss://relay.damus.io',
   'wss://yabu.me',
   'wss://nos.lol',
   'wss://relay.nostr.wirednet.jp'
 ];
+
+/**
+ * Default relay list. Overridable via VITE_DEFAULT_RELAYS env var at build time.
+ * E2E tests inject .test TLD relays to prevent event leaks to real relays.
+ */
+export const DEFAULT_RELAYS: string[] = import.meta.env.VITE_DEFAULT_RELAYS
+  ? JSON.parse(import.meta.env.VITE_DEFAULT_RELAYS)
+  : PRODUCTION_RELAYS;
 
 export type DecodedNip19 =
   | { type: 'npub'; pubkey: string }

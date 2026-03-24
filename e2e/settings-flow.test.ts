@@ -9,14 +9,7 @@ import { expect, type Page, test } from '@playwright/test';
 import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import path from 'path';
 
-// E2E tests must register the REAL relay URLs that the app's bundled
-// DEFAULT_RELAYS will connect to, so MockPool can intercept them.
-const APP_RELAYS = [
-  'wss://relay.damus.io',
-  'wss://yabu.me',
-  'wss://nos.lol',
-  'wss://relay.nostr.wirednet.jp'
-];
+import { TEST_RELAYS } from './helpers/test-relays.js';
 
 const sk = generateSecretKey();
 const testPubkey = getPublicKey(sk);
@@ -32,7 +25,7 @@ async function setupMockPool(page: Page) {
       pool.relay(url);
     }
     pool.install();
-  }, APP_RELAYS);
+  }, TEST_RELAYS);
 }
 
 async function setupFullLogin(page: Page) {

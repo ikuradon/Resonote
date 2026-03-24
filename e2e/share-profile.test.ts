@@ -10,12 +10,7 @@ import { npubEncode } from 'nostr-tools/nip19';
 import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import path from 'path';
 
-const APP_RELAYS = [
-  'wss://relay.damus.io',
-  'wss://yabu.me',
-  'wss://nos.lol',
-  'wss://relay.nostr.wirednet.jp'
-];
+import { TEST_RELAYS } from './helpers/test-relays.js';
 
 const trackUrl = '/spotify/track/4C6zDr6e86HYqLxPAhO8jA';
 const sk = generateSecretKey();
@@ -33,7 +28,7 @@ async function setupMockPool(page: Page) {
       pool.relay(url);
     }
     pool.install();
-  }, APP_RELAYS);
+  }, TEST_RELAYS);
 }
 
 async function setupFullLogin(page: Page) {

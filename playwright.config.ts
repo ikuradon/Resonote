@@ -1,5 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
+import { TEST_RELAYS } from './e2e/helpers/test-relays.js';
+
 // Test-only fixed key for signing NIP-B0 bookmarks in E2E tests.
 // This is NOT a real key — it is used only in the local test environment.
 // Override via TEST_NOSTR_PRIVKEY env var if needed.
@@ -22,7 +24,7 @@ export default defineConfig({
     trace: 'on-first-retry'
   },
   webServer: {
-    command: `pnpm run build && pnpm run preview:e2e --binding SYSTEM_NOSTR_PRIVKEY=${TEST_NOSTR_PRIVKEY} --binding UNSAFE_ALLOW_PRIVATE_IPS=1`,
+    command: `VITE_DEFAULT_RELAYS='${JSON.stringify(TEST_RELAYS)}' pnpm run build && pnpm run preview:e2e --binding SYSTEM_NOSTR_PRIVKEY=${TEST_NOSTR_PRIVKEY} --binding UNSAFE_ALLOW_PRIVATE_IPS=1`,
     port: 4173,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000

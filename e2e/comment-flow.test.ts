@@ -8,14 +8,7 @@ import { expect, type Page, test } from '@playwright/test';
 import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import path from 'path';
 
-// E2E tests must register the REAL relay URLs that the app's bundled
-// DEFAULT_RELAYS will connect to, so MockPool can intercept them.
-const APP_RELAYS = [
-  'wss://relay.damus.io',
-  'wss://yabu.me',
-  'wss://nos.lol',
-  'wss://relay.nostr.wirednet.jp'
-];
+import { TEST_RELAYS } from './helpers/test-relays.js';
 
 const trackUrl = '/spotify/track/4C6zDr6e86HYqLxPAhO8jA';
 const sk = generateSecretKey();
@@ -46,7 +39,7 @@ test.describe('Comment flow', () => {
       pool.install();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window as any).__mockPool = pool;
-    }, APP_RELAYS);
+    }, TEST_RELAYS);
 
     // Expose Node.js signer to browser (must be before page.goto)
     await page.exposeFunction(
@@ -129,7 +122,7 @@ test.describe('Read-only login', () => {
         pool.relay(url);
       }
       pool.install();
-    }, APP_RELAYS);
+    }, TEST_RELAYS);
   });
 
   test('should show comment form after read-only login', async ({ page }) => {
