@@ -13,7 +13,7 @@ const PRODUCTION_RELAYS = [
 function parseRelayOverride(raw: string): string[] | null {
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.every((r) => typeof r === 'string')) {
+    if (Array.isArray(parsed) && parsed.length > 0 && parsed.every((r) => typeof r === 'string')) {
       return parsed;
     }
   } catch {

@@ -16,6 +16,12 @@ import { TEST_RELAYS } from './test-relays.js';
 // We replace `var Tsunagiya` with `window.Tsunagiya` to hoist it.
 const bundleSrc = fs.readFileSync(path.resolve('e2e/helpers/tsunagiya-bundle.js'), 'utf8');
 const patchedBundle = bundleSrc.replace('var Tsunagiya', 'window.Tsunagiya');
+if (patchedBundle === bundleSrc) {
+  throw new Error(
+    'Failed to patch tsunagiya bundle: "var Tsunagiya" not found. ' +
+      'The bundle format may have changed — update the replace pattern.'
+  );
+}
 
 /**
  * Inject tsunagiya MockPool into the browser context.
