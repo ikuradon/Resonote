@@ -27,10 +27,13 @@ async function simulateLogin(page: Page) {
 
 test.describe('Authenticated flows', () => {
   test.beforeEach(async ({ page }) => {
-    // 1. Inject tsunagiya to mock WebSocket
-    await page.addInitScript({
-      path: path.resolve('e2e/helpers/tsunagiya-bundle.js')
-    });
+    // 1. Inject tsunagiya to mock WebSocket.
+    // addInitScript wraps code in a function scope, so the bundle's
+    // `var Tsunagiya = (...)()` does NOT create window.Tsunagiya.
+    // We replace `var Tsunagiya` with `window.Tsunagiya` to hoist it.
+    const fs = await import('fs');
+    const bundleSrc = fs.readFileSync(path.resolve('e2e/helpers/tsunagiya-bundle.js'), 'utf8');
+    await page.addInitScript(bundleSrc.replace('var Tsunagiya', 'window.Tsunagiya'));
     await page.addInitScript((relays: string[]) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const pool = new (window as any).Tsunagiya.MockPool();
