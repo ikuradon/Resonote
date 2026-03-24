@@ -18,8 +18,18 @@ const COMMENT_KIND = 1111;
 const REACTION_KIND = 7;
 const DELETION_KIND = 5;
 const BOOKMARK_KIND = 10003;
+const RELAY_LIST_KIND = 10002;
+const METADATA_KIND = 0;
 
-export { BOOKMARK_KIND, COMMENT_KIND, DELETION_KIND, REACTION_KIND, TEST_RELAYS };
+export {
+  BOOKMARK_KIND,
+  COMMENT_KIND,
+  DELETION_KIND,
+  METADATA_KIND,
+  REACTION_KIND,
+  RELAY_LIST_KIND,
+  TEST_RELAYS
+};
 
 /** Common test content ID for Spotify track used across E2E tests. */
 export const TEST_I_TAG = 'spotify:track:4C6zDr6e86HYqLxPAhO8jA';
@@ -205,6 +215,37 @@ export function buildDeletion(
     kind: DELETION_KIND,
     content: '',
     tags,
+    created_at: Math.floor(Date.now() / 1000)
+  });
+}
+
+/** Build a signed kind:10002 relay list event. */
+export function buildRelayList(
+  identity: TestIdentity,
+  relays: { url: string; read?: boolean; write?: boolean }[]
+): ReturnType<typeof finalizeEvent> {
+  const tags: string[][] = relays.map((r) => {
+    if (r.read && !r.write) return ['r', r.url, 'read'];
+    if (r.write && !r.read) return ['r', r.url, 'write'];
+    return ['r', r.url];
+  });
+  return identity.sign({
+    kind: RELAY_LIST_KIND,
+    content: '',
+    tags,
+    created_at: Math.floor(Date.now() / 1000)
+  });
+}
+
+/** Build a signed kind:0 metadata (profile) event. */
+export function buildMetadata(
+  identity: TestIdentity,
+  profile: { name?: string; about?: string; picture?: string; nip05?: string }
+): ReturnType<typeof finalizeEvent> {
+  return identity.sign({
+    kind: METADATA_KIND,
+    content: JSON.stringify(profile),
+    tags: [],
     created_at: Math.floor(Date.now() / 1000)
   });
 }
