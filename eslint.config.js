@@ -208,13 +208,17 @@ export default ts.config(
     files: ['functions/**/*.ts'],
     ignores: ['functions/**/*.test.ts', 'functions/lib/url-validation.ts'],
     rules: {
+      // Includes global event/name restrictions (from code quality rules) because
+      // no-restricted-globals is last-config-wins — this scope overrides the global scope.
       'no-restricted-globals': [
         'error',
         {
           name: 'fetch',
           message:
             'Use safeFetch() from functions/lib/url-validation.ts for SSRF protection. See CLAUDE.md.'
-        }
+        },
+        { name: 'event', message: 'Use explicit event parameter instead of global `event`.' },
+        { name: 'name', message: 'Shadowed by window.name. Use a more specific variable name.' }
       ]
     }
   },

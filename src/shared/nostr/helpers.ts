@@ -37,6 +37,7 @@ export function decodeNip19(str: string): DecodedNip19 {
         return { type: 'note', eventId: decoded.data };
       case 'naddr':
       case 'nsec':
+      default:
         return null;
     }
   } catch {
