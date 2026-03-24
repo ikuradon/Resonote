@@ -16,6 +16,7 @@ import {
   simulateLogin,
   TEST_I_TAG,
   TEST_K_TAG,
+  TEST_RELAYS,
   TEST_TRACK_URL
 } from './helpers/e2e-setup.js';
 
@@ -113,12 +114,20 @@ test.describe('Comment form — submit behavior', () => {
   });
 
   test('should preserve text on failed submission and allow retry', async ({ page }) => {
-    // Block all relay connections so publish fails
-    await page.route('wss://**', (route) => route.abort());
-
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+
+    // Configure all mock relays to reject events
+    await page.evaluate((relays: string[]) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pool = (window as any).__mockPool;
+      for (const url of relays) {
+        const relay = pool.relay(url);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        relay.onEVENT((event: any) => ['OK', event.id, false, 'blocked']);
+      }
+    }, TEST_RELAYS);
 
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });

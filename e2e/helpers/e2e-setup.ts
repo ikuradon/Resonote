@@ -267,22 +267,30 @@ export async function broadcastEventsOnAllRelays(
 
 /**
  * Get EVENT messages published by the app to mock relays.
+ * Checks all relays (castSigned may route to any subset).
  * Optionally filter by event kind.
  */
 export async function getPublishedEvents(page: Page, kind?: number): Promise<unknown[]> {
   return page.evaluate(
-    ({ relayUrl, filterKind }) => {
+    ({ relayUrls, filterKind }) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const pool = (window as any).__mockPool;
-      const relay = pool.relay(relayUrl);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return relay.received.filter((m: any) => {
-        if (m[0] !== 'EVENT') return false;
+      const all: any[] = [];
+      for (const url of relayUrls) {
+        const relay = pool.relay(url);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if (filterKind !== undefined && (m[1] as any)?.kind !== filterKind) return false;
-        return true;
-      });
+        all.push(
+          ...relay.received.filter((m: any) => {
+            if (m[0] !== 'EVENT') return false;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if (filterKind !== undefined && (m[1] as any)?.kind !== filterKind) return false;
+            return true;
+          })
+        );
+      }
+      return all;
     },
-    { relayUrl: TEST_RELAYS[0], filterKind: kind }
+    { relayUrls: TEST_RELAYS, filterKind: kind }
   );
 }

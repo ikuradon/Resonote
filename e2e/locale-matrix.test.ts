@@ -22,7 +22,10 @@ async function switchToJapanese(page: Page): Promise<void> {
     .first();
   await switcher.click();
   await page.getByText('日本語').first().click();
-  await page.waitForTimeout(500);
+  // Wait for locale switch to take effect
+  await expect(page.locator('button').filter({ hasText: /🇯🇵|JA/ }).first()).toBeVisible({
+    timeout: 3_000
+  });
 }
 
 async function switchToEnglish(page: Page): Promise<void> {
@@ -33,7 +36,10 @@ async function switchToEnglish(page: Page): Promise<void> {
     .first();
   await switcher.click();
   await page.getByText('English').first().click();
-  await page.waitForTimeout(500);
+  // Wait for locale switch to take effect
+  await expect(page.locator('button').filter({ hasText: /🇺🇸|EN/ }).first()).toBeVisible({
+    timeout: 3_000
+  });
 }
 
 test.describe('Locale matrix — English', () => {

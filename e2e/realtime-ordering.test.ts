@@ -92,7 +92,8 @@ test.describe('Comment ordering', () => {
     await expect(page.getByText('At 1:00').first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('At 1:30').first()).toBeVisible({ timeout: 15_000 });
 
-    // Verify position-ascending order within timed section
+    // Verify position-ascending order within timed section.
+    // 3 items are within VirtualScrollList overscan (5), so all render in DOM.
     const timedSection = page
       .locator('section')
       .filter({ hasText: /Time|時間/ })

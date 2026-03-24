@@ -27,14 +27,10 @@ test.describe('Data volume — comments', () => {
   });
 
   test('should show empty state with 0 comments', async ({ page }) => {
+    // MockPool is empty (no events stored) → 0 comments guaranteed
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
-
-    // Block WebSocket so no comments load from relay
-    await page.route('wss://**', (route) => route.abort());
-    await page.reload();
-    await page.waitForLoadState('networkidle');
 
     await expect(page.getByText(/No comments|コメントはまだ/).first()).toBeVisible({
       timeout: 15_000

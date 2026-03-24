@@ -241,7 +241,7 @@ test.describe('Dangerous URL rejection', () => {
     const input = page.locator('[data-testid="track-url-input"]');
     await input.fill(`https://open.spotify.com/track/${'a'.repeat(2000)}`);
     await page.locator('[data-testid="track-submit-button"]').click();
-    // Should navigate without crashing
+    // Spotify provider accepts any ID format (no length validation) — verifies no crash
     await expect(page).toHaveURL(new RegExp('/spotify/track/a+'));
   });
 });
