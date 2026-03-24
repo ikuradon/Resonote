@@ -1,39 +1,39 @@
 import type { ContentId } from '$shared/content/types.js';
 export type {
   ExtensionModeMessage,
-  UpdatePlaybackMessage,
   NavigateContentMessage,
+  ExtensionFrameMessage as PostMessage,
   SeekRequestMessage,
-  ExtensionFrameMessage as PostMessage
+  UpdatePlaybackMessage
 } from '$features/extension-bridge/domain/bridge-events.js';
 
-export type SiteDetectedMessage = {
+export interface SiteDetectedMessage {
   type: 'resonote:site-detected';
   contentId: ContentId;
   siteUrl: string;
-};
+}
 
-export type PlaybackStateMessage = {
+export interface PlaybackStateMessage {
   type: 'resonote:playback-state';
   position: number;
   duration: number;
   isPaused: boolean;
-};
+}
 
-export type SiteLostMessage = {
+export interface SiteLostMessage {
   type: 'resonote:site-lost';
-};
+}
 
-export type SeekMessage = {
+export interface SeekMessage {
   type: 'resonote:seek';
   position: number;
-};
+}
 
-export type OpenContentMessage = {
+export interface OpenContentMessage {
   type: 'resonote:open-content';
   contentId: ContentId;
   siteUrl: string;
-};
+}
 
 export type ExtensionMessage =
   | SiteDetectedMessage

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { decodeContentLink, encodeContentLink, iTagToContentPath } from './content-link.js';
+
 import type { ContentId } from '$shared/content/types.js';
+
+import { decodeContentLink, encodeContentLink, iTagToContentPath } from './content-link.js';
 
 const SPOTIFY_CONTENT_ID: ContentId = {
   platform: 'spotify',

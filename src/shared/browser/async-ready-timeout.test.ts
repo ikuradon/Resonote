@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
 import { createAsyncReadyTimeout } from '$shared/browser/async-ready-timeout.js';
 
 describe('createAsyncReadyTimeout', () => {

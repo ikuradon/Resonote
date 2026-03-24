@@ -5,13 +5,14 @@
  * Replaces the legacy notification store implementation.
  */
 
-import { createLogger, shortHex } from '$shared/utils/logger.js';
+import { type FollowFilter, matchesFilter } from '$shared/browser/follows.js';
+import { isMuted, isWordMuted } from '$shared/browser/mute.js';
 import { COMMENT_KIND, REACTION_KIND } from '$shared/nostr/events.js';
 import { getRxNostr } from '$shared/nostr/gateway.js';
-import { isMuted, isWordMuted } from '$shared/browser/mute.js';
-import { matchesFilter, type FollowFilter } from '$shared/browser/follows.js';
-import type { Notification, NotificationType } from '../domain/notification-model.js';
+import { createLogger, shortHex } from '$shared/utils/logger.js';
+
 import { classifyNotificationEvent } from '../domain/notification-classifier.js';
+import type { Notification, NotificationType } from '../domain/notification-model.js';
 
 const log = createLogger('notif-vm');
 

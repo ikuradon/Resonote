@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+
 import { openDB } from 'idb';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
 import { EventsDB, type NostrEvent } from './event-db.js';
 
 function makeEvent(overrides: Partial<NostrEvent> = {}): NostrEvent {

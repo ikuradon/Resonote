@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { fetchAudioMetadata } from './audio-metadata.js';
 
 // --- Helpers to build binary test data ---

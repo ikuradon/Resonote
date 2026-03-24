@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { t } from '$shared/i18n/t.js';
+  import { page } from '$app/state';
   import { createNip19RouteViewModel } from '$features/nip19-resolver/ui/nip19-route-view-model.svelte.js';
+  import { t } from '$shared/i18n/t.js';
 
   let param = $derived(page.params.nip19 ?? '');
   const vm = createNip19RouteViewModel({

@@ -1,18 +1,18 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./extension.svelte.js', () => ({
   isExtensionMode: () => false,
   sendSeekRequest: vi.fn()
 }));
 
-import { SEEK_EVENT } from './seek-bridge.js';
 import {
   getPlayer,
-  setContent,
-  updatePlayback,
+  requestSeek,
   resetPlayer,
-  requestSeek
+  setContent,
+  updatePlayback
 } from './player.svelte.js';
+import { SEEK_EVENT } from './seek-bridge.js';
 
 describe('player store', () => {
   beforeEach(() => {

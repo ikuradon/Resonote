@@ -159,11 +159,11 @@ describe('createAudioEmbedViewModel', () => {
 
     vm.bindAudioElement(element);
 
-    await vm.togglePlayPause();
+    vm.togglePlayPause();
     expect(audio.play).toHaveBeenCalledTimes(1);
 
     audio.paused = false;
-    await vm.togglePlayPause();
+    vm.togglePlayPause();
     expect(audio.pause).toHaveBeenCalledTimes(1);
 
     vm.handleSeekInput({ target: { value: '42.5' } } as unknown as Event);

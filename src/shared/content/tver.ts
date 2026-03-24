@@ -20,8 +20,8 @@ export class TVerProvider implements ContentProvider {
     return [`tver:${contentId.type}:${contentId.id}`, `https://tver.jp/episodes/${contentId.id}`];
   }
 
-  contentKind(): string {
-    return 'tver:episode';
+  contentKind(contentId: ContentId): string {
+    return `tver:${contentId.type}`;
   }
 
   embedUrl(): null {

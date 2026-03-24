@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { getEventsDBMock } = vi.hoisted(() => ({
   getEventsDBMock: vi.fn()
@@ -9,14 +9,14 @@ vi.mock('$shared/nostr/gateway.js', () => ({
 }));
 
 import {
-  loadDbStats,
-  clearIndexedDB,
-  clearLocalStorage,
-  clearAllData,
+  buildDebugInfo,
   checkServiceWorkerStatus,
   checkServiceWorkerUpdate,
-  buildDebugInfo,
-  type DbStats
+  clearAllData,
+  clearIndexedDB,
+  clearLocalStorage,
+  type DbStats,
+  loadDbStats
 } from './dev-tools.svelte.js';
 
 describe('dev-tools.svelte', () => {

@@ -1,3 +1,4 @@
+import { findTagValue } from '$shared/nostr/helpers.js';
 import { isEmojiTag } from '$shared/utils/emoji.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 
@@ -46,9 +47,7 @@ function extractFromEmojiList(event: { tags: string[][] }): {
 }
 
 function buildCategoryFromEvent(event: { id: string; tags: string[][] }): EmojiCategory | null {
-  const dTag = event.tags.find((tag) => tag[0] === 'd');
-  const title = event.tags.find((tag) => tag[0] === 'title');
-  const setName = title?.[1] ?? dTag?.[1] ?? 'Emoji Set';
+  const setName = findTagValue(event.tags, 'title') ?? findTagValue(event.tags, 'd') ?? 'Emoji Set';
   const setId = `set-${event.id.slice(0, 8)}`;
 
   const emojis = event.tags

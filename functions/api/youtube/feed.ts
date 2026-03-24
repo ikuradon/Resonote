@@ -1,4 +1,4 @@
-import { safeFetch } from '../../lib/url-validation.js';
+import { safeFetch, safeReadText } from '../../lib/url-validation.js';
 
 interface Env {
   UNSAFE_ALLOW_PRIVATE_IPS?: string;
@@ -93,7 +93,7 @@ async function handleRequest(context: EventContext<Env, string, unknown>): Promi
       return json({ error: 'feed_fetch_failed' }, 502);
     }
 
-    const xml = await res.text();
+    const xml = await safeReadText(res);
     const { title, videos } = parseAtomFeed(xml);
 
     return json({ title, videos }, 200, { 'Cache-Control': 'public, max-age=900' });

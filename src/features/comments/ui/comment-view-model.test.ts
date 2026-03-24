@@ -162,8 +162,8 @@ function makeCommentEvent(
 ) {
   return {
     id,
-    pubkey: overrides.pubkey ?? 'pubkey-' + id,
-    content: overrides.content ?? 'content-' + id,
+    pubkey: overrides.pubkey ?? `pubkey-${id}`,
+    content: overrides.content ?? `content-${id}`,
     created_at: overrides.created_at ?? 1000,
     tags: overrides.positionMs != null ? [['position', String(overrides.positionMs)]] : [],
     kind: overrides.kind ?? 1111

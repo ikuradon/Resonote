@@ -1,12 +1,12 @@
-import { createLogger } from '$shared/utils/logger.js';
-import { RELAY_LIST_KIND, FOLLOW_KIND } from '$shared/nostr/events.js';
-import { DEFAULT_RELAYS } from '$shared/nostr/relays.js';
 import type {
-  RelayEntry,
   ConnectionState,
+  RelayEntry,
   RelayState
 } from '$features/relays/domain/relay-model.js';
 import { parseRelayTags } from '$features/relays/domain/relay-model.js';
+import { FOLLOW_KIND, RELAY_LIST_KIND } from '$shared/nostr/events.js';
+import { DEFAULT_RELAYS } from '$shared/nostr/relays.js';
+import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('relays');
 

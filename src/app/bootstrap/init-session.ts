@@ -29,13 +29,13 @@ export async function initSession(pubkey: string): Promise<void> {
   ]);
 
   const relayUrls = await applyUserRelays(pubkey);
-  refreshRelayList(relayUrls);
+  void refreshRelayList(relayUrls);
 
   // Fire-and-forget: load user data in parallel
-  loadFollows(pubkey).catch((err) => log.error('Failed to load follows', err));
-  loadCustomEmojis(pubkey).catch((err) => log.error('Failed to load custom emojis', err));
-  loadBookmarks(pubkey).catch((err) => log.error('Failed to load bookmarks', err));
-  loadMuteList(pubkey).catch((err) => log.error('Failed to load mute list', err));
+  void loadFollows(pubkey).catch((err) => log.error('Failed to load follows', err));
+  void loadCustomEmojis(pubkey).catch((err) => log.error('Failed to load custom emojis', err));
+  void loadBookmarks(pubkey).catch((err) => log.error('Failed to load bookmarks', err));
+  void loadMuteList(pubkey).catch((err) => log.error('Failed to load mute list', err));
 }
 
 export async function destroySession(): Promise<void> {
@@ -66,7 +66,7 @@ export async function destroySession(): Promise<void> {
   clearProfiles();
   clearBookmarks();
   clearMuteList();
-  refreshRelayList(DEFAULT_RELAYS);
+  void refreshRelayList(DEFAULT_RELAYS);
 
   const db = await getEventsDB();
   await db.clearAll();

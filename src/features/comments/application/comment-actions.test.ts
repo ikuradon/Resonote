@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
+
 import type { Comment } from '../domain/comment-model.js';
 
 const { buildCommentMock, buildReactionMock, buildDeletionMock, castSignedMock, logInfoMock } =
@@ -27,7 +29,7 @@ vi.mock('$shared/utils/logger.js', () => ({
   shortHex: (hex: string) => hex.slice(0, 8)
 }));
 
-import { sendComment, sendReply, sendReaction, deleteComment } from './comment-actions.js';
+import { deleteComment, sendComment, sendReaction, sendReply } from './comment-actions.js';
 
 const contentId: ContentId = { platform: 'spotify', type: 'track', id: 'track-1' };
 const provider: ContentProvider = {

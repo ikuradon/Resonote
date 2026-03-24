@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { parseContentId, contentIdToString } from '$shared/content/types.js';
+import { describe, expect, it } from 'vitest';
+
+import { contentIdToString, parseContentId } from '$shared/content/types.js';
 
 describe('parseContentId', () => {
   it('should parse valid content ID string', () => {

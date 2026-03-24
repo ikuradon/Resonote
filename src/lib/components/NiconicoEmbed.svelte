@@ -6,18 +6,19 @@
 
 <script lang="ts">
   import {
-    createAsyncReadyTimeout,
-    type AsyncReadyTimeoutHandle
+    type AsyncReadyTimeoutHandle,
+    createAsyncReadyTimeout
   } from '$shared/browser/async-ready-timeout.js';
-  import type { ContentId } from '$shared/content/types.js';
   import {
+    type NiconicoPlayerMessage,
     onNiconicoMessage,
-    seekNiconicoPlayer,
-    type NiconicoPlayerMessage
+    seekNiconicoPlayer
   } from '$shared/browser/niconico-bridge.js';
   import { setContent, updatePlayback } from '$shared/browser/player.js';
-  import { onSeek } from '../../shared/browser/seek-bridge.js';
+  import { onSeek } from '$shared/browser/seek-bridge.js';
+  import type { ContentId } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
+
   import EmbedLoading from './EmbedLoading.svelte';
 
   interface Props {

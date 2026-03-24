@@ -9,37 +9,38 @@
  */
 
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
-import type { Comment, PlaceholderComment, Reaction } from '../domain/comment-model.js';
-import type { ReactionStats } from '../domain/comment-model.js';
-import {
-  commentFromEvent,
-  reactionFromEvent,
-  placeholderFromOrphan
-} from '../domain/comment-mappers.js';
 import { cachedFetchById, invalidateFetchByIdCache } from '$shared/nostr/cached-query.js';
-import {
-  emptyStats,
-  applyReaction as applyReactionImmutable,
-  buildReactionIndex,
-  isLikeReaction
-} from '../domain/reaction-rules.js';
-import { verifyDeletionTargets } from '../domain/deletion-rules.js';
-import { COMMENT_KIND, REACTION_KIND, DELETION_KIND } from '$shared/nostr/events.js';
+import { COMMENT_KIND, DELETION_KIND, REACTION_KIND } from '$shared/nostr/events.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
+
 import {
   buildContentFilters,
-  loadSubscriptionDeps,
-  startSubscription,
-  startMergedSubscription,
-  startDeletionReconcile,
-  getCommentRepository,
-  restoreFromCache,
-  purgeDeletedFromCache,
-  type SubscriptionRefs,
-  type SubscriptionHandle,
+  type CachedEvent,
   type EventsDB,
-  type CachedEvent
+  getCommentRepository,
+  loadSubscriptionDeps,
+  purgeDeletedFromCache,
+  restoreFromCache,
+  startDeletionReconcile,
+  startMergedSubscription,
+  startSubscription,
+  type SubscriptionHandle,
+  type SubscriptionRefs
 } from '../application/comment-subscription.js';
+import {
+  commentFromEvent,
+  placeholderFromOrphan,
+  reactionFromEvent
+} from '../domain/comment-mappers.js';
+import type { Comment, PlaceholderComment, Reaction } from '../domain/comment-model.js';
+import type { ReactionStats } from '../domain/comment-model.js';
+import { verifyDeletionTargets } from '../domain/deletion-rules.js';
+import {
+  applyReaction as applyReactionImmutable,
+  buildReactionIndex,
+  emptyStats,
+  isLikeReaction
+} from '../domain/reaction-rules.js';
 
 const log = createLogger('comment-vm');
 
@@ -122,7 +123,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
       rebuildReactionIndex();
     }
     const toPurge = verified.filter((id) => commentIds.has(id) || reactionIds.has(id));
-    if (toPurge.length > 0) void purgeDeletedFromCache(eventsDB!, toPurge);
+    if (toPurge.length > 0 && eventsDB) void purgeDeletedFromCache(eventsDB, toPurge);
     log.debug('Deletion event received', { deletedIds: verified.map(shortHex) });
 
     // Invalidate fetch cache for deleted events so re-visits don't restore them
@@ -365,8 +366,15 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     if (newComments.length > 0) commentsRaw = [...commentsRaw, ...newComments];
 
     // Start merged subscription
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- destroyed may become true during preceding awaits
+    if (destroyed) return;
     const filters = buildContentFilters(idValue);
     const sub = startMergedSubscription(subscriptionRefs, filters, dispatchPacket);
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- destroyed may become true during preceding awaits
+    if (destroyed) {
+      sub.unsubscribe();
+      return;
+    }
     subscriptions.push(sub);
   }
 
@@ -374,7 +382,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     if (fetchedParentIds.has(parentId)) {
       // Update positionMs if a better estimate arrives (e.g. timed reply after non-timed reply)
       const existing = placeholders.get(parentId);
-      if (existing && existing.positionMs === null && estimatedPositionMs !== null) {
+      if (existing?.positionMs === null && estimatedPositionMs !== null) {
         const updated = new Map(placeholders);
         updated.set(parentId, { ...existing, positionMs: estimatedPositionMs });
         placeholders = updated;
@@ -409,7 +417,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
 
     if (destroyed) return;
 
-    if (result && result.kind === COMMENT_KIND) {
+    if (result?.kind === COMMENT_KIND) {
       if (!deletedIds.has(parentId)) {
         // Success and not deleted → merge into commentsRaw, remove placeholder
         if (!commentIds.has(result.id)) {

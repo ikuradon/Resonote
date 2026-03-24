@@ -1,6 +1,6 @@
 import {
-  resolveNip19Navigation,
-  type Nip19NavigationErrorKey
+  type Nip19NavigationErrorKey,
+  resolveNip19Navigation
 } from '../application/resolve-nip19-navigation.js';
 
 interface Nip19RouteViewModelOptions {
@@ -27,7 +27,7 @@ export function createNip19RouteViewModel(options: Nip19RouteViewModelOptions) {
       return;
     }
 
-    resolveNip19Navigation(value).then((result) => {
+    void resolveNip19Navigation(value).then((result) => {
       if (cancelled) return;
 
       if (result.kind === 'redirect') {

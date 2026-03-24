@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createQuoteViewModel } from '$features/comments/ui/quote-view-model.svelte.js';
-  import { formatTimestamp } from '$shared/utils/format.js';
   import { t } from '$shared/i18n/t.js';
+  import { formatTimestamp } from '$shared/utils/format.js';
 
   interface Props {
     eventId: string;
@@ -17,7 +17,7 @@
     if (!vm.data) return '';
     const chars = [...vm.data.content];
     if (chars.length <= MAX_PREVIEW_LENGTH) return vm.data.content;
-    return chars.slice(0, MAX_PREVIEW_LENGTH).join('') + '…';
+    return `${chars.slice(0, MAX_PREVIEW_LENGTH).join('')}…`;
   });
 </script>
 

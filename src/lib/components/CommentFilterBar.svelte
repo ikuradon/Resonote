@@ -1,8 +1,8 @@
 <script lang="ts">
   import { getAuth } from '$shared/browser/auth.js';
-  import { getFollows, refreshFollows, type FollowFilter } from '$shared/browser/follows.js';
-  import { formatDateOnly } from '$shared/utils/format.js';
+  import { type FollowFilter, getFollows, refreshFollows } from '$shared/browser/follows.js';
   import { t, type TranslationKey } from '$shared/i18n/t.js';
+  import { formatDateOnly } from '$shared/utils/format.js';
 
   interface Props {
     followFilter: FollowFilter;

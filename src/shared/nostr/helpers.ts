@@ -1,5 +1,6 @@
 import { bech32 } from '@scure/base';
 import { decode } from 'nostr-tools/nip19';
+
 import type { ContentId } from '$shared/content/types.js';
 
 export const DEFAULT_RELAYS = [
@@ -34,6 +35,8 @@ export function decodeNip19(str: string): DecodedNip19 {
         };
       case 'note':
         return { type: 'note', eventId: decoded.data };
+      case 'naddr':
+      case 'nsec':
       default:
         return null;
     }
@@ -77,9 +80,14 @@ export function iTagToContentPath(iTagValue: string): string | null {
   return `/${platform}/track/${encodeURIComponent(id)}`;
 }
 
+/** Extract the first value for a given tag name, or undefined if absent. */
+export function findTagValue(tags: string[][], name: string): string | undefined {
+  return tags.find((t) => t[0] === name)?.[1];
+}
+
 export function getContentPathFromTags(tags: string[][]): string | null {
-  const iTag = tags.find((tag) => tag[0] === 'I' && tag[1]);
-  return iTag ? iTagToContentPath(iTag[1]) : null;
+  const iValue = findTagValue(tags, 'I');
+  return iValue ? iTagToContentPath(iValue) : null;
 }
 
 export function decodeContentLink(str: string): { contentId: ContentId; relays: string[] } | null {

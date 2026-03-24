@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { resolveNip19Navigation } from '$features/nip19-resolver/application/resolve-nip19-navigation.js';
 
 const { decodeContentLinkMock, decodeNip19Mock, iTagToContentPathMock, fetchNostrEventMock } =

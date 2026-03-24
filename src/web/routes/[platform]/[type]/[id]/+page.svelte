@@ -1,16 +1,17 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import CommentList from '$lib/components/CommentList.svelte';
+  import { createPlayerColumnViewModel } from '$features/content-resolution/ui/player-column-view-model.svelte.js';
+  import { createResolvedContentViewModel } from '$features/content-resolution/ui/resolved-content-view-model.svelte.js';
   import CommentForm from '$lib/components/CommentForm.svelte';
+  import CommentList from '$lib/components/CommentList.svelte';
   import ShareButton from '$lib/components/ShareButton.svelte';
-  import { getProvider } from '$shared/content/registry.js';
   import { getAuth } from '$shared/browser/auth.js';
   import { getPlayer, requestSeek } from '$shared/browser/player.js';
+  import { getProvider } from '$shared/content/registry.js';
   import type { ContentId } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
+
   import PlayerColumn from './PlayerColumn.svelte';
-  import { createResolvedContentViewModel } from '$features/content-resolution/ui/resolved-content-view-model.svelte.js';
-  import { createPlayerColumnViewModel } from '$features/content-resolution/ui/player-column-view-model.svelte.js';
 
   // --- Route params ---
   let platform = $derived(page.params.platform ?? '');

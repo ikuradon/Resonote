@@ -1,4 +1,5 @@
 import { t } from '$shared/i18n/t.js';
+
 import { resolveEncodedNavigation } from '../application/resolve-encoded-navigation.js';
 
 interface ResolveLoaderViewModelOptions {
@@ -23,7 +24,7 @@ export function createResolveLoaderViewModel(options: ResolveLoaderViewModelOpti
       return;
     }
 
-    resolveEncodedNavigation(encodedUrl).then((result) => {
+    void resolveEncodedNavigation(encodedUrl).then((result) => {
       if (cancelled) return;
 
       if ('path' in result) {

@@ -91,7 +91,7 @@ export function buildDebugInfo(
     locale: document.documentElement.lang,
     auth: {
       loggedIn: auth.loggedIn,
-      pubkey: auth.pubkey ? auth.pubkey.slice(0, 8) + '...' : null
+      pubkey: auth.pubkey ? `${auth.pubkey.slice(0, 8)}...` : null
     },
     relays,
     cache: dbStats,

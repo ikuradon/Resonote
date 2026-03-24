@@ -5,13 +5,16 @@
  */
 
 import { untrack } from 'svelte';
+
 import { replaceState } from '$app/navigation';
+// eslint-disable-next-line no-restricted-imports -- TODO: extract comment VM creation to a shared interface
+import { createCommentViewModel } from '$features/comments/ui/comment-view-model.svelte.js';
+import { addBookmark, isBookmarked, removeBookmark } from '$shared/browser/bookmarks.js';
+import { requestSeek, resetPlayer } from '$shared/browser/player.js';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import { fromBase64url } from '$shared/content/url-utils.js';
-import { resolvePodcastEpisode, resolveAudioUrl } from '../application/resolve-content.js';
-import { createCommentViewModel } from '$features/comments/ui/comment-view-model.svelte.js';
-import { isBookmarked, addBookmark, removeBookmark } from '$shared/browser/bookmarks.js';
-import { requestSeek, resetPlayer } from '$shared/browser/player.js';
+
+import { resolveAudioUrl, resolvePodcastEpisode } from '../application/resolve-content.js';
 
 type CommentVM = ReturnType<typeof createCommentViewModel>;
 
@@ -69,7 +72,7 @@ export function createResolvedContentViewModel(
     const provider = getProvider();
     if (!getIsValid() || !provider || getIsCollection() || getContentType() === 'feed') return;
     const s = createCommentViewModel(getContentId(), provider);
-    s.subscribe();
+    void s.subscribe();
     store = s;
     return () => {
       s.destroy();
@@ -88,12 +91,14 @@ export function createResolvedContentViewModel(
     const platform = getPlatform();
     const contentIdParam = getContentIdParam();
     const contentType = getContentType();
+    const signal = { cancelled: false };
 
     if (platform === 'audio') {
       resolvedEnclosureUrl = fromBase64url(contentIdParam) ?? undefined;
     } else if (platform === 'podcast' && contentType === 'episode') {
       resolvePodcastEpisode(contentIdParam)
         .then((result) => {
+          if (signal.cancelled) return;
           resolvedEnclosureUrl = result.metadata.enclosureUrl;
           episodeTitle = result.metadata.title;
           episodeFeedTitle = result.metadata.feedTitle;
@@ -101,15 +106,20 @@ export function createResolvedContentViewModel(
           episodeDescription = result.metadata.description;
           untrack(() => {
             for (const sub of result.additionalSubscriptions) {
-              store?.addSubscription(sub);
+              void store?.addSubscription(sub);
             }
           });
         })
         .catch((err: unknown) => {
+          if (signal.cancelled) return;
           console.error('[resolved-content-vm] resolvePodcastEpisode failed:', err);
           resolvedEnclosureUrl = '';
         });
     }
+
+    return () => {
+      signal.cancelled = true;
+    };
   });
 
   // --- Resolution: audio URL guid discovery ---
@@ -129,7 +139,7 @@ export function createResolvedContentViewModel(
 
         untrack(() => {
           for (const sub of result.additionalSubscriptions) {
-            store?.addSubscription(sub);
+            void store?.addSubscription(sub);
           }
           if (result.resolvedPath) {
             replaceState(result.resolvedPath, {});

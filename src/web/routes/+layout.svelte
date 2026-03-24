@@ -1,16 +1,17 @@
 <script lang="ts">
+  import '../app.css';
+
   import type { Snippet } from 'svelte';
+
+  import { createAppShellViewModel } from '$appcore/ui/app-shell-view-model.svelte.js';
+  import EnvBanner from '$lib/components/EnvBanner.svelte';
+  import LanguageSwitcher from '$lib/components/LanguageSwitcher.svelte';
   import LoginButton from '$lib/components/LoginButton.svelte';
+  import MobileOverlay from '$lib/components/MobileOverlay.svelte';
   import NotificationBell from '$lib/components/NotificationBell.svelte';
   import RelayStatus from '$lib/components/RelayStatus.svelte';
-  import LanguageSwitcher from '$lib/components/LanguageSwitcher.svelte';
-  import MobileOverlay from '$lib/components/MobileOverlay.svelte';
-  import EnvBanner from '$lib/components/EnvBanner.svelte';
-  import { t } from '$shared/i18n/t.js';
-  import { LOCALES } from '$shared/i18n/locales.js';
   import ToastContainer from '$lib/components/ToastContainer.svelte';
-  import { createAppShellViewModel } from '$appcore/ui/app-shell-view-model.svelte.js';
-  import '../app.css';
+  import { LOCALES, t } from '$shared/i18n/t.js';
 
   let { children }: { children: Snippet } = $props();
   const vm = createAppShellViewModel();

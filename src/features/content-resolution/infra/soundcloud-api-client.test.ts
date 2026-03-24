@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
 import { resolveSoundCloudEmbed } from '$features/content-resolution/infra/soundcloud-api-client.js';
 
 describe('resolveSoundCloudEmbed', () => {

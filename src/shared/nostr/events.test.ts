@@ -1,17 +1,19 @@
-import { describe, it, expect } from 'vitest';
-import {
-  buildComment,
-  buildShare,
-  buildReaction,
-  buildDeletion,
-  formatPosition,
-  parsePosition,
-  extractHashtags,
-  extractDeletionTargets,
-  COMMENT_KIND
-} from './events.js';
+import { describe, expect, it } from 'vitest';
+
 import { SpotifyProvider } from '$shared/content/spotify.js';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
+
+import {
+  buildComment,
+  buildDeletion,
+  buildReaction,
+  buildShare,
+  COMMENT_KIND,
+  extractDeletionTargets,
+  extractHashtags,
+  formatPosition,
+  parsePosition
+} from './events.js';
 
 const provider: ContentProvider = new SpotifyProvider();
 

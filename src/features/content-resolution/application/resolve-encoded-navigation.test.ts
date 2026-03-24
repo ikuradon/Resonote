@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { resolveEncodedNavigation } from '$features/content-resolution/application/resolve-encoded-navigation.js';
 
 const { resolveByApiMock } = vi.hoisted(() => ({

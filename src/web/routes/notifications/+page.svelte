@@ -1,14 +1,14 @@
 <script lang="ts">
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import { getAuth } from '$shared/browser/auth.js';
   import {
     createNotificationFeedViewModel,
     describeNotificationItem,
     getNotifications,
-    type NotificationItemDisplay,
-    type NotificationFeedFilter
+    type NotificationFeedFilter,
+    type NotificationItemDisplay
   } from '$shared/browser/notifications.js';
-  import { getAuth } from '$shared/browser/auth.js';
   import { t, type TranslationKey } from '$shared/i18n/t.js';
-  import UserAvatar from '$lib/components/UserAvatar.svelte';
 
   const auth = getAuth();
   const notifs = getNotifications();

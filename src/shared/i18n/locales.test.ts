@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { LOCALES, DEFAULT_LOCALE, isLocale, detectBrowserLocale } from './locales.js';
+
+import { DEFAULT_LOCALE, detectBrowserLocale, isLocale, LOCALES } from './locales.js';
 
 describe('locales', () => {
   // --- LOCALES constant ---

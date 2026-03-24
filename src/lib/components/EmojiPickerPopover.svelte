@@ -4,12 +4,14 @@
 </script>
 
 <script lang="ts">
-  import EmojiPicker from './EmojiPicker.svelte';
-  import { preloadEmojiMart } from '$shared/browser/emoji-mart.js';
-  import { t } from '$shared/i18n/t.js';
   import { onMount } from 'svelte';
   import type { Action } from 'svelte/action';
+
   import { isNodeInsideElements, manageClickOutside } from '$shared/browser/click-outside.js';
+  import { preloadEmojiMart } from '$shared/browser/emoji-mart.js';
+  import { t } from '$shared/i18n/t.js';
+
+  import EmojiPicker from './EmojiPicker.svelte';
 
   interface Props {
     id: string;

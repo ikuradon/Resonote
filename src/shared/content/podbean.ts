@@ -19,7 +19,7 @@ export class PodbeanProvider implements ContentProvider {
       }
     }
     const channelMatch = url.match(PODBEAN_CHANNEL_RE);
-    if (channelMatch?.[1] && channelMatch?.[2]) {
+    if (channelMatch?.[1] && channelMatch[2]) {
       return {
         platform: this.platform,
         type: 'episode',

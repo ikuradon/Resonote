@@ -6,7 +6,8 @@
  */
 
 import { untrack } from 'svelte';
-import { subscribeNotifications, destroyNotifications } from '$shared/browser/notifications.js';
+
+import { destroyNotifications, subscribeNotifications } from '$shared/browser/notifications.js';
 
 /**
  * Manage notification subscription based on current auth/follows state.
@@ -22,11 +23,11 @@ export function manageNotifications(
 ): (() => void) | undefined {
   if (loggedIn && pubkey) {
     if (follows.size === 0) {
-      untrack(() => subscribeNotifications(pubkey, follows));
+      void untrack(() => subscribeNotifications(pubkey, follows));
       return;
     }
     const timer = setTimeout(() => {
-      untrack(() => subscribeNotifications(pubkey, follows));
+      void untrack(() => subscribeNotifications(pubkey, follows));
     }, 1000);
     return () => clearTimeout(timer);
   } else if (initialized && !loggedIn) {

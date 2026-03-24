@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
+
 import {
-  getEnvBannerConfig,
   detectEnvFromHostname,
-  getDeployEnv
+  getDeployEnv,
+  getEnvBannerConfig
 } from '$shared/utils/deploy-env.js';
 
 describe('getEnvBannerConfig', () => {

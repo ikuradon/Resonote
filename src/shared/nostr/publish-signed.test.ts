@@ -1,5 +1,7 @@
 import 'fake-indexeddb/auto';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import type { PendingEvent } from './pending-publishes.js';
 
 const mockCast = vi.fn();

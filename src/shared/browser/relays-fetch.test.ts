@@ -52,17 +52,17 @@ vi.mock('$features/relays/application/relay-actions.js', () => ({
 }));
 
 import {
+  destroyRelayStatus,
   fetchRelayList,
-  publishRelayList,
   getRelays,
-  destroyRelayStatus
+  publishRelayList
 } from './relays.svelte.js';
 
-type Observer = {
+interface Observer {
   next: (p: unknown) => void;
   complete: () => void;
   error: (e: unknown) => void;
-};
+}
 
 function makeBackwardReqMock(
   packets: Array<{ event: { tags: string[][] } }>,
@@ -78,7 +78,7 @@ function makeBackwardReqMock(
     })),
     use: vi.fn(() => ({
       subscribe: vi.fn((obs: Observer) => {
-        Promise.resolve().then(() => {
+        void Promise.resolve().then(() => {
           if (errorToThrow) {
             obs.error(errorToThrow);
           } else {
@@ -128,7 +128,7 @@ describe('fetchRelayList', () => {
         subscribe: vi.fn((obs: Observer) => {
           callCount += 1;
           const currentCall = callCount;
-          Promise.resolve().then(() => {
+          void Promise.resolve().then(() => {
             if (currentCall === 1) {
               // kind:10002 - no relay tags
               obs.next({ event: { tags: [] } });
@@ -172,7 +172,7 @@ describe('fetchRelayList', () => {
       })),
       use: vi.fn(() => ({
         subscribe: vi.fn((obs: Observer) => {
-          Promise.resolve().then(() => {
+          void Promise.resolve().then(() => {
             obs.complete();
           });
           return subscriptionMock;
@@ -203,7 +203,7 @@ describe('fetchRelayList', () => {
         subscribe: vi.fn((obs: Observer) => {
           callCount += 1;
           const currentCall = callCount;
-          Promise.resolve().then(() => {
+          void Promise.resolve().then(() => {
             if (currentCall === 1) {
               obs.error(new Error('timeout'));
             } else {

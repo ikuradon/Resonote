@@ -1,6 +1,9 @@
+import { untrack } from 'svelte';
+
 import { fetchProfiles } from '$shared/browser/profile.js';
 import { cachedFetchById } from '$shared/nostr/cached-query.js';
-import { untrack } from 'svelte';
+import { truncateString } from '$shared/utils/format.js';
+
 import type { Notification, NotificationType } from '../domain/notification-model.js';
 import { getLastRead, markAllAsRead } from './notifications-view-model.svelte.js';
 
@@ -18,10 +21,6 @@ export interface NotificationFeedOptions {
   contentPreviewLength?: number;
   targetPreviewLength?: number;
   active?: () => boolean;
-}
-
-function truncateText(content: string, maxLength: number): string {
-  return content.length > maxLength ? content.slice(0, maxLength - 2) + '\u2026' : content;
 }
 
 export function createNotificationFeedViewModel(
@@ -51,7 +50,7 @@ export function createNotificationFeedViewModel(
     const pubkeys = [...new Set(visibleItems.map((n) => n.pubkey))];
     if (pubkeys.length === 0) return;
 
-    untrack(() => fetchProfiles(pubkeys));
+    void untrack(() => fetchProfiles(pubkeys));
   });
 
   // Keep reply/reaction target previews in one place so all notification consumers share it.
@@ -62,8 +61,11 @@ export function createNotificationFeedViewModel(
     const items = visibleItems;
     untrack(() => {
       const targetIds = items
-        .filter((n) => n.targetEventId && (n.type === 'reply' || n.type === 'reaction'))
-        .map((n) => n.targetEventId!)
+        .filter(
+          (n): n is typeof n & { targetEventId: string } =>
+            !!n.targetEventId && (n.type === 'reply' || n.type === 'reaction')
+        )
+        .map((n) => n.targetEventId)
         .filter((id) => !targetTexts.has(id));
 
       if (targetIds.length === 0) return;
@@ -77,7 +79,7 @@ export function createNotificationFeedViewModel(
         const next = new Map(targetTexts);
         for (const { id, event } of results) {
           if (!event) continue;
-          next.set(id, truncateText(event.content, targetPreviewLength));
+          next.set(id, truncateString(event.content, targetPreviewLength));
         }
         targetTexts = next;
       });
@@ -107,7 +109,7 @@ export function createNotificationFeedViewModel(
   }
 
   function contentPreview(content: string): string {
-    return truncateText(content, contentPreviewLength);
+    return truncateString(content, contentPreviewLength);
   }
 
   return {

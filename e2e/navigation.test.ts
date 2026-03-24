@@ -1,5 +1,6 @@
-import { test, expect } from '@playwright/test';
-import { startMockServer, type MockServer } from './helpers/mock-server.js';
+import { expect, test } from '@playwright/test';
+
+import { type MockServer, startMockServer } from './helpers/mock-server.js';
 
 let mock: MockServer;
 

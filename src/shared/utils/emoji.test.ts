@@ -1,10 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import {
-  parseEmojiContent,
+  addEmojiTag,
+  extractShortcode,
   isEmojiTag,
   isShortcode,
-  extractShortcode,
-  addEmojiTag
+  parseEmojiContent
 } from '$shared/utils/emoji.js';
 
 describe('parseEmojiContent', () => {

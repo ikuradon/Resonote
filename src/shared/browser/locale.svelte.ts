@@ -1,4 +1,4 @@
-import { type Locale, isLocale, detectBrowserLocale } from '$shared/i18n/locales.js';
+import { detectBrowserLocale, isLocale, type Locale } from '$shared/i18n/locales.js';
 
 export type { Locale };
 

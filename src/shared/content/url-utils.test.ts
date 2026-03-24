@@ -1,10 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import {
-  normalizeUrl,
-  toBase64url,
+  extractTimeParam,
   fromBase64url,
+  normalizeUrl,
   stripScheme,
-  extractTimeParam
+  toBase64url
 } from '$shared/content/url-utils.js';
 
 describe('stripScheme', () => {

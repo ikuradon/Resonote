@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import { SpotifyProvider } from '$shared/content/spotify.js';
 
 const provider = new SpotifyProvider();

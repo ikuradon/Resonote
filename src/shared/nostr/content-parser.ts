@@ -1,7 +1,8 @@
-import { sanitizeImageUrl } from '$shared/utils/url.js';
-import { decodeNip19, decodeContentLink, type DecodedNip19 } from './helpers.js';
 import { getProvider } from '$shared/content/registry.js';
 import type { ContentId } from '$shared/content/types.js';
+import { sanitizeImageUrl } from '$shared/utils/url.js';
+
+import { decodeContentLink, type DecodedNip19, decodeNip19 } from './helpers.js';
 
 export type { DecodedNip19 };
 
@@ -54,8 +55,8 @@ function trimUrlTrailing(url: string): string {
   while (end > 0 && /[.,;:!?)]/.test(url[end - 1])) {
     if (url[end - 1] === ')') {
       const sub = url.slice(0, end);
-      const opens = (sub.match(/\(/g) || []).length;
-      const closes = (sub.match(/\)/g) || []).length;
+      const opens = (sub.match(/\(/g) ?? []).length;
+      const closes = (sub.match(/\)/g) ?? []).length;
       if (opens >= closes) break;
     }
     end--;

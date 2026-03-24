@@ -1,7 +1,8 @@
 import { finalizeEvent } from 'nostr-tools/pure';
 import { hexToBytes } from 'nostr-tools/utils';
+
 import { fetchAudioMetadata } from '../../lib/audio-metadata.js';
-import { assertSafeUrl, safeFetch } from '../../lib/url-validation.js';
+import { assertSafeUrl, safeFetch, safeReadText } from '../../lib/url-validation.js';
 
 interface Env {
   SYSTEM_NOSTR_PRIVKEY: string;
@@ -196,7 +197,7 @@ async function handleFeedUrl(
   if (!res.ok) {
     return jsonResponse({ error: 'fetch_failed', status: res.status }, 502);
   }
-  const xml = await res.text();
+  const xml = await safeReadText(res);
   const feed = await parseRss(xml, feedUrl);
   if (!feed) {
     return jsonResponse({ error: 'parse_failed' }, 422);
@@ -256,7 +257,7 @@ async function handleAudioUrl(
   try {
     const rootRes = await safeFetch(rootUrl, { allowPrivateIPs });
     if (rootRes.ok) {
-      const html = await rootRes.text();
+      const html = await safeReadText(rootRes);
       rssUrl = findRssLink(html, rootUrl);
     }
   } catch {
@@ -267,7 +268,7 @@ async function handleAudioUrl(
     try {
       const feedRes = await safeFetch(rssUrl, { allowPrivateIPs });
       if (feedRes.ok) {
-        const xml = await feedRes.text();
+        const xml = await safeReadText(feedRes);
         feed = await parseRss(xml, rssUrl);
       }
     } catch {
@@ -353,7 +354,7 @@ async function handleSiteUrl(siteUrl: string, allowPrivateIPs = false): Promise<
   if (!res.ok) {
     return jsonResponse({ error: 'fetch_failed', status: res.status }, 502);
   }
-  const html = await res.text();
+  const html = await safeReadText(res);
   const rssUrl = findRssLink(html, siteUrl);
 
   if (rssUrl) {
@@ -365,7 +366,7 @@ async function handleSiteUrl(siteUrl: string, allowPrivateIPs = false): Promise<
     try {
       const rootRes = await safeFetch(rootUrl, { allowPrivateIPs });
       if (rootRes.ok) {
-        const rootHtml = await rootRes.text();
+        const rootHtml = await safeReadText(rootRes);
         const rootRssUrl = findRssLink(rootHtml, rootUrl);
         if (rootRssUrl) {
           return jsonResponse({ type: 'redirect', feedUrl: rootRssUrl });

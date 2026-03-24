@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import { TVerProvider } from '$shared/content/tver.js';
 
 const provider = new TVerProvider();

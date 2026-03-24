@@ -1,9 +1,9 @@
 <script lang="ts">
   import { getAuth } from '$shared/browser/auth.js';
   import { getBookmarks, removeBookmark } from '$shared/browser/bookmarks.js';
-  import { iTagToContentPath } from '$shared/nostr/helpers.js';
-  import { t } from '$shared/i18n/t.js';
   import { parseContentId } from '$shared/content/types.js';
+  import { t } from '$shared/i18n/t.js';
+  import { iTagToContentPath } from '$shared/nostr/helpers.js';
   import { truncateString } from '$shared/utils/format.js';
 
   const auth = getAuth();
@@ -49,7 +49,7 @@
       </div>
     {:else}
       <div class="space-y-2">
-        {#each bookmarks.entries as entry (entry.type + ':' + entry.value)}
+        {#each bookmarks.entries as entry (`${entry.type}:${entry.value}`)}
           <div
             class="flex items-center gap-3 rounded-xl border border-border-subtle bg-surface-1 p-4 transition-all hover:border-border"
           >

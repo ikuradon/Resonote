@@ -100,6 +100,43 @@ export async function safeFetch(url: string, options?: SafeFetchOptions): Promis
   throw new Error('Too many redirects');
 }
 
+const DEFAULT_MAX_BODY_BYTES = 5 * 1024 * 1024; // 5 MB
+
+/**
+ * Read response body as text with size limit.
+ * Prevents memory exhaustion from oversized responses on Cloudflare Workers.
+ */
+export async function safeReadText(
+  response: Response,
+  maxBytes = DEFAULT_MAX_BODY_BYTES
+): Promise<string> {
+  const contentLength = response.headers.get('content-length');
+  if (contentLength && parseInt(contentLength, 10) > maxBytes) {
+    await response.body?.cancel();
+    throw new Error(`Response too large: ${contentLength} bytes (max: ${maxBytes})`);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('No response body');
+
+  const decoder = new TextDecoder();
+  const chunks: string[] = [];
+  let totalBytes = 0;
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    totalBytes += value.byteLength;
+    if (totalBytes > maxBytes) {
+      await reader.cancel();
+      throw new Error(`Response body exceeded ${maxBytes} bytes`);
+    }
+    chunks.push(decoder.decode(value, { stream: true }));
+  }
+  chunks.push(decoder.decode());
+  return chunks.join('');
+}
+
 /**
  * Throws if the URL targets a private/internal network address.
  */

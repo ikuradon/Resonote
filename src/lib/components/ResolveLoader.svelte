@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { createResolveLoaderViewModel } from '$features/content-resolution/ui/resolve-loader-view-model.svelte.js';
   import { t } from '$shared/i18n/t.js';
+
   import WaveformLoader from './WaveformLoader.svelte';
 
   interface Props {

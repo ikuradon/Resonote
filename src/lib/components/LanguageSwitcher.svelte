@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { getLocale, setLocale } from '$shared/browser/locale.js';
-  import { LOCALES, type Locale } from '$shared/i18n/locales.js';
   import { isNodeInsideElements, manageClickOutside } from '$shared/browser/click-outside.js';
+  import { getLocale, setLocale } from '$shared/browser/locale.js';
+  import { type Locale, LOCALES } from '$shared/i18n/t.js';
 
   let open = $state(false);
   let containerEl: HTMLDivElement | undefined;

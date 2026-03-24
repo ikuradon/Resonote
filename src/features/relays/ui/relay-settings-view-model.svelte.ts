@@ -1,12 +1,13 @@
+import { t } from '$shared/i18n/t.js';
 import { useCachedLatest, type UseCachedLatestResult } from '$shared/nostr/cached-query.js';
 import { RELAY_LIST_KIND } from '$shared/nostr/events.js';
 import { DEFAULT_RELAYS } from '$shared/nostr/relays.js';
-import { t } from '$shared/i18n/t.js';
+
 import {
+  type ConnectionState,
   parseRelayTags,
   type RelayEntry,
-  type RelayState,
-  type ConnectionState
+  type RelayState
 } from '../domain/relay-model.js';
 
 interface RelaySettingsViewModelOptions {
@@ -61,7 +62,7 @@ export function createRelaySettingsViewModel(options: RelaySettingsViewModelOpti
     }
   });
 
-  let relayLoading = $derived(!relayQuery || !relayQuery.settled);
+  let relayLoading = $derived(!relayQuery?.settled);
   let noRelayList = $derived(
     relayQuery?.settled === true && !relayQuery.event && entries.length === 0
   );

@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { commentFromEvent, reactionFromEvent, placeholderFromOrphan } from './comment-mappers.js';
+import { describe, expect, it } from 'vitest';
+
+import { commentFromEvent, placeholderFromOrphan, reactionFromEvent } from './comment-mappers.js';
 
 describe('commentFromEvent', () => {
   it('should map basic event fields', () => {

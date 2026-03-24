@@ -1,35 +1,34 @@
 // @public — Stable API for route/component/feature consumers
 import type { EventParameters } from 'nostr-typedef';
+
 import { normalizeUrl } from '$shared/content/url-utils.js';
 import { getEventsDB, getRxNostr } from '$shared/nostr/gateway.js';
 
 let pubkeyPromise: Promise<string> | undefined;
 
 export function getSystemPubkey(): Promise<string> {
-  if (!pubkeyPromise) {
-    pubkeyPromise = fetch('/api/system/pubkey')
-      .then((res) => {
-        if (!res.ok) {
-          pubkeyPromise = undefined;
-          return '';
+  pubkeyPromise ??= fetch('/api/system/pubkey')
+    .then((res) => {
+      if (!res.ok) {
+        pubkeyPromise = undefined;
+        return '';
+      }
+      return res.json().then((data: unknown) => {
+        if (
+          typeof data === 'object' &&
+          data !== null &&
+          typeof (data as Record<string, unknown>).pubkey === 'string'
+        ) {
+          return (data as Record<string, unknown>).pubkey as string;
         }
-        return res.json().then((data: unknown) => {
-          if (
-            typeof data === 'object' &&
-            data !== null &&
-            typeof (data as Record<string, unknown>).pubkey === 'string'
-          ) {
-            return (data as Record<string, unknown>).pubkey as string;
-          }
-          pubkeyPromise = undefined;
-          return '';
-        });
-      })
-      .catch(() => {
         pubkeyPromise = undefined;
         return '';
       });
-  }
+    })
+    .catch(() => {
+      pubkeyPromise = undefined;
+      return '';
+    });
   return pubkeyPromise;
 }
 

@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { createAudioEmbedViewModel } from './audio-embed-view-model.svelte.js';
   import type { ContentId } from '$shared/content/types.js';
-  import { formatDuration } from '$shared/utils/format.js';
   import { t } from '$shared/i18n/t.js';
+  import { formatDuration } from '$shared/utils/format.js';
+
+  import { createAudioEmbedViewModel } from './audio-embed-view-model.svelte.js';
 
   interface Props {
     contentId: ContentId;

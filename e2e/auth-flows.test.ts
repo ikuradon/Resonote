@@ -1,6 +1,7 @@
-import { test, expect } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
+import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import path from 'path';
-import { generateSecretKey, getPublicKey, finalizeEvent } from 'nostr-tools/pure';
+
 import { DEFAULT_RELAYS } from '../src/shared/nostr/relays.js';
 
 const trackUrl = '/spotify/track/4C6zDr6e86HYqLxPAhO8jA';
@@ -12,7 +13,7 @@ const testPubkey = getPublicKey(sk);
 /**
  * Set up window.nostr mock and fire nlAuth login event.
  */
-async function simulateLogin(page: import('@playwright/test').Page) {
+async function simulateLogin(page: Page) {
   await page.evaluate(async (pubkey: string) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).nostr = {

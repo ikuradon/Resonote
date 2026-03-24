@@ -1,14 +1,15 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
-  normalizeForDTag,
-  domainRoot,
-  extractTagContent,
-  extractAttr,
-  parseDurationToSeconds,
   detectInputType,
+  domainRoot,
+  extractAttr,
+  extractTagContent,
   findRssLink,
-  parseRss,
-  onRequestGet
+  normalizeForDTag,
+  onRequestGet,
+  parseDurationToSeconds,
+  parseRss
 } from './resolve.js';
 
 describe('normalizeForDTag', () => {

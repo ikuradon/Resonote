@@ -27,6 +27,5 @@ export function matchesFilter(
   if (filter === 'all') return true;
   if (myPubkey && pubkey === myPubkey) return true;
   if (filter === 'follows') return follows.has(pubkey);
-  if (filter === 'wot') return wot.has(pubkey);
-  return true;
+  return wot.has(pubkey);
 }

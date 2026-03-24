@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import type { ContentId } from '$shared/content/types.js';
 
 const { castSignedMock, fetchLatestEventMock, logInfoMock } = vi.hoisted(() => ({

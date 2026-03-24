@@ -1,11 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
+  type ContentMetadata,
   fetchContentMetadata,
   getContentMetadata,
-  resetContentMetadataCache,
-  type ContentMetadata
-} from './content-metadata.js';
-import type { ContentId } from './types.js';
+  resetContentMetadataCache
+} from '$shared/content/content-metadata.js';
+import type { ContentId } from '$shared/content/types.js';
 
 const SPOTIFY_TRACK: ContentId = {
   platform: 'spotify',

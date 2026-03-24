@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
 import {
+  type NiconicoPlayerMessage,
   onNiconicoMessage,
-  seekNiconicoPlayer,
-  type NiconicoPlayerMessage
+  seekNiconicoPlayer
 } from '$shared/browser/niconico-bridge.js';
 
 const originalWindow = globalThis.window;

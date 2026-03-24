@@ -23,8 +23,8 @@ export class MixcloudProvider implements ContentProvider {
     ];
   }
 
-  contentKind(): string {
-    return 'mixcloud:mix';
+  contentKind(contentId: ContentId): string {
+    return `${contentId.platform}:${contentId.type}`;
   }
 
   embedUrl(contentId: ContentId): string {

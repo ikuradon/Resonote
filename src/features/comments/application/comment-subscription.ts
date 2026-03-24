@@ -3,7 +3,7 @@
  * Orchestrates rx-nostr backward/forward subscriptions + offline deletion reconcile.
  */
 
-import { COMMENT_KIND, REACTION_KIND, DELETION_KIND } from '$shared/nostr/events.js';
+import { COMMENT_KIND, DELETION_KIND, REACTION_KIND } from '$shared/nostr/events.js';
 /** Build the 3-filter array for unified subscription on a given tag value. */
 export function buildContentFilters(idValue: string) {
   return [
@@ -68,7 +68,7 @@ export function startSubscription(
   const forward = createRxForwardReq();
 
   const backwardFilters = maxCreatedAt
-    ? filters.map((f: Record<string, unknown>) => ({ ...f, since: (maxCreatedAt as number) + 1 }))
+    ? filters.map((f: Record<string, unknown>) => ({ ...f, since: maxCreatedAt + 1 }))
     : filters;
 
   const backwardSub = refs.rxNostr
@@ -78,7 +78,10 @@ export function startSubscription(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       next: (packet: any) => onPacket(packet.event),
       complete: onBackwardComplete,
-      error: onBackwardComplete
+      error: (err: unknown) => {
+        console.error('[comment-subscription] Backward fetch error:', err);
+        onBackwardComplete();
+      }
     });
 
   const forwardSub = refs.rxNostr
@@ -188,9 +191,9 @@ export function startDeletionReconcile(
 
 // Re-export infra repository for application-layer consumers (UI should not import infra directly)
 export {
-  getCommentRepository,
-  restoreFromCache,
-  purgeDeletedFromCache,
+  type CachedEvent,
   type EventsDB,
-  type CachedEvent
+  getCommentRepository,
+  purgeDeletedFromCache,
+  restoreFromCache
 } from '../infra/comment-repository.js';

@@ -98,7 +98,7 @@ export function loadWindowCallbackScript<T>(options: WindowCallbackScriptOptions
 
     const cleanup = () => {
       if (previousCallback === undefined) {
-        delete win[options.callbackName];
+        Reflect.deleteProperty(win, options.callbackName);
       } else {
         win[options.callbackName] = previousCallback;
       }

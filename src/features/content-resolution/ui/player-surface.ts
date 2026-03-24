@@ -1,4 +1,5 @@
 import type { ContentId } from '$shared/content/types.js';
+
 import { getEmbedComponentLoader } from './embed-component-loader.js';
 
 export type PlayerSurfaceKind =

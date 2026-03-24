@@ -1,11 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import {
-  parseRelayTags,
-  shortUrl,
-  stateColor,
+  type ConnectionState,
   isTransitionalState,
+  parseRelayTags,
   relayStateLabelKey,
-  type ConnectionState
+  shortUrl,
+  stateColor
 } from './relay-model.js';
 
 describe('parseRelayTags', () => {

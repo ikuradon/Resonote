@@ -19,12 +19,12 @@ vi.mock('$shared/utils/logger.js', () => ({
   })
 }));
 
+import type { CachedEvent, EventsDB } from './comment-repository.js';
 import {
   getCommentRepository,
-  restoreFromCache,
-  purgeDeletedFromCache
+  purgeDeletedFromCache,
+  restoreFromCache
 } from './comment-repository.js';
-import type { EventsDB, CachedEvent } from './comment-repository.js';
 
 function makeEvent(overrides: Partial<CachedEvent> = {}): CachedEvent {
   return {

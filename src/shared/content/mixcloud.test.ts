@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import { MixcloudProvider } from '$shared/content/mixcloud.js';
 
 const provider = new MixcloudProvider();
@@ -88,7 +89,9 @@ describe('MixcloudProvider.toNostrTag', () => {
 
 describe('MixcloudProvider.contentKind', () => {
   it('returns mixcloud:mix', () => {
-    expect(provider.contentKind()).toBe('mixcloud:mix');
+    expect(
+      provider.contentKind({ platform: 'mixcloud', type: 'mix', id: 'djname/mix-title' })
+    ).toBe('mixcloud:mix');
   });
 });
 

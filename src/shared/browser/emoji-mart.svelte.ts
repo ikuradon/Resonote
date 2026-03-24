@@ -43,10 +43,16 @@ async function setCachedData(data: unknown): Promise<void> {
   }
 }
 
-let cached: Promise<{ data: unknown; Picker: unknown }> | undefined;
+interface EmojiMartModules {
+  data: unknown;
+  Picker: unknown;
+  _needsCache?: boolean;
+}
 
-export function preloadEmojiMart(): void {
-  if (cached) return;
+let cached: Promise<EmojiMartModules> | undefined;
+
+export function preloadEmojiMart(): Promise<EmojiMartModules> {
+  if (cached) return cached;
   cached = (async () => {
     const [cachedData, mod] = await Promise.all([
       getCachedData(),
@@ -58,23 +64,21 @@ export function preloadEmojiMart(): void {
     }
 
     const rawData = await import('@ikuradon/emoji-kitchen-mart-data').then((m) => m.default);
-    return { data: rawData, Picker: mod.Picker, _needsCache: true } as {
-      data: unknown;
-      Picker: unknown;
-      _needsCache?: boolean;
-    };
+    return { data: rawData, Picker: mod.Picker, _needsCache: true };
   })().catch((err) => {
     cached = undefined;
     throw err;
   });
+  return cached;
 }
 
-export async function getEmojiMartModules(): Promise<{ data: unknown; Picker: unknown }> {
-  if (!cached) preloadEmojiMart();
-  const result = await cached!;
+export async function getEmojiMartModules(): Promise<EmojiMartModules> {
+  const result = await preloadEmojiMart();
   if ('_needsCache' in result && result._needsCache) {
     delete result._needsCache;
-    setTimeout(() => setCachedData(result.data), 1000);
+    setTimeout(() => {
+      void setCachedData(result.data);
+    }, 1000);
   }
   return result;
 }

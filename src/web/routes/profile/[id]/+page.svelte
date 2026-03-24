@@ -3,8 +3,9 @@
   import { createProfilePageViewModel } from '$features/profiles/ui/profile-page-view-model.svelte.js';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import { t } from '$shared/i18n/t.js';
-  import ProfileHeader from './ProfileHeader.svelte';
+
   import ProfileComments from './ProfileComments.svelte';
+  import ProfileHeader from './ProfileHeader.svelte';
 
   const vm = createProfilePageViewModel(() => page.params.id ?? '');
 </script>

@@ -5,9 +5,9 @@
 
 export {
   cachedFetchById,
+  type FetchedEventFull,
   invalidateFetchByIdCache,
   resetFetchByIdCache,
   useCachedLatest,
-  type FetchedEventFull,
   type UseCachedLatestResult
 } from './cached-query.svelte.js';

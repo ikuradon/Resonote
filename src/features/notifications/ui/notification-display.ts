@@ -1,7 +1,8 @@
-import { isEmojiTag } from '$shared/utils/emoji.js';
-import { getContentPathFromTags } from '$shared/nostr/helpers.js';
 import { getProfileDisplay, type ProfileDisplay } from '$shared/browser/profile.js';
 import { t, type TranslationKey } from '$shared/i18n/t.js';
+import { getContentPathFromTags } from '$shared/nostr/helpers.js';
+import { isEmojiTag } from '$shared/utils/emoji.js';
+
 import type { Notification, NotificationType } from '../domain/notification-model.js';
 
 export interface ReactionDisplay {

@@ -1,11 +1,12 @@
-import { updatePlayback } from './player.svelte.js';
 import { goto } from '$app/navigation';
 import type { ContentId } from '$shared/content/types.js';
+
 import {
   isExtensionRuntimeOrigin,
   onExtensionFrameMessage,
   postSeekRequest
 } from './extension-message-bridge.js';
+import { updatePlayback } from './player.svelte.js';
 
 const EXT_ATTR = 'data-resonote-ext';
 const ACTION_ATTR = 'data-resonote-action';
@@ -42,9 +43,12 @@ export function initExtensionListener(): void {
           break;
         }
         case 'resonote:navigate': {
-          goto(message.path);
+          void goto(message.path);
           break;
         }
+        case 'resonote:seek-request':
+          // Handled by the side panel, not the web app frame
+          break;
       }
     },
     { acceptOrigin: isExtensionRuntimeOrigin }

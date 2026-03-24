@@ -3,5 +3,5 @@
  * Custom emoji state bridge — re-exports for component/app access.
  */
 
-export { getCustomEmojis, loadCustomEmojis, clearCustomEmojis } from './emoji-sets.svelte.js';
 export type { CustomEmoji, EmojiCategory } from './emoji-sets.svelte.js';
+export { clearCustomEmojis, getCustomEmojis, loadCustomEmojis } from './emoji-sets.svelte.js';

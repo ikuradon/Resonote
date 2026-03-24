@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import { SEEK_EVENT_NAME } from './playback-model.js';
 
 describe('SEEK_EVENT_NAME', () => {

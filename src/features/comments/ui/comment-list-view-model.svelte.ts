@@ -1,32 +1,34 @@
 import { untrack } from 'svelte';
-import type { ContentId, ContentProvider } from '$shared/content/types.js';
-import { getProfileDisplay, type ProfileDisplay } from '$shared/browser/profile.js';
-import { dispatchSeek } from '$shared/browser/seek-bridge.js';
-import { getPlayer } from '$shared/browser/player.js';
-import { getAuth } from '$shared/browser/auth.js';
-import { matchesFilter, type FollowFilter } from '$shared/browser/follows.js';
-import {
-  isMuted,
-  isWordMuted,
-  muteUser,
-  hasNip44Support,
-  getMuteList
-} from '$shared/browser/mute.js';
-import { toastSuccess, toastError } from '$shared/browser/toast.js';
-import { containsPrivateKey } from '$shared/nostr/content-parser.js';
-import { createLogger } from '$shared/utils/logger.js';
-import { t } from '$shared/i18n/t.js';
+
 import type {
   Comment,
   PlaceholderComment,
   ReactionStats
 } from '$features/comments/domain/comment-model.js';
 import { emptyStats } from '$features/comments/domain/reaction-rules.js';
+import { getAuth } from '$shared/browser/auth.js';
+import { type FollowFilter, matchesFilter } from '$shared/browser/follows.js';
 import {
+  getMuteList,
+  hasNip44Support,
+  isMuted,
+  isWordMuted,
+  muteUser
+} from '$shared/browser/mute.js';
+import { getPlayer } from '$shared/browser/player.js';
+import { getProfileDisplay, type ProfileDisplay } from '$shared/browser/profile.js';
+import { dispatchSeek } from '$shared/browser/seek-bridge.js';
+import { toastError, toastSuccess } from '$shared/browser/toast.js';
+import type { ContentId, ContentProvider } from '$shared/content/types.js';
+import { t } from '$shared/i18n/t.js';
+import { containsPrivateKey } from '$shared/nostr/content-parser.js';
+import { createLogger } from '$shared/utils/logger.js';
+
+import {
+  deleteComment as deleteCommentAction,
   sendReaction as sendReactionAction,
-  sendReply as sendReplyAction,
-  deleteComment as deleteCommentAction
-} from '$features/comments/application/comment-actions.js';
+  sendReply as sendReplyAction
+} from '../application/comment-actions.js';
 
 const log = createLogger('comment-list-vm');
 
@@ -80,7 +82,7 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
       if (c.positionMs !== null) timed.push(c);
       else general.push(c);
     }
-    timed.sort((a, b) => a.positionMs! - b.positionMs!);
+    timed.sort((a, b) => (a.positionMs ?? 0) - (b.positionMs ?? 0));
     general.sort((a, b) => b.createdAt - a.createdAt);
     return { timedComments: timed, generalComments: general };
   });
@@ -152,7 +154,7 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
     let result = 0;
     while (lo <= hi) {
       const mid = (lo + hi) >> 1;
-      if (timedComments[mid].positionMs! <= posMs) {
+      if ((timedComments[mid].positionMs ?? 0) <= posMs) {
         result = mid;
         lo = mid + 1;
       } else {

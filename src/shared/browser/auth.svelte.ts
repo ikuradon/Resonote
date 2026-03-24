@@ -60,7 +60,7 @@ export async function initAuth(): Promise<void> {
         .then((pk) => onLogin(pk))
         .catch((err) => log.error('Failed to get public key', err));
     } else {
-      onLogout();
+      void onLogout();
     }
   });
 

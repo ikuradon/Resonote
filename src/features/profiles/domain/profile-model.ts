@@ -2,6 +2,7 @@
  * Profile domain types and pure display functions.
  */
 
+// eslint-disable-next-line no-restricted-imports -- npubEncode is a pure bech32 encoding function with no side effects
 import { npubEncode } from 'nostr-tools/nip19';
 
 export const MAX_NAME_LENGTH = 32;
@@ -25,11 +26,11 @@ export interface ProfileDisplay {
 
 export function formatNip05(nip05: string, truncate = false): string {
   if (!truncate) return nip05;
-  return nip05.length > 20 ? nip05.slice(0, 18) + '\u2026' : nip05;
+  return nip05.length > 20 ? `${nip05.slice(0, 18)}\u2026` : nip05;
 }
 
 export function truncateProfileName(s: string): string {
-  return s.length > MAX_NAME_LENGTH ? s.slice(0, MAX_NAME_LENGTH) + '\u2026' : s;
+  return s.length > MAX_NAME_LENGTH ? `${s.slice(0, MAX_NAME_LENGTH)}\u2026` : s;
 }
 
 export function formatDisplayName(pubkey: string, profile: Profile | undefined): string {

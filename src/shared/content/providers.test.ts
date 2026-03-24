@@ -9,26 +9,27 @@
  *   5. toNostrTag()[0] value prefix matches contentKind() return value
  *      (except AudioProvider, whose tag value embeds the raw URL rather than the id)
  */
-import { describe, it, expect } from 'vitest';
-import { SpotifyProvider } from '$shared/content/spotify.js';
-import { YouTubeProvider } from '$shared/content/youtube.js';
-import { VimeoProvider } from '$shared/content/vimeo.js';
-import { SoundCloudProvider } from '$shared/content/soundcloud.js';
+import { describe, expect, it } from 'vitest';
+
+import { AbemaProvider } from '$shared/content/abema.js';
+import { AppleMusicProvider } from '$shared/content/apple-music.js';
+import { AudioProvider } from '$shared/content/audio.js';
+import { DisneyPlusProvider } from '$shared/content/disney-plus.js';
+import { FountainFmProvider } from '$shared/content/fountain-fm.js';
 import { MixcloudProvider } from '$shared/content/mixcloud.js';
-import { SpreakerProvider } from '$shared/content/spreaker.js';
+import { NetflixProvider } from '$shared/content/netflix.js';
 import { NiconicoProvider } from '$shared/content/niconico.js';
 import { PodbeanProvider } from '$shared/content/podbean.js';
-import { AudioProvider } from '$shared/content/audio.js';
-import { PodcastProvider, buildEpisodeContentId } from '$shared/content/podcast.js';
-import { NetflixProvider } from '$shared/content/netflix.js';
+import { buildEpisodeContentId, PodcastProvider } from '$shared/content/podcast.js';
 import { PrimeVideoProvider } from '$shared/content/prime-video.js';
-import { DisneyPlusProvider } from '$shared/content/disney-plus.js';
-import { AppleMusicProvider } from '$shared/content/apple-music.js';
-import { FountainFmProvider } from '$shared/content/fountain-fm.js';
-import { AbemaProvider } from '$shared/content/abema.js';
+import { SoundCloudProvider } from '$shared/content/soundcloud.js';
+import { SpotifyProvider } from '$shared/content/spotify.js';
+import { SpreakerProvider } from '$shared/content/spreaker.js';
 import { TVerProvider } from '$shared/content/tver.js';
 import { UNextProvider } from '$shared/content/u-next.js';
 import { toBase64url } from '$shared/content/url-utils.js';
+import { VimeoProvider } from '$shared/content/vimeo.js';
+import { YouTubeProvider } from '$shared/content/youtube.js';
 
 // ---------------------------------------------------------------------------
 // SpotifyProvider
@@ -91,7 +92,7 @@ describe('SpotifyProvider', () => {
     const contentId = { platform: 'spotify', type: 'track', id: 'abc123' };
     const [tagValue] = provider.toNostrTag(contentId);
     const kind = provider.contentKind(contentId);
-    expect(tagValue.startsWith(kind + ':')).toBe(true);
+    expect(tagValue.startsWith(`${kind}:`)).toBe(true);
   });
 });
 
@@ -150,7 +151,7 @@ describe('YouTubeProvider', () => {
     const contentId = { platform: 'youtube', type: 'video', id: 'dQw4w9WgXcQ' };
     const [tagValue] = provider.toNostrTag(contentId);
     const kind = provider.contentKind(contentId);
-    expect(tagValue.startsWith(kind + ':')).toBe(true);
+    expect(tagValue.startsWith(`${kind}:`)).toBe(true);
   });
 });
 
@@ -201,7 +202,7 @@ describe('VimeoProvider', () => {
     const contentId = { platform: 'vimeo', type: 'video', id: '123456789' };
     const [tagValue] = provider.toNostrTag(contentId);
     const kind = provider.contentKind(contentId);
-    expect(tagValue.startsWith(kind + ':')).toBe(true);
+    expect(tagValue.startsWith(`${kind}:`)).toBe(true);
   });
 });
 
@@ -245,7 +246,7 @@ describe('SoundCloudProvider', () => {
     const contentId = { platform: 'soundcloud', type: 'track', id: 'artist/trackname' };
     const [tagValue] = provider.toNostrTag(contentId);
     const kind = provider.contentKind();
-    expect(tagValue.startsWith(kind + ':')).toBe(true);
+    expect(tagValue.startsWith(`${kind}:`)).toBe(true);
   });
 });
 
@@ -282,14 +283,15 @@ describe('MixcloudProvider', () => {
   });
 
   it('contentKind: returns "mixcloud:mix"', () => {
-    expect(provider.contentKind()).toBe('mixcloud:mix');
+    const contentId = { platform: 'mixcloud', type: 'mix', id: 'djname/mix-title' };
+    expect(provider.contentKind(contentId)).toBe('mixcloud:mix');
   });
 
   it('toNostrTag()[0] prefix matches contentKind()', () => {
     const contentId = { platform: 'mixcloud', type: 'mix', id: 'djname/mix-title' };
     const [tagValue] = provider.toNostrTag(contentId);
-    const kind = provider.contentKind();
-    expect(tagValue.startsWith(kind + ':')).toBe(true);
+    const kind = provider.contentKind(contentId);
+    expect(tagValue.startsWith(`${kind}:`)).toBe(true);
   });
 });
 
@@ -340,7 +342,7 @@ describe('SpreakerProvider', () => {
     const contentId = { platform: 'spreaker', type: 'episode', id: '12345678' };
     const [tagValue] = provider.toNostrTag(contentId);
     const kind = provider.contentKind(contentId);
-    expect(tagValue.startsWith(kind + ':')).toBe(true);
+    expect(tagValue.startsWith(`${kind}:`)).toBe(true);
   });
 });
 
@@ -399,7 +401,7 @@ describe('NiconicoProvider', () => {
     const contentId = { platform: 'niconico', type: 'video', id: 'sm12345678' };
     const [tagValue] = provider.toNostrTag(contentId);
     const kind = provider.contentKind(contentId);
-    expect(tagValue.startsWith(kind + ':')).toBe(true);
+    expect(tagValue.startsWith(`${kind}:`)).toBe(true);
   });
 });
 
@@ -460,7 +462,7 @@ describe('PodbeanProvider', () => {
     const contentId = { platform: 'podbean', type: 'episode', id: 'pb-abc12-def456' };
     const [tagValue] = provider.toNostrTag(contentId);
     const kind = provider.contentKind(contentId);
-    expect(tagValue.startsWith(kind + ':')).toBe(true);
+    expect(tagValue.startsWith(`${kind}:`)).toBe(true);
   });
 });
 
@@ -565,14 +567,14 @@ describe('PodcastProvider', () => {
     const contentId = { platform: 'podcast', type: 'feed', id: feedId };
     const [tagValue] = provider.toNostrTag(contentId);
     const kind = provider.contentKind(contentId);
-    expect(tagValue.startsWith(kind + ':')).toBe(true);
+    expect(tagValue.startsWith(`${kind}:`)).toBe(true);
   });
 
   it('toNostrTag()[0] prefix matches contentKind() for episode', () => {
     const contentId = buildEpisodeContentId(feedUrl, 'guid-xyz');
     const [tagValue] = provider.toNostrTag(contentId);
     const kind = provider.contentKind(contentId);
-    expect(tagValue.startsWith(kind + ':')).toBe(true);
+    expect(tagValue.startsWith(`${kind}:`)).toBe(true);
   });
 });
 
@@ -621,7 +623,7 @@ describe('NetflixProvider', () => {
     const contentId = { platform: 'netflix', type: 'title', id: '80100172' };
     const [tagValue] = provider.toNostrTag(contentId);
     const kind = provider.contentKind();
-    expect(tagValue.startsWith(kind + ':')).toBe(true);
+    expect(tagValue.startsWith(`${kind}:`)).toBe(true);
   });
 });
 
@@ -671,7 +673,7 @@ describe('PrimeVideoProvider', () => {
     const contentId = { platform: 'primevideo', type: 'video', id: 'B0ABCDE1234' };
     const [tagValue] = provider.toNostrTag(contentId);
     const kind = provider.contentKind(contentId);
-    expect(tagValue.startsWith(kind + ':')).toBe(true);
+    expect(tagValue.startsWith(`${kind}:`)).toBe(true);
   });
 });
 
@@ -719,7 +721,7 @@ describe('DisneyPlusProvider', () => {
     const contentId = { platform: 'disneyplus', type: 'video', id: 'abc-def-123' };
     const [tagValue] = provider.toNostrTag(contentId);
     const kind = provider.contentKind();
-    expect(tagValue.startsWith(kind + ':')).toBe(true);
+    expect(tagValue.startsWith(`${kind}:`)).toBe(true);
   });
 });
 
@@ -777,7 +779,7 @@ describe('AppleMusicProvider', () => {
     const contentId = { platform: 'apple-music', type: 'album', id: '1234567890' };
     const [tagValue] = provider.toNostrTag(contentId);
     const kind = provider.contentKind(contentId);
-    expect(tagValue.startsWith(kind + ':')).toBe(true);
+    expect(tagValue.startsWith(`${kind}:`)).toBe(true);
   });
 });
 
@@ -826,7 +828,7 @@ describe('FountainFmProvider', () => {
     const contentId = { platform: 'fountain', type: 'episode', id: 'abc123' };
     const [tagValue] = provider.toNostrTag(contentId);
     const kind = provider.contentKind();
-    expect(tagValue.startsWith(kind + ':')).toBe(true);
+    expect(tagValue.startsWith(`${kind}:`)).toBe(true);
   });
 });
 
@@ -879,7 +881,7 @@ describe('AbemaProvider', () => {
     const contentId = { platform: 'abema', type: 'episode', id: 'some-episode-slug' };
     const [tagValue] = provider.toNostrTag(contentId);
     const kind = provider.contentKind(contentId);
-    expect(tagValue.startsWith(kind + ':')).toBe(true);
+    expect(tagValue.startsWith(`${kind}:`)).toBe(true);
   });
 });
 
@@ -921,14 +923,15 @@ describe('TVerProvider', () => {
   });
 
   it('contentKind: returns "tver:episode"', () => {
-    expect(provider.contentKind()).toBe('tver:episode');
+    const contentId = { platform: 'tver', type: 'episode', id: 'ep12345678' };
+    expect(provider.contentKind(contentId)).toBe('tver:episode');
   });
 
   it('toNostrTag()[0] prefix matches contentKind()', () => {
     const contentId = { platform: 'tver', type: 'episode', id: 'ep12345678' };
     const [tagValue] = provider.toNostrTag(contentId);
-    const kind = provider.contentKind();
-    expect(tagValue.startsWith(kind + ':')).toBe(true);
+    const kind = provider.contentKind(contentId);
+    expect(tagValue.startsWith(`${kind}:`)).toBe(true);
   });
 });
 
@@ -994,6 +997,6 @@ describe('UNextProvider', () => {
     const contentId = { platform: 'unext', type: 'title', id: 'SID0012345' };
     const [tagValue] = provider.toNostrTag(contentId);
     const kind = provider.contentKind(contentId);
-    expect(tagValue.startsWith(kind + ':')).toBe(true);
+    expect(tagValue.startsWith(`${kind}:`)).toBe(true);
   });
 });

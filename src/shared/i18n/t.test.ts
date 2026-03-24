@@ -1,5 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+
 import { setLocale } from '$shared/browser/locale.js';
+
 import { t } from './t.js';
 
 beforeEach(() => {

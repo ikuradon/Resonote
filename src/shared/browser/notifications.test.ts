@@ -3,8 +3,9 @@
  * Tests here cover the pure display helpers it re-exports from notification-display.ts,
  * verifying that the public API surface is reachable from the barrel path.
  */
-import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import { parseReactionDisplay, typeIcon, typeLabel, relativeTime } from './notifications.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { parseReactionDisplay, relativeTime, typeIcon, typeLabel } from './notifications.js';
 
 describe('notifications barrel: parseReactionDisplay', () => {
   it('returns heart for "+"', () => {

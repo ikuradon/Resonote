@@ -1,4 +1,6 @@
+import type { EventParameters } from 'nostr-typedef';
 import type { RxNostr } from 'rx-nostr';
+
 import { DEFAULT_RELAYS } from '$shared/nostr/relays.js';
 import { createLogger } from '$shared/utils/logger.js';
 
@@ -28,7 +30,7 @@ export async function getRxNostr(): Promise<RxNostr> {
 }
 
 export async function castSigned(
-  params: import('nostr-typedef').EventParameters,
+  params: EventParameters,
   options?: { successThreshold?: number }
 ): Promise<void> {
   const threshold = options?.successThreshold ?? 0.5;

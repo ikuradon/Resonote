@@ -8,17 +8,18 @@
  * 3. other platforms — no resolution needed
  */
 
-import type { ResolutionResult, EpisodeMetadata } from '../domain/resolution-result.js';
-import { emptyResult } from '../domain/resolution-result.js';
-import { fromBase64url, toBase64url } from '$shared/content/url-utils.js';
 import {
-  resolveEpisode,
+  buildEpisodeContentId,
   resolveByApi,
-  searchBookmarkByUrl,
-  buildEpisodeContentId
+  resolveEpisode,
+  searchBookmarkByUrl
 } from '$shared/content/resolution.js';
+import { fromBase64url, toBase64url } from '$shared/content/url-utils.js';
 import { publishSignedEvents } from '$shared/nostr/gateway.js';
 import { createLogger } from '$shared/utils/logger.js';
+
+import type { EpisodeMetadata, ResolutionResult } from '../domain/resolution-result.js';
+import { emptyResult } from '../domain/resolution-result.js';
 
 const log = createLogger('resolve-content');
 
@@ -101,7 +102,7 @@ async function applyBookmarkResolution(
   try {
     const info = await resolveEpisode(feedBase64, guidBase64);
     if (!signal?.cancelled && info) {
-      mergeMetadata(result.metadata, {
+      result.metadata = mergeMetadata(result.metadata, {
         title: info.title,
         feedTitle: info.feedTitle,
         image: info.image,
@@ -124,17 +125,23 @@ async function applyApiResolution(
   if (signal?.cancelled) return result;
 
   // Extract metadata from API response
-  if (data.episode?.title) mergeMetadata(result.metadata, { title: data.episode.title });
+  if (data.episode?.title)
+    result.metadata = mergeMetadata(result.metadata, { title: data.episode.title });
   if (data.episode?.description)
-    mergeMetadata(result.metadata, { description: data.episode.description });
-  if (data.feed?.title) mergeMetadata(result.metadata, { feedTitle: data.feed.title });
-  if (data.feed?.imageUrl) mergeMetadata(result.metadata, { image: data.feed.imageUrl });
+    result.metadata = mergeMetadata(result.metadata, { description: data.episode.description });
+  if (data.feed?.title)
+    result.metadata = mergeMetadata(result.metadata, { feedTitle: data.feed.title });
+  if (data.feed?.imageUrl)
+    result.metadata = mergeMetadata(result.metadata, { image: data.feed.imageUrl });
 
   // Fallback to audio file metadata (ID3 tags etc.)
   if (data.metadata) {
-    if (data.metadata.title) mergeMetadata(result.metadata, { title: data.metadata.title });
-    if (data.metadata.artist) mergeMetadata(result.metadata, { feedTitle: data.metadata.artist });
-    if (data.metadata.image) mergeMetadata(result.metadata, { image: data.metadata.image });
+    if (data.metadata.title)
+      result.metadata = mergeMetadata(result.metadata, { title: data.metadata.title });
+    if (data.metadata.artist)
+      result.metadata = mergeMetadata(result.metadata, { feedTitle: data.metadata.artist });
+    if (data.metadata.image)
+      result.metadata = mergeMetadata(result.metadata, { image: data.metadata.image });
   }
 
   // Publish signed events internally (no need for route to handle this)
@@ -154,11 +161,14 @@ async function applyApiResolution(
   return result;
 }
 
-/** Merge metadata without overwriting existing values. */
-function mergeMetadata(target: EpisodeMetadata, source: Partial<EpisodeMetadata>): void {
-  if (source.title && !target.title) target.title = source.title;
-  if (source.feedTitle && !target.feedTitle) target.feedTitle = source.feedTitle;
-  if (source.image && !target.image) target.image = source.image;
-  if (source.description && !target.description) target.description = source.description;
-  if (source.enclosureUrl && !target.enclosureUrl) target.enclosureUrl = source.enclosureUrl;
+/** Merge metadata without overwriting existing values. Returns a new object. */
+function mergeMetadata(target: EpisodeMetadata, source: Partial<EpisodeMetadata>): EpisodeMetadata {
+  return {
+    ...target,
+    title: target.title || source.title,
+    feedTitle: target.feedTitle || source.feedTitle,
+    image: target.image || source.image,
+    description: target.description || source.description,
+    enclosureUrl: target.enclosureUrl || source.enclosureUrl
+  };
 }

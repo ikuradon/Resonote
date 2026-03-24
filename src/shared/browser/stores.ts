@@ -5,16 +5,16 @@
  */
 
 // Follows
-export { loadFollows, clearFollows, getFollows } from './follows.svelte.js';
+export { clearFollows, getFollows, loadFollows } from './follows.svelte.js';
 
 // Bookmarks
-export { loadBookmarks, clearBookmarks } from './bookmarks.svelte.js';
+export { clearBookmarks, loadBookmarks } from './bookmarks.svelte.js';
 
 // Mute
-export { loadMuteList, clearMuteList } from './mute.svelte.js';
+export { clearMuteList, loadMuteList } from './mute.svelte.js';
 
 // Emoji sets
-export { loadCustomEmojis, clearCustomEmojis } from './emoji-sets.svelte.js';
+export { clearCustomEmojis, loadCustomEmojis } from './emoji-sets.svelte.js';
 
 // Profile
 export { clearProfiles } from './profile.svelte.js';

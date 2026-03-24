@@ -3,14 +3,14 @@
  * Mute state bridge — re-exports for route/component/feature access.
  */
 export {
-  isMuted,
-  isWordMuted,
+  clearMuteList,
   getMuteList,
   hasNip44Support,
-  muteUser,
-  unmuteUser,
-  muteWord,
-  unmuteWord,
+  isMuted,
+  isWordMuted,
   loadMuteList,
-  clearMuteList
+  muteUser,
+  muteWord,
+  unmuteUser,
+  unmuteWord
 } from './mute.svelte.js';

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { resolveContentNavigation } from '$features/content-resolution/application/content-navigation.js';
 
 describe('resolveContentNavigation', () => {

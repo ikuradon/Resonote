@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { dispatchSeek, onSeek, SEEK_EVENT } from './seek-bridge.js';
 
 const originalWindow = globalThis.window;

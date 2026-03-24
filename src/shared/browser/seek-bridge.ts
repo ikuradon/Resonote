@@ -19,6 +19,7 @@ export function dispatchSeek(positionMs: number): void {
 export function onSeek(callback: (positionMs: number) => void): () => void {
   function handler(e: Event) {
     const detail = (e as CustomEvent<SeekDetail>).detail;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- detail may be null/undefined at runtime for non-CustomEvent inputs
     if (typeof detail?.positionMs === 'number' && detail.positionMs >= 0) {
       callback(detail.positionMs);
     }

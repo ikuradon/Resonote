@@ -1,12 +1,14 @@
 <script lang="ts">
-  import { resolveSoundCloudEmbed } from '$features/content-resolution/infra/soundcloud-api-client.js';
+  // eslint-disable-next-line no-restricted-imports -- orchestrates embed URL resolution; full refactor deferred
+  import { resolveSoundCloudEmbed } from '$features/content-resolution/application/resolve-soundcloud-embed.js';
   import { createAsyncReadyTimeout } from '$shared/browser/async-ready-timeout.js';
-  import { loadExternalScript } from '$shared/browser/script-loader.js';
-  import type { ContentId } from '$shared/content/types.js';
   import { setContent, updatePlayback } from '$shared/browser/player.js';
-  import { onSeek } from '../../shared/browser/seek-bridge.js';
+  import { loadExternalScript } from '$shared/browser/script-loader.js';
+  import { onSeek } from '$shared/browser/seek-bridge.js';
+  import type { ContentId } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
   import { createLogger } from '$shared/utils/logger.js';
+
   import EmbedLoading from './EmbedLoading.svelte';
 
   const log = createLogger('SoundCloudEmbed');
@@ -47,14 +49,21 @@
     embedSrc = '';
     error = false;
 
+    let cancelled = false;
     resolveSoundCloudEmbed(trackUrl)
       .then((src) => {
-        embedSrc = src;
+        if (!cancelled) embedSrc = src;
       })
       .catch((err) => {
-        log.error('Failed to resolve SoundCloud oEmbed', err);
-        error = true;
+        if (!cancelled) {
+          log.error('Failed to resolve SoundCloud oEmbed', err);
+          error = true;
+        }
       });
+
+    return () => {
+      cancelled = true;
+    };
   });
 
   // Initialize widget once iframe loads
@@ -131,6 +140,7 @@
       }
       widget = undefined;
       ready = false;
+      error = false;
     };
   });
 </script>

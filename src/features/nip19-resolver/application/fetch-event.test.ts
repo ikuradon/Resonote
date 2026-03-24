@@ -4,11 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // Hoisted mocks
 // ---------------------------------------------------------------------------
 
-type SubscriberCallbacks = {
+interface SubscriberCallbacks {
   next: (packet: unknown) => void;
   complete: () => void;
   error: (err: unknown) => void;
-};
+}
 
 const { createRxBackwardReqMock, getRxNostrMock } = vi.hoisted(() => {
   const createRxBackwardReqMock = vi.fn();

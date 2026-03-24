@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { emptyStats, isLikeReaction, applyReaction, buildReactionIndex } from './reaction-rules.js';
+import { describe, expect, it } from 'vitest';
+
 import type { Reaction } from './comment-model.js';
+import { applyReaction, buildReactionIndex, emptyStats, isLikeReaction } from './reaction-rules.js';
 
 describe('isLikeReaction', () => {
   it('should return true for +', () => {

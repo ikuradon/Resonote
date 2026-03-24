@@ -3,9 +3,9 @@
  * Extension bridge — re-exports for app/feature access.
  */
 export {
+  detectExtension,
   initExtensionListener,
   isExtensionMode,
-  detectExtension,
-  sendSeekRequest,
-  requestOpenContent
+  requestOpenContent,
+  sendSeekRequest
 } from './extension.svelte.js';

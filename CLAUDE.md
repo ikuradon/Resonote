@@ -171,7 +171,7 @@ Comments use rx-nostr's dual-request pattern:
 
 - **Backward**: Fetch past events, call `over()` on completion
 - **Forward**: Real-time subscription for new events
-- Merged with `uniq()` + `timeline()` operators
+- Merged with `uniq()` operator for deduplication
 - `addSubscription()` で追加タグの並行購読をマージ可能
 - rx-nostr `emit()` は `LazyFilter[]` を受け付ける — 1 REQ に複数フィルタ = 1 subscription slot (NIP-11 `max_subscriptions` 節約)
 
@@ -231,6 +231,7 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
 - shared nostr テスト:
   - `src/shared/nostr/cached-query.test.ts` (TTL, invalidate, fetch dedup)
 - Codecov: `require_changes: true` のため、カバレッジ変化のない PR にはコメントが付かない
+- ESLint: テストファイル (`*.test.ts`) では `@typescript-eslint/require-await` を off。Mock 関数は `async` でもインターフェース準拠のために `await` 不要なケースが多い
 
 ## Deployment
 

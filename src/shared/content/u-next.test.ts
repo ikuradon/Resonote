@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import { UNextProvider } from '$shared/content/u-next.js';
 
 const provider = new UNextProvider();

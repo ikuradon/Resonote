@@ -3,6 +3,7 @@
  * Pure functions — no side effects, no infra dependencies.
  */
 
+// eslint-disable-next-line no-restricted-imports -- extractDeletionTargets is a pure tag extractor with no infra side effects
 import { extractDeletionTargets } from '$shared/nostr/events.js';
 
 /**

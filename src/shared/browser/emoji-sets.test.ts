@@ -43,11 +43,11 @@ vi.mock('rx-nostr', () => ({
 import { clearCustomEmojis, getCustomEmojis, loadCustomEmojis } from './emoji-sets.svelte.js';
 
 // Type alias for subscribe handlers
-type SubscribeHandlers = {
+interface SubscribeHandlers {
   next: (p: { event: { id: string; tags: string[][] } }) => void;
   complete: () => void;
   error: (err: unknown) => void;
-};
+}
 
 /**
  * Helper: setup mockRxNostr.use to emit packets then complete.

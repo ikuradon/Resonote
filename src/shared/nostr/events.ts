@@ -1,6 +1,8 @@
 import type { EventParameters } from 'nostr-typedef';
+
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
-import { isShortcode, extractShortcode } from '$shared/utils/emoji.js';
+import { extractShortcode, isShortcode } from '$shared/utils/emoji.js';
+
 import { extractContentTags } from './content-parser.js';
 
 export const COMMENT_KIND = 1111;

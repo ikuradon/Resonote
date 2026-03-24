@@ -10,7 +10,7 @@ export function createLoginButtonViewModel() {
 
   $effect(() => {
     if (!auth.pubkey) return;
-    fetchProfile(auth.pubkey);
+    void fetchProfile(auth.pubkey);
   });
 
   return {

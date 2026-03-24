@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
 import { neventEncode, noteEncode, nprofileEncode, npubEncode } from 'nostr-tools/nip19';
+import { describe, expect, it } from 'vitest';
+
 import { decodeNip19 } from './nip19-decode.js';
 
 const TEST_PUBKEY_HEX = '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d';

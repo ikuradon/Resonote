@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 
 const { buildShareMock, castSignedMock, fetchLatestEventMock } = vi.hoisted(() => ({

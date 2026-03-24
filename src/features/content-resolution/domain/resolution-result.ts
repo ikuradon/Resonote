@@ -3,6 +3,9 @@
  * No infra dependencies — pure data.
  */
 
+// eslint-disable-next-line no-restricted-imports -- type-only import; EventParameters is a pure type with no runtime dependency
+import type { EventParameters } from 'nostr-typedef';
+
 export interface EpisodeMetadata {
   title?: string;
   feedTitle?: string;
@@ -19,7 +22,7 @@ export interface ResolutionResult {
   /** Additional Nostr I-tag values to subscribe to for merged comments. */
   additionalSubscriptions: string[];
   /** Pre-signed Nostr events to publish (NIP-B0 bookmarks). */
-  signedEvents: import('nostr-typedef').EventParameters[];
+  signedEvents: EventParameters[];
 }
 
 export function emptyResult(): ResolutionResult {
