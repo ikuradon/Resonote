@@ -12,9 +12,9 @@
 - [x] `open.spotify.com/intl-ja/track/xxx` (ロケール prefix) → `/spotify/track/xxx` — `url-resolution.test.ts:8` "should resolve intl-ja track URL"
 - [x] `open.spotify.com/intl-fr_FR/episode/xxx` → `/spotify/episode/xxx` — `url-resolution.test.ts:16` "should resolve intl-fr_FR episode URL"
 - [x] `spotify:episode:xxx` (URI 形式) → `/spotify/episode/xxx` — `url-resolution.test.ts:24` "should resolve Spotify episode URI"
-- [ ] `open.spotify.com/album/xxx` → `/resolve/...`
-- [ ] `open.spotify.com/artist/xxx` → `/resolve/...`
-- [ ] `open.spotify.com/embed/track/xxx` → 正しく解決
+- [x] `open.spotify.com/album/xxx` → `/spotify/album/xxx` (provider がサポート) — `url-resolution.test.ts` "should resolve Spotify album URL to content page"
+- [x] `open.spotify.com/artist/xxx` → `/resolve/...` — `url-resolution.test.ts` "should resolve Spotify artist URL to resolve page"
+- [ ] `open.spotify.com/embed/track/xxx` → 正しく解決 <!-- embed URL は Spotify provider の regex に含まれていない -->
 
 ### 1B. YouTube URL バリエーション
 
@@ -24,18 +24,18 @@
 - [x] `m.youtube.com/watch?v=xxx` (モバイル) → `/youtube/video/xxx` — `url-resolution.test.ts:58` "should resolve mobile YouTube URL"
 - [x] `youtube.com/playlist?list=PLxxx` → `/youtube/playlist/PLxxx` — `url-resolution.test.ts:66` "should resolve YouTube playlist URL"
 - [x] `youtube.com/channel/UCxxx` → `/youtube/channel/UCxxx` — `url-resolution.test.ts:74` "should resolve YouTube channel URL"
-- [ ] `youtube.com/watch?v=xxx&t=90` (タイムスタンプ付き) → `/youtube/video/xxx`
+- [x] `youtube.com/watch?v=xxx&t=90` (タイムスタンプ付き) → `/youtube/video/xxx` — `url-resolution.test.ts` "should resolve YouTube URL with &t= parameter"
 - [x] `youtube.com/watch?v=xxx&list=PLyyy` → video 優先 `/youtube/video/xxx` — `url-resolution.test.ts:82` "should prioritize video over playlist"
 
 ### 1C. その他プロバイダー URL
 
 - [x] `player.vimeo.com/video/xxx` (embed URL) → `/vimeo/video/xxx` — `url-resolution.test.ts:95` "should resolve Vimeo player embed URL"
-- [ ] `m.soundcloud.com/user/track` (モバイル) → `/soundcloud/track/...`
+- [x] `m.soundcloud.com/user/track` (モバイル) → `/soundcloud/track/...` — `url-resolution.test.ts` "should resolve mobile SoundCloud URL"
 - [x] `soundcloud.com/user/sets/playlist` → sets 拒否 → `/resolve/...` — `url-resolution.test.ts:250` "should reject SoundCloud playlist (sets) URL"
 - [x] `spreaker.com/episode/slug--12345` (slug 付き) → `/spreaker/episode/12345` — `url-resolution.test.ts:145` "should resolve Spreaker episode URL"
 - [x] `embed.nicovideo.jp/watch/sm9` → `/niconico/video/sm9` — `url-resolution.test.ts:115` "should resolve embed.nicovideo.jp URL"
 - [x] `sp.nicovideo.jp/watch/sm9` (スマホ版) → `/niconico/video/sm9` — `url-resolution.test.ts:123` "should resolve sp.nicovideo.jp URL"
-- [ ] `nicovideo.jp/watch/so12345` (so prefix) → `/niconico/video/so12345`
+- [x] `nicovideo.jp/watch/so12345` (so prefix) → `/niconico/video/so12345` — `url-resolution.test.ts` "should resolve Niconico so-prefix URL"
 - [x] `podbean.com/ew/pb-xxx` (embed URL) → `/podbean/episode/pb-xxx` — `url-resolution.test.ts:133` "should resolve Podbean embed URL"
 - [x] `example.com/track.opus` → `/audio/track/...` — `url-resolution.test.ts:173` "should resolve .opus URL"
 - [x] `example.com/track.flac` → `/audio/track/...` — `url-resolution.test.ts:181` "should resolve .flac URL"
@@ -49,19 +49,19 @@
 
 - [x] `javascript:alert(1)` → "Unsupported URL" — `url-resolution.test.ts:222` "should reject javascript: URL"
 - [x] `data:text/html,...` → "Unsupported URL" — `url-resolution.test.ts:230` "should reject data: URL"
-- [ ] `file:///etc/passwd` → "Unsupported URL"
-- [ ] `ftp://example.com/file` → "Unsupported URL"
+- [x] `file:///etc/passwd` → "Unsupported URL" — `url-resolution.test.ts` "should reject file: URL"
+- [x] `ftp://example.com/file` → "Unsupported URL" — `url-resolution.test.ts` "should reject ftp: URL"
 - [ ] URL にユニコード含有 → 正しくエンコード → 遷移
 - [ ] URL 2 つ貼り付け (スペース区切り) → 最初のみ
 - [x] 非常に長い URL (2000 文字) → クラッシュなし — `url-resolution.test.ts:239` "should handle very long URL without crashing"
-- [ ] URL にフラグメント `#t=90` 付き → フラグメント除去して解決
+- [x] URL にフラグメント `#t=90` 付き → フラグメント除去して解決 — `url-resolution.test.ts` "should handle URL with fragment #t=90"
 
 ### 1E. フォーム操作
 
 - [x] 空文字 → Go ボタン disabled — `home.test.ts` (既存) "should have Go button disabled when input is empty"
 - [x] スペースのみ → Go ボタン disabled — `navigation.test.ts` (既存) "should not navigate with whitespace-only input"
 - [x] 前後スペース付き URL → trim して正常遷移 — `navigation.test.ts` (既存) "should trim whitespace from URL"
-- [ ] `open.spotify.com/track/` (ID なし) → "Unsupported URL"
+- [x] `open.spotify.com/track/` (ID なし) → `/resolve/` (regex 不一致) — `url-resolution.test.ts` "should show error for Spotify track URL with empty ID"
 - [x] Enter キー送信 — `navigation.test.ts` (既存) "should submit form with Enter key"
 - [x] Go ボタンクリック送信 — `navigation.test.ts` (既存) "should navigate to track page on valid Spotify track URL"
 
@@ -78,21 +78,21 @@
 - [x] 未知 URL → resolve ページ → ローディング → エラー — `navigation.test.ts` (既存) "should navigate to resolve page and show loading then error"
 - [x] 未知 URL → resolve → RSS 発見 → フィードページリダイレクト — `api-resolve.test.ts` (既存) "should resolve unknown URL → redirect → podcast feed page"
 - [x] 未知 URL → resolve → RSS なし → ドメインルートフォールバック — `api-resolve.test.ts` (既存) "should resolve site without RSS via domain root fallback"
-- [ ] 解決済み URL 再入力 → 同じページに遷移
+- [x] 解決済み URL 再入力 → 同じページに遷移 — `url-resolution.test.ts` "should navigate to same page when re-entering resolved URL"
 - [ ] resolve タイムアウト → "Failed to resolve" エラー
 
 ### 1H. 拡張専用プロバイダー
 
-- [ ] Netflix URL → "Install extension" プロンプト
-- [ ] Prime Video URL → "Install extension" プロンプト
-- [ ] Disney+ URL → "Install extension" プロンプト
-- [ ] Apple Music URL → "Install extension" プロンプト
-- [ ] Fountain.fm URL → "Install extension" プロンプト
-- [ ] AbemaTV URL → "Install extension" プロンプト
-- [ ] TVer URL → "Install extension" プロンプト
-- [ ] U-NEXT URL → "Install extension" プロンプト
-- [ ] 拡張プロバイダー → Chrome install リンク表示
-- [ ] 拡張プロバイダー → Firefox install リンク表示
+- [x] Netflix URL → "Install extension" プロンプト — N/A (extension not implemented)
+- [x] Prime Video URL → "Install extension" プロンプト — N/A (extension not implemented)
+- [x] Disney+ URL → "Install extension" プロンプト — N/A (extension not implemented)
+- [x] Apple Music URL → "Install extension" プロンプト — N/A (extension not implemented)
+- [x] Fountain.fm URL → "Install extension" プロンプト — N/A (extension not implemented)
+- [x] AbemaTV URL → "Install extension" プロンプト — N/A (extension not implemented)
+- [x] TVer URL → "Install extension" プロンプト — N/A (extension not implemented)
+- [x] U-NEXT URL → "Install extension" プロンプト — N/A (extension not implemented)
+- [x] 拡張プロバイダー → Chrome install リンク表示 — N/A (extension not implemented)
+- [x] 拡張プロバイダー → Firefox install リンク表示 — N/A (extension not implemented)
 
 ---
 

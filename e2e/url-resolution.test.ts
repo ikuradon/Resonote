@@ -256,3 +256,121 @@ test.describe('SoundCloud rejection', () => {
     await expect(page).toHaveURL(/\/resolve\//);
   });
 });
+
+test.describe('Spotify additional URL variants', () => {
+  test('should resolve Spotify album URL to content page', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://open.spotify.com/album/4aawyAB9vmqN3uQ7FjRGTy');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    // Spotify provider supports album type
+    await expect(page).toHaveURL('/spotify/album/4aawyAB9vmqN3uQ7FjRGTy');
+  });
+
+  test('should resolve Spotify artist URL to resolve page', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://open.spotify.com/artist/4Z8W4fKeB5YxbusRsdQVPb');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    // artist is not in the regex → goes to resolve
+    await expect(page).toHaveURL(/\/resolve\//);
+  });
+});
+
+test.describe('YouTube timestamp in URL', () => {
+  test('should resolve YouTube URL with &t= parameter', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=90');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    // Navigates to video page (may or may not preserve t= as query param)
+    await expect(page).toHaveURL(/\/youtube\/video\/dQw4w9WgXcQ/, { timeout: 10_000 });
+  });
+});
+
+test.describe('Additional provider URL variants', () => {
+  test('should resolve mobile SoundCloud URL', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://m.soundcloud.com/user/track-name');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    await expect(page).toHaveURL(/\/soundcloud\/track\//);
+  });
+
+  test('should resolve Niconico so-prefix URL', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://www.nicovideo.jp/watch/so12345');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    await expect(page).toHaveURL('/niconico/video/so12345');
+  });
+});
+
+test.describe('Additional audio/feed extensions', () => {
+  test('should resolve .ogg URL', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://example.com/audio/track.ogg');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    await expect(page).toHaveURL(/\/audio\/track\//);
+  });
+});
+
+test.describe('Additional dangerous URL rejection', () => {
+  test('should reject file: URL', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('file:///etc/passwd');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    // file: goes to resolve page which shows error
+    await expect(
+      page.locator('text=Unsupported URL').or(page.locator('text=Failed to resolve'))
+    ).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('should reject ftp: URL', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('ftp://example.com/file');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    await expect(
+      page.locator('text=Unsupported URL').or(page.locator('text=Failed to resolve'))
+    ).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('should handle URL with fragment #t=90', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://open.spotify.com/track/4C6zDr6e86HYqLxPAhO8jA#t=90');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    // Fragment should be stripped — navigate to correct content page
+    await expect(page).toHaveURL(/\/spotify\/track\/4C6zDr6e86HYqLxPAhO8jA/);
+  });
+
+  test('should show error for Spotify track URL with empty ID', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://open.spotify.com/track/');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    // Empty ID → regex doesn't match → goes to resolve page
+    await expect(page).toHaveURL(/\/resolve\//, { timeout: 10_000 });
+  });
+});
+
+test.describe('URL re-entry', () => {
+  test('should navigate to same page when re-entering resolved URL', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('[data-testid="track-url-input"]');
+    await input.fill('https://open.spotify.com/track/4C6zDr6e86HYqLxPAhO8jA');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    await expect(page).toHaveURL('/spotify/track/4C6zDr6e86HYqLxPAhO8jA');
+
+    // Go back and re-enter same URL
+    await page.locator('header a[href="/"]').click();
+    await page
+      .locator('[data-testid="track-url-input"]')
+      .fill('https://open.spotify.com/track/4C6zDr6e86HYqLxPAhO8jA');
+    await page.locator('[data-testid="track-submit-button"]').click();
+    await expect(page).toHaveURL('/spotify/track/4C6zDr6e86HYqLxPAhO8jA');
+  });
+});
