@@ -1,3 +1,5 @@
+import { untrack } from 'svelte';
+
 import { t } from '$shared/i18n/t.js';
 import { useCachedLatest, type UseCachedLatestResult } from '$shared/nostr/cached-query.js';
 import { RELAY_LIST_KIND } from '$shared/nostr/events.js';
@@ -33,8 +35,14 @@ export function createRelaySettingsViewModel(options: RelaySettingsViewModelOpti
 
   $effect(() => {
     const pubkey = options.getPubkey();
-    relayQuery?.destroy();
-    relayQuery = undefined;
+
+    // Destroy previous query without tracking relayQuery as a dependency.
+    // Reading relayQuery here would create a circular dependency:
+    // effect writes relayQuery → relayQuery changes → effect re-runs → infinite loop
+    untrack(() => {
+      relayQuery?.destroy();
+      relayQuery = undefined;
+    });
 
     if (!pubkey) return;
 

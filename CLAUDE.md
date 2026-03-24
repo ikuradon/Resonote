@@ -222,6 +222,8 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
 - IndexedDB テストは `fake-indexeddb/auto` を import
 - rx-nostr/client は `vi.mock()` でモック
 - rx-nostr 統合テスト: `@ikuradon/tsunagiya` MockPool で WebSocket モック + `nostr-tools/pure` finalizeEvent で有効署名生成
+- 統合テストのリレー URL は `.test` TLD を使用 (`wss://relay1.test` 等) + `vi.mock('./relays.js')` で `DEFAULT_RELAYS` を差し替え。MockPool 障害時も実リレーに漏洩しない
+- E2E テストのリレー: `VITE_DEFAULT_RELAYS` でビルド時に `.test` TLD URL を注入し、MockPool にも同じ URL を登録。バンドルの `var Tsunagiya` は `window.Tsunagiya` に書き換えて inject (Playwright `addInitScript` は関数スコープで wrap するため `var` が `window` に昇格しない)
 - E2E 認証フロー: tsunagiya ブラウザバンドル (`pretest:e2e` で自動生成) + `window.nostr` mock + `nlAuth` DOM イベント
 - `client.ts` の `disposeRxNostr()` でテスト間のシングルトンリセット
 - component-local helper でも壊れやすい orchestration は単体テストを持つ

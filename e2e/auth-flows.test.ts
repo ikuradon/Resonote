@@ -1,51 +1,16 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
-import path from 'path';
 
-import { DEFAULT_RELAYS } from '../src/shared/nostr/relays.js';
+import { setupFullLogin, setupMockPool, simulateLogin } from './helpers/e2e-setup.js';
 
 const trackUrl = '/spotify/track/4C6zDr6e86HYqLxPAhO8jA';
-
-// Generate a test keypair for each test run
 const sk = generateSecretKey();
 const testPubkey = getPublicKey(sk);
 
-/**
- * Set up window.nostr mock and fire nlAuth login event.
- */
-async function simulateLogin(page: Page) {
-  await page.evaluate(async (pubkey: string) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (window as any).nostr = {
-      getPublicKey: async () => pubkey,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      signEvent: async (e: any) => (window as any).__nostrSignEvent(e)
-    };
-    document.dispatchEvent(new CustomEvent('nlAuth', { detail: { type: 'login' } }));
-  }, testPubkey);
-}
-
 test.describe('Authenticated flows', () => {
   test.beforeEach(async ({ page }) => {
-    // 1. Inject tsunagiya to mock WebSocket
-    await page.addInitScript({
-      path: path.resolve('e2e/helpers/tsunagiya-bundle.js')
-    });
-    await page.addInitScript((relays: string[]) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pool = new (window as any).Tsunagiya.MockPool();
-      for (const url of relays) {
-        pool.relay(url);
-      }
-      pool.install();
-    }, DEFAULT_RELAYS);
-
-    // 2. Expose signEvent bridge (Node.js → browser) for all tests
-    await page.exposeFunction(
-      '__nostrSignEvent',
-      (event: { kind: number; content: string; tags: string[][]; created_at: number }) =>
-        finalizeEvent(event, sk)
-    );
+    await setupMockPool(page);
+    await setupFullLogin(page, testPubkey, (event) => finalizeEvent(event, sk));
   });
 
   test('should show comment form after login', async ({ page }) => {

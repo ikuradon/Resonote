@@ -5,6 +5,8 @@ import { extractShortcode, isShortcode } from '$shared/utils/emoji.js';
 
 import { extractContentTags } from './content-parser.js';
 
+export const METADATA_KIND = 0;
+export const SHORT_TEXT_KIND = 1;
 export const COMMENT_KIND = 1111;
 export const REACTION_KIND = 7;
 export const DELETION_KIND = 5;
@@ -167,7 +169,7 @@ export function buildShare(
   appendContentTags(tags, content, emojiTags);
 
   return {
-    kind: 1,
+    kind: SHORT_TEXT_KIND,
     content,
     tags
   };
