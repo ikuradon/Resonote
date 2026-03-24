@@ -43,9 +43,9 @@ test.describe('Profile page — follow/unfollow', () => {
     await simulateLogin(page);
 
     // Own profile should not show follow button
-    // Wait for page to settle, then check
-    await page.waitForTimeout(2_000);
-    await expect(page.getByRole('button', { name: /^Follow$|^フォロー$/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Follow$|^フォロー$/ })).toHaveCount(0, {
+      timeout: 5_000
+    });
   });
 
   // This test needs its own setup without login — beforeEach sets up full login
@@ -55,9 +55,9 @@ test.describe('Profile page — follow/unfollow', () => {
     await page.waitForLoadState('networkidle');
 
     // Without simulateLogin, the user is not logged in → no follow button
-    // Wait briefly for page to settle
-    await page.waitForTimeout(2_000);
-    await expect(page.getByRole('button', { name: /^Follow$|^フォロー$/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Follow$|^フォロー$/ })).toHaveCount(0, {
+      timeout: 5_000
+    });
   });
 });
 

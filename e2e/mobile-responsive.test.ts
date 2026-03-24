@@ -42,7 +42,8 @@ test.describe('Mobile hamburger menu', () => {
     await expect(page.locator('[role="dialog"]')).toHaveCount(0, { timeout: 5_000 });
   });
 
-  // TODO: MobileOverlay link click doesn't trigger SPA navigation — investigate
+  // BUG: MobileOverlay closes (menuOpen=false) before <a> navigation completes,
+  // removing the link from DOM and cancelling SPA routing. Needs fix in +layout.svelte.
   test.skip('should navigate from hamburger to settings', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto('/');
@@ -58,7 +59,8 @@ test.describe('Mobile hamburger menu', () => {
     await expect(page).toHaveURL('/settings', { timeout: 10_000 });
   });
 
-  // TODO: MobileOverlay link click doesn't trigger SPA navigation — investigate
+  // BUG: MobileOverlay closes (menuOpen=false) before <a> navigation completes,
+  // removing the link from DOM and cancelling SPA routing. Needs fix in +layout.svelte.
   test.skip('should navigate from hamburger to bookmarks', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto('/');
