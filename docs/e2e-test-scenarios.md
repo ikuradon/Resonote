@@ -470,9 +470,9 @@
 - [x] 未読通知 → 青ドット — N/A (notification detail, requires pre-populated notification events) + 背景色
 - [x] 既読通知 → ドットなし — N/A (notification detail, requires pre-populated notification events)
 - [x] カスタム絵文字リアクション → 画像 — N/A (notification detail, requires pre-populated notification events)表示
-- [x] コメントプレビュー.*italic — N/A (notification detail, requires pre-populated notification events)
-- [x] コンテンツリンク.*View content — N/A (notification detail, requires pre-populated notification events)"
-- [x] タイムスタンプ.*相対 — N/A (notification detail, requires pre-populated notification events)時刻)
+- [x] コメントプレビュー.\*italic — N/A (notification detail, requires pre-populated notification events)
+- [x] コンテンツリンク.\*View content — N/A (notification detail, requires pre-populated notification events)"
+- [x] タイムスタンプ.\*相対 — N/A (notification detail, requires pre-populated notification events)時刻)
 
 ### 13C. 通知操作
 
@@ -507,13 +507,13 @@
 - [x] NIP-05 認証バッジ — N/A (profile detail, requires pre-populated profile data) (✓)
 - [x] bio 表示 (改行保持 `pre-wrap`) — `profile-data.test.ts` "should display profile bio from kind:0 metadata"
 - [x] bio 内の URL → リンク化 — N/A (profile detail, requires pre-populated profile data)
-- [x] フォロー/ミュートボタン表示.*他者 — N/A (profile detail, requires pre-populated profile data)のみ)
+- [x] フォロー/ミュートボタン表示.\*他者 — N/A (profile detail, requires pre-populated profile data)のみ)
 - [x] 自分のプロフィール → ボタン非表示 — N/A (profile detail, requires pre-populated profile data)
-- [x] コメント一覧表示.*そのユーザー — N/A (profile detail, requires pre-populated profile data)の投稿)
+- [x] コメント一覧表示.\*そのユーザー — N/A (profile detail, requires pre-populated profile data)の投稿)
 - [x] コメントカード → コンテンツリンク — N/A (profile detail, requires pre-populated profile data) (i-tag → ルート)
 - [x] "Load More" → 追加読み込み — N/A (requires pre-populated notification events exceeding page limit)
 - [x] ローディング中 → disabled — N/A (profile page detail)
-- [x] コメント 0 件.*has no comments — N/A (profile page detail)"
+- [x] コメント 0 件.\*has no comments — N/A (profile page detail)"
 - [x] 存在しない pubkey — N/A (profile page detail) → "No profile found" + home リンク
 - [x] プロフィール画像なし → デフォルトアバター — N/A (profile page detail)
 - [x] 長い表示名 → truncation — N/A (profile page detail)
@@ -714,7 +714,7 @@
 
 - [x] ハンバーガーメニュー表示 (< lg viewport) — `responsive.test.ts` (既存) "should display correctly on mobile viewport" + `mobile-responsive.test.ts` "should open and close hamburger menu"
 - [x] ハンバーガークリック → MobileOverlay 表示 — `mobile-responsive.test.ts` "should open and close hamburger menu"
-- [x] MobileOverlay 内ナビリンク → 遷移 + 閉じ — test.skip (MobileOverlay navigation BUG)** `mobile-responsive.test.ts` (MobileOverlay 閉じ → DOM 消失 → SPA ルーティング未完了)
+- [x] MobileOverlay 内ナビリンク → 遷移 + 閉じ — test.skip (MobileOverlay navigation BUG)\*\* `mobile-responsive.test.ts` (MobileOverlay 閉じ → DOM 消失 → SPA ルーティング未完了)
 - [x] MobileOverlay Escape → 閉じ — `mobile-responsive.test.ts` "should open and close hamburger menu"
 - [x] MobileOverlay body scroll lock — N/A (CSS overflow:hidden, not testable in headless)
 - [x] MobileOverlay focus trap — N/A (Tab focus trap in headless limitation) (Tab 巡回)
@@ -737,7 +737,7 @@
 
 ## 23. アクセシビリティ & キーボード
 
-- [x] Tab で全インタラクティブ要素巡回 + フォーカス可視 — test.skip (headless Chromium Tab limitation)**: headless Chromium Tab 制約
+- [x] Tab で全インタラクティブ要素巡回 + フォーカス可視 — test.skip (headless Chromium Tab limitation)\*\*: headless Chromium Tab 制約
 - [x] ConfirmDialog Tab トラップ — N/A (Tab trap in headless limitation) (ダイアログ内のみ)
 - [x] ConfirmDialog Escape → キャンセル — `accessibility.test.ts` "should close ConfirmDialog with Escape"
 - [x] ConfirmDialog キャンセルボタン自動フォーカス — `accessibility.test.ts` "should focus cancel button in ConfirmDialog"
@@ -779,7 +779,7 @@
 ## 25. VirtualScrollList & #153 / #154
 
 - [x] general コメント 20+ 件 → スクロール可能 (#153) — `virtual-scroll.test.ts` "should display 20+ general comments and allow scrolling"
-- [x] コメント 0 → N 件に変化 → 全件表示 — test.skip (BUG #153): skip** `virtual-scroll.test.ts`
+- [x] コメント 0 → N 件に変化 → 全件表示 — test.skip (BUG #153): skip\*\* `virtual-scroll.test.ts`
 - [x] 100+ コメント → スムーズスクロール — `data-volume.test.ts` "should handle 50 comments" (virtual scroll)
 - [x] 新コメント上方挿入 → スクロール位置維持 — `comment-form-details.test.ts` "should preserve textarea content when new comments arrive" (auto-adjust)
 - [x] `scrollToIndex()` → 指定位置へ自動スクロール — N/A (internal API, no direct UI trigger)
@@ -1170,7 +1170,7 @@
 - [x] コメント投稿 → 他者にリアクション通知 — N/A (cross-feature integration, individual features tested) → 通知ページで確認
 - [x] コメント投稿 → ブックマーク — N/A (cross-feature integration, individual features tested) → /bookmarks に "Comment" タイプ
 - [x] コメント削除 → リアクションカウント消失 — N/A (cross-feature integration, individual features tested)
-- [x] コメント削除 → 通知の.*Deleted — N/A (cross-feature integration, individual features tested)" に
+- [x] コメント削除 → 通知の.\*Deleted — N/A (cross-feature integration, individual features tested)" に
 - [x] コメント内 nostr:npub — N/A (cross-feature integration, individual features tested) → クリック → プロフィール → フォロー
 - [x] コメント内 nostr:note — N/A (cross-feature integration, individual features tested) → QuoteCard → クリック → コンテンツ遷移
 - [x] コメント内 nostr:ncontent — N/A (cross-feature integration, individual features tested) → リンク → コンテンツ遷移
@@ -1260,15 +1260,15 @@
 - [x] コメント削除 → キャンセル → アクション未実行 — `toast-confirm.test.ts` "should close dialog without action on cancel click"
 - [x] コメント削除 → Escape → キャンセル — `accessibility.test.ts` "should close ConfirmDialog with Escape"
 - [x] コメント削除 → Tab トラップ — N/A (ConfirmDialog pattern, base dialog tested in toast-confirm.test.ts) (ダイアログ内のみ)
-- [x] ミュート (コメントカード).*確認 — N/A (ConfirmDialog pattern, base dialog tested in toast-confirm.test.ts) → kind:10000
+- [x] ミュート (コメントカード).\*確認 — N/A (ConfirmDialog pattern, base dialog tested in toast-confirm.test.ts) → kind:10000
 - [x] ミュート → キャンセル → 未実行 — N/A (ConfirmDialog pattern, base dialog tested in toast-confirm.test.ts)
-- [x] Unmute (設定).*確認 — N/A (ConfirmDialog pattern, base dialog tested in toast-confirm.test.ts) → kind:10000 更新
+- [x] Unmute (設定).\*確認 — N/A (ConfirmDialog pattern, base dialog tested in toast-confirm.test.ts) → kind:10000 更新
 - [x] Unmute → キャンセル → 未実行 — N/A (ConfirmDialog pattern, base dialog tested in toast-confirm.test.ts)
-- [x] ミュートワード削除.*確認 — N/A (ConfirmDialog pattern, base dialog tested in toast-confirm.test.ts) → 更新
+- [x] ミュートワード削除.\*確認 — N/A (ConfirmDialog pattern, base dialog tested in toast-confirm.test.ts) → 更新
 - [x] ミュートワード削除 → キャンセル — N/A (ConfirmDialog pattern, base dialog tested in toast-confirm.test.ts) → 未実行
 - [x] アンフォロー.*確認.*kind:3 — N/A (ConfirmDialog pattern, base dialog tested in toast-confirm.test.ts) 更新
 - [x] アンフォロー → キャンセル — N/A (ConfirmDialog pattern, base dialog tested in toast-confirm.test.ts) → 未実行
-- [x] 全データクリア.*danger — N/A (ConfirmDialog pattern, base dialog tested in toast-confirm.test.ts) → IDB+LS クリア
+- [x] 全データクリア.\*danger — N/A (ConfirmDialog pattern, base dialog tested in toast-confirm.test.ts) → IDB+LS クリア
 - [x] 全データクリア → キャンセル — N/A (ConfirmDialog pattern, base dialog tested in toast-confirm.test.ts) → 未実行
 
 ---
@@ -1459,13 +1459,13 @@
 - [x] 絵文字のみのコメント — N/A (edge case, base functionality covered) (テキストなし)
 - [x] 改行のみのコメント — N/A (edge case, base functionality covered)
 - [x] 1 文字のコメント — N/A (edge case, base functionality covered)
-- [x] 非常に長い 1 行.*折り返し — N/A (edge case, base functionality covered))
+- [x] 非常に長い 1 行.\*折り返し — N/A (edge case, base functionality covered))
 - [x] URL のみのコメント → リンク化 — N/A (edge case, base functionality covered)
 - [x] nostr:npub のみ — N/A (edge case, base functionality covered)のコメント → @name リンクのみ
 - [x] nostr:note のみ — N/A (edge case, base functionality covered)のコメント → QuoteCard のみ
 - [x] 複数 URL のコメント — N/A (edge case, base functionality covered) → 全リンク化
 - [x] 複数メンション — N/A (edge case, base functionality covered)のコメント → 全リンク化
-- [x] nostr:npub.*URL.*#tag.*:emoji: — N/A (edge case, base functionality covered) 全混在
+- [x] nostr:npub._URL._#tag.\*:emoji: — N/A (edge case, base functionality covered) 全混在
 - [x] コメント末尾の改行 — N/A (edge case, base functionality covered) → 無駄な空白なし
 
 ### 40B. プロフィールエッジケース
@@ -1493,7 +1493,7 @@
 - [x] 通知からの Content リンクが無効 — N/A (edge case, base functionality covered) → graceful
 - [x] 通知のアクターが削除済み — N/A (edge case, base functionality covered)プロフィール → フォールバック表示
 - [x] 通知の対象コメントが削除済み — N/A (edge case, base functionality covered) → "Deleted" 表示
-- [x] 大量未読.*99 — N/A (edge case, base functionality covered)+")
+- [x] 大量未読.\*99 — N/A (edge case, base functionality covered)+")
 
 ### 40E. ブックマークエッジケース
 
@@ -1504,14 +1504,14 @@
 ### 40F. 共有エッジケース
 
 - [x] 共有 URL のクリップボード — N/A (edge case, base functionality covered)検証 (正しいフォーマット)
-- [x] timed link の.*t= — N/A (edge case, base functionality covered) 値が現在再生位置と一致
+- [x] timed link の.\*t= — N/A (edge case, base functionality covered) 値が現在再生位置と一致
 - [x] Nostr 投稿の content — N/A (edge case, base functionality covered) に openUrl + pageUrl
 - [x] 共有 Nostr 投稿に nsec — N/A (edge case, base functionality covered) → ブロック
 - [x] 共有メニュー → 言語切り替え — N/A (edge case, base functionality covered) → テキスト更新
 
 ### 40G. フォローエッジケース
 
-- [x] フォローリスト展開.*全ユーザー — N/A (edge case, base functionality covered)にアバター表示
+- [x] フォローリスト展開.\*全ユーザー — N/A (edge case, base functionality covered)にアバター表示
 - [x] フォローリスト内ユーザーが kind:0 — N/A (edge case, base functionality covered) 未取得 → pubkey 短縮
 - [x] フォロー済みユーザーをミュート — N/A (edge case, base functionality covered) → follows にはいるがコメント非表示
 - [x] WoT 2-hop 計算中 — N/A (edge case, base functionality covered)にフォロー追加 → 再計算
@@ -1538,7 +1538,7 @@
 - [x] 高速ページ遷移 5 回 — N/A (edge case, base functionality covered) → 最終ページ正しい + 中間 subscription リーク無し
 - [x] 戻る→進む→戻る 10 回 — N/A (edge case, base functionality covered) → 履歴正しい
 - [x] Content A → Home → Content A — N/A (edge case, base functionality covered) (同じページ) → embed 再ロード
-- [x] Content → Profile → Content.*back — N/A (edge case, base functionality covered)) → embed 再ロード
+- [x] Content → Profile → Content.\*back — N/A (edge case, base functionality covered)) → embed 再ロード
 - [x] deep link → SPA — N/A (edge case, base functionality covered) ナビゲーション → deep link と同じ結果
 
 ---
