@@ -142,7 +142,7 @@ test.describe('Keyboard navigation', () => {
 });
 
 test.describe('Focus visibility', () => {
-  // Tab behavior varies in headless Chromium — skip in CI
+  // Tab focus behavior is unreliable in headless Chromium
   test.skip('should move focus on tab navigation', async ({ page }) => {
     await page.goto('/');
 

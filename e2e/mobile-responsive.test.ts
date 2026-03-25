@@ -42,9 +42,7 @@ test.describe('Mobile hamburger menu', () => {
     await expect(page.locator('[role="dialog"]')).toHaveCount(0, { timeout: 5_000 });
   });
 
-  // BUG: MobileOverlay closes (menuOpen=false) before <a> navigation completes,
-  // removing the link from DOM and cancelling SPA routing. Needs fix in +layout.svelte.
-  test.skip('should navigate from hamburger to settings', async ({ page }) => {
+  test('should navigate from hamburger to settings', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto('/');
     await page.waitForLoadState('networkidle');
@@ -52,16 +50,14 @@ test.describe('Mobile hamburger menu', () => {
 
     await page.locator('[data-testid="hamburger-menu-button"]').click();
 
-    const settingsLink = page.locator('a[href="/settings"]').first();
+    const settingsLink = page.locator('[role="dialog"] a[href="/settings"]').first();
     await expect(settingsLink).toBeVisible({ timeout: 5_000 });
     await settingsLink.click();
 
     await expect(page).toHaveURL('/settings', { timeout: 10_000 });
   });
 
-  // BUG: MobileOverlay closes (menuOpen=false) before <a> navigation completes,
-  // removing the link from DOM and cancelling SPA routing. Needs fix in +layout.svelte.
-  test.skip('should navigate from hamburger to bookmarks', async ({ page }) => {
+  test('should navigate from hamburger to bookmarks', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto('/');
     await page.waitForLoadState('networkidle');
@@ -69,7 +65,7 @@ test.describe('Mobile hamburger menu', () => {
 
     await page.locator('[data-testid="hamburger-menu-button"]').click();
 
-    const bookmarksLink = page.locator('a[href="/bookmarks"]').first();
+    const bookmarksLink = page.locator('[role="dialog"] a[href="/bookmarks"]').first();
     await expect(bookmarksLink).toBeVisible({ timeout: 5_000 });
     await bookmarksLink.click();
 
