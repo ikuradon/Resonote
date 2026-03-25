@@ -72,7 +72,7 @@ test.describe('VirtualScrollList — general comments (#153)', () => {
 
   // BUG #153: VirtualScrollList visibleRange stays empty when items transition from 0→N.
   // The rebuildOffsets/visibleRange update does not fire on first population.
-  test.skip('should display comments when transitioning from 0 to N', async ({ page }) => {
+  test('should display comments when transitioning from 0 to N', async ({ page }) => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);

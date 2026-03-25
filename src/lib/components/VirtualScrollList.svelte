@@ -90,6 +90,8 @@
 
     // Rebuild offsets for new items
     untrack(() => rebuildOffsets());
+    // Update containerHeight in case it was 0 at mount time (fixes 0→N transition #153)
+    if (container) containerHeight = container.clientHeight;
 
     // Compensate scroll for items inserted above viewport
     if (container && oldKeys.length > 0) {
