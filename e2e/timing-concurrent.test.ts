@@ -126,8 +126,9 @@ test.describe('Cross-feature interactions', () => {
     const reaction = buildReaction(otherUser, comment.id, user.pubkey, TEST_I_TAG);
     await broadcastEventsOnAllRelays(page, [reaction]);
 
-    // Heart count should appear
-    const heartCount = page.locator('span.font-mono').filter({ hasText: '1' }).first();
+    // Heart count should appear (scoped to the comment containing our text)
+    const commentCard = page.getByText('My cross-feat comment').locator('..');
+    const heartCount = commentCard.locator('span.font-mono').filter({ hasText: '1' }).first();
     await expect(heartCount).toBeVisible({ timeout: 15_000 });
   });
 
