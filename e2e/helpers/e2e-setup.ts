@@ -378,6 +378,36 @@ export async function broadcastEventsOnAllRelays(
 }
 
 /**
+ * Pre-load events into MockPool via addInitScript so they are available
+ * for backward REQs BEFORE any app code runs. Must be called BEFORE page.goto().
+ *
+ * Use this for one-shot queries (e.g., profile kind:0 via fetchProfiles)
+ * where the subscription closes after EOSE — broadcastEventsOnAllRelays
+ * would arrive too late since the subscription is already closed.
+ */
+export async function preloadEvents(
+  page: Page,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  events: any[]
+): Promise<void> {
+  await page.addInitScript(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (args: { events: any[]; relays: string[] }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pool = (window as any).__mockPool;
+      if (!pool) return;
+      for (const url of args.relays) {
+        const relay = pool.relay(url);
+        for (const ev of args.events) {
+          relay.store(ev);
+        }
+      }
+    },
+    { events, relays: TEST_RELAYS }
+  );
+}
+
+/**
  * Get EVENT messages published by the app to mock relays.
  * Checks all relays (castSigned may route to any subset).
  * Optionally filter by event kind.
