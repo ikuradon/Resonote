@@ -17,6 +17,7 @@ import {
   simulateLogin,
   TEST_I_TAG,
   TEST_K_TAG,
+  TEST_RELAYS,
   TEST_TRACK_URL
 } from './helpers/e2e-setup.js';
 
@@ -58,17 +59,14 @@ test.describe('Reaction details', () => {
     await expect(page.getByText('Reaction fail test').first()).toBeVisible({ timeout: 15_000 });
 
     // Configure relays to reject
-    await page.evaluate(
-      (relays: string[]) => {
+    await page.evaluate((relays: string[]) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pool = (window as any).__mockPool;
+      for (const url of relays) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const pool = (window as any).__mockPool;
-        for (const url of relays) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          pool.relay(url).onEVENT((event: any) => ['OK', event.id, false, 'blocked']);
-        }
-      },
-      ['wss://relay1.test', 'wss://relay2.test', 'wss://relay3.test', 'wss://relay4.test']
-    );
+        pool.relay(url).onEVENT((event: any) => ['OK', event.id, false, 'blocked']);
+      }
+    }, TEST_RELAYS);
 
     const likeButton = page.locator('button[title="Like"]').first();
     await likeButton.click();

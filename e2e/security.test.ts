@@ -7,6 +7,7 @@ import { expect, test } from '@playwright/test';
 import {
   broadcastEventsOnAllRelays,
   buildComment,
+  buildMetadata,
   createTestIdentity,
   setupFullLogin,
   setupMockPool,
@@ -88,7 +89,6 @@ test.describe('XSS prevention in profile data', () => {
   });
 
   test('should sanitize script tags in profile name displayed on comment', async ({ page }) => {
-    const { buildMetadata } = await import('./helpers/e2e-setup.js');
     const metadata = buildMetadata(otherUser, {
       name: '<b onmouseover=alert(1)>Evil</b>'
     });

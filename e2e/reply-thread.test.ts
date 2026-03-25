@@ -9,12 +9,14 @@ import {
   broadcastEventsOnAllRelays,
   buildComment,
   buildDeletion,
+  buildReaction,
   createTestIdentity,
   setupFullLogin,
   setupMockPool,
   simulateLogin,
   TEST_I_TAG,
   TEST_K_TAG,
+  TEST_RELAYS,
   TEST_TRACK_URL
 } from './helpers/e2e-setup.js';
 
@@ -102,17 +104,14 @@ test.describe('Reply threading', () => {
     await expect(page.getByText('Fail reply target').first()).toBeVisible({ timeout: 15_000 });
 
     // Configure relays to reject
-    await page.evaluate(
-      (relays: string[]) => {
+    await page.evaluate((relays: string[]) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pool = (window as any).__mockPool;
+      for (const url of relays) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const pool = (window as any).__mockPool;
-        for (const url of relays) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          pool.relay(url).onEVENT((event: any) => ['OK', event.id, false, 'blocked']);
-        }
-      },
-      ['wss://relay1.test', 'wss://relay2.test', 'wss://relay3.test', 'wss://relay4.test']
-    );
+        pool.relay(url).onEVENT((event: any) => ['OK', event.id, false, 'blocked']);
+      }
+    }, TEST_RELAYS);
 
     // Open reply form
     const replyButton = page.locator('button[title="Reply"]').first();
@@ -232,17 +231,14 @@ test.describe('Reply failure', () => {
     await expect(page.getByText('Delete fail test').first()).toBeVisible({ timeout: 15_000 });
 
     // Configure relays to reject
-    await page.evaluate(
-      (relays: string[]) => {
+    await page.evaluate((relays: string[]) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pool = (window as any).__mockPool;
+      for (const url of relays) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const pool = (window as any).__mockPool;
-        for (const url of relays) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          pool.relay(url).onEVENT((event: any) => ['OK', event.id, false, 'blocked']);
-        }
-      },
-      ['wss://relay1.test', 'wss://relay2.test', 'wss://relay3.test', 'wss://relay4.test']
-    );
+        pool.relay(url).onEVENT((event: any) => ['OK', event.id, false, 'blocked']);
+      }
+    }, TEST_RELAYS);
 
     // Click delete
     const deleteButton = page.locator('button[title="Delete"]').first();
@@ -383,7 +379,6 @@ test.describe('Deletion with thread effects', () => {
   });
 
   test('should remove reaction count when comment is deleted', async ({ page }) => {
-    const { buildReaction } = await import('./helpers/e2e-setup.js');
     const comment = buildComment(user, 'Delete with reactions', TEST_I_TAG, TEST_K_TAG);
     const reaction = buildReaction(alice, comment.id, user.pubkey, TEST_I_TAG, '+');
 

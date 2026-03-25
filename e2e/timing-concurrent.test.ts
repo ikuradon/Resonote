@@ -14,6 +14,7 @@ import {
   simulateLogin,
   TEST_I_TAG,
   TEST_K_TAG,
+  TEST_RELAYS,
   TEST_TRACK_URL
 } from './helpers/e2e-setup.js';
 
@@ -195,17 +196,14 @@ test.describe('Cross-feature: comment retry after failure', () => {
     await simulateLogin(page);
 
     // Configure relays to reject first
-    await page.evaluate(
-      (relays: string[]) => {
+    await page.evaluate((relays: string[]) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pool = (window as any).__mockPool;
+      for (const url of relays) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const pool = (window as any).__mockPool;
-        for (const url of relays) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          pool.relay(url).onEVENT((event: any) => ['OK', event.id, false, 'blocked']);
-        }
-      },
-      ['wss://relay1.test', 'wss://relay2.test', 'wss://relay3.test', 'wss://relay4.test']
-    );
+        pool.relay(url).onEVENT((event: any) => ['OK', event.id, false, 'blocked']);
+      }
+    }, TEST_RELAYS);
 
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
@@ -221,17 +219,14 @@ test.describe('Cross-feature: comment retry after failure', () => {
     await expect(sendButton).toBeEnabled({ timeout: 15_000 });
 
     // Reset relays to accept
-    await page.evaluate(
-      (relays: string[]) => {
+    await page.evaluate((relays: string[]) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pool = (window as any).__mockPool;
+      for (const url of relays) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const pool = (window as any).__mockPool;
-        for (const url of relays) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          pool.relay(url).onEVENT((event: any) => ['OK', event.id, true, '']);
-        }
-      },
-      ['wss://relay1.test', 'wss://relay2.test', 'wss://relay3.test', 'wss://relay4.test']
-    );
+        pool.relay(url).onEVENT((event: any) => ['OK', event.id, true, '']);
+      }
+    }, TEST_RELAYS);
 
     // Retry
     await sendButton.click();
@@ -277,11 +272,10 @@ test.describe('Cross-feature: mute hides comments immediately', () => {
   });
 
   test('should hide all comments from muted user including reactions', async ({ page }) => {
-    const { buildReaction: buildReact } = await import('./helpers/e2e-setup.js');
     const comment1 = buildComment(otherUser, 'Other visible 1', TEST_I_TAG, TEST_K_TAG);
     const comment2 = buildComment(otherUser, 'Other visible 2', TEST_I_TAG, TEST_K_TAG);
     const userComment = buildComment(user, 'User comment', TEST_I_TAG, TEST_K_TAG);
-    const otherReaction = buildReact(otherUser, userComment.id, user.pubkey, TEST_I_TAG, '+');
+    const otherReaction = buildReaction(otherUser, userComment.id, user.pubkey, TEST_I_TAG, '+');
 
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
