@@ -252,3 +252,65 @@ test.describe('Share flow', () => {
     });
   });
 });
+
+test.describe('Share — Post to Nostr flow', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupMockPool(page);
+    await setupFullLogin(page, user.pubkey, user.sign);
+  });
+
+  test('should publish kind:1 note when sharing to Nostr', async ({ page }) => {
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    const shareButton = page.getByRole('button', { name: /Share|共有/i });
+    await expect(shareButton).toBeVisible({ timeout: 10_000 });
+    await shareButton.click();
+
+    const postNostrButton = page.getByText(/Post to Nostr|Nostrに投稿/).first();
+    await expect(postNostrButton).toBeVisible({ timeout: 5_000 });
+    await postNostrButton.click();
+
+    // Type text in the textarea
+    const textarea = page.locator('textarea').last();
+    await expect(textarea).toBeVisible({ timeout: 5_000 });
+    await textarea.fill('Test share note to Nostr');
+
+    // Click the Post button
+    const postButton = page.getByRole('button', { name: /^Post$|^投稿/ }).first();
+    await expect(postButton).toBeVisible({ timeout: 5_000 });
+    await postButton.click();
+
+    // Assert at least 1 kind:1 event was published
+    await expect
+      .poll(async () => (await getPublishedEvents(page, 1)).length, {
+        timeout: 15_000
+      })
+      .toBeGreaterThanOrEqual(1);
+  });
+
+  test('should close modal after successful post', async ({ page }) => {
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    const shareButton = page.getByRole('button', { name: /Share|共有/i });
+    await expect(shareButton).toBeVisible({ timeout: 10_000 });
+    await shareButton.click();
+
+    const postNostrButton = page.getByText(/Post to Nostr|Nostrに投稿/).first();
+    await expect(postNostrButton).toBeVisible({ timeout: 5_000 });
+    await postNostrButton.click();
+
+    const textarea = page.locator('textarea').last();
+    await expect(textarea).toBeVisible({ timeout: 5_000 });
+    await textarea.fill('Post then close test');
+
+    const postButton = page.getByRole('button', { name: /^Post$|^投稿/ }).first();
+    await postButton.click();
+
+    // Modal/dialog should disappear after successful post
+    await expect(page.locator('[role="dialog"]')).toHaveCount(0, { timeout: 15_000 });
+  });
+});

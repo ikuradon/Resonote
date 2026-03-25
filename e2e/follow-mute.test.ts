@@ -318,3 +318,72 @@ test.describe('Settings page — NIP-44 warning', () => {
     await expect(page.locator('text=NIP-44')).toBeVisible({ timeout: 10_000 });
   });
 });
+
+test.describe('Mute word flow', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupMockPool(page);
+    // 4th argument (sk) enables real NIP-44 encrypt/decrypt
+    await setupFullLogin(page, user.pubkey, user.sign, user.sk);
+  });
+
+  test('should add mute word via settings page', async ({ page }) => {
+    await page.goto('/settings');
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    // Find the word input by placeholder
+    const wordInput = page.getByPlaceholder(/Word to mute|ミュートするワード/i);
+    await expect(wordInput).toBeVisible({ timeout: 10_000 });
+    await wordInput.fill('badword');
+
+    // Click "Add word" button
+    const addWordBtn = page.getByRole('button', { name: /Add word|ワードを追加/i }).first();
+    await expect(addWordBtn).toBeVisible({ timeout: 5_000 });
+    await addWordBtn.click();
+
+    // ConfirmDialog should appear
+    await expect(page.getByText(/Add muted word|ミュートワードを追加/).first()).toBeVisible({
+      timeout: 5_000
+    });
+
+    // Click Confirm button
+    const confirmBtn = page.getByRole('button', { name: /^Confirm$|^確認$/ }).first();
+    await expect(confirmBtn).toBeVisible({ timeout: 5_000 });
+    await confirmBtn.click();
+
+    // Assert the word appears in the muted words list
+    await expect(page.getByText('badword').first()).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('should hide comments matching muted word', async ({ page }) => {
+    // First add the mute word via settings
+    await page.goto('/settings');
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    const wordInput = page.getByPlaceholder(/Word to mute|ミュートするワード/i);
+    await expect(wordInput).toBeVisible({ timeout: 10_000 });
+    await wordInput.fill('badword');
+
+    const addWordBtn = page.getByRole('button', { name: /Add word|ワードを追加/i }).first();
+    await addWordBtn.click();
+
+    const confirmBtn = page.getByRole('button', { name: /^Confirm$|^確認$/ }).first();
+    await expect(confirmBtn).toBeVisible({ timeout: 5_000 });
+    await confirmBtn.click();
+
+    // Wait for mute word to be applied
+    await expect(page.getByText('badword').first()).toBeVisible({ timeout: 15_000 });
+
+    // Navigate to track page
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+
+    // Broadcast a comment containing the muted word
+    const comment = buildComment(otherUser, 'This has badword in it', TEST_I_TAG, TEST_K_TAG);
+    await broadcastEventsOnAllRelays(page, [comment]);
+
+    // The comment should NOT be visible (filtered by mute word)
+    await expect(page.getByText('This has badword in it')).toHaveCount(0, { timeout: 15_000 });
+  });
+});

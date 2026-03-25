@@ -152,3 +152,70 @@ test.describe('Relay settings — kind:10002 display', () => {
     await expect(notFound.or(relayEntry)).toBeVisible({ timeout: 15_000 });
   });
 });
+
+test.describe('Relay settings — validation', () => {
+  const validationUser = createTestIdentity();
+
+  test.beforeEach(async ({ page }) => {
+    await setupMockPool(page);
+    await setupFullLogin(page, validationUser.pubkey, validationUser.sign);
+  });
+
+  test('should reject empty relay URL', async ({ page }) => {
+    const relayListEvent = buildRelayList(validationUser, [{ url: 'wss://relay1.test' }]);
+
+    await page.goto('/settings');
+    await storeEventsOnAllRelays(page, [relayListEvent]);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    await expect(page.getByText('relay1.test').first()).toBeVisible({ timeout: 15_000 });
+
+    const relayCountBefore = await page.locator('[aria-label="Remove relay"]').count();
+
+    const input = page.locator('input[aria-label="Relay URL"]');
+    await input.fill('');
+    await page.getByRole('button', { name: /Add relay|追加/ }).click();
+
+    const relayCountAfter = await page.locator('[aria-label="Remove relay"]').count();
+    expect(relayCountAfter).toBe(relayCountBefore);
+  });
+
+  test('should clear input after adding relay', async ({ page }) => {
+    const relayListEvent = buildRelayList(validationUser, [{ url: 'wss://relay1.test' }]);
+
+    await page.goto('/settings');
+    await storeEventsOnAllRelays(page, [relayListEvent]);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    await expect(page.getByText('relay1.test').first()).toBeVisible({ timeout: 15_000 });
+
+    const input = page.locator('input[aria-label="Relay URL"]');
+    await input.fill('wss://clear-test.test');
+    await input.press('Enter');
+
+    await expect(page.getByText('clear-test.test').first()).toBeVisible({ timeout: 5_000 });
+    await expect(input).toHaveValue('', { timeout: 5_000 });
+  });
+
+  test('should enable save button after modification', async ({ page }) => {
+    const relayListEvent = buildRelayList(validationUser, [
+      { url: 'wss://relay1.test' },
+      { url: 'wss://relay2.test' }
+    ]);
+
+    await page.goto('/settings');
+    await storeEventsOnAllRelays(page, [relayListEvent]);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    await expect(page.getByText('relay1.test').first()).toBeVisible({ timeout: 15_000 });
+
+    // Toggle a Read/Write button to modify the relay config
+    await page.getByRole('button', { name: 'Read' }).first().click();
+
+    const saveBtn = page.getByRole('button', { name: /^Save$|^保存$/ });
+    await expect(saveBtn).toBeEnabled({ timeout: 5_000 });
+  });
+});

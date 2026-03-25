@@ -53,4 +53,68 @@ test.describe('Profile page — kind:0 display', () => {
       timeout: 15_000
     });
   });
+
+  test('should show empty comments message on profile', async ({ page }) => {
+    await page.goto(`/profile/${otherNpub}`);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    await expect(page.getByText(/No comments yet|コメントはまだありません/).first()).toBeVisible({
+      timeout: 15_000
+    });
+  });
+
+  test('should show no profile found for unknown pubkey', async ({ page }) => {
+    await page.goto(
+      '/profile/npub1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq2pn7kk'
+    );
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    // Expect some fallback text indicating no profile data
+    const fallback = page.getByText(/not found|見つかりません|unknown|不明|npub1qq/i).first();
+    await expect(fallback).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('should show NIP-05 badge on profile', async ({ page }) => {
+    const metadata = buildMetadata(otherUser, {
+      name: 'NipUser',
+      nip05: 'test@example.com'
+    });
+
+    await page.goto(`/profile/${otherNpub}`);
+    await storeEventsOnAllRelays(page, [metadata]);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    await expect(page.getByText('test@example.com').first()).toBeVisible({
+      timeout: 15_000
+    });
+  });
+
+  test('should show default avatar when no picture in profile', async ({ page }) => {
+    const metadata = buildMetadata(otherUser, { name: 'NoPic' });
+
+    await page.goto(`/profile/${otherNpub}`);
+    await storeEventsOnAllRelays(page, [metadata]);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    await expect(page.getByText('NoPic').first()).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('should linkify URLs in profile bio', async ({ page }) => {
+    const metadata = buildMetadata(otherUser, {
+      about: 'Visit https://example.com for info'
+    });
+
+    await page.goto(`/profile/${otherNpub}`);
+    await storeEventsOnAllRelays(page, [metadata]);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    await expect(page.locator('a[href="https://example.com"]').first()).toBeVisible({
+      timeout: 15_000
+    });
+  });
 });

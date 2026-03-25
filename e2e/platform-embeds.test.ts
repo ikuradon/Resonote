@@ -4,6 +4,8 @@
  */
 import { expect, test } from '@playwright/test';
 
+import { setupMockPool } from './helpers/e2e-setup.js';
+
 test.describe('Content page (Vimeo)', () => {
   const vimeoUrl = '/vimeo/video/76979871';
 
@@ -126,5 +128,50 @@ test.describe('Content page navigation between new platforms', () => {
     await input.fill('https://www.spreaker.com/episode/12345678');
     await page.locator('[data-testid="track-submit-button"]').click();
     await expect(page).toHaveURL(/\/spreaker\/episode\//);
+  });
+});
+
+test.describe('Extension-only providers — install prompt', () => {
+  // No login needed, just MockPool for WebSocket interception
+  test.beforeEach(async ({ page }) => {
+    await setupMockPool(page);
+  });
+
+  // Test each extension-only provider shows "requires extension" prompt
+  const extensionProviders = [
+    { name: 'Netflix', path: '/netflix/title/12345' },
+    { name: 'Prime Video', path: '/prime-video/title/12345' },
+    { name: 'Disney+', path: '/disney-plus/title/12345' },
+    { name: 'Apple Music', path: '/apple-music/album/12345' },
+    { name: 'Fountain.fm', path: '/fountain-fm/episode/12345' },
+    { name: 'AbemaTV', path: '/abema/video/12345' },
+    { name: 'TVer', path: '/tver/episode/12345' },
+    { name: 'U-NEXT', path: '/u-next/title/12345' }
+  ];
+
+  for (const { name, path } of extensionProviders) {
+    test(`should show install extension prompt for ${name}`, async ({ page }) => {
+      await page.goto(path);
+      await page.waitForLoadState('networkidle');
+      await expect(page.getByText(/requires.*extension|拡張機能が必要/).first()).toBeVisible({
+        timeout: 15_000
+      });
+    });
+  }
+
+  test('should show Chrome install link on extension provider page', async ({ page }) => {
+    await page.goto('/netflix/title/12345');
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByText(/Install for Chrome|Chrome版をインストール/).first()).toBeVisible({
+      timeout: 15_000
+    });
+  });
+
+  test('should show Firefox install link on extension provider page', async ({ page }) => {
+    await page.goto('/netflix/title/12345');
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByText(/Install for Firefox|Firefox版をインストール/).first()).toBeVisible(
+      { timeout: 15_000 }
+    );
   });
 });

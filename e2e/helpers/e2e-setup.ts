@@ -6,6 +6,7 @@
  */
 import type { Page } from '@playwright/test';
 import fs from 'fs';
+import * as nip44 from 'nostr-tools/nip44';
 import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import path from 'path';
 
@@ -72,7 +73,7 @@ export async function setupMockPool(page: Page): Promise<void> {
 }
 
 /**
- * Set up full login with NIP-07 signer.
+ * Set up full login with NIP-07 signer and real NIP-44 encryption.
  * Locks window.nostr with configurable:false to prevent nostr-login proxy.
  * Must be called before page.goto().
  */
@@ -84,31 +85,58 @@ export async function setupFullLogin(
     content: string;
     tags: string[][];
     created_at: number;
-  }) => ReturnType<typeof import('nostr-tools/pure').finalizeEvent>
+  }) => ReturnType<typeof import('nostr-tools/pure').finalizeEvent>,
+  sk?: Uint8Array
 ): Promise<void> {
   await page.exposeFunction('__nostrSignEvent', signEvent);
-  await page.addInitScript((pk: string) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const nostrMock: any = {
-      getPublicKey: async () => pk,
+
+  // Expose real NIP-44 encrypt/decrypt if secret key is provided
+  if (sk) {
+    await page.exposeFunction('__nostrNip44Encrypt', (theirPubkey: string, plaintext: string) => {
+      const conversationKey = nip44.v2.utils.getConversationKey(sk, theirPubkey);
+      return nip44.v2.encrypt(plaintext, conversationKey);
+    });
+    await page.exposeFunction('__nostrNip44Decrypt', (theirPubkey: string, ciphertext: string) => {
+      const conversationKey = nip44.v2.utils.getConversationKey(sk, theirPubkey);
+      return nip44.v2.decrypt(ciphertext, conversationKey);
+    });
+  }
+
+  await page.addInitScript(
+    (args: [string, boolean]) => {
+      const [pk, hasRealNip44] = args;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      signEvent: async (e: any) => (window as any).__nostrSignEvent(e),
-      nip44: {
-        encrypt: async () => '',
-        decrypt: async () => ''
+      const nostrMock: any = {
+        getPublicKey: async () => pk,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        signEvent: async (e: any) => (window as any).__nostrSignEvent(e),
+        nip44: hasRealNip44
+          ? {
+              encrypt: async (pubkey: string, plaintext: string) =>
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (window as any).__nostrNip44Encrypt(pubkey, plaintext),
+              decrypt: async (pubkey: string, ciphertext: string) =>
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (window as any).__nostrNip44Decrypt(pubkey, ciphertext)
+            }
+          : {
+              encrypt: async () => '',
+              decrypt: async () => ''
+            }
+      };
+      try {
+        Object.defineProperty(window, 'nostr', {
+          value: nostrMock,
+          writable: false,
+          configurable: false
+        });
+      } catch {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).nostr = nostrMock;
       }
-    };
-    try {
-      Object.defineProperty(window, 'nostr', {
-        value: nostrMock,
-        writable: false,
-        configurable: false
-      });
-    } catch {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).nostr = nostrMock;
-    }
-  }, pubkey);
+    },
+    [pubkey, !!sk] as [string, boolean]
+  );
 }
 
 /**
