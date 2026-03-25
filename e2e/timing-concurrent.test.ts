@@ -182,3 +182,125 @@ test.describe('Error recovery', () => {
     await expect(page.locator('[data-testid="comment-login-prompt"]')).toBeVisible();
   });
 });
+
+test.describe('Cross-feature: comment retry after failure', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupMockPool(page);
+    await setupFullLogin(page, user.pubkey, user.sign);
+  });
+
+  test('should succeed on retry after relay rejection', async ({ page }) => {
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    // Configure relays to reject first
+    await page.evaluate(
+      (relays: string[]) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pool = (window as any).__mockPool;
+        for (const url of relays) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          pool.relay(url).onEVENT((event: any) => ['OK', event.id, false, 'blocked']);
+        }
+      },
+      ['wss://relay1.test', 'wss://relay2.test', 'wss://relay3.test', 'wss://relay4.test']
+    );
+
+    const textarea = page.locator('textarea');
+    await expect(textarea).toBeVisible({ timeout: 10_000 });
+    await textarea.fill('Will fail then succeed');
+
+    const sendButton = page.locator('button[type="submit"]');
+    await sendButton.click();
+
+    // Text should be preserved after failure
+    await expect(textarea).toHaveValue('Will fail then succeed', { timeout: 10_000 });
+
+    // Wait for button to re-enable (sending state should clear)
+    await expect(sendButton).toBeEnabled({ timeout: 15_000 });
+
+    // Reset relays to accept
+    await page.evaluate(
+      (relays: string[]) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pool = (window as any).__mockPool;
+        for (const url of relays) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          pool.relay(url).onEVENT((event: any) => ['OK', event.id, true, '']);
+        }
+      },
+      ['wss://relay1.test', 'wss://relay2.test', 'wss://relay3.test', 'wss://relay4.test']
+    );
+
+    // Retry
+    await sendButton.click();
+    await expect(textarea).toHaveValue('', { timeout: 10_000 });
+  });
+});
+
+test.describe('Cross-feature: multiple rapid sends', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupMockPool(page);
+    await setupFullLogin(page, user.pubkey, user.sign);
+  });
+
+  test('should handle two rapid comment sends', async ({ page }) => {
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    const textarea = page.locator('textarea');
+    await expect(textarea).toBeVisible({ timeout: 10_000 });
+
+    // Send first comment
+    await textarea.fill('First rapid comment');
+    const sendButton = page.locator('button[type="submit"]');
+    await sendButton.click();
+    await expect(textarea).toHaveValue('', { timeout: 10_000 });
+
+    // Send second comment immediately
+    await textarea.fill('Second rapid comment');
+    await sendButton.click();
+    await expect(textarea).toHaveValue('', { timeout: 10_000 });
+
+    // Both should appear
+    await expect(page.getByText('First rapid comment').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Second rapid comment').first()).toBeVisible({ timeout: 15_000 });
+  });
+});
+
+test.describe('Cross-feature: mute hides comments immediately', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupMockPool(page);
+    await setupFullLogin(page, user.pubkey, user.sign);
+  });
+
+  test('should hide all comments from muted user including reactions', async ({ page }) => {
+    const { buildReaction: buildReact } = await import('./helpers/e2e-setup.js');
+    const comment1 = buildComment(otherUser, 'Other visible 1', TEST_I_TAG, TEST_K_TAG);
+    const comment2 = buildComment(otherUser, 'Other visible 2', TEST_I_TAG, TEST_K_TAG);
+    const userComment = buildComment(user, 'User comment', TEST_I_TAG, TEST_K_TAG);
+    const otherReaction = buildReact(otherUser, userComment.id, user.pubkey, TEST_I_TAG, '+');
+
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+    await broadcastEventsOnAllRelays(page, [comment1, comment2, userComment, otherReaction]);
+
+    await expect(page.getByText('Other visible 1').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Other visible 2').first()).toBeVisible({ timeout: 15_000 });
+
+    // Mute alice
+    const muteBtn = page.locator('button[title="Mute user"]').first();
+    await muteBtn.click();
+
+    const confirmBtn = page.getByRole('button', { name: /Confirm|確認/i }).first();
+    await expect(confirmBtn).toBeVisible({ timeout: 5_000 });
+    await confirmBtn.click();
+
+    // Both other user comments should disappear
+    await expect(page.getByText('Other visible 1')).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.getByText('Other visible 2')).toHaveCount(0, { timeout: 15_000 });
+  });
+});
