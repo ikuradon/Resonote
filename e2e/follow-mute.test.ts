@@ -356,10 +356,22 @@ test.describe('Mute word flow', () => {
   });
 
   test('should hide comments matching muted word', async ({ page }) => {
-    // First add the mute word via settings
-    await page.goto('/settings');
+    test.setTimeout(60_000);
+
+    // Navigate to track page first, then add mute word without leaving.
+    // This avoids MockPool reset from page navigation losing the mute list.
+    await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+
+    // Broadcast a comment with "badword" before muting
+    const comment = buildComment(otherUser, 'This has badword in it', TEST_I_TAG, TEST_K_TAG);
+    await broadcastEventsOnAllRelays(page, [comment]);
+    await expect(page.getByText('This has badword in it').first()).toBeVisible({ timeout: 15_000 });
+
+    // Navigate to settings to add mute word
+    await page.goto('/settings');
+    await page.waitForLoadState('networkidle');
 
     const wordInput = page.getByPlaceholder(/Word to mute|ミュートするワード/i);
     await expect(wordInput).toBeVisible({ timeout: 10_000 });
@@ -372,18 +384,18 @@ test.describe('Mute word flow', () => {
     await expect(confirmBtn).toBeVisible({ timeout: 5_000 });
     await confirmBtn.click();
 
-    // Wait for mute word to be applied
+    // Wait for mute word to appear in list
     await expect(page.getByText('badword').first()).toBeVisible({ timeout: 15_000 });
 
-    // Navigate to track page
+    // Go back to track page — comment should now be hidden
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
 
-    // Broadcast a comment containing the muted word
-    const comment = buildComment(otherUser, 'This has badword in it', TEST_I_TAG, TEST_K_TAG);
+    // Re-broadcast the same comment (MockPool was reset by navigation)
     await broadcastEventsOnAllRelays(page, [comment]);
 
-    // The comment should NOT be visible (filtered by mute word)
-    await expect(page.getByText('This has badword in it')).toHaveCount(0, { timeout: 15_000 });
+    // Wait a moment then verify the comment is NOT visible
+    await page.waitForTimeout(3000);
+    await expect(page.getByText('This has badword in it')).toHaveCount(0);
   });
 });

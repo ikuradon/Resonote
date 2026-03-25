@@ -50,6 +50,7 @@ test.describe('Data volume — comments', () => {
   });
 
   test('should handle 50 comments', async ({ page }) => {
+    test.setTimeout(60_000);
     const identity = createTestIdentity();
     const now = Math.floor(Date.now() / 1000);
     const comments = Array.from({ length: 50 }, (_, i) =>

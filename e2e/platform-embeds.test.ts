@@ -140,13 +140,13 @@ test.describe('Extension-only providers — install prompt', () => {
   // Test each extension-only provider shows "requires extension" prompt
   const extensionProviders = [
     { name: 'Netflix', path: '/netflix/title/12345' },
-    { name: 'Prime Video', path: '/prime-video/title/12345' },
-    { name: 'Disney+', path: '/disney-plus/title/12345' },
+    { name: 'Prime Video', path: '/primevideo/video/12345' },
+    { name: 'Disney+', path: '/disneyplus/video/12345' },
     { name: 'Apple Music', path: '/apple-music/album/12345' },
-    { name: 'Fountain.fm', path: '/fountain-fm/episode/12345' },
+    { name: 'Fountain.fm', path: '/fountain/episode/12345' },
     { name: 'AbemaTV', path: '/abema/video/12345' },
     { name: 'TVer', path: '/tver/episode/12345' },
-    { name: 'U-NEXT', path: '/u-next/title/12345' }
+    { name: 'U-NEXT', path: '/unext/title/12345' }
   ];
 
   for (const { name, path } of extensionProviders) {

@@ -2,7 +2,7 @@
  * E2E tests for profile display with pre-stored kind:0 data.
  * Covers section 14 of e2e-test-scenarios.md.
  */
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 import { npubEncode } from 'nostr-tools/nip19';
 
 import {
@@ -19,6 +19,27 @@ const user = createTestIdentity();
 const otherUser = createTestIdentity();
 const otherNpub = npubEncode(otherUser.pubkey);
 
+/**
+ * Helper: navigate to profile and inject metadata via store + broadcast.
+ * Retries broadcast to handle the race where EOSE arrives before store.
+ */
+async function gotoProfileWithMetadata(
+  page: Page,
+  npub: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  events: any[]
+) {
+  await page.goto(`/profile/${npub}`);
+  await page.waitForLoadState('networkidle');
+  await simulateLogin(page);
+  // Store for future backward REQs, then broadcast for active subscriptions
+  await storeEventsOnAllRelays(page, events);
+  await broadcastEventsOnAllRelays(page, events);
+  // Retry broadcast after a delay in case subscription wasn't ready
+  await page.waitForTimeout(500);
+  await broadcastEventsOnAllRelays(page, events);
+}
+
 test.describe('Profile page — kind:0 display', () => {
   test.beforeEach(async ({ page }) => {
     await setupMockPool(page);
@@ -30,15 +51,7 @@ test.describe('Profile page — kind:0 display', () => {
       name: 'TestUser',
       about: 'Hello, I am a test user'
     });
-
-    // Navigate to profile, then store + broadcast to deliver via forward subscription.
-    // addInitScript re-creates MockPool on each navigation, so store before goto is lost.
-    await page.goto(`/profile/${otherNpub}`);
-    await page.waitForLoadState('networkidle');
-    await simulateLogin(page);
-    await storeEventsOnAllRelays(page, [metadata]);
-    await broadcastEventsOnAllRelays(page, [metadata]);
-
+    await gotoProfileWithMetadata(page, otherNpub, [metadata]);
     await expect(page.getByText('TestUser').first()).toBeVisible({ timeout: 15_000 });
   });
 
@@ -47,13 +60,7 @@ test.describe('Profile page — kind:0 display', () => {
       name: 'BioUser',
       about: 'This is my bio text for testing'
     });
-
-    await page.goto(`/profile/${otherNpub}`);
-    await page.waitForLoadState('networkidle');
-    await simulateLogin(page);
-    await storeEventsOnAllRelays(page, [metadata]);
-    await broadcastEventsOnAllRelays(page, [metadata]);
-
+    await gotoProfileWithMetadata(page, otherNpub, [metadata]);
     await expect(page.getByText('This is my bio text for testing').first()).toBeVisible({
       timeout: 15_000
     });
@@ -63,7 +70,6 @@ test.describe('Profile page — kind:0 display', () => {
     await page.goto(`/profile/${otherNpub}`);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
-
     await expect(page.getByText(/No comments yet|コメントはまだありません/).first()).toBeVisible({
       timeout: 15_000
     });
@@ -75,7 +81,6 @@ test.describe('Profile page — kind:0 display', () => {
     );
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
-
     const fallback = page.getByText(/not found|見つかりません|unknown|不明|npub1qq/i).first();
     await expect(fallback).toBeVisible({ timeout: 15_000 });
   });
@@ -85,13 +90,7 @@ test.describe('Profile page — kind:0 display', () => {
       name: 'NipUser',
       nip05: 'test@example.com'
     });
-
-    await page.goto(`/profile/${otherNpub}`);
-    await page.waitForLoadState('networkidle');
-    await simulateLogin(page);
-    await storeEventsOnAllRelays(page, [metadata]);
-    await broadcastEventsOnAllRelays(page, [metadata]);
-
+    await gotoProfileWithMetadata(page, otherNpub, [metadata]);
     await expect(page.getByText('test@example.com').first()).toBeVisible({
       timeout: 15_000
     });
@@ -99,13 +98,7 @@ test.describe('Profile page — kind:0 display', () => {
 
   test('should show default avatar when no picture in profile', async ({ page }) => {
     const metadata = buildMetadata(otherUser, { name: 'NoPic' });
-
-    await page.goto(`/profile/${otherNpub}`);
-    await page.waitForLoadState('networkidle');
-    await simulateLogin(page);
-    await storeEventsOnAllRelays(page, [metadata]);
-    await broadcastEventsOnAllRelays(page, [metadata]);
-
+    await gotoProfileWithMetadata(page, otherNpub, [metadata]);
     await expect(page.getByText('NoPic').first()).toBeVisible({ timeout: 15_000 });
   });
 
@@ -113,13 +106,7 @@ test.describe('Profile page — kind:0 display', () => {
     const metadata = buildMetadata(otherUser, {
       about: 'Visit https://example.com for info'
     });
-
-    await page.goto(`/profile/${otherNpub}`);
-    await page.waitForLoadState('networkidle');
-    await simulateLogin(page);
-    await storeEventsOnAllRelays(page, [metadata]);
-    await broadcastEventsOnAllRelays(page, [metadata]);
-
+    await gotoProfileWithMetadata(page, otherNpub, [metadata]);
     await expect(page.locator('a[href="https://example.com"]').first()).toBeVisible({
       timeout: 15_000
     });
