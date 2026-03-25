@@ -20,7 +20,14 @@ export interface LocaleInfo {
 
 export const LOCALES = [
   { code: 'en', label: 'English', flag: '🇺🇸', prefix: 'en' },
-  { code: 'ja', label: '日本語', flag: '🇯🇵', prefix: 'ja' }
+  { code: 'ja', label: '日本語', flag: '🇯🇵', prefix: 'ja' },
+  { code: 'de', label: 'Deutsch', flag: '🇩🇪', prefix: 'de' },
+  { code: 'es', label: 'Español', flag: '🇪🇸', prefix: 'es' },
+  { code: 'zh_cn', label: '简体中文', flag: '🇨🇳', prefix: 'zh' },
+  { code: 'pt_br', label: 'Português', flag: '🇧🇷', prefix: 'pt' },
+  { code: 'ko', label: '한국어', flag: '🇰🇷', prefix: 'ko' },
+  { code: 'fr', label: 'Français', flag: '🇫🇷', prefix: 'fr' },
+  { code: 'ja_osaka', label: '大阪弁', flag: '🏯', prefix: '' }
 ] as const satisfies readonly LocaleInfo[];
 
 export type Locale = (typeof LOCALES)[number]['code'];
@@ -37,7 +44,7 @@ export function detectBrowserLocale(): Locale {
   if (typeof navigator === 'undefined') return DEFAULT_LOCALE;
   const lang = navigator.language.toLowerCase();
   for (const l of LOCALES) {
-    if (lang.startsWith(l.prefix)) return l.code;
+    if (l.prefix && lang.startsWith(l.prefix)) return l.code;
   }
   return DEFAULT_LOCALE;
 }
