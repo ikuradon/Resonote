@@ -23,8 +23,8 @@ export const LOCALES = [
   { code: 'ja', label: '日本語', flag: '🇯🇵', prefix: 'ja' },
   { code: 'de', label: 'Deutsch', flag: '🇩🇪', prefix: 'de' },
   { code: 'es', label: 'Español', flag: '🇪🇸', prefix: 'es' },
-  { code: 'zh_cn', label: '简体中文', flag: '🇨🇳', prefix: 'zh' },
-  { code: 'pt_br', label: 'Português', flag: '🇧🇷', prefix: 'pt' },
+  { code: 'zh_cn', label: '简体中文', flag: '🇨🇳', prefix: 'zh-cn' },
+  { code: 'pt_br', label: 'Português', flag: '🇧🇷', prefix: 'pt-br' },
   { code: 'ko', label: '한국어', flag: '🇰🇷', prefix: 'ko' },
   { code: 'fr', label: 'Français', flag: '🇫🇷', prefix: 'fr' },
   { code: 'ja_osaka', label: '大阪弁', flag: '🏯', prefix: '' }

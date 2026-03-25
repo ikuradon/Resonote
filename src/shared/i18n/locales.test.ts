@@ -139,6 +139,16 @@ describe('locales', () => {
       expect(detectBrowserLocale()).toBe('es');
     });
 
+    it('returns "en" (default) for zh-TW (no zh_tw locale)', () => {
+      stubLanguage('zh-TW');
+      expect(detectBrowserLocale()).toBe('en');
+    });
+
+    it('returns "en" (default) for pt-PT (no pt_pt locale)', () => {
+      stubLanguage('pt-PT');
+      expect(detectBrowserLocale()).toBe('en');
+    });
+
     it('returns "en" (default) for unsupported locale "ar"', () => {
       stubLanguage('ar');
       expect(detectBrowserLocale()).toBe('en');

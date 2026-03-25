@@ -6,6 +6,7 @@ import { expect, test } from '@playwright/test';
 import { npubEncode } from 'nostr-tools/nip19';
 
 import {
+  broadcastEventsOnAllRelays,
   buildMetadata,
   createTestIdentity,
   setupFullLogin,
@@ -30,13 +31,13 @@ test.describe('Profile page — kind:0 display', () => {
       about: 'Hello, I am a test user'
     });
 
-    // Store events BEFORE navigating to the profile page to avoid race
-    // condition where the profile subscription fires EOSE before data is stored.
-    await page.goto('/');
-    await storeEventsOnAllRelays(page, [metadata]);
+    // Navigate to profile, then store + broadcast to deliver via forward subscription.
+    // addInitScript re-creates MockPool on each navigation, so store before goto is lost.
     await page.goto(`/profile/${otherNpub}`);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+    await storeEventsOnAllRelays(page, [metadata]);
+    await broadcastEventsOnAllRelays(page, [metadata]);
 
     await expect(page.getByText('TestUser').first()).toBeVisible({ timeout: 15_000 });
   });
@@ -47,12 +48,11 @@ test.describe('Profile page — kind:0 display', () => {
       about: 'This is my bio text for testing'
     });
 
-    // Store events BEFORE navigating to the profile page to avoid race condition.
-    await page.goto('/');
-    await storeEventsOnAllRelays(page, [metadata]);
     await page.goto(`/profile/${otherNpub}`);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+    await storeEventsOnAllRelays(page, [metadata]);
+    await broadcastEventsOnAllRelays(page, [metadata]);
 
     await expect(page.getByText('This is my bio text for testing').first()).toBeVisible({
       timeout: 15_000
@@ -76,23 +76,21 @@ test.describe('Profile page — kind:0 display', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
-    // Expect some fallback text indicating no profile data
     const fallback = page.getByText(/not found|見つかりません|unknown|不明|npub1qq/i).first();
     await expect(fallback).toBeVisible({ timeout: 15_000 });
   });
 
-  test('should show NIP-05 badge on profile', async ({ page }) => {
+  test('should show NIP-05 on profile', async ({ page }) => {
     const metadata = buildMetadata(otherUser, {
       name: 'NipUser',
       nip05: 'test@example.com'
     });
 
-    // Store events BEFORE navigating to avoid race condition.
-    await page.goto('/');
-    await storeEventsOnAllRelays(page, [metadata]);
     await page.goto(`/profile/${otherNpub}`);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+    await storeEventsOnAllRelays(page, [metadata]);
+    await broadcastEventsOnAllRelays(page, [metadata]);
 
     await expect(page.getByText('test@example.com').first()).toBeVisible({
       timeout: 15_000
@@ -102,12 +100,11 @@ test.describe('Profile page — kind:0 display', () => {
   test('should show default avatar when no picture in profile', async ({ page }) => {
     const metadata = buildMetadata(otherUser, { name: 'NoPic' });
 
-    // Store events BEFORE navigating to avoid race condition.
-    await page.goto('/');
-    await storeEventsOnAllRelays(page, [metadata]);
     await page.goto(`/profile/${otherNpub}`);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+    await storeEventsOnAllRelays(page, [metadata]);
+    await broadcastEventsOnAllRelays(page, [metadata]);
 
     await expect(page.getByText('NoPic').first()).toBeVisible({ timeout: 15_000 });
   });
@@ -117,12 +114,11 @@ test.describe('Profile page — kind:0 display', () => {
       about: 'Visit https://example.com for info'
     });
 
-    // Store events BEFORE navigating to avoid race condition.
-    await page.goto('/');
-    await storeEventsOnAllRelays(page, [metadata]);
     await page.goto(`/profile/${otherNpub}`);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+    await storeEventsOnAllRelays(page, [metadata]);
+    await broadcastEventsOnAllRelays(page, [metadata]);
 
     await expect(page.locator('a[href="https://example.com"]').first()).toBeVisible({
       timeout: 15_000
