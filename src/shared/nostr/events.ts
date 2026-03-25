@@ -106,7 +106,7 @@ export function buildComment(
 
   if (parentEvent) {
     tags.push(
-      ['e', parentEvent.id, '', parentEvent.pubkey],
+      ['e', parentEvent.id, '', 'reply'],
       ['k', COMMENT_KIND_STR],
       ['p', parentEvent.pubkey]
     );

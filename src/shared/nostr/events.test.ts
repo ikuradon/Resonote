@@ -215,7 +215,7 @@ describe('buildComment with parentEvent (replies)', () => {
     const parentEvent = { id: 'parent123', pubkey: 'author456' };
     const event = buildComment('nice!', trackId, provider, { parentEvent });
     expect(event.kind).toBe(1111);
-    expect(event.tags).toContainEqual(['e', 'parent123', '', 'author456']);
+    expect(event.tags).toContainEqual(['e', 'parent123', '', 'reply']);
     expect(event.tags).toContainEqual(['k', '1111']);
     expect(event.tags).toContainEqual(['p', 'author456']);
   });
@@ -225,7 +225,7 @@ describe('buildComment with parentEvent (replies)', () => {
     const event = buildComment('reply', trackId, provider, { parentEvent });
     expect(event.tags![0][0]).toBe('I');
     expect(event.tags![1]).toEqual(['K', 'spotify:track']);
-    expect(event.tags![2]).toEqual(['e', 'parent123', '', 'author456']);
+    expect(event.tags![2]).toEqual(['e', 'parent123', '', 'reply']);
     expect(event.tags![3]).toEqual(['k', '1111']);
     expect(event.tags![4]).toEqual(['p', 'author456']);
   });
@@ -251,7 +251,7 @@ describe('buildComment with parentEvent (replies)', () => {
       positionMs: 30000,
       parentEvent
     });
-    expect(event.tags).toContainEqual(['e', 'parent123', '', 'author456']);
+    expect(event.tags).toContainEqual(['e', 'parent123', '', 'reply']);
     expect(event.tags).toContainEqual(['p', 'author456']);
     expect(event.tags).toContainEqual(['position', '30']);
   });
@@ -423,7 +423,7 @@ describe('buildComment with parentEvent + positionMs', () => {
       parentEvent,
       positionMs: 30_000
     });
-    expect(event.tags).toContainEqual(['e', 'parent-timed', '', 'parent-author']);
+    expect(event.tags).toContainEqual(['e', 'parent-timed', '', 'reply']);
     expect(event.tags).toContainEqual(['position', '30']);
     // Verify both present simultaneously
     const eTags = event.tags!.filter((t) => t[0] === 'e');
@@ -435,7 +435,7 @@ describe('buildComment with parentEvent + positionMs', () => {
   it('omits position tag when replying without positionMs', () => {
     const parentEvent = { id: 'parent-no-pos', pubkey: 'parent-author' };
     const event = buildComment('reply no position', trackId, provider, { parentEvent });
-    expect(event.tags).toContainEqual(['e', 'parent-no-pos', '', 'parent-author']);
+    expect(event.tags).toContainEqual(['e', 'parent-no-pos', '', 'reply']);
     const posTag = event.tags!.find((t) => t[0] === 'position');
     expect(posTag).toBeUndefined();
   });
@@ -447,7 +447,7 @@ describe('buildComment with parentEvent + positionMs', () => {
       positionMs: 0
     });
     // e-tag should be present
-    expect(event.tags).toContainEqual(['e', 'parent-zero', '', 'parent-author']);
+    expect(event.tags).toContainEqual(['e', 'parent-zero', '', 'reply']);
     // position tag must NOT be present (guard: positionMs > 0)
     const posTag = event.tags!.find((t) => t[0] === 'position');
     expect(posTag).toBeUndefined();
