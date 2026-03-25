@@ -68,6 +68,32 @@ test.describe('Notifications page', () => {
     // Active tab should have highlighted style
     await expect(repliesButton).toHaveClass(/shadow-sm/, { timeout: 5_000 });
   });
+
+  test('should activate Reactions filter tab on click', async ({ page }) => {
+    await page.goto('/notifications');
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    const reactionsButton = page
+      .getByRole('button', { name: /^Reactions$|^リアクション$/ })
+      .first();
+    await expect(reactionsButton).toBeVisible({ timeout: 10_000 });
+    await reactionsButton.click();
+
+    await expect(reactionsButton).toHaveClass(/shadow-sm/, { timeout: 5_000 });
+  });
+
+  test('should not show mark-all-read button when no notifications', async ({ page }) => {
+    await page.goto('/notifications');
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    await expect(page.getByText(/No notifications|通知はまだ/).first()).toBeVisible({
+      timeout: 10_000
+    });
+
+    await expect(page.getByRole('button', { name: /Mark all|すべて既読/i })).toHaveCount(0);
+  });
 });
 
 test.describe('Notifications page — not logged in', () => {

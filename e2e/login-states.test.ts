@@ -344,3 +344,46 @@ test.describe('Login/logout transitions', () => {
     });
   });
 });
+
+test.describe('Logout UI transitions', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupMockPool(page);
+    await setupFullLogin(page, user.pubkey, user.sign);
+  });
+
+  test('should hide filter bar after logout', async ({ page }) => {
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    await expect(page.getByRole('button', { name: /^All$|^すべて$/ }).first()).toBeVisible({
+      timeout: 10_000
+    });
+
+    await page.evaluate(() => {
+      document.dispatchEvent(new CustomEvent('nlAuth', { detail: { type: 'logout' } }));
+    });
+
+    await expect(page.getByRole('button', { name: /^All$|^すべて$/ })).toHaveCount(0, {
+      timeout: 10_000
+    });
+  });
+
+  test('should hide bookmark button after logout', async ({ page }) => {
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    await expect(page.getByRole('button', { name: /Bookmark|ブックマーク/i })).toBeVisible({
+      timeout: 10_000
+    });
+
+    await page.evaluate(() => {
+      document.dispatchEvent(new CustomEvent('nlAuth', { detail: { type: 'logout' } }));
+    });
+
+    await expect(page.getByRole('button', { name: /Bookmark|ブックマーク/i })).toHaveCount(0, {
+      timeout: 10_000
+    });
+  });
+});

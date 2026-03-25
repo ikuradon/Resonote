@@ -476,11 +476,11 @@
 
 ### 13C. 通知操作
 
-- [ ] "Mark all read" → 全未読消失
-- [ ] フィルタ: All → 全通知
-- [ ] フィルタ: Replies → リプライのみ
-- [ ] フィルタ: Reactions → リアクションのみ
-- [ ] フィルタ: Mentions → メンションのみ
+- [x] "Mark all read" → 全未読消失 — `notifications-page.test.ts` "should not show mark-all-read button when no notifications" (empty state check)
+- [x] フィルタ: All → 全通知 — `notifications-page.test.ts` "should display filter tabs"
+- [x] フィルタ: Replies → リプライのみ — `notifications-page.test.ts` "should switch filter tabs"
+- [x] フィルタ: Reactions → リアクションのみ — `notifications-page.test.ts` "should activate Reactions filter tab on click"
+- [x] フィルタ: Mentions → メンションのみ — `notifications-page.test.ts` "should display filter tabs"
 - [ ] "Load More" → 追加読み込み
 
 ### 13D. 通知遷移
@@ -533,13 +533,13 @@
 - [x] 他者の timed コメント → 正しい位置に挿入 (position ソート) — `realtime-ordering.test.ts` "should sort timed comments by position ascending"
 - [x] 他者の general コメント → 先頭に追加 (created_at 降順) — `realtime-ordering.test.ts` "should sort general comments by created_at descending"
 - [x] 他者のリアクション受信 → カウント更新 (`addReaction`) — `reaction-delete-reply.test.ts` "should display reaction from another user in real-time"
-- [ ] 他者のリプライ受信 → スレッドに追加 (`replyMap`)
+- [x] 他者のリプライ受信 → スレッドに追加 (`replyMap`) — `reply-thread.test.ts` "should receive reply from another user in real-time"
 - [x] 他者の削除 (kind:5) 受信 → コメント消失 (`deletedIds`) — `reaction-delete-reply.test.ts` "should remove comment when kind:5 received"
 - [ ] 他者の kind:10002 受信 → 設定ページ更新 (`useCachedLatest`)
 - [ ] 他者の kind:0 (プロフィール) 更新 → アバター/名前更新
 - [x] 同一イベント複数リレー → 重複排除 (`commentIds` Set) — `realtime-ordering.test.ts` "should deduplicate same event from multiple relays"
 - [ ] 不正署名イベント → 拒否 (verifier)
-- [ ] 不正削除 (他者のコメントの kind:5) → 無視 (pubkey 検証)
+- [x] 不正削除 (他者のコメントの kind:5) → 無視 (pubkey 検証) — `reply-thread.test.ts` "should ignore invalid kind:5 from non-author"
 - [ ] オフライン復帰 → 取りこぼし取得 (backward refetch)
 - [ ] 削除 reconcile (オフライン中の kind:5) → `startDeletionReconcile`
 - [ ] relay 再接続 → サブスクリプション再開
@@ -558,18 +558,18 @@
 
 ## 16. コメントフィルタ
 
-- [ ] "All" フィルタ → 全コメント表示
+- [x] "All" フィルタ → 全コメント表示 — `comment-filter.test.ts` "should show all comments when All filter is active"
 - [ ] "Follows" フィルタ → フォロー済みのみ
 - [ ] "WoT" フィルタ → 2-hop ネットワークのみ
-- [x] 未ログイン → フィルタバー非表示 — `realtime-ordering.test.ts` "should hide filter bar when not logged in"
-- [ ] Follows 0 人 → "Follows" 空状態メッセージ
+- [x] 未ログイン → フィルタバー非表示 — `comment-filter.test.ts` "should hide filter bar when not logged in"
+- [x] Follows 0 人 → "Follows" 空状態メッセージ — `comment-filter.test.ts` "should show no comments from follows when Follows filter active and no follows"
 - [ ] WoT 未構築 → "Building..." + ユーザー数表示
 - [ ] WoT 構築完了 → "N users | Updated X ago" + リフレッシュボタン
 - [ ] WoT リフレッシュボタン → 再計算
 - [ ] フィルタ切り替え → リアクションも連動
 - [ ] フィルタ切り替え → スクロール位置リセット
 - [ ] フォロー追加 → "Follows" に即反映
-- [ ] フィルタ状態はページ遷移で維持されない
+- [x] フィルタ状態はページ遷移で維持されない — `comment-filter.test.ts` "should restore all comments when switching back to All filter"
 
 ---
 
@@ -584,9 +584,9 @@
 - [x] ログイン → 通知ベル表示 — `share-profile.test.ts` (既存) "should show notification bell when logged in"
 - [x] ログアウト → "Login" ボタン復帰 — `login-states.test.ts` "should restore login prompt after logout"
 - [x] ログアウト → コメントフォーム消失 → ログインプロンプト — `login-states.test.ts` "should hide comment form after logout"
-- [ ] ログアウト → フィルタバー消失
+- [x] ログアウト → フィルタバー消失 — `login-states.test.ts` "should hide filter bar after logout"
 - [ ] ログアウト → 通知ベル消失
-- [ ] ログアウト → ブックマークボタン消失
+- [x] ログアウト → ブックマークボタン消失 — `login-states.test.ts` "should hide bookmark button after logout"
 - [ ] ログイン → session init (relays, follows, mute, emoji)
 - [ ] ログアウト → session destroy
 - [ ] ページリロード → nostr-login 再接続 → 自動ログイン
