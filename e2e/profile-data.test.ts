@@ -30,8 +30,11 @@ test.describe('Profile page — kind:0 display', () => {
       about: 'Hello, I am a test user'
     });
 
-    await page.goto(`/profile/${otherNpub}`);
+    // Store events BEFORE navigating to the profile page to avoid race
+    // condition where the profile subscription fires EOSE before data is stored.
+    await page.goto('/');
     await storeEventsOnAllRelays(page, [metadata]);
+    await page.goto(`/profile/${otherNpub}`);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
@@ -44,8 +47,10 @@ test.describe('Profile page — kind:0 display', () => {
       about: 'This is my bio text for testing'
     });
 
-    await page.goto(`/profile/${otherNpub}`);
+    // Store events BEFORE navigating to the profile page to avoid race condition.
+    await page.goto('/');
     await storeEventsOnAllRelays(page, [metadata]);
+    await page.goto(`/profile/${otherNpub}`);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
@@ -82,8 +87,10 @@ test.describe('Profile page — kind:0 display', () => {
       nip05: 'test@example.com'
     });
 
-    await page.goto(`/profile/${otherNpub}`);
+    // Store events BEFORE navigating to avoid race condition.
+    await page.goto('/');
     await storeEventsOnAllRelays(page, [metadata]);
+    await page.goto(`/profile/${otherNpub}`);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
@@ -95,8 +102,10 @@ test.describe('Profile page — kind:0 display', () => {
   test('should show default avatar when no picture in profile', async ({ page }) => {
     const metadata = buildMetadata(otherUser, { name: 'NoPic' });
 
-    await page.goto(`/profile/${otherNpub}`);
+    // Store events BEFORE navigating to avoid race condition.
+    await page.goto('/');
     await storeEventsOnAllRelays(page, [metadata]);
+    await page.goto(`/profile/${otherNpub}`);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
@@ -108,8 +117,10 @@ test.describe('Profile page — kind:0 display', () => {
       about: 'Visit https://example.com for info'
     });
 
-    await page.goto(`/profile/${otherNpub}`);
+    // Store events BEFORE navigating to avoid race condition.
+    await page.goto('/');
     await storeEventsOnAllRelays(page, [metadata]);
+    await page.goto(`/profile/${otherNpub}`);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 

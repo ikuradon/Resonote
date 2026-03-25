@@ -351,7 +351,10 @@ async function sendEventsToRelays(
 
 /**
  * Store events on all mock relays for backward (REQ) fetch.
- * Use BEFORE page.goto() to pre-populate data.
+ * Can be called both BEFORE and AFTER page.goto() — MockPool is in-memory,
+ * so stored events are immediately available to subsequent REQ queries.
+ * When called after page load, note that subscriptions already past EOSE
+ * will NOT re-query; use broadcastEventsOnAllRelays() for real-time delivery.
  */
 export async function storeEventsOnAllRelays(
   page: Page,

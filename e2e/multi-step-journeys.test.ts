@@ -109,13 +109,19 @@ test.describe('User journeys', () => {
     await expect(page).toHaveURL(/\/profile\//, { timeout: 10_000 });
   });
 
-  test('settings flow: settings → mute section → notification filter → back', async ({ page }) => {
+  test('settings flow: home → settings → mute section → notification filter → back to home', async ({
+    page
+  }) => {
     await setupMockPool(page);
     await setupFullLogin(page, user.pubkey, user.sign);
 
-    await page.goto('/settings');
+    // Navigate to home first so goBack() has a real history entry to return to
+    await page.goto('/');
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+
+    await page.goto('/settings');
+    await page.waitForLoadState('networkidle');
 
     // 1. Verify mute section
     await expect(
@@ -130,9 +136,9 @@ test.describe('User journeys', () => {
     await expect(followsButton).toBeVisible({ timeout: 10_000 });
     await followsButton.click();
 
-    // 3. Go back
+    // 3. Go back — should return to home (not about:blank)
     await page.goBack();
-    await expect(page).not.toHaveURL('/settings');
+    await expect(page).toHaveURL('/');
   });
 
   test('platform exploration: SP → Home → YT → Home → NC', async ({ page }) => {

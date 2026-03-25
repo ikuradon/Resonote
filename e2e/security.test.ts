@@ -161,7 +161,8 @@ test.describe('Private key detection', () => {
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
 
-    // Generate a fake nsec-looking string (58 chars after nsec1)
+    // The app detects nsec via regex /nsec1[a-z0-9]{58}/i (prefix + length),
+    // not bech32 decoding. 'a' is valid bech32 alphabet, so this triggers detection.
     await textarea.fill(`Check my key: nsec1${'a'.repeat(58)}`);
 
     const sendButton = page.locator('button[type="submit"]');

@@ -60,7 +60,13 @@ test.describe('Reaction flow', () => {
     const reaction = buildReaction(otherUser, comment.id, user.pubkey, TEST_I_TAG);
     await broadcastEventsOnAllRelays(page, [reaction]);
 
-    const heartCount = page.locator('span.font-mono').filter({ hasText: '1' }).first();
+    // Scope to the comment card containing "My comment for reaction" to avoid
+    // matching font-mono spans elsewhere (e.g., section count badges).
+    const commentCard = page
+      .locator('article, div')
+      .filter({ hasText: 'My comment for reaction' })
+      .first();
+    const heartCount = commentCard.locator('span.font-mono').filter({ hasText: '1' }).first();
     await expect(heartCount).toBeVisible({ timeout: 15_000 });
   });
 

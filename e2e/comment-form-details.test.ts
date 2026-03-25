@@ -211,8 +211,9 @@ test.describe('Comment form — Content Warning toggle', () => {
     const cwBtn = page.getByRole('button', { name: /^CW$/i }).first();
     await cwBtn.click();
 
-    // CW reason input should appear
-    const reasonInput = page.locator('input[type="text"]').first();
+    // CW reason input should appear (scoped to comment form)
+    const commentForm = page.locator('[data-testid="comment-form"]');
+    const reasonInput = commentForm.locator('input[type="text"]').first();
     await expect(reasonInput).toBeVisible({ timeout: 5_000 });
   });
 
@@ -224,7 +225,8 @@ test.describe('Comment form — Content Warning toggle', () => {
     const cwBtn = page.getByRole('button', { name: /^CW$/i }).first();
     await cwBtn.click();
 
-    const reasonInput = page.locator('input[type="text"]').first();
+    const commentForm = page.locator('[data-testid="comment-form"]');
+    const reasonInput = commentForm.locator('input[type="text"]').first();
     await expect(reasonInput).toBeVisible({ timeout: 5_000 });
     await reasonInput.fill('spoiler');
 
@@ -237,15 +239,16 @@ test.describe('Comment form — Content Warning toggle', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    const commentForm = page.locator('[data-testid="comment-form"]');
     const cwBtn = page.getByRole('button', { name: /^CW$/i }).first();
 
     // Enable CW
     await cwBtn.click();
-    await expect(page.locator('input[type="text"]').first()).toBeVisible({ timeout: 5_000 });
+    await expect(commentForm.locator('input[type="text"]').first()).toBeVisible({ timeout: 5_000 });
 
     // Disable CW
     await cwBtn.click();
-    await expect(page.locator('input[type="text"]')).toHaveCount(0, { timeout: 5_000 });
+    await expect(commentForm.locator('input[type="text"]')).toHaveCount(0, { timeout: 5_000 });
   });
 });
 
@@ -291,6 +294,9 @@ test.describe('Comment form — hashtag and mention content', () => {
 });
 
 test.describe('Comment form — autocomplete', () => {
+  // NOTE: Hashtag autocomplete uses a built-in default set of suggestions
+  // (e.g. "NowPlaying", "Music"). These do NOT depend on follow data or
+  // external state, so no pre-population is required.
   test.beforeEach(async ({ page }) => {
     await setupMockPool(page);
     await setupFullLogin(page, user.pubkey, user.sign);
@@ -369,9 +375,10 @@ test.describe('Comment form — CW empty reason', () => {
     await expect(textarea).toBeVisible({ timeout: 10_000 });
 
     // Enable CW without typing a reason
+    const commentForm = page.locator('[data-testid="comment-form"]');
     const cwBtn = page.getByRole('button', { name: /^CW$/i }).first();
     await cwBtn.click();
-    await expect(page.locator('input[type="text"]').first()).toBeVisible({ timeout: 5_000 });
+    await expect(commentForm.locator('input[type="text"]').first()).toBeVisible({ timeout: 5_000 });
 
     await textarea.fill('CW with empty reason');
 

@@ -27,7 +27,9 @@ test.describe('Data volume — comments', () => {
   });
 
   test('should show empty state with 0 comments', async ({ page }) => {
-    // MockPool is empty (no events stored) → 0 comments guaranteed
+    // MockPool is installed via setupMockPool (addInitScript) BEFORE page.goto(),
+    // so all WebSocket connections opened during page load hit the mock.
+    // No events are stored → 0 comments guaranteed regardless of test order.
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
@@ -73,8 +75,14 @@ test.describe('Data volume — comments', () => {
     // Latest comment should be visible
     await expect(page.getByText('Batch comment 49').first()).toBeVisible({ timeout: 20_000 });
 
-    // General section count should show 50
-    await expect(page.locator('span.font-mono').filter({ hasText: '50' }).first()).toBeVisible();
+    // General section count badge (scoped to comment section header, not reaction counts)
+    const generalHeader = page
+      .locator('button')
+      .filter({ hasText: /^General$|^全体$/ })
+      .first();
+    await expect(
+      generalHeader.locator('..').locator('span.font-mono').filter({ hasText: '50' }).first()
+    ).toBeVisible();
   });
 
   test('should handle mixed timed and general comments', async ({ page }) => {
