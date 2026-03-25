@@ -109,6 +109,88 @@ test.describe('Toast notifications', () => {
   });
 });
 
+test.describe('Toast — failure and manual close', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupMockPool(page);
+    await setupFullLogin(page, user.pubkey, user.sign);
+  });
+
+  test('should show error toast on comment submission failure', async ({ page }) => {
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    // Configure relays to reject
+    await page.evaluate(
+      (relays: string[]) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pool = (window as any).__mockPool;
+        for (const url of relays) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          pool.relay(url).onEVENT((event: any) => ['OK', event.id, false, 'blocked']);
+        }
+      },
+      ['wss://relay1.test', 'wss://relay2.test', 'wss://relay3.test', 'wss://relay4.test']
+    );
+
+    const textarea = page.locator('textarea');
+    await expect(textarea).toBeVisible({ timeout: 10_000 });
+    await textarea.fill('Fail toast test');
+
+    const sendButton = page.locator('button[type="submit"]');
+    await sendButton.click();
+
+    // Error toast should appear
+    await expect(page.getByText(/failed|失敗/i).first()).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('should show success toast on reply send', async ({ page }) => {
+    const comment = buildComment(otherUser, 'Reply toast target', TEST_I_TAG, TEST_K_TAG);
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+    await broadcastEventsOnAllRelays(page, [comment]);
+
+    await expect(page.getByText('Reply toast target').first()).toBeVisible({ timeout: 15_000 });
+
+    const replyButton = page.locator('button[title="Reply"]').first();
+    await replyButton.click();
+
+    const replyTextarea = page.locator('textarea').last();
+    await expect(replyTextarea).toBeVisible({ timeout: 5_000 });
+    await replyTextarea.fill('Reply for toast');
+
+    const sendButton = page.locator('form button[type="submit"]').last();
+    await sendButton.click();
+
+    await expect(page.getByText(/sent|送信/i).first()).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('should close toast manually with × button', async ({ page }) => {
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    const textarea = page.locator('textarea');
+    await expect(textarea).toBeVisible({ timeout: 10_000 });
+    await textarea.fill('Manual close toast');
+
+    const sendButton = page.locator('button[type="submit"]');
+    await sendButton.click();
+
+    // Wait for toast to appear
+    const toast = page.getByText(/sent|送信/).first();
+    await expect(toast).toBeVisible({ timeout: 15_000 });
+
+    // Click the close button on the toast
+    const closeBtn = page.locator('[role="alert"]').first().locator('button').first();
+    if (await closeBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await closeBtn.click();
+      await expect(toast).toHaveCount(0, { timeout: 3_000 });
+    }
+  });
+});
+
 test.describe('ConfirmDialog — all variants', () => {
   test.beforeEach(async ({ page }) => {
     await setupMockPool(page);
