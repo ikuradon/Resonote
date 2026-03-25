@@ -312,7 +312,7 @@
   }
 </script>
 
-<div bind:this={container} onscroll={handleScroll} class="h-full overflow-y-auto">
+<div bind:this={container} onscroll={handleScroll} class="min-h-0 flex-1 overflow-y-auto">
   <div style="height: {totalHeight}px; position: relative;">
     <div bind:this={innerEl} style="position: absolute; top: {offsetTop}px; left: 0; right: 0;">
       {#each renderedItems as { item, index, key } (key)}

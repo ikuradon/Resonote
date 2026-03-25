@@ -395,7 +395,10 @@ export async function preloadEvents(
     (args: { events: any[]; relays: string[] }) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const pool = (window as any).__mockPool;
-      if (!pool) return;
+      if (!pool) {
+        console.error('[preloadEvents] __mockPool not found — call setupMockPool() first');
+        return;
+      }
       for (const url of args.relays) {
         const relay = pool.relay(url);
         for (const ev of args.events) {

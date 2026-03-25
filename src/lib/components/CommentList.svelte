@@ -172,7 +172,7 @@
           {@render orphanPlaceholder(placeholder)}
         {/each}
         {#if vm.timedComments.length > 0}
-          <div class="h-[400px] rounded-xl border border-border-subtle">
+          <div class="flex max-h-[400px] flex-col rounded-xl border border-border-subtle">
             <VirtualScrollList
               bind:this={timedVirtualList}
               items={vm.timedComments}
@@ -245,7 +245,7 @@
           {@render orphanPlaceholder(placeholder)}
         {/each}
         {#if vm.generalComments.length > 0}
-          <div class="h-[400px] rounded-xl border border-border-subtle">
+          <div class="flex max-h-[400px] flex-col rounded-xl border border-border-subtle">
             <VirtualScrollList
               items={vm.generalComments}
               keyFn={(c) => c.id}

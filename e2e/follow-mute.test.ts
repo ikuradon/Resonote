@@ -136,7 +136,10 @@ test.describe('Profile page — follow/unfollow', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
-    await expect(page.getByText('2').first()).toBeVisible({ timeout: 15_000 });
+    // Follow count button shows "N Following" — match the button text
+    await expect(
+      page.getByRole('button', { name: /2 Following|2 フォロー中/ }).first()
+    ).toBeVisible({ timeout: 15_000 });
   });
 });
 
