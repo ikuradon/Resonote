@@ -149,6 +149,11 @@ describe('locales', () => {
       expect(detectBrowserLocale()).toBe('en');
     });
 
+    it('returns "en" (default) for kok (Konkani, not Korean)', () => {
+      stubLanguage('kok');
+      expect(detectBrowserLocale()).toBe('en');
+    });
+
     it('returns "en" (default) for unsupported locale "ar"', () => {
       stubLanguage('ar');
       expect(detectBrowserLocale()).toBe('en');

@@ -44,7 +44,7 @@ export function detectBrowserLocale(): Locale {
   if (typeof navigator === 'undefined') return DEFAULT_LOCALE;
   const lang = navigator.language.toLowerCase();
   for (const l of LOCALES) {
-    if (l.prefix && lang.startsWith(l.prefix)) return l.code;
+    if (l.prefix && (lang === l.prefix || lang.startsWith(`${l.prefix}-`))) return l.code;
   }
   return DEFAULT_LOCALE;
 }
