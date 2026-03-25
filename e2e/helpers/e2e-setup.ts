@@ -17,7 +17,9 @@ import { TEST_RELAYS } from './test-relays.js';
 const COMMENT_KIND = 1111;
 const REACTION_KIND = 7;
 const DELETION_KIND = 5;
+const FOLLOWS_KIND = 3;
 const BOOKMARK_KIND = 10003;
+const MUTE_KIND = 10000;
 const RELAY_LIST_KIND = 10002;
 const METADATA_KIND = 0;
 
@@ -25,7 +27,9 @@ export {
   BOOKMARK_KIND,
   COMMENT_KIND,
   DELETION_KIND,
+  FOLLOWS_KIND,
   METADATA_KIND,
+  MUTE_KIND,
   REACTION_KIND,
   RELAY_LIST_KIND,
   TEST_RELAYS
@@ -88,7 +92,11 @@ export async function setupFullLogin(
     const nostrMock: any = {
       getPublicKey: async () => pk,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      signEvent: async (e: any) => (window as any).__nostrSignEvent(e)
+      signEvent: async (e: any) => (window as any).__nostrSignEvent(e),
+      nip44: {
+        encrypt: async () => '',
+        decrypt: async () => ''
+      }
     };
     try {
       Object.defineProperty(window, 'nostr', {
@@ -231,6 +239,38 @@ export function buildRelayList(
   });
   return identity.sign({
     kind: RELAY_LIST_KIND,
+    content: '',
+    tags,
+    created_at: Math.floor(Date.now() / 1000)
+  });
+}
+
+/** Build a signed kind:3 follow list event. */
+export function buildFollowList(
+  identity: TestIdentity,
+  followPubkeys: string[]
+): ReturnType<typeof finalizeEvent> {
+  const tags: string[][] = followPubkeys.map((pk) => ['p', pk]);
+  return identity.sign({
+    kind: FOLLOWS_KIND,
+    content: '',
+    tags,
+    created_at: Math.floor(Date.now() / 1000)
+  });
+}
+
+/** Build a signed kind:10000 mute list event. */
+export function buildMuteList(
+  identity: TestIdentity,
+  mutedPubkeys: string[],
+  mutedWords: string[] = []
+): ReturnType<typeof finalizeEvent> {
+  const tags: string[][] = [
+    ...mutedPubkeys.map((pk) => ['p', pk] as string[]),
+    ...mutedWords.map((w) => ['word', w] as string[])
+  ];
+  return identity.sign({
+    kind: MUTE_KIND,
     content: '',
     tags,
     created_at: Math.floor(Date.now() / 1000)

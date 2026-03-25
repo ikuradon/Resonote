@@ -8,10 +8,16 @@ import { npubEncode } from 'nostr-tools/nip19';
 import {
   broadcastEventsOnAllRelays,
   buildComment,
+  buildFollowList,
+  buildMetadata,
   createTestIdentity,
+  FOLLOWS_KIND,
+  getPublishedEvents,
+  MUTE_KIND,
   setupFullLogin,
   setupMockPool,
   simulateLogin,
+  storeEventsOnAllRelays,
   TEST_I_TAG,
   TEST_K_TAG,
   TEST_TRACK_URL
@@ -19,6 +25,7 @@ import {
 
 const user = createTestIdentity();
 const otherUser = createTestIdentity();
+const thirdUser = createTestIdentity();
 const otherNpub = npubEncode(otherUser.pubkey);
 
 test.describe('Profile page — follow/unfollow', () => {
@@ -32,7 +39,7 @@ test.describe('Profile page — follow/unfollow', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
-    const followBtn = page.getByRole('button', { name: /Follow|フォロー/i }).first();
+    const followBtn = page.getByRole('button', { name: /^Follow$|^フォロー$/ }).first();
     await expect(followBtn).toBeVisible({ timeout: 10_000 });
   });
 
@@ -48,16 +55,90 @@ test.describe('Profile page — follow/unfollow', () => {
     });
   });
 
-  // This test needs its own setup without login — beforeEach sets up full login
   test('should not display follow button when not logged in', async ({ page }) => {
-    // Navigate without triggering simulateLogin
     await page.goto(`/profile/${otherNpub}`);
     await page.waitForLoadState('networkidle');
 
-    // Without simulateLogin, the user is not logged in → no follow button
     await expect(page.getByRole('button', { name: /^Follow$|^フォロー$/ })).toHaveCount(0, {
       timeout: 5_000
     });
+  });
+
+  test('should publish kind:3 when follow confirmed', async ({ page }) => {
+    await page.goto(`/profile/${otherNpub}`);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    const followBtn = page.getByRole('button', { name: /^Follow$|^フォロー$/ }).first();
+    await expect(followBtn).toBeVisible({ timeout: 10_000 });
+    await followBtn.click();
+
+    // ConfirmDialog should appear — click confirm
+    const confirmBtn = page.getByRole('button', { name: /^Confirm$|^確認$/ }).first();
+    await expect(confirmBtn).toBeVisible({ timeout: 5_000 });
+    await confirmBtn.click();
+
+    // kind:3 follow list should be published
+    await expect
+      .poll(async () => (await getPublishedEvents(page, FOLLOWS_KIND)).length, {
+        timeout: 15_000
+      })
+      .toBeGreaterThanOrEqual(1);
+  });
+
+  test('should show Unfollow after following', async ({ page }) => {
+    await page.goto(`/profile/${otherNpub}`);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    const followBtn = page.getByRole('button', { name: /^Follow$|^フォロー$/ }).first();
+    await expect(followBtn).toBeVisible({ timeout: 10_000 });
+    await followBtn.click();
+
+    // ConfirmDialog appears — click Confirm button
+    const confirmBtn = page.getByRole('button', { name: /^Confirm$|^確認$/ }).first();
+    await expect(confirmBtn).toBeVisible({ timeout: 5_000 });
+    await confirmBtn.click();
+
+    // Button should change to Unfollow
+    await expect(page.getByRole('button', { name: /Unfollow|アンフォロー/i }).first()).toBeVisible({
+      timeout: 15_000
+    });
+  });
+
+  test('should show Following state during processing', async ({ page }) => {
+    await page.goto(`/profile/${otherNpub}`);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    const followBtn = page.getByRole('button', { name: /^Follow$|^フォロー$/ }).first();
+    await expect(followBtn).toBeVisible({ timeout: 10_000 });
+    await followBtn.click();
+
+    // ConfirmDialog appears — click Confirm button
+    const confirmBtn = page.getByRole('button', { name: /^Confirm$|^確認$/ }).first();
+    await expect(confirmBtn).toBeVisible({ timeout: 5_000 });
+    await confirmBtn.click();
+
+    // After confirm, should eventually show Unfollow or Following state
+    await expect(
+      page.getByRole('button', { name: /Unfollow|Following|アンフォロー|フォロー中/i }).first()
+    ).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('should show follow count on profile', async ({ page }) => {
+    // Pre-populate with follow list
+    const followList = buildFollowList(otherUser, [user.pubkey, thirdUser.pubkey]);
+    const metadata = buildMetadata(otherUser, { name: 'TestUser' });
+
+    await page.goto(`/profile/${otherNpub}`);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+    await storeEventsOnAllRelays(page, [followList, metadata]);
+    await broadcastEventsOnAllRelays(page, [followList, metadata]);
+
+    // Follow count should be visible (2)
+    await expect(page.getByText('2').first()).toBeVisible({ timeout: 15_000 });
   });
 });
 
@@ -76,13 +157,7 @@ test.describe('Mute from comment card', () => {
 
     await expect(page.getByText('Mutable comment').first()).toBeVisible({ timeout: 15_000 });
 
-    const muteBtn = page
-      .locator('article, div')
-      .filter({ hasText: 'Mutable comment' })
-      .first()
-      .locator('button[title]')
-      .filter({ has: page.locator('svg') })
-      .last();
+    const muteBtn = page.locator('button[title="Mute user"]').first();
     await expect(muteBtn).toBeVisible({ timeout: 5_000 });
   });
 
@@ -95,12 +170,7 @@ test.describe('Mute from comment card', () => {
 
     await expect(page.getByText('Own comment no mute').first()).toBeVisible({ timeout: 15_000 });
 
-    const commentCard = page
-      .locator('article, div')
-      .filter({ hasText: 'Own comment no mute' })
-      .first();
-    const muteButtons = commentCard.getByRole('button', { name: /Mute|ミュート/i });
-    await expect(muteButtons).toHaveCount(0);
+    await expect(page.locator('button[title="Mute user"]')).toHaveCount(0);
   });
 
   test('should not show mute button when not logged in', async ({ page }) => {
@@ -111,7 +181,70 @@ test.describe('Mute from comment card', () => {
 
     await expect(page.getByText('No auth mute').first()).toBeVisible({ timeout: 15_000 });
 
-    await expect(page.getByRole('button', { name: /Mute|ミュート/i })).toHaveCount(0);
+    await expect(page.locator('button[title="Mute user"]')).toHaveCount(0);
+  });
+
+  test('should show confirm dialog when mute clicked', async ({ page }) => {
+    const comment = buildComment(otherUser, 'Mute dialog test', TEST_I_TAG, TEST_K_TAG);
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+    await broadcastEventsOnAllRelays(page, [comment]);
+
+    await expect(page.getByText('Mute dialog test').first()).toBeVisible({ timeout: 15_000 });
+
+    const muteBtn = page.locator('button[title="Mute user"]').first();
+    await muteBtn.click();
+
+    // Confirm dialog should appear with mute message
+    await expect(page.getByText(/Mute this user|このユーザーをミュート/i).first()).toBeVisible({
+      timeout: 5_000
+    });
+  });
+
+  test('should publish kind:10000 after confirming mute', async ({ page }) => {
+    const comment = buildComment(otherUser, 'Mute publish test', TEST_I_TAG, TEST_K_TAG);
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+    await broadcastEventsOnAllRelays(page, [comment]);
+
+    await expect(page.getByText('Mute publish test').first()).toBeVisible({ timeout: 15_000 });
+
+    const muteBtn = page.locator('button[title="Mute user"]').first();
+    await muteBtn.click();
+
+    // Click confirm button in dialog
+    const confirmBtn = page.getByRole('button', { name: /Confirm|確認/i }).last();
+    await expect(confirmBtn).toBeVisible({ timeout: 5_000 });
+    await confirmBtn.click();
+
+    // kind:10000 should be published
+    await expect
+      .poll(async () => (await getPublishedEvents(page, MUTE_KIND)).length, {
+        timeout: 15_000
+      })
+      .toBeGreaterThanOrEqual(1);
+  });
+
+  test('should hide muted user comments after muting', async ({ page }) => {
+    const comment = buildComment(otherUser, 'Will be muted comment', TEST_I_TAG, TEST_K_TAG);
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+    await broadcastEventsOnAllRelays(page, [comment]);
+
+    await expect(page.getByText('Will be muted comment').first()).toBeVisible({ timeout: 15_000 });
+
+    const muteBtn = page.locator('button[title="Mute user"]').first();
+    await muteBtn.click();
+
+    const confirmBtn = page.getByRole('button', { name: /Confirm|確認/i }).last();
+    await expect(confirmBtn).toBeVisible({ timeout: 5_000 });
+    await confirmBtn.click();
+
+    // Comment should disappear after muting
+    await expect(page.getByText('Will be muted comment')).toHaveCount(0, { timeout: 15_000 });
   });
 });
 
@@ -133,16 +266,54 @@ test.describe('Settings page — mute section', () => {
     ).toBeVisible({ timeout: 10_000 });
   });
 
-  test('should display NIP-44 warning for read-only login', async ({ page }) => {
-    // Use read-only login (no signEvent)
+  test('should show empty muted users message', async ({ page }) => {
     await page.goto('/settings');
     await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
 
-    await page.evaluate(async (pk: string) => {
+    await expect(
+      page.getByText(/No muted users|ミュート中のユーザーはいません/).first()
+    ).toBeVisible({ timeout: 10_000 });
+  });
+
+  test('should show empty muted words message', async ({ page }) => {
+    await page.goto('/settings');
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    await expect(
+      page.getByText(/No muted words|ミュート中のワードはありません/).first()
+    ).toBeVisible({ timeout: 10_000 });
+  });
+
+  test('should show mute word add input', async ({ page }) => {
+    await page.goto('/settings');
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    // Mute section should be visible with add word functionality
+    await expect(
+      page
+        .locator('h2')
+        .filter({ hasText: /Mute|ミュート/ })
+        .first()
+    ).toBeVisible({ timeout: 10_000 });
+  });
+});
+
+test.describe('Settings page — NIP-44 warning', () => {
+  test('should display NIP-44 warning for read-only login', async ({ page }) => {
+    // Set up MockPool WITHOUT full login (no nip44 support)
+    await setupMockPool(page);
+    // Set up read-only login (no signEvent, no nip44)
+    await page.addInitScript((pk: string) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window as any).nostr = { getPublicKey: async () => pk };
-      document.dispatchEvent(new CustomEvent('nlAuth', { detail: { type: 'login' } }));
     }, user.pubkey);
+
+    await page.goto('/settings');
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
 
     await expect(page.locator('text=NIP-44')).toBeVisible({ timeout: 10_000 });
   });

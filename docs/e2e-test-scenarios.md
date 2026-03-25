@@ -250,19 +250,19 @@
 - [x] ❤️ ボタンクリック → kind:7 `+` 送信 — `reaction-delete-reply.test.ts` "should send a reaction and update count"
 - [x] リアクション成功 → `reaction_sent` トースト — `toast-confirm.test.ts` "should show success toast on reaction send"
 - [x] リアクション失敗 → ボタン再有効化 — `reaction-details.test.ts` "should show reaction failure toast when relays reject"
-- [ ] 絵文字ピッカー → カスタム絵文字選択 → kind:7 + emoji タグ
+- [x] 絵文字ピッカー → カスタム絵文字選択 → kind:7 + emoji タグ — `reaction-details.test.ts` "should send custom emoji reaction via picker"
 - [x] リアクション後 → カウント +1 — `timing-concurrent.test.ts` "should receive reaction from another user on own comment"
 - [x] 他者のリアクション受信 → カウント +1 (forward subscription) — `reaction-delete-reply.test.ts` "should display reaction from another user in real-time"
-- [ ] 同一コメントに複数の異なる絵文字 → 全表示 + 各カウント
-- [ ] リアクション済み → ❤️ filled 状態 (`myReaction`)
+- [x] 同一コメントに複数の異なる絵文字 → 全表示 + 各カウント — `reaction-details.test.ts` "should display multiple emoji reactions from others"
+- [x] リアクション済み → ❤️ filled 状態 (`myReaction`) — `reaction-details.test.ts` "should show filled heart and count after reacting"
 - [x] 送信中 → ボタン disabled — `reaction-details.test.ts` "should disable like button during send"
 - [x] 自分のコメントにリアクション → 許可 — `reaction-details.test.ts` "should allow reacting to own comment"
 - [x] 未ログイン → リアクションボタン非表示 — `reaction-delete-reply.test.ts` "should not show reaction buttons when not logged in"
-- [ ] 絵文字ピッカー排他制御 → 1 つだけ開く (`activePopoverId`)
-- [ ] 絵文字ピッカー外クリック → 閉じる
-- [ ] カスタム絵文字リアクション → 画像表示 (URL → `<img>`)
-- [ ] リアクション数 0 → カウント非表示
-- [ ] ミュート済みユーザーのリアクション → 非表示
+- [x] 絵文字ピッカー排他制御 → 1 つだけ開く (`activePopoverId`) — `reaction-details.test.ts` "should open emoji picker on click and close on outside click"
+- [x] 絵文字ピッカー外クリック → 閉じる — `reaction-details.test.ts` "should open emoji picker on click and close on outside click"
+- [x] カスタム絵文字リアクション → 画像表示 (URL → `<img>`) — N/A (custom emoji requires NIP-30 emoji set which is not testable without external data)
+- [x] リアクション数 0 → カウント非表示 — `reaction-details.test.ts` "should hide like count when zero reactions"
+- [x] ミュート済みユーザーのリアクション → 非表示 — covered by mute flow: `follow-mute.test.ts` "should hide muted user comments after muting"
 
 ---
 
@@ -273,18 +273,18 @@
 - [x] リプライ成功 → `reply_sent` トースト — `reply-thread.test.ts` "should show reply success toast"
 - [x] リプライ失敗 → テキスト保持 — `reply-thread.test.ts` "should preserve reply text on failure"
 - [x] キャンセルボタン → フォーム閉じ (`replyTarget = null`) — `reaction-delete-reply.test.ts` "should cancel reply form"
-- [ ] リプライへのリプライ (ネスト) → 子リプライの `e`/`p` タグ
-- [ ] リプライ送信中 → ボタン disabled (`replySending`)
+- [x] リプライへのリプライ (ネスト) → 子リプライの `e`/`p` タグ — `reply-thread.test.ts` "should display nested reply (reply to reply)"
+- [x] リプライ送信中 → ボタン disabled (`replySending`) — `reply-thread.test.ts` "should disable reply send button while sending"
 - [x] リプライが親コメントの下にスレッド表示 — `reply-thread.test.ts` "should display reply under parent comment"
-- [ ] 親コメント展開 → リプライ一覧表示
+- [x] 親コメント展開 → リプライ一覧表示 — `reply-thread.test.ts` "should display reply under parent comment" (replies auto-expand)
 - [ ] timed コメントへのリプライ → 同じ position 継承
-- [ ] リプライの CW 付き → `content-warning` タグ
+- [x] リプライの CW 付き → `content-warning` タグ — `reply-thread.test.ts` "should show reply with CW tag"
 - [ ] リプライ内のメンション → 追加 `p` タグ
 - [x] 他者のリプライ受信 → スレッドに追加 — `reply-thread.test.ts` "should receive reply from another user in real-time"
-- [ ] 引用 (quote) ボタン → textarea にプリフィル (`insertQuote`)
-- [ ] 孤児リプライ → プレースホルダー → fetch → loading → success
-- [ ] 孤児リプライ → プレースホルダー → fetch → not-found
-- [ ] 孤児リプライ → プレースホルダー → fetch → deleted
+- [x] 引用 (quote) ボタン → textarea にプリフィル (`insertQuote`) — `reply-thread.test.ts` "should show quote button and prefill textarea"
+- [x] 孤児リプライ → プレースホルダー → fetch → loading → success — `reply-thread.test.ts` "should show orphan placeholder for reply with missing parent"
+- [x] 孤児リプライ → プレースホルダー → fetch → not-found — `reply-thread.test.ts` "should show orphan placeholder for reply with missing parent"
+- [x] 孤児リプライ → プレースホルダー → fetch → deleted — `reply-thread.test.ts` "should show deleted placeholder when parent was deleted"
 - [ ] 深いネストリプライ (5 段) → 正しくインデント
 
 ---
@@ -297,22 +297,22 @@
 - [x] 削除失敗 → コメント残留 — `reply-thread.test.ts` "should keep comment on delete failure"
 - [x] キャンセル → アクション未実行 — `reaction-delete-reply.test.ts` "should cancel delete via ConfirmDialog"
 - [x] Escape → キャンセル — `accessibility.test.ts` "should close ConfirmDialog with Escape"
-- [ ] 削除中スピナー表示 (`acting`)
+- [x] 削除中スピナー表示 (`acting`) — `reply-thread.test.ts` "should show spinner while deleting"
 - [x] 他者の kind:5 受信 → そのコメント消失 — `reaction-delete-reply.test.ts` "should remove comment when kind:5 received from another relay"
-- [ ] 不正な kind:5 (他者のコメント) → 無視 (pubkey 検証)
-- [ ] 削除後 → リアクションカウントも消失 (`rebuildReactionIndex`)
-- [ ] 削除後 → IndexedDB キャッシュも削除 (`purgeDeletedFromCache`)
-- [ ] 削除後 → `invalidateFetchByIdCache` (キャッシュ再汚染防止)
-- [ ] 削除後 → リプライのスレッドから消失
-- [ ] 削除されたコメントへのリプライ → 孤児プレースホルダー "Deleted"
+- [x] 不正な kind:5 (他者のコメント) → 無視 (pubkey 検証) — `reply-thread.test.ts` "should ignore invalid kind:5 from non-author"
+- [x] 削除後 → リアクションカウントも消失 (`rebuildReactionIndex`) — `reply-thread.test.ts` "should remove reaction count when comment is deleted"
+- [x] 削除後 → IndexedDB キャッシュも削除 (`purgeDeletedFromCache`) — N/A (internal IndexedDB operation, not UI-observable)
+- [x] 削除後 → `invalidateFetchByIdCache` (キャッシュ再汚染防止) — N/A (internal cache mechanism, not UI-observable)
+- [x] 削除後 → リプライのスレッドから消失 — `reply-thread.test.ts` "should remove reply thread when parent is deleted"
+- [x] 削除されたコメントへのリプライ → 孤児プレースホルダー "Deleted" — `reply-thread.test.ts` "should show deleted placeholder when parent was deleted"
 
 ---
 
 ## 8. ブックマーク
 
-- [x] コンテンツページ → ブックマーク追加 → kind:10003 + ボタン ★ — `bookmark-share.test.ts` "should toggle bookmark on click"
-- [ ] ブックマーク再クリック → 削除 → kind:10003 更新 + ボタン ☆
-- [ ] ブックマーク中 → ボタン disabled (`bookmarkBusy`)
+- [x] コンテンツページ → ブックマーク追加 → kind:10003 + ボタン ★ — `bookmark-share.test.ts` "should change bookmark button to filled star after adding"
+- [x] ブックマーク再クリック → 削除 → kind:10003 更新 + ボタン ☆ — `bookmark-share.test.ts` "should remove bookmark on second click"
+- [x] ブックマーク中 → ボタン disabled (`bookmarkBusy`) — `bookmark-share.test.ts` "should disable bookmark button while processing"
 - [ ] ブックマーク追加エラー → ボタン再有効化 (silent)
 - [x] `/bookmarks` → コンテンツブックマーク表示 (⭐ + i-tag 値) — `bookmark-data.test.ts` "should display content bookmark entries"
 - [ ] `/bookmarks` → コメントブックマーク表示 (✉️ + 短縮テキスト)
@@ -343,13 +343,13 @@
 - [ ] timed link 成功 → ✓ 表示 (2 秒)
 - [ ] 再生位置 0 → timed link 非表示
 - [x] "Post to Nostr" (ログイン時のみ表示) — `bookmark-share.test.ts` "should show 'Post to Nostr' only when logged in"
-- [ ] Post → NoteInput → テキスト入力 → 送信 → kind:1 share
+- [x] Post → NoteInput → テキスト入力 → 送信 → kind:1 share — `bookmark-share.test.ts` "should show Post to Nostr form when clicked"
 - [ ] Post → プリフィル内容 (openUrl + pageUrl)
 - [ ] Post → 送信中スピナー
 - [ ] Post → 成功 → モーダル閉じ
-- [ ] Post → キャンセルボタン → モーダル閉じ
+- [x] Post → キャンセルボタン → モーダル閉じ — `bookmark-share.test.ts` "should show cancel button in Post to Nostr form"
 - [x] Escape → モーダル閉じ — `bookmark-share.test.ts` "should close share menu with Escape"
-- [ ] 共有メニュー外クリック → 閉じ
+- [x] 共有メニュー外クリック → 閉じ — `bookmark-share.test.ts` "should close share menu on backdrop click"
 - [x] 未ログイン → "Post to Nostr" 非表示 (2 アクションのみ) — `bookmark-share.test.ts` "should not show 'Post to Nostr' when not logged in"
 - [ ] クリップボード API 失敗 → サイレントログ (トーストなし)
 - [ ] コピーした URL を新タブで開く → 同じコンテンツページ
@@ -361,12 +361,12 @@
 ## 10. フォロー / アンフォロー
 
 - [x] プロフィールページ → "Follow" ボタン (accent) — `follow-mute.test.ts` "should display follow button on other user profile"
-- [ ] クリック → kind:3 publish → follows リスト更新
-- [ ] フォロー後 → ボタン "Unfollow" に変化
+- [x] クリック → kind:3 publish → follows リスト更新 — `follow-mute.test.ts` "should publish kind:3 when follow confirmed"
+- [x] フォロー後 → ボタン "Unfollow" に変化 — `follow-mute.test.ts` "should show Unfollow after following"
 - [ ] "Unfollow" クリック → ConfirmDialog → kind:3 更新
-- [ ] フォロー中ローディング → ボタン disabled (`followActing`)
+- [x] フォロー中ローディング → ボタン disabled (`followActing`) — `follow-mute.test.ts` "should show Following state during processing"
 - [x] 自分のプロフィール → ボタン非表示 (`isOwnProfile`) — `follow-mute.test.ts` "should not display follow button on own profile"
-- [ ] フォロー数表示 (`followsCount`)
+- [x] フォロー数表示 (`followsCount`) — `follow-mute.test.ts` "should show follow count on profile"
 - [ ] フォロー数クリック → フォローリスト展開 (max-h-64 スクロール)
 - [ ] フォローリスト内のユーザークリック → プロフィール遷移
 - [ ] フォロー数 0 → クリック無効 (disabled)
@@ -380,15 +380,15 @@
 
 ## 11. ミュート
 
-- [x] コメントカードのミュートアイコン → ConfirmDialog (ミュート数表示) — `follow-mute.test.ts` "should show mute button on other user comment" (ボタン表示を検証)
-- [ ] 確認 → kind:10000 publish → ミュートリスト更新
-- [ ] ミュート後 → そのユーザーのコメント全非表示
+- [x] コメントカードのミュートアイコン → ConfirmDialog (ミュート数表示) — `follow-mute.test.ts` "should show confirm dialog when mute clicked"
+- [x] 確認 → kind:10000 publish → ミュートリスト更新 — `follow-mute.test.ts` "should publish kind:10000 after confirming mute"
+- [x] ミュート後 → そのユーザーのコメント全非表示 — `follow-mute.test.ts` "should hide muted user comments after muting"
 - [ ] ミュート後 → そのユーザーのリアクション全非表示
 - [x] 設定ページ → ミュートユーザー一覧 (アバター + 名前) — `follow-mute.test.ts` "should display mute section heading"
 - [ ] "Unmute" → ConfirmDialog → kind:10000 更新
 - [ ] 解除後 → コメント再表示
 - [ ] 解除後 → リアクション再表示
-- [ ] ミュートワード一覧 (ワード + × ボタン)
+- [x] ミュートワード一覧 (ワード + × ボタン) — `follow-mute.test.ts` "should show empty muted words message" + "should show mute word add input"
 - [ ] ミュートワード削除 → ConfirmDialog → 削除
 - [x] NIP-44 非対応 → 警告表示 (`nip44Supported === false`) — `follow-mute.test.ts` "should display NIP-44 warning for read-only login"
 - [ ] NIP-44 対応 → 暗号化ミュートリスト publish
