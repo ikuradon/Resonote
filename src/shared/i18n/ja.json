@@ -228,5 +228,22 @@
   "podcast.error": "フィードの読み込みに失敗しました",
   "autocomplete.emoji": "絵文字",
   "autocomplete.hashtag": "ハッシュタグ",
-  "embed.player_title": "{platform}プレイヤー"
+  "embed.player_title": "{platform}プレイヤー",
+  "tab.flow": "フロー",
+  "tab.shout": "シャウト",
+  "tab.info": "情報",
+  "comment.placeholder.flow": "フローコメントを追加...",
+  "comment.placeholder.shout": "一言どうぞ...",
+  "comment.empty.flow.title": "再生してコメントを投稿しよう",
+  "comment.empty.flow.subtitle": "再生位置に紐づくコメントが表示されます",
+  "comment.empty.shout": "まだコメントはありません",
+  "menu.quote": "引用",
+  "menu.custom_emoji": "カスタム絵文字",
+  "menu.copy_id": "IDをコピー",
+  "menu.broadcast": "ブロードキャスト",
+  "menu.mute_user": "ユーザーをミュート",
+  "menu.mute_thread": "スレッドをミュート",
+  "menu.delete": "削除",
+  "menu.copied": "コピーしました",
+  "shout.jump_to_latest": "最新へ"
 }
