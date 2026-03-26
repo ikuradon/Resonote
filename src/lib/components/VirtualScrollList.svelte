@@ -298,6 +298,16 @@
     container.scrollTo({ top: Math.max(0, centered), behavior: 'smooth' });
   }
 
+  export function scrollToEnd() {
+    if (!container) return;
+    isProgrammaticScroll = true;
+    if (programmaticScrollTimer) clearTimeout(programmaticScrollTimer);
+    programmaticScrollTimer = setTimeout(() => {
+      isProgrammaticScroll = false;
+    }, 500);
+    container.scrollTo({ top: container.scrollHeight, behavior: 'instant' });
+  }
+
   export function scrollToOffset(offset: number) {
     isProgrammaticScroll = true;
     if (programmaticScrollTimer) clearTimeout(programmaticScrollTimer);

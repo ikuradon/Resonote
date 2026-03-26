@@ -73,7 +73,7 @@
       shoutVirtualList &&
       vm.shoutComments.length > 0
     ) {
-      shoutVirtualList.scrollToIndex(vm.shoutComments.length - 1);
+      shoutVirtualList.scrollToEnd();
     }
   });
 
@@ -325,7 +325,7 @@
           </div>
         {/if}
         {#if vm.shoutComments.length > 0}
-          <div class="max-h-[400px] overflow-hidden rounded-xl border border-border-subtle">
+          <div class="flex max-h-[400px] flex-col rounded-xl border border-border-subtle">
             <VirtualScrollList
               bind:this={shoutVirtualList}
               items={vm.shoutComments}
