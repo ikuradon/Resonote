@@ -245,5 +245,6 @@
   "menu.mute_thread": "Mute Thread",
   "menu.delete": "Delete",
   "menu.copied": "Copied!",
-  "shout.jump_to_latest": "Jump to latest"
+  "shout.jump_to_latest": "Jump to latest",
+  "menu.copy_link": "Copy link"
 }

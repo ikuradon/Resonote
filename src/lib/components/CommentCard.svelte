@@ -115,6 +115,7 @@
 {/snippet}
 
 <div
+  data-comment-id={comment.id}
   class="{compact
     ? 'rounded-lg border border-border-subtle bg-surface-1/50 p-3'
     : 'animate-slide-up rounded-xl border p-4 transition-all duration-300'} {nearCurrent
@@ -145,7 +146,8 @@
           {formatPosition(comment.positionMs)}
         </button>
       {/if}
-      <span class="text-xs text-text-muted flex-shrink-0">{formatTimestamp(comment.createdAt)}</span>
+      <span class="text-xs text-text-muted flex-shrink-0">{formatTimestamp(comment.createdAt)}</span
+      >
     </div>
     {#if mode === 'flow'}
       <div class="flex items-center gap-1 flex-shrink-0 ml-2">
@@ -264,8 +266,15 @@
     {#if stats.emojis.length > 0}
       <div class="mt-1.5 flex flex-wrap gap-1 {compact ? '' : 'ml-9'}">
         {#each stats.emojis as emoji (emoji.content)}
-          <span class="rounded-full border border-border-subtle bg-surface-2 px-2 py-0.5 text-xs text-text-muted inline-flex items-center gap-1">
-            {#if emoji.url}<img src={emoji.url} alt={emoji.content} class="h-3.5 w-3.5" loading="lazy" />{:else}{emoji.content}{/if}
+          <span
+            class="rounded-full border border-border-subtle bg-surface-2 px-2 py-0.5 text-xs text-text-muted inline-flex items-center gap-1"
+          >
+            {#if emoji.url}<img
+                src={emoji.url}
+                alt={emoji.content}
+                class="h-3.5 w-3.5"
+                loading="lazy"
+              />{:else}{emoji.content}{/if}
             {#if emoji.count > 1}<span class="font-mono">{emoji.count}</span>{/if}
           </span>
         {/each}
@@ -321,7 +330,9 @@
         onclick={() => onReaction(comment)}
         disabled={acting || myReaction}
         class="flex items-center gap-1 rounded-md border border-border-subtle px-2.5 py-1 text-xs transition-colors
-          {myReaction ? 'border-accent/30 text-accent' : 'text-text-muted hover:text-text-secondary'}"
+          {myReaction
+          ? 'border-accent/30 text-accent'
+          : 'text-text-muted hover:text-text-secondary'}"
         title={myReaction ? t('liked.title') : t('like.title')}
       >
         {@render heartIcon(myReaction)}

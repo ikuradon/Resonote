@@ -234,6 +234,7 @@
   "menu.quote": "Quote",
   "menu.custom_emoji": "Custom Emoji",
   "menu.copy_id": "Copy ID",
+  "menu.copy_link": "Copy link",
   "menu.broadcast": "Broadcast",
   "menu.mute_user": "Mute User",
   "menu.mute_thread": "Mute Thread",

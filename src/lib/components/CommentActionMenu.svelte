@@ -97,9 +97,19 @@
     }
   });
 
+  function buildNevent(): string {
+    return neventEncode({ id: eventId, author: authorPubkey });
+  }
+
   async function copyId() {
-    const nevent = neventEncode({ id: eventId, author: authorPubkey });
-    await navigator.clipboard.writeText(`nostr:${nevent}`);
+    await navigator.clipboard.writeText(`nostr:${buildNevent()}`);
+    toastSuccess(t('menu.copied'));
+    close();
+  }
+
+  async function copyLink() {
+    const url = `${window.location.origin}/${buildNevent()}`;
+    await navigator.clipboard.writeText(url);
     toastSuccess(t('menu.copied'));
     close();
   }
@@ -152,6 +162,14 @@
         {t('menu.custom_emoji')}
       </button>
     {/if}
+
+    <button
+      onclick={copyLink}
+      class="flex w-full items-center gap-2 px-3 py-2 text-xs text-text-secondary transition-colors hover:bg-surface-2"
+    >
+      <span>🔗</span>
+      {t('menu.copy_link')}
+    </button>
 
     <button
       onclick={copyId}

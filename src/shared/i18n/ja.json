@@ -234,6 +234,7 @@
   "menu.quote": "引用",
   "menu.custom_emoji": "カスタム絵文字",
   "menu.copy_id": "IDをコピー",
+  "menu.copy_link": "リンクをコピー",
   "menu.broadcast": "ブロードキャスト",
   "menu.mute_user": "ユーザーをミュート",
   "menu.mute_thread": "スレッドをミュート",

@@ -35,6 +35,7 @@
     bookmarkBusy?: boolean;
     onToggleBookmark?: () => void;
     openUrl?: string;
+    highlightCommentId?: string;
   }
 
   let {
@@ -50,7 +51,8 @@
     bookmarked = false,
     bookmarkBusy = false,
     onToggleBookmark,
-    openUrl
+    openUrl,
+    highlightCommentId
   }: Props = $props();
 
   // --- Virtual scroll auto-scroll ---
@@ -101,6 +103,39 @@
         });
       });
     }
+  });
+
+  // --- Scroll to highlighted comment from URL hash ---
+  let highlightHandled = false;
+  $effect(() => {
+    if (highlightHandled || !highlightCommentId || loading) return;
+    const allComments = comments;
+    if (allComments.length === 0) return;
+
+    const target = allComments.find((c) => c.id === highlightCommentId);
+    if (!target) return;
+
+    highlightHandled = true;
+
+    // Determine which tab the comment belongs to
+    const isTimed = target.positionMs !== null && target.replyTo === null;
+    const targetTab = isTimed ? 'flow' : 'shout';
+
+    if (vm.activeTab !== targetTab) {
+      vm.setActiveTab(targetTab as 'flow' | 'shout');
+    }
+
+    // Wait for tab content to render, then scroll to the comment
+    void tick().then(() => {
+      requestAnimationFrame(() => {
+        const el = document.querySelector(`[data-comment-id="${highlightCommentId}"]`);
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Brief highlight effect
+        el?.classList.add('ring-2', 'ring-accent');
+        setTimeout(() => el?.classList.remove('ring-2', 'ring-accent'), 3000);
+      });
+    });
   });
 
   const popoverIds = new Map<string, string>();

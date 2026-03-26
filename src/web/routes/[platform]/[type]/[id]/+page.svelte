@@ -23,6 +23,9 @@
     platform === 'youtube' && (contentType === 'playlist' || contentType === 'channel')
   );
   let initialTimeSec = $derived(Number(page.url.searchParams.get('t')) || 0);
+  let highlightCommentId = $derived(
+    page.url.hash.startsWith('#comment-') ? page.url.hash.slice('#comment-'.length) : undefined
+  );
 
   // --- View model (single facade for all content page logic) ---
   const vm = createResolvedContentViewModel(
@@ -207,6 +210,7 @@
                 bookmarkBusy={vm.bookmarkBusy}
                 onToggleBookmark={vm.toggleBookmark}
                 openUrl={provider.openUrl(contentId)}
+                {highlightCommentId}
               />
             {/if}
           </section>
