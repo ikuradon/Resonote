@@ -228,5 +228,22 @@
   "podcast.error": "Feed konnte nicht geladen werden",
   "autocomplete.emoji": "Emoji",
   "autocomplete.hashtag": "Hashtag",
-  "embed.player_title": "{platform} Player"
+  "embed.player_title": "{platform} Player",
+  "tab.flow": "Flow",
+  "tab.shout": "Shout",
+  "tab.info": "Info",
+  "comment.placeholder.flow": "Add a flow comment...",
+  "comment.placeholder.shout": "Shout something...",
+  "comment.empty.flow.title": "Play to comment",
+  "comment.empty.flow.subtitle": "Comments synced to playback position will appear here",
+  "comment.empty.shout": "No comments yet",
+  "menu.quote": "Quote",
+  "menu.custom_emoji": "Custom Emoji",
+  "menu.copy_id": "Copy ID",
+  "menu.broadcast": "Broadcast",
+  "menu.mute_user": "Mute User",
+  "menu.mute_thread": "Mute Thread",
+  "menu.delete": "Delete",
+  "menu.copied": "Copied!",
+  "shout.jump_to_latest": "Jump to latest"
 }
