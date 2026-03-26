@@ -1,6 +1,9 @@
 <script lang="ts">
   import { neventEncode } from 'nostr-tools/nip19';
+  import { onMount } from 'svelte';
+  import type { Action } from 'svelte/action';
 
+  import { isNodeInsideElements, manageClickOutside } from '$shared/browser/click-outside.js';
   import { toastSuccess } from '$shared/browser/toast.js';
   import { t } from '$shared/i18n/t.js';
 
@@ -30,18 +33,69 @@
     onMuteUser,
     onMuteThread,
     onDelete,
-    onBroadcast,
+    onBroadcast
   }: Props = $props();
 
   let open = $state(false);
+  let triggerEl = $state<HTMLButtonElement | null>(null);
+  let menuEl = $state<HTMLDivElement | null>(null);
+  let popoverStyle = $state('');
+
+  const MENU_WIDTH = 180;
+  const MENU_HEIGHT = 280;
+
+  function updatePosition() {
+    if (!triggerEl) return;
+    const rect = triggerEl.getBoundingClientRect();
+
+    let left = rect.right - MENU_WIDTH;
+    let top = rect.bottom + 4;
+
+    if (left + MENU_WIDTH > window.innerWidth) left = window.innerWidth - MENU_WIDTH - 8;
+    if (left < 8) left = 8;
+
+    if (top + MENU_HEIGHT > window.innerHeight) top = rect.top - MENU_HEIGHT - 4;
+    if (top < 8) top = 8;
+
+    popoverStyle = `left:${left}px;top:${top}px`;
+  }
 
   function toggle() {
-    open = !open;
+    if (open) {
+      open = false;
+    } else {
+      open = true;
+      updatePosition();
+    }
   }
 
   function close() {
     open = false;
   }
+
+  /** Move the element to document.body to escape ancestor overflow/transforms. */
+  const portal: Action = (node) => {
+    document.body.appendChild(node);
+    return {
+      destroy() {
+        node.remove();
+      }
+    };
+  };
+
+  onMount(() => {
+    return () => {
+      open = false;
+    };
+  });
+
+  manageClickOutside({
+    active: () => open,
+    isInside: (target) => isNodeInsideElements(target, [triggerEl, menuEl]),
+    onOutside: () => {
+      open = false;
+    }
+  });
 
   async function copyId() {
     const nevent = neventEncode({ id: eventId, author: authorPubkey });
@@ -50,33 +104,8 @@
     close();
   }
 
-  function handleQuote() {
-    onQuote?.();
-    close();
-  }
-
-  function handleCustomEmoji() {
-    onCustomEmoji?.();
-    close();
-  }
-
-  function handleBroadcast() {
-    onBroadcast?.();
-    close();
-  }
-
-  function handleMuteUser() {
-    onMuteUser?.();
-    close();
-  }
-
-  function handleMuteThread() {
-    onMuteThread?.();
-    close();
-  }
-
-  function handleDelete() {
-    onDelete?.();
+  function act(fn?: () => void) {
+    fn?.();
     close();
   }
 
@@ -86,98 +115,94 @@
   const showSeparator = $derived(showMuteUser || !!onMuteThread || (isOwn && !!onDelete));
 </script>
 
-<div class="relative">
-  <button
-    onclick={toggle}
-    class="rounded p-1 text-text-muted transition-colors hover:text-text-secondary"
-    aria-label="More actions"
-    aria-expanded={open}
+<button
+  bind:this={triggerEl}
+  type="button"
+  onclick={toggle}
+  class="rounded p-1 text-text-muted transition-colors hover:text-text-secondary"
+  aria-label="More actions"
+  aria-expanded={open}
+>
+  ⋮
+</button>
+
+{#if open}
+  <div
+    bind:this={menuEl}
+    class="fixed z-50 min-w-[180px] max-h-[280px] overflow-y-auto rounded-lg border border-border bg-surface-1 py-1 shadow-xl"
+    style={popoverStyle}
+    use:portal
   >
-    ⋮
-  </button>
-
-  {#if open}
-    <!-- Backdrop -->
-    <button
-      class="fixed inset-0 z-40"
-      onclick={close}
-      aria-label="Close menu"
-      tabindex="-1"
-    ></button>
-
-    <!-- Popover -->
-    <div class="absolute right-0 top-8 z-50 min-w-[180px] rounded-lg border border-border bg-surface-1 py-1 shadow-xl">
-      {#if showQuote}
-        <button
-          onclick={handleQuote}
-          class="flex w-full items-center gap-2 px-3 py-2 text-xs text-text-secondary transition-colors hover:bg-surface-2"
-        >
-          <span>💬</span>
-          {t('menu.quote')}
-        </button>
-      {/if}
-
-      {#if showCustomEmoji}
-        <button
-          onclick={handleCustomEmoji}
-          class="flex w-full items-center gap-2 px-3 py-2 text-xs text-text-secondary transition-colors hover:bg-surface-2"
-        >
-          <span>😀</span>
-          {t('menu.custom_emoji')}
-        </button>
-      {/if}
-
+    {#if showQuote}
       <button
-        onclick={copyId}
+        onclick={() => act(onQuote)}
         class="flex w-full items-center gap-2 px-3 py-2 text-xs text-text-secondary transition-colors hover:bg-surface-2"
       >
-        <span>📋</span>
-        {t('menu.copy_id')}
+        <span>💬</span>
+        {t('menu.quote')}
       </button>
+    {/if}
 
-      {#if onBroadcast}
-        <button
-          onclick={handleBroadcast}
-          class="flex w-full items-center gap-2 px-3 py-2 text-xs text-text-secondary transition-colors hover:bg-surface-2"
-        >
-          <span>📡</span>
-          {t('menu.broadcast')}
-        </button>
-      {/if}
+    {#if showCustomEmoji}
+      <button
+        onclick={() => act(onCustomEmoji)}
+        class="flex w-full items-center gap-2 px-3 py-2 text-xs text-text-secondary transition-colors hover:bg-surface-2"
+      >
+        <span>😀</span>
+        {t('menu.custom_emoji')}
+      </button>
+    {/if}
 
-      {#if showSeparator}
-        <div class="my-1 h-px bg-border-subtle"></div>
-      {/if}
+    <button
+      onclick={copyId}
+      class="flex w-full items-center gap-2 px-3 py-2 text-xs text-text-secondary transition-colors hover:bg-surface-2"
+    >
+      <span>📋</span>
+      {t('menu.copy_id')}
+    </button>
 
-      {#if showMuteUser}
-        <button
-          onclick={handleMuteUser}
-          class="flex w-full items-center gap-2 px-3 py-2 text-xs text-text-secondary transition-colors hover:bg-surface-2"
-        >
-          <span>🔇</span>
-          {t('menu.mute_user')}
-        </button>
-      {/if}
+    {#if onBroadcast}
+      <button
+        onclick={() => act(onBroadcast)}
+        class="flex w-full items-center gap-2 px-3 py-2 text-xs text-text-secondary transition-colors hover:bg-surface-2"
+      >
+        <span>📡</span>
+        {t('menu.broadcast')}
+      </button>
+    {/if}
 
-      {#if onMuteThread}
-        <button
-          onclick={handleMuteThread}
-          class="flex w-full items-center gap-2 px-3 py-2 text-xs text-text-secondary transition-colors hover:bg-surface-2"
-        >
-          <span>🔕</span>
-          {t('menu.mute_thread')}
-        </button>
-      {/if}
+    {#if showSeparator}
+      <div class="my-1 h-px bg-border-subtle"></div>
+    {/if}
 
-      {#if isOwn && onDelete}
-        <button
-          onclick={handleDelete}
-          class="flex w-full items-center gap-2 px-3 py-2 text-xs text-red-400 transition-colors hover:bg-surface-2"
-        >
-          <span>🗑</span>
-          {t('menu.delete')}
-        </button>
-      {/if}
-    </div>
-  {/if}
-</div>
+    {#if showMuteUser}
+      <button
+        onclick={() => act(onMuteUser)}
+        class="flex w-full items-center gap-2 px-3 py-2 text-xs text-text-secondary transition-colors hover:bg-surface-2"
+      >
+        <span>🔇</span>
+        {t('menu.mute_user')}
+      </button>
+    {/if}
+
+    {#if onMuteThread}
+      <button
+        onclick={() => act(onMuteThread)}
+        class="flex w-full items-center gap-2 px-3 py-2 text-xs text-text-secondary transition-colors hover:bg-surface-2"
+      >
+        <span>🔕</span>
+        {t('menu.mute_thread')}
+      </button>
+    {/if}
+
+    {#if isOwn && onDelete}
+      <button
+        onclick={() => act(onDelete)}
+        class="flex w-full items-center gap-2 px-3 py-2 text-xs text-red-400 transition-colors hover:bg-surface-2"
+      >
+        <span>🗑</span>
+        {t('menu.delete')}
+      </button>
+    {/if}
+  </div>
+{/if}

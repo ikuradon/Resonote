@@ -339,19 +339,20 @@
         {#each vm.orphanParents.filter((p) => p.positionMs === null) as placeholder (placeholder.id)}
           {@render orphanPlaceholder(placeholder)}
         {/each}
-        {#if !vm.shoutAtBottom}
-          <div class="flex justify-center py-1">
-            <button
-              type="button"
-              onclick={vm.jumpToLatest}
-              class="rounded-lg bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-500 transition-colors hover:bg-amber-500/30"
-            >
-              {t('shout.jump_to_latest')}
-            </button>
-          </div>
-        {/if}
         {#if vm.shoutComments.length > 0}
-          <div class="flex max-h-[400px] flex-col rounded-xl border border-border-subtle">
+          <div class="relative flex max-h-[400px] flex-col rounded-xl border border-border-subtle">
+            {#if !vm.shoutAtBottom}
+              <button
+                type="button"
+                onclick={() => {
+                  vm.jumpToLatest();
+                  shoutVirtualList?.scrollToEnd();
+                }}
+                class="absolute bottom-2 right-2 z-30 rounded-lg bg-amber-500/90 px-3 py-1 text-xs font-medium text-white shadow-lg transition-colors hover:bg-amber-500"
+              >
+                {t('shout.jump_to_latest')} ↓
+              </button>
+            {/if}
             <VirtualScrollList
               bind:this={shoutVirtualList}
               items={vm.shoutComments}
