@@ -53,6 +53,7 @@
 
   // --- Virtual scroll auto-scroll ---
   let timedVirtualList = $state<VirtualScrollList<Comment> | undefined>();
+  let shoutVirtualList = $state<VirtualScrollList<Comment> | undefined>();
   useCommentProfilePreload(() => comments);
   const vm = createCommentListViewModel({
     getComments: () => comments,
@@ -62,6 +63,18 @@
     getTimedList: () => timedVirtualList,
     getPlaceholders: () => getPlaceholders?.() ?? new Map(),
     fetchOrphanParent: (parentId, positionMs) => fetchOrphanParent?.(parentId, positionMs)
+  });
+
+  // --- Shout tab scroll-to-bottom ---
+  $effect(() => {
+    if (
+      vm.activeTab === 'shout' &&
+      vm.shoutAtBottom &&
+      shoutVirtualList &&
+      vm.shoutComments.length > 0
+    ) {
+      shoutVirtualList.scrollToIndex(vm.shoutComments.length - 1);
+    }
   });
 
   const popoverIds = new Map<string, string>();
@@ -98,7 +111,9 @@
     type="button"
     onclick={() => vm.setActiveTab('flow')}
     class="flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors
-      {vm.activeTab === 'flow' ? 'border-b-2 border-accent text-accent -mb-px' : 'text-text-muted hover:text-text-secondary'}"
+      {vm.activeTab === 'flow'
+      ? 'border-b-2 border-accent text-accent -mb-px'
+      : 'text-text-muted hover:text-text-secondary'}"
   >
     🎶 <span class="hidden sm:inline">{t('tab.flow')}</span>
     {#if vm.timedComments.length > 0}
@@ -109,7 +124,9 @@
     type="button"
     onclick={() => vm.setActiveTab('shout')}
     class="flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors
-      {vm.activeTab === 'shout' ? 'border-b-2 border-amber-500 text-amber-500 -mb-px' : 'text-text-muted hover:text-text-secondary'}"
+      {vm.activeTab === 'shout'
+      ? 'border-b-2 border-amber-500 text-amber-500 -mb-px'
+      : 'text-text-muted hover:text-text-secondary'}"
   >
     📢 <span class="hidden sm:inline">{t('tab.shout')}</span>
     {#if vm.shoutComments.length > 0}
@@ -120,7 +137,9 @@
     type="button"
     onclick={() => vm.setActiveTab('info')}
     class="flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors
-      {vm.activeTab === 'info' ? 'border-b-2 border-text-secondary text-text-secondary -mb-px' : 'text-text-muted hover:text-text-secondary'}"
+      {vm.activeTab === 'info'
+      ? 'border-b-2 border-text-secondary text-text-secondary -mb-px'
+      : 'text-text-muted hover:text-text-secondary'}"
   >
     ℹ️ <span class="hidden sm:inline">{t('tab.info')}</span>
   </button>
@@ -294,13 +313,28 @@
         {#each vm.orphanParents.filter((p) => p.positionMs === null) as placeholder (placeholder.id)}
           {@render orphanPlaceholder(placeholder)}
         {/each}
+        {#if !vm.shoutAtBottom}
+          <div class="flex justify-center py-1">
+            <button
+              type="button"
+              onclick={vm.jumpToLatest}
+              class="rounded-lg bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-500 transition-colors hover:bg-amber-500/30"
+            >
+              {t('shout.jump_to_latest')}
+            </button>
+          </div>
+        {/if}
         {#if vm.shoutComments.length > 0}
           <div class="max-h-[400px] overflow-hidden rounded-xl border border-border-subtle">
             <VirtualScrollList
+              bind:this={shoutVirtualList}
               items={vm.shoutComments}
               keyFn={(c) => c.id}
               estimateHeight={120}
               overscan={3}
+              onRangeChange={(start, end) => {
+                vm.setShoutAtBottom(end >= vm.shoutComments.length - 1);
+              }}
             >
               {#snippet children({ item: comment, index: i })}
                 <CommentCard
@@ -380,7 +414,13 @@
 
 {#if vm.activeTab !== 'info'}
   {#if vm.loggedIn}
-    <CommentForm bind:this={commentFormRef} {contentId} {provider} {threadPubkeys} activeTab={vm.activeTab} />
+    <CommentForm
+      bind:this={commentFormRef}
+      {contentId}
+      {provider}
+      {threadPubkeys}
+      activeTab={vm.activeTab}
+    />
   {:else}
     <div
       data-testid="comment-login-prompt"
