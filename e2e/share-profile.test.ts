@@ -19,6 +19,11 @@ test.describe('Share flow', () => {
     await page.goto(trackUrl);
     await page.waitForLoadState('networkidle');
 
+    // Share button is in the Info tab
+    const infoTab = page.getByRole('button', { name: /ℹ️/ });
+    await expect(infoTab).toBeVisible({ timeout: 10_000 });
+    await infoTab.click();
+
     const shareButton = page.getByRole('button', { name: /Share|共有/ });
     await expect(shareButton).toBeVisible({ timeout: 10_000 });
   });
@@ -27,6 +32,11 @@ test.describe('Share flow', () => {
     await page.goto(trackUrl);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+
+    // Bookmark button is in the Info tab
+    const infoTab = page.getByRole('button', { name: /ℹ️/ });
+    await expect(infoTab).toBeVisible({ timeout: 10_000 });
+    await infoTab.click();
 
     const bookmarkButton = page.getByRole('button', { name: /Bookmark|ブックマーク/ });
     await expect(bookmarkButton).toBeVisible({ timeout: 10_000 });

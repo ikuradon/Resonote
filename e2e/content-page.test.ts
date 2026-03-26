@@ -29,6 +29,10 @@ test.describe('Content page (track)', () => {
     // Block WebSocket connections to prevent loading real comments
     await page.route('wss://**', (route) => route.abort());
     await page.goto(trackUrl);
+    // "No comments yet" appears in the Shout tab empty state
+    const shoutTab = page.getByRole('button', { name: /📢/ });
+    await expect(shoutTab).toBeVisible({ timeout: 10_000 });
+    await shoutTab.click();
     // Wait for loading to complete, then expect empty state
     await expect(page.locator('text=No comments yet')).toBeVisible({ timeout: 15_000 });
   });
