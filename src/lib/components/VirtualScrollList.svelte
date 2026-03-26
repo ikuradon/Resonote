@@ -298,6 +298,11 @@
     container.scrollTo({ top: Math.max(0, centered), behavior: 'smooth' });
   }
 
+  /** Get current scroll position. */
+  export function getScrollTop(): number {
+    return container?.scrollTop ?? 0;
+  }
+
   export function scrollToEnd() {
     if (!container) return;
     isProgrammaticScroll = true;

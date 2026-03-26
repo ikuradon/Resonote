@@ -42,6 +42,78 @@ function buildManyComments(count: number, timed: boolean) {
   });
 }
 
+test.describe('Shout tab — chat-style scroll-to-bottom', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupMockPool(page);
+    await setupFullLogin(page, user.pubkey, user.sign);
+  });
+
+  test('should scroll to bottom (newest comment) when switching to Shout tab', async ({ page }) => {
+    const comments = buildManyComments(25, false);
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+    await broadcastEventsOnAllRelays(page, comments);
+
+    // Switch to Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
+    // The newest comment (#25, at the bottom of chat-style TL) should be visible
+    // This also serves as a "comments loaded + scrolled" signal
+    await expect(page.getByText('Comment #25', { exact: true }).first()).toBeVisible({
+      timeout: 20_000
+    });
+
+    // The oldest comment (#1, at the top) should be scrolled out of view
+    const scrollContainer = page.locator('.overflow-y-auto').last();
+    const scrollTop = await scrollContainer.evaluate((el) => el.scrollTop);
+    expect(scrollTop).toBeGreaterThan(0);
+
+    // Comment #1 should NOT be visible (it's scrolled away at the top)
+    await expect(page.getByText('Comment #1', { exact: true }).first()).not.toBeVisible();
+  });
+
+  test('should preserve scroll position when switching tabs and returning', async ({ page }) => {
+    const comments = buildManyComments(25, false);
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+    await broadcastEventsOnAllRelays(page, comments);
+
+    // Switch to Shout tab — auto-scrolls to bottom
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+    await expect(page.getByText('Comment #25').first()).toBeVisible({ timeout: 20_000 });
+
+    // Scroll up to see older comments
+    const scrollContainer = page.locator('.overflow-y-auto').last();
+    await scrollContainer.evaluate((el) => {
+      el.scrollTop = 0;
+    });
+    await page.waitForTimeout(500);
+
+    // Comment #1 (oldest) should now be visible
+    await expect(page.getByText('Comment #1', { exact: true }).first()).toBeVisible({
+      timeout: 5_000
+    });
+
+    // Switch to Flow tab
+    await page.locator('button').filter({ hasText: /🎶/ }).first().click();
+    await page.waitForTimeout(300);
+
+    // Switch back to Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+    await page.waitForTimeout(300);
+
+    // Scroll position should be preserved — Comment #1 should still be visible
+    await expect(page.getByText('Comment #1', { exact: true }).first()).toBeVisible({
+      timeout: 5_000
+    });
+
+    // Comment #25 should NOT be visible (we scrolled away from bottom)
+    await expect(page.getByText('Comment #25', { exact: true }).first()).not.toBeVisible();
+  });
+});
+
 test.describe('VirtualScrollList — general comments (#153)', () => {
   test.beforeEach(async ({ page }) => {
     await setupMockPool(page);

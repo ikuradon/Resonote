@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { tick } from 'svelte';
+
   import type {
     Comment,
     PlaceholderComment,
@@ -65,15 +67,39 @@
     fetchOrphanParent: (parentId, positionMs) => fetchOrphanParent?.(parentId, positionMs)
   });
 
-  // --- Shout tab scroll-to-bottom ---
+  // --- Shout tab scroll position management ---
+  // Save scroll position BEFORE DOM updates when leaving Shout tab (VirtualScrollList about to be destroyed).
+  // Restore on return; first visit scrolls to bottom.
+  let shoutSavedScrollTop: number | null = null;
+  let shoutHasBeenShown = $state(false);
+  let prevActiveTab: string = 'flow';
+
+  $effect.pre(() => {
+    const tab = vm.activeTab;
+    if (prevActiveTab === 'shout' && tab !== 'shout' && shoutVirtualList) {
+      shoutSavedScrollTop = shoutVirtualList.getScrollTop();
+    }
+    prevActiveTab = tab;
+  });
+
   $effect(() => {
-    if (
-      vm.activeTab === 'shout' &&
-      vm.shoutAtBottom &&
-      shoutVirtualList &&
-      vm.shoutComments.length > 0
-    ) {
-      shoutVirtualList.scrollToEnd();
+    if (vm.activeTab === 'shout' && shoutVirtualList && vm.shoutComments.length > 0) {
+      const isInitial = !shoutHasBeenShown;
+      const restoreOffset = shoutSavedScrollTop;
+      // Mark as shown immediately (before async) so onRangeChange guard activates
+      // only AFTER we've decided what to do with scroll position.
+      if (isInitial) shoutHasBeenShown = true;
+      if (restoreOffset !== null) shoutSavedScrollTop = null;
+
+      void tick().then(() => {
+        requestAnimationFrame(() => {
+          if (isInitial) {
+            shoutVirtualList?.scrollToEnd();
+          } else if (restoreOffset !== null) {
+            shoutVirtualList?.scrollToOffset(restoreOffset);
+          }
+        });
+      });
     }
   });
 
@@ -333,7 +359,9 @@
               estimateHeight={120}
               overscan={3}
               onRangeChange={(start, end) => {
-                vm.setShoutAtBottom(end >= vm.shoutComments.length - 1);
+                if (shoutHasBeenShown) {
+                  vm.setShoutAtBottom(end >= vm.shoutComments.length - 1);
+                }
               }}
             >
               {#snippet children({ item: comment, index: i })}
@@ -389,7 +417,7 @@
           onclick={onToggleBookmark}
           disabled={bookmarkBusy}
           class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 disabled:opacity-50
-            {bookmarked
+              {bookmarked
             ? 'bg-accent/10 text-accent hover:bg-accent/20'
             : 'bg-surface-2 text-text-secondary hover:bg-surface-3 hover:text-text-primary'}"
         >
