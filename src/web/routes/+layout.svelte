@@ -3,6 +3,7 @@
 
   import type { Snippet } from 'svelte';
 
+  import { afterNavigate } from '$app/navigation';
   import { createAppShellViewModel } from '$appcore/ui/app-shell-view-model.svelte.js';
   import EnvBanner from '$lib/components/EnvBanner.svelte';
   import LanguageSwitcher from '$lib/components/LanguageSwitcher.svelte';
@@ -15,6 +16,11 @@
 
   let { children }: { children: Snippet } = $props();
   const vm = createAppShellViewModel();
+
+  // Close mobile menu after SPA navigation completes (not on click)
+  afterNavigate(() => {
+    vm.closeMenu();
+  });
 </script>
 
 <div class="noise min-h-screen bg-surface-0 font-body text-text-primary">
@@ -158,7 +164,6 @@
 
           <a
             href="/bookmarks"
-            onclick={vm.closeMenu}
             class="flex items-center gap-3 rounded-lg px-2 py-3 text-text-secondary transition-colors hover:bg-surface-1"
           >
             <span class="text-lg">🔖</span>
@@ -167,7 +172,6 @@
 
           <a
             href="/settings"
-            onclick={vm.closeMenu}
             class="flex items-center gap-3 rounded-lg px-2 py-3 text-text-secondary transition-colors hover:bg-surface-1"
           >
             <span class="text-lg">⚙️</span>

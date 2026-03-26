@@ -90,6 +90,8 @@
 
     // Rebuild offsets for new items
     untrack(() => rebuildOffsets());
+    // Update containerHeight in case it was 0 at mount time (fixes 0→N transition #153)
+    if (container) containerHeight = container.clientHeight;
 
     // Compensate scroll for items inserted above viewport
     if (container && oldKeys.length > 0) {
@@ -310,7 +312,7 @@
   }
 </script>
 
-<div bind:this={container} onscroll={handleScroll} class="h-full overflow-y-auto">
+<div bind:this={container} onscroll={handleScroll} class="min-h-0 flex-1 overflow-y-auto">
   <div style="height: {totalHeight}px; position: relative;">
     <div bind:this={innerEl} style="position: absolute; top: {offsetTop}px; left: 0; right: 0;">
       {#each renderedItems as { item, index, key } (key)}

@@ -6,11 +6,18 @@ describe('locales', () => {
   // --- LOCALES constant ---
 
   describe('LOCALES', () => {
-    it('contains en and ja entries', () => {
+    it('contains all expected locale entries', () => {
       const codes = LOCALES.map((l) => l.code);
 
       expect(codes).toContain('en');
       expect(codes).toContain('ja');
+      expect(codes).toContain('de');
+      expect(codes).toContain('es');
+      expect(codes).toContain('zh_cn');
+      expect(codes).toContain('pt_br');
+      expect(codes).toContain('ko');
+      expect(codes).toContain('fr');
+      expect(codes).toContain('ja_osaka');
     });
 
     it('has unique codes', () => {
@@ -39,8 +46,8 @@ describe('locales', () => {
       expect(isLocale('ja')).toBe(true);
     });
 
-    it('returns false for unknown locale "fr"', () => {
-      expect(isLocale('fr')).toBe(false);
+    it('returns true for "fr"', () => {
+      expect(isLocale('fr')).toBe(true);
     });
 
     it('returns false for empty string', () => {
@@ -102,13 +109,63 @@ describe('locales', () => {
       expect(detectBrowserLocale()).toBe('en');
     });
 
-    it('returns "en" (default) for unsupported locale "fr-FR"', () => {
+    it('returns "fr" for fr-FR browser language', () => {
       stubLanguage('fr-FR');
+      expect(detectBrowserLocale()).toBe('fr');
+    });
+
+    it('returns "zh_cn" for zh-CN browser language', () => {
+      stubLanguage('zh-CN');
+      expect(detectBrowserLocale()).toBe('zh_cn');
+    });
+
+    it('returns "de" for de-DE browser language', () => {
+      stubLanguage('de-DE');
+      expect(detectBrowserLocale()).toBe('de');
+    });
+
+    it('returns "ko" for ko-KR browser language', () => {
+      stubLanguage('ko-KR');
+      expect(detectBrowserLocale()).toBe('ko');
+    });
+
+    it('returns "pt_br" for pt-BR browser language', () => {
+      stubLanguage('pt-BR');
+      expect(detectBrowserLocale()).toBe('pt_br');
+    });
+
+    it('returns "es" for es-ES browser language', () => {
+      stubLanguage('es-ES');
+      expect(detectBrowserLocale()).toBe('es');
+    });
+
+    it('returns "en" (default) for zh-TW (no zh_tw locale)', () => {
+      stubLanguage('zh-TW');
       expect(detectBrowserLocale()).toBe('en');
     });
 
-    it('returns "en" (default) for unsupported locale "zh-CN"', () => {
-      stubLanguage('zh-CN');
+    it('returns "en" (default) for pt-PT (no pt_pt locale)', () => {
+      stubLanguage('pt-PT');
+      expect(detectBrowserLocale()).toBe('en');
+    });
+
+    it('returns "en" (default) for kok (Konkani, not Korean)', () => {
+      stubLanguage('kok');
+      expect(detectBrowserLocale()).toBe('en');
+    });
+
+    it('returns "en" (default) for bare "zh" (no region subtag)', () => {
+      stubLanguage('zh');
+      expect(detectBrowserLocale()).toBe('en');
+    });
+
+    it('returns "en" (default) for bare "pt" (no region subtag)', () => {
+      stubLanguage('pt');
+      expect(detectBrowserLocale()).toBe('en');
+    });
+
+    it('returns "en" (default) for unsupported locale "ar"', () => {
+      stubLanguage('ar');
       expect(detectBrowserLocale()).toBe('en');
     });
   });
