@@ -198,7 +198,11 @@ export function buildComment(
     ['K', kTagValue]
   ];
   if (opts?.parentId && opts.parentPubkey) {
-    tags.push(['e', opts.parentId, '', 'reply'], ['k', COMMENT_KIND_STR], ['p', opts.parentPubkey]);
+    tags.push(
+      ['e', opts.parentId, '', opts.parentPubkey],
+      ['k', COMMENT_KIND_STR],
+      ['p', opts.parentPubkey]
+    );
   }
   if (opts?.positionSec !== undefined) {
     tags.push(['position', String(opts.positionSec)]);

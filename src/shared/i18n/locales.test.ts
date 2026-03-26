@@ -154,6 +154,16 @@ describe('locales', () => {
       expect(detectBrowserLocale()).toBe('en');
     });
 
+    it('returns "en" (default) for bare "zh" (no region subtag)', () => {
+      stubLanguage('zh');
+      expect(detectBrowserLocale()).toBe('en');
+    });
+
+    it('returns "en" (default) for bare "pt" (no region subtag)', () => {
+      stubLanguage('pt');
+      expect(detectBrowserLocale()).toBe('en');
+    });
+
     it('returns "en" (default) for unsupported locale "ar"', () => {
       stubLanguage('ar');
       expect(detectBrowserLocale()).toBe('en');
