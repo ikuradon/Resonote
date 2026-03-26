@@ -16,6 +16,7 @@ const log = createLogger('comment-form-vm');
 interface CommentFormViewModelOptions {
   getContentId: () => ContentId;
   getProvider: () => ContentProvider;
+  getActiveTab?: () => 'flow' | 'shout' | 'info';
 }
 
 export type CommentSubmitResult = 'sent' | 'failed' | 'skipped';
@@ -28,25 +29,18 @@ export function createCommentFormViewModel(options: CommentFormViewModelOptions)
   let sending = $state(false);
   let flying = $state(false);
   let emojiTags = $state<string[][]>([]);
-  let attachPosition = $state(true);
   let cwEnabled = $state(false);
   let cwReason = $state('');
 
   let busy = $derived(sending || flying);
   let hasPosition = $derived(player.position > 0);
   let positionLabel = $derived(hasPosition ? formatPosition(player.position) : null);
-  let effectiveAttach = $derived(attachPosition && hasPosition);
+  let effectiveAttach = $derived((options.getActiveTab?.() ?? 'flow') === 'flow' && hasPosition);
   let placeholder = $derived(
-    effectiveAttach ? t('comment.placeholder.timed') : t('comment.placeholder.general')
+    (options.getActiveTab?.() ?? 'flow') === 'flow'
+      ? t('comment.placeholder.flow')
+      : t('comment.placeholder.shout')
   );
-
-  function selectTimedComment(): void {
-    attachPosition = true;
-  }
-
-  function selectGeneralComment(): void {
-    attachPosition = false;
-  }
 
   function toggleContentWarning(): void {
     cwEnabled = !cwEnabled;
@@ -139,8 +133,6 @@ export function createCommentFormViewModel(options: CommentFormViewModelOptions)
     get placeholder() {
       return placeholder;
     },
-    selectTimedComment,
-    selectGeneralComment,
     toggleContentWarning,
     submit,
     insertQuote(eventId: string, authorPubkey: string): void {

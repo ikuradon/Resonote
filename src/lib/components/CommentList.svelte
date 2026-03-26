@@ -12,8 +12,10 @@
 
   import CommentCard from './CommentCard.svelte';
   import CommentFilterBar from './CommentFilterBar.svelte';
+  import CommentForm from './CommentForm.svelte';
   import ConfirmDialog from './ConfirmDialog.svelte';
   import { allocateEmojiPopoverId } from './emoji-popover-id.js';
+  import ShareButton from './ShareButton.svelte';
   import VirtualScrollList from './VirtualScrollList.svelte';
   import WaveformLoader from './WaveformLoader.svelte';
 
@@ -26,6 +28,11 @@
     getPlaceholders?: () => Map<string, PlaceholderComment>;
     fetchOrphanParent?: (parentId: string, positionMs: number | null) => void;
     onQuote?: (comment: Comment) => void;
+    threadPubkeys?: string[];
+    bookmarked?: boolean;
+    bookmarkBusy?: boolean;
+    onToggleBookmark?: () => void;
+    openUrl?: string;
   }
 
   let {
@@ -36,7 +43,12 @@
     loading = false,
     getPlaceholders,
     fetchOrphanParent,
-    onQuote
+    onQuote,
+    threadPubkeys = [],
+    bookmarked = false,
+    bookmarkBusy = false,
+    onToggleBookmark,
+    openUrl
   }: Props = $props();
 
   // --- Virtual scroll auto-scroll ---
@@ -60,6 +72,16 @@
       popoverIds.set(commentId, pid);
     }
     return pid;
+  }
+
+  let commentFormRef = $state<CommentForm | undefined>();
+
+  function handleQuote(comment: Comment): void {
+    if (onQuote) {
+      onQuote(comment);
+    } else {
+      commentFormRef?.insertQuote(comment.id, comment.pubkey);
+    }
   }
 </script>
 
@@ -162,7 +184,7 @@
               onRevealCW={vm.revealCW}
               onHideCW={vm.hideCW}
               onMute={vm.requestMute}
-              {onQuote}
+              onQuote={handleQuote}
               onReplyContentChange={(content) => (vm.replyContent = content)}
               onReplyEmojiTagsChange={(tags) => (vm.replyEmojiTags = tags)}
             />
@@ -254,7 +276,7 @@
                   onRevealCW={vm.revealCW}
                   onHideCW={vm.hideCW}
                   onMute={vm.requestMute}
-                  {onQuote}
+                  onQuote={handleQuote}
                   onReplyContentChange={(content) => (vm.replyContent = content)}
                   onReplyEmojiTagsChange={(tags) => (vm.replyEmojiTags = tags)}
                 />
@@ -315,7 +337,7 @@
                   onRevealCW={vm.revealCW}
                   onHideCW={vm.hideCW}
                   onMute={vm.requestMute}
-                  {onQuote}
+                  onQuote={handleQuote}
                   onReplyContentChange={(content) => (vm.replyContent = content)}
                   onReplyEmojiTagsChange={(tags) => (vm.replyEmojiTags = tags)}
                 />
@@ -326,11 +348,48 @@
       </section>
     {/if}
   {:else if vm.activeTab === 'info'}
-    <div class="space-y-4 px-2 py-6">
-      <p class="text-sm text-text-muted">Info tab content will be added in a later task.</p>
+    <div class="space-y-3 py-6">
+      {#if onToggleBookmark && vm.loggedIn}
+        <button
+          type="button"
+          onclick={onToggleBookmark}
+          disabled={bookmarkBusy}
+          class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 disabled:opacity-50
+            {bookmarked
+            ? 'bg-accent/10 text-accent hover:bg-accent/20'
+            : 'bg-surface-2 text-text-secondary hover:bg-surface-3 hover:text-text-primary'}"
+        >
+          {bookmarked ? '\u2605' : '\u2606'}
+          {bookmarked ? t('bookmark.remove') : t('bookmark.add')}
+        </button>
+      {/if}
+      <ShareButton {contentId} {provider} />
+      {#if openUrl}
+        <a
+          href={openUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1 text-sm text-accent hover:underline"
+        >
+          {t('content.open_and_comment')} &#8599;
+        </a>
+      {/if}
     </div>
   {/if}
 </div>
+
+{#if vm.activeTab !== 'info'}
+  {#if vm.loggedIn}
+    <CommentForm bind:this={commentFormRef} {contentId} {provider} {threadPubkeys} activeTab={vm.activeTab} />
+  {:else}
+    <div
+      data-testid="comment-login-prompt"
+      class="rounded-xl border border-dashed border-border py-4 text-center"
+    >
+      <p class="text-sm text-text-muted">{t('comment.login_prompt')}</p>
+    </div>
+  {/if}
+{/if}
 
 <ConfirmDialog
   open={vm.deleteDialogOpen}

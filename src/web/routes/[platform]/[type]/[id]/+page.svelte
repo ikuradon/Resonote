@@ -2,10 +2,7 @@
   import { page } from '$app/state';
   import { createPlayerColumnViewModel } from '$features/content-resolution/ui/player-column-view-model.svelte.js';
   import { createResolvedContentViewModel } from '$features/content-resolution/ui/resolved-content-view-model.svelte.js';
-  import CommentForm from '$lib/components/CommentForm.svelte';
   import CommentList from '$lib/components/CommentList.svelte';
-  import ShareButton from '$lib/components/ShareButton.svelte';
-  import { getAuth } from '$shared/browser/auth.js';
   import { getPlayer, requestSeek } from '$shared/browser/player.js';
   import { getProvider } from '$shared/content/registry.js';
   import type { ContentId } from '$shared/content/types.js';
@@ -40,11 +37,9 @@
   );
 
   // --- UI-only state ---
-  const auth = getAuth();
   const isDev = import.meta.env.DEV;
   const player = isDev ? getPlayer() : undefined;
   let devSeekSec = $state(0);
-  let commentFormRef = $state<CommentForm | undefined>();
   let threadPubkeys = $derived(
     vm.store ? [...new Set(vm.store.comments.map((c) => c.pubkey))] : []
   );
@@ -157,22 +152,6 @@
                 {t('comment.heading')}
               </h2>
               <div class="h-px flex-1 bg-border-subtle"></div>
-              <ShareButton {contentId} {provider} />
-              {#if auth.loggedIn}
-                <button
-                  type="button"
-                  onclick={vm.toggleBookmark}
-                  disabled={vm.bookmarkBusy}
-                  class="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 disabled:opacity-50
-                    {vm.bookmarked
-                    ? 'bg-accent/10 text-accent hover:bg-accent/20'
-                    : 'bg-surface-2 text-text-secondary hover:bg-surface-3 hover:text-text-primary'}"
-                  title={vm.bookmarked ? t('bookmark.remove') : t('bookmark.add')}
-                >
-                  {vm.bookmarked ? '\u2605' : '\u2606'}
-                  {vm.bookmarked ? t('bookmark.remove') : t('bookmark.add')}
-                </button>
-              {/if}
             </div>
             {#if isDev && player}
               <div
@@ -214,7 +193,6 @@
                 </div>
               </div>
             {/if}
-            <CommentForm bind:this={commentFormRef} {contentId} {provider} {threadPubkeys} />
             {#if vm.store}
               <CommentList
                 comments={vm.store.comments}
@@ -222,9 +200,13 @@
                 loading={vm.store.loading}
                 {contentId}
                 {provider}
+                {threadPubkeys}
                 getPlaceholders={() => vm.store!.placeholders}
                 fetchOrphanParent={vm.store.fetchOrphanParent}
-                onQuote={(comment) => commentFormRef?.insertQuote(comment.id, comment.pubkey)}
+                bookmarked={vm.bookmarked}
+                bookmarkBusy={vm.bookmarkBusy}
+                onToggleBookmark={vm.toggleBookmark}
+                openUrl={provider.openUrl(contentId)}
               />
             {/if}
           </section>

@@ -17,13 +17,15 @@
     contentId: ContentId;
     provider: ContentProvider;
     threadPubkeys?: string[];
+    activeTab?: 'flow' | 'shout' | 'info';
   }
 
-  let { contentId, provider, threadPubkeys = [] }: Props = $props();
+  let { contentId, provider, threadPubkeys = [], activeTab = 'flow' }: Props = $props();
 
   const vm = createCommentFormViewModel({
     getContentId: () => contentId,
-    getProvider: () => provider
+    getProvider: () => provider,
+    getActiveTab: () => activeTab
   });
 
   const auth = getAuth();
@@ -91,35 +93,15 @@
       e.preventDefault();
       submit();
     }}
-    class="space-y-2"
+    class="sticky bottom-0 z-10 border-t border-border-subtle bg-surface-0 p-3 space-y-2"
   >
     <div class="flex items-center gap-2 text-xs">
-      <button
-        type="button"
-        disabled={vm.busy || !vm.hasPosition}
-        onclick={vm.selectTimedComment}
-        class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-medium transition-all duration-200 {vm.effectiveAttach
-          ? 'bg-accent/15 text-accent ring-1 ring-accent/30'
-          : vm.hasPosition && !vm.busy
-            ? 'bg-surface-3 text-text-muted hover:text-text-secondary'
-            : 'cursor-not-allowed bg-surface-3 text-text-muted/40'}"
-      >
-        <span class="font-mono">{vm.positionLabel ?? '--:--'}</span>
-        <span>{t('comment.timed')}</span>
-      </button>
-      <button
-        type="button"
-        disabled={vm.busy}
-        onclick={vm.selectGeneralComment}
-        class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-medium transition-all duration-200 {!vm.effectiveAttach
-          ? 'bg-accent/15 text-accent ring-1 ring-accent/30'
-          : 'bg-surface-3 text-text-muted hover:text-text-secondary'} disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        {t('comment.general')}
-      </button>
-    </div>
-
-    <div class="flex items-center gap-2 text-xs">
+      {#if activeTab === 'flow'}
+        <span class="font-mono text-xs rounded-full px-2 py-0.5
+          {vm.hasPosition ? 'bg-accent/10 text-accent' : 'bg-surface-3 text-text-muted/40'}">
+          {vm.positionLabel ?? '--:--'}
+        </span>
+      {/if}
       <button
         type="button"
         disabled={vm.busy}
