@@ -1,5 +1,7 @@
 import { untrack } from 'svelte';
 
+export type CommentTab = 'flow' | 'shout' | 'info';
+
 import type {
   Comment,
   PlaceholderComment,
@@ -55,6 +57,8 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
   const muteList = getMuteList();
 
   let followFilter = $state<FollowFilter>('all');
+  let activeTab = $state<CommentTab>('flow');
+  let shoutAtBottom = $state(true);
   let userScrolledAway = $state(false);
   let acting = $state<string | null>(null);
   let deleteTarget = $state<Comment | null>(null);
@@ -86,6 +90,8 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
     general.sort((a, b) => b.createdAt - a.createdAt);
     return { timedComments: timed, generalComments: general };
   });
+
+  let shoutComments = $derived([...generalComments].sort((a, b) => a.createdAt - b.createdAt));
 
   let replyMap = $derived.by(() => {
     const map = new Map<string, Comment[]>();
@@ -146,6 +152,18 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
 
   function setFollowFilter(filter: FollowFilter): void {
     followFilter = filter;
+  }
+
+  function setActiveTab(tab: CommentTab): void {
+    activeTab = tab;
+  }
+
+  function setShoutAtBottom(atBottom: boolean): void {
+    shoutAtBottom = atBottom;
+  }
+
+  function jumpToLatest(): void {
+    shoutAtBottom = true;
   }
 
   function findNearestTimedIndex(posMs: number): number {
@@ -344,6 +362,9 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
     get followFilter() {
       return followFilter;
     },
+    get activeTab() {
+      return activeTab;
+    },
     get filteredComments() {
       return filteredComments;
     },
@@ -352,6 +373,12 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
     },
     get generalComments() {
       return generalComments;
+    },
+    get shoutComments() {
+      return shoutComments;
+    },
+    get shoutAtBottom() {
+      return shoutAtBottom;
     },
     get userScrolledAway() {
       return userScrolledAway;
@@ -396,6 +423,9 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
       return orphanParents;
     },
     setFollowFilter,
+    setActiveTab,
+    setShoutAtBottom,
+    jumpToLatest,
     handleTimedRangeChange,
     jumpToNow,
     statsFor,

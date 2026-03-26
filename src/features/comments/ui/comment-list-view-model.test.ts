@@ -1222,4 +1222,209 @@ describe('createCommentListViewModel', () => {
       expect(vm.followFilter).toBe('follows');
     });
   });
+
+  // -------------------------------------------------------------------------
+  // activeTab
+  // -------------------------------------------------------------------------
+  describe('activeTab', () => {
+    it('defaults to flow', () => {
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.activeTab).toBe('flow');
+    });
+
+    it('updates when setActiveTab is called with shout', () => {
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      vm.setActiveTab('shout');
+      expect(vm.activeTab).toBe('shout');
+    });
+
+    it('updates when setActiveTab is called with info', () => {
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      vm.setActiveTab('info');
+      expect(vm.activeTab).toBe('info');
+    });
+
+    it('updates back to flow when setActiveTab is called with flow', () => {
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      vm.setActiveTab('shout');
+      vm.setActiveTab('flow');
+      expect(vm.activeTab).toBe('flow');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // shoutComments
+  // -------------------------------------------------------------------------
+  describe('shoutComments', () => {
+    it('contains only general comments (no timed, no replies)', () => {
+      const comments = [
+        createComment({ id: 't1', pubkey: 'me', content: 'timed', positionMs: 5_000 }),
+        createComment({ id: 'g1', pubkey: 'me', content: 'general', createdAt: 100 }),
+        createComment({
+          id: 'r1',
+          pubkey: 'me',
+          content: 'reply',
+          createdAt: 200,
+          replyTo: 'g1'
+        })
+      ];
+      const vm = createCommentListViewModel({
+        getComments: () => comments,
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.shoutComments).toHaveLength(1);
+      expect(vm.shoutComments[0].id).toBe('g1');
+    });
+
+    it('sorts general comments by createdAt ascending (oldest first)', () => {
+      const comments = [
+        createComment({ id: 'g1', pubkey: 'me', content: 'old', createdAt: 100 }),
+        createComment({ id: 'g3', pubkey: 'me', content: 'new', createdAt: 300 }),
+        createComment({ id: 'g2', pubkey: 'me', content: 'mid', createdAt: 200 })
+      ];
+      const vm = createCommentListViewModel({
+        getComments: () => comments,
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.shoutComments.map((c) => c.id)).toEqual(['g1', 'g2', 'g3']);
+    });
+
+    it('generalComments is still sorted descending (newest first) independently', () => {
+      const comments = [
+        createComment({ id: 'g1', pubkey: 'me', content: 'old', createdAt: 100 }),
+        createComment({ id: 'g3', pubkey: 'me', content: 'new', createdAt: 300 }),
+        createComment({ id: 'g2', pubkey: 'me', content: 'mid', createdAt: 200 })
+      ];
+      const vm = createCommentListViewModel({
+        getComments: () => comments,
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.generalComments.map((c) => c.id)).toEqual(['g3', 'g2', 'g1']);
+      expect(vm.shoutComments.map((c) => c.id)).toEqual(['g1', 'g2', 'g3']);
+    });
+
+    it('respects follow filter (same as generalComments)', () => {
+      const comments = [
+        createComment({ id: 'g-me', pubkey: 'me', content: 'mine', createdAt: 100 }),
+        createComment({ id: 'g-other', pubkey: 'other', content: 'other', createdAt: 200 })
+      ];
+      const vm = createCommentListViewModel({
+        getComments: () => comments,
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      vm.setFollowFilter('follows');
+      // 'other' is not 'followed' or 'me' for 'follows' filter... wait, matchesFilterMock
+      // returns true for 'me' when filter='follows'
+      expect(vm.shoutComments.map((c) => c.id)).toEqual(['g-me']);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // shoutAtBottom / setShoutAtBottom / jumpToLatest
+  // -------------------------------------------------------------------------
+  describe('shoutAtBottom', () => {
+    it('defaults to true', () => {
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.shoutAtBottom).toBe(true);
+    });
+
+    it('updates when setShoutAtBottom is called with false', () => {
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      vm.setShoutAtBottom(false);
+      expect(vm.shoutAtBottom).toBe(false);
+    });
+
+    it('updates when setShoutAtBottom is called with true', () => {
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      vm.setShoutAtBottom(false);
+      expect(vm.shoutAtBottom).toBe(false);
+
+      vm.setShoutAtBottom(true);
+      expect(vm.shoutAtBottom).toBe(true);
+    });
+  });
+
+  describe('jumpToLatest', () => {
+    it('sets shoutAtBottom to true', () => {
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      vm.setShoutAtBottom(false);
+      expect(vm.shoutAtBottom).toBe(false);
+
+      vm.jumpToLatest();
+      expect(vm.shoutAtBottom).toBe(true);
+    });
+
+    it('keeps shoutAtBottom true when already at bottom', () => {
+      const vm = createCommentListViewModel({
+        getComments: () => [],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      expect(vm.shoutAtBottom).toBe(true);
+      vm.jumpToLatest();
+      expect(vm.shoutAtBottom).toBe(true);
+    });
+  });
 });
