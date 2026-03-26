@@ -63,101 +63,137 @@
   }
 </script>
 
-<CommentFilterBar followFilter={vm.followFilter} onFilterChange={vm.setFollowFilter} />
+<!-- Heading row with filter -->
+<div class="flex items-center gap-2">
+  <span class="text-sm font-semibold text-text-primary">{t('comment.heading')}</span>
+  <div class="h-px flex-1 bg-border-subtle"></div>
+  <CommentFilterBar followFilter={vm.followFilter} onFilterChange={vm.setFollowFilter} />
+</div>
 
-<div class="space-y-6">
+<!-- Tab bar -->
+<div class="flex border-b border-border-subtle">
+  <button
+    type="button"
+    onclick={() => vm.setActiveTab('flow')}
+    class="flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors
+      {vm.activeTab === 'flow' ? 'border-b-2 border-accent text-accent -mb-px' : 'text-text-muted hover:text-text-secondary'}"
+  >
+    🎶 <span class="hidden sm:inline">{t('tab.flow')}</span>
+    {#if vm.timedComments.length > 0}
+      <span class="text-xs opacity-70">({vm.timedComments.length})</span>
+    {/if}
+  </button>
+  <button
+    type="button"
+    onclick={() => vm.setActiveTab('shout')}
+    class="flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors
+      {vm.activeTab === 'shout' ? 'border-b-2 border-amber-500 text-amber-500 -mb-px' : 'text-text-muted hover:text-text-secondary'}"
+  >
+    📢 <span class="hidden sm:inline">{t('tab.shout')}</span>
+    {#if vm.shoutComments.length > 0}
+      <span class="text-xs opacity-70">({vm.shoutComments.length})</span>
+    {/if}
+  </button>
+  <button
+    type="button"
+    onclick={() => vm.setActiveTab('info')}
+    class="flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors
+      {vm.activeTab === 'info' ? 'border-b-2 border-text-secondary text-text-secondary -mb-px' : 'text-text-muted hover:text-text-secondary'}"
+  >
+    ℹ️ <span class="hidden sm:inline">{t('tab.info')}</span>
+  </button>
+</div>
+
+<!-- Tab content -->
+<div>
+  {#snippet orphanPlaceholder(placeholder: PlaceholderComment)}
+    {@const orphanReplies = vm.replyMap.get(placeholder.id) ?? []}
+    <div class="rounded-lg border border-border-subtle bg-surface-secondary/30 px-4 py-3">
+      <div class="flex items-center gap-2">
+        {#if placeholder.positionMs !== null}
+          <span class="rounded bg-accent/10 px-1.5 py-0.5 font-mono text-xs text-accent">
+            {formatPosition(placeholder.positionMs)}
+          </span>
+        {/if}
+        <span class="text-sm italic text-text-muted">
+          {#if placeholder.status === 'loading'}
+            {t('comment.orphan.loading')}
+          {:else if placeholder.status === 'not-found'}
+            {t('comment.orphan.not_found')}
+          {:else}
+            {t('comment.orphan.deleted')}
+          {/if}
+        </span>
+      </div>
+      {#if orphanReplies.length > 0}
+        <div class="mt-2 space-y-2 pl-4">
+          {#each orphanReplies as reply (reply.id)}
+            <CommentCard
+              comment={reply}
+              author={vm.authorDisplayFor(reply.pubkey)}
+              index={0}
+              showPosition={reply.positionMs !== null}
+              nearCurrent={false}
+              stats={vm.statsFor(reply.id)}
+              myReaction={vm.myReactionFor(reply.id)}
+              isOwn={vm.isOwn(reply.pubkey)}
+              acting={vm.isActing(reply.id)}
+              loggedIn={vm.loggedIn}
+              revealedCW={vm.isRevealed(reply.id)}
+              canMute={vm.canMute}
+              popoverId={getPopoverId(reply.id)}
+              replyOpen={vm.isReplyOpen(reply.id)}
+              bind:replyContent={vm.replyContent}
+              bind:replyEmojiTags={vm.replyEmojiTags}
+              replySending={vm.replySending}
+              replies={vm.replyMap.get(reply.id) ?? []}
+              getAuthorDisplay={vm.authorDisplayFor}
+              getStats={vm.statsFor}
+              getMyReaction={vm.myReactionFor}
+              isActing={vm.isActing}
+              isRevealed={vm.isRevealed}
+              {getPopoverId}
+              onReaction={vm.sendReaction}
+              onDelete={vm.requestDelete}
+              onReply={vm.startReply}
+              onCancelReply={vm.cancelReply}
+              onSubmitReply={vm.submitReply}
+              onSeek={vm.seekToPosition}
+              onRevealCW={vm.revealCW}
+              onHideCW={vm.hideCW}
+              onMute={vm.requestMute}
+              {onQuote}
+              onReplyContentChange={(content) => (vm.replyContent = content)}
+              onReplyEmojiTagsChange={(tags) => (vm.replyEmojiTags = tags)}
+            />
+          {/each}
+        </div>
+      {/if}
+    </div>
+  {/snippet}
+
   {#if loading}
     <div class="flex items-center justify-center gap-3 py-8" role="status" aria-live="polite">
       <WaveformLoader />
       <span class="text-sm text-text-muted">{t('loading')}</span>
     </div>
-  {:else if vm.filteredComments.length === 0}
-    <p class="py-8 text-center text-sm text-text-muted">
-      {#if vm.followFilter !== 'all'}
-        {vm.followFilter === 'follows' ? t('comment.none.follows') : t('comment.none.wot')}
-      {:else}
-        {t('comment.none')}
-      {/if}
-    </p>
-  {:else}
-    {#snippet orphanPlaceholder(placeholder: PlaceholderComment)}
-      {@const orphanReplies = vm.replyMap.get(placeholder.id) ?? []}
-      <div class="rounded-lg border border-border-subtle bg-surface-secondary/30 px-4 py-3">
-        <div class="flex items-center gap-2">
-          {#if placeholder.positionMs !== null}
-            <span class="rounded bg-accent/10 px-1.5 py-0.5 font-mono text-xs text-accent">
-              {formatPosition(placeholder.positionMs)}
-            </span>
-          {/if}
-          <span class="text-sm italic text-text-muted">
-            {#if placeholder.status === 'loading'}
-              {t('comment.orphan.loading')}
-            {:else if placeholder.status === 'not-found'}
-              {t('comment.orphan.not_found')}
-            {:else}
-              {t('comment.orphan.deleted')}
-            {/if}
-          </span>
+  {:else if vm.activeTab === 'flow'}
+    {#if vm.timedComments.length === 0 && !vm.orphanParents.some((p) => p.positionMs !== null)}
+      <!-- Empty state CTA -->
+      <div class="flex flex-col items-center justify-center gap-3 py-12">
+        <div
+          class="flex h-14 w-14 items-center justify-center rounded-full border border-accent/20 bg-accent/10"
+        >
+          <span class="text-2xl text-accent">▶</span>
         </div>
-        {#if orphanReplies.length > 0}
-          <div class="mt-2 space-y-2 pl-4">
-            {#each orphanReplies as reply (reply.id)}
-              <CommentCard
-                comment={reply}
-                author={vm.authorDisplayFor(reply.pubkey)}
-                index={0}
-                showPosition={reply.positionMs !== null}
-                nearCurrent={false}
-                stats={vm.statsFor(reply.id)}
-                myReaction={vm.myReactionFor(reply.id)}
-                isOwn={vm.isOwn(reply.pubkey)}
-                acting={vm.isActing(reply.id)}
-                loggedIn={vm.loggedIn}
-                revealedCW={vm.isRevealed(reply.id)}
-                canMute={vm.canMute}
-                popoverId={getPopoverId(reply.id)}
-                replyOpen={vm.isReplyOpen(reply.id)}
-                bind:replyContent={vm.replyContent}
-                bind:replyEmojiTags={vm.replyEmojiTags}
-                replySending={vm.replySending}
-                replies={vm.replyMap.get(reply.id) ?? []}
-                getAuthorDisplay={vm.authorDisplayFor}
-                getStats={vm.statsFor}
-                getMyReaction={vm.myReactionFor}
-                isActing={vm.isActing}
-                isRevealed={vm.isRevealed}
-                {getPopoverId}
-                onReaction={vm.sendReaction}
-                onDelete={vm.requestDelete}
-                onReply={vm.startReply}
-                onCancelReply={vm.cancelReply}
-                onSubmitReply={vm.submitReply}
-                onSeek={vm.seekToPosition}
-                onRevealCW={vm.revealCW}
-                onHideCW={vm.hideCW}
-                onMute={vm.requestMute}
-                {onQuote}
-                onReplyContentChange={(content) => (vm.replyContent = content)}
-                onReplyEmojiTagsChange={(tags) => (vm.replyEmojiTags = tags)}
-              />
-            {/each}
-          </div>
-        {/if}
+        <div class="text-center">
+          <p class="text-sm font-semibold text-text-secondary">{t('comment.empty.flow.title')}</p>
+          <p class="mt-1 text-xs text-text-muted">{t('comment.empty.flow.subtitle')}</p>
+        </div>
       </div>
-    {/snippet}
-
-    {#if vm.timedComments.length > 0 || vm.orphanParents.some((p) => p.positionMs !== null)}
-      <section class="space-y-3">
+    {:else}
+      <section class="space-y-3 pt-3">
         <div class="flex items-center gap-2">
-          <span class="text-xs font-semibold tracking-wide text-text-secondary uppercase"
-            >{t('comment.section.timed')}</span
-          >
-          {#if vm.timedComments.length > 0}
-            <span class="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-mono text-accent"
-              >{vm.timedComments.length}</span
-            >
-          {/if}
-          <div class="h-px flex-1 bg-border-subtle"></div>
           {#if vm.userScrolledAway}
             <button
               type="button"
@@ -186,6 +222,7 @@
                   {comment}
                   author={vm.authorDisplayFor(comment.pubkey)}
                   index={i}
+                  mode="flow"
                   showPosition={true}
                   nearCurrent={comment.positionMs !== null &&
                     vm.isNearCurrentPosition(comment.positionMs)}
@@ -227,27 +264,18 @@
         {/if}
       </section>
     {/if}
-
-    {#if vm.generalComments.length > 0 || vm.orphanParents.some((p) => p.positionMs === null)}
-      <section class="space-y-3">
-        <div class="flex items-center gap-2">
-          <span class="text-xs font-semibold tracking-wide text-text-secondary uppercase"
-            >{t('comment.section.general')}</span
-          >
-          {#if vm.generalComments.length > 0}
-            <span class="rounded-full bg-surface-3 px-2 py-0.5 text-xs font-mono text-text-muted"
-              >{vm.generalComments.length}</span
-            >
-          {/if}
-          <div class="h-px flex-1 bg-border-subtle"></div>
-        </div>
+  {:else if vm.activeTab === 'shout'}
+    {#if vm.shoutComments.length === 0 && !vm.orphanParents.some((p) => p.positionMs === null)}
+      <p class="py-12 text-center text-sm text-text-muted">{t('comment.empty.shout')}</p>
+    {:else}
+      <section class="space-y-3 pt-3">
         {#each vm.orphanParents.filter((p) => p.positionMs === null) as placeholder (placeholder.id)}
           {@render orphanPlaceholder(placeholder)}
         {/each}
-        {#if vm.generalComments.length > 0}
-          <div class="flex max-h-[400px] flex-col rounded-xl border border-border-subtle">
+        {#if vm.shoutComments.length > 0}
+          <div class="max-h-[400px] overflow-hidden rounded-xl border border-border-subtle">
             <VirtualScrollList
-              items={vm.generalComments}
+              items={vm.shoutComments}
               keyFn={(c) => c.id}
               estimateHeight={120}
               overscan={3}
@@ -257,6 +285,7 @@
                   {comment}
                   author={vm.authorDisplayFor(comment.pubkey)}
                   index={i}
+                  mode="shout"
                   showPosition={false}
                   stats={vm.statsFor(comment.id)}
                   myReaction={vm.myReactionFor(comment.id)}
@@ -296,6 +325,10 @@
         {/if}
       </section>
     {/if}
+  {:else if vm.activeTab === 'info'}
+    <div class="space-y-4 px-2 py-6">
+      <p class="text-sm text-text-muted">Info tab content will be added in a later task.</p>
+    </div>
   {/if}
 </div>
 
