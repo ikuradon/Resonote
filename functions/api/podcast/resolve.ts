@@ -101,18 +101,27 @@ export function extractTagContent(xml: string, tag: string): string {
   return '';
 }
 
-/** Strip HTML tags and decode common entities to produce plain text. */
-export function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<[^>]+>/g, '')
+function decodeEntities(text: string): string {
+  return text
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ')
+    .replace(/&nbsp;/g, ' ');
+}
+
+/**
+ * Strip HTML tags and decode entities to produce plain text.
+ * Two-pass: decode entities first (handles XML-escaped markup like &lt;p&gt;),
+ * then strip tags.
+ */
+export function stripHtml(html: string): string {
+  const decoded = decodeEntities(html);
+  return decoded
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }

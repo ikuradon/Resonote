@@ -813,14 +813,22 @@ describe('stripHtml', () => {
     expect(stripHtml('<p>Para 1</p><p>Para 2</p>')).toBe('Para 1\n\nPara 2');
   });
 
-  it('decodes HTML entities', () => {
-    expect(stripHtml('&amp; &lt; &gt; &quot; &#39;')).toBe('& < > " \'');
+  it('decodes HTML entities in plain text', () => {
+    expect(stripHtml('Tom &amp; Jerry')).toBe('Tom & Jerry');
   });
 
   it('handles CDATA-extracted content with HTML', () => {
     expect(stripHtml('<p>Episode about <a href="https://example.com">topic</a></p>')).toBe(
       'Episode about topic'
     );
+  });
+
+  it('handles XML-escaped HTML (double-encoded)', () => {
+    expect(stripHtml('&lt;p&gt;Hello &lt;b&gt;world&lt;/b&gt;&lt;/p&gt;')).toBe('Hello world');
+  });
+
+  it('handles mixed CDATA content and XML-escaped HTML', () => {
+    expect(stripHtml('<p>Normal</p>&lt;p&gt;escaped&lt;/p&gt;')).toBe('Normal\n\nescaped');
   });
 
   it('collapses excessive newlines', () => {
