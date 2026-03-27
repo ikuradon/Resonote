@@ -389,6 +389,7 @@
               onHideCW={vm.hideCW}
               onMute={vm.requestMute}
               onQuote={handleQuote}
+              getIsOwn={vm.isOwn}
               onReplyContentChange={(content) => (vm.replyContent = content)}
               onReplyEmojiTagsChange={(tags) => (vm.replyEmojiTags = tags)}
             />

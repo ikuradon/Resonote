@@ -4,6 +4,7 @@
   import type { Action } from 'svelte/action';
 
   import { isNodeInsideElements, manageClickOutside } from '$shared/browser/click-outside.js';
+  import { copyToClipboard } from '$shared/browser/clipboard.js';
   import { toastSuccess } from '$shared/browser/toast.js';
   import { t } from '$shared/i18n/t.js';
 
@@ -108,15 +109,15 @@
   }
 
   async function copyId() {
-    await navigator.clipboard.writeText(`nostr:${buildNevent()}`);
-    toastSuccess(t('menu.copied'));
+    const ok = await copyToClipboard(`nostr:${buildNevent()}`);
+    if (ok) toastSuccess(t('menu.copied'));
     close();
   }
 
   async function copyLink() {
     const url = `${window.location.origin}/${buildNevent()}`;
-    await navigator.clipboard.writeText(url);
-    toastSuccess(t('menu.copied'));
+    const ok = await copyToClipboard(url);
+    if (ok) toastSuccess(t('menu.copied'));
     close();
   }
 

@@ -53,6 +53,7 @@
     onQuote?: (comment: Comment) => void;
     onReplyContentChange: (content: string) => void;
     onReplyEmojiTagsChange: (tags: string[][]) => void;
+    getIsOwn?: (pubkey: string) => boolean;
     selected?: boolean;
   }
 
@@ -95,6 +96,7 @@
     onQuote,
     onReplyContentChange,
     onReplyEmojiTagsChange,
+    getIsOwn,
     selected = false
   }: Props = $props();
 
@@ -425,7 +427,7 @@
             compact={true}
             stats={getStats(reply.id)}
             myReaction={getMyReaction(reply.id)}
-            isOwn={loggedIn && reply.pubkey === comment.pubkey}
+            isOwn={getIsOwn?.(reply.pubkey) ?? false}
             acting={isActing(reply.id)}
             {loggedIn}
             revealedCW={isRevealed(reply.id)}
