@@ -397,7 +397,7 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
       return auth.canWrite;
     },
     get canMute() {
-      return hasNip44Support();
+      return auth.canWrite && hasNip44Support();
     },
     get replyMap() {
       return replyMap;
