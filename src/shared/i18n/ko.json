@@ -91,7 +91,7 @@
   "content.requires_extension": "이 콘텐츠는 Resonote 확장 프로그램이 필요합니다",
   "content.install_chrome": "Chrome용 설치",
   "content.install_firefox": "Firefox용 설치",
-  "content.open_and_comment": "콘텐츠를 열고 댓글 달기",
+  "content.open_and_comment": "원본 페이지 열기",
   "content.unsupported": "지원되지 않는 콘텐츠",
   "content.back_home": "홈으로 돌아가기",
   "show.episodes": "{name}의 모든 에피소드 보기",

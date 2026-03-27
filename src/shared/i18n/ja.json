@@ -85,7 +85,7 @@
   "content.requires_extension": "このコンテンツにはResonote拡張機能が必要です",
   "content.install_chrome": "Chrome版をインストール",
   "content.install_firefox": "Firefox版をインストール",
-  "content.open_and_comment": "コンテンツを開いてコメントする",
+  "content.open_and_comment": "元ページを開く",
   "content.unsupported": "サポートされていないコンテンツ",
   "content.back_home": "ホームに戻る",
   "show.episodes": "{name}の全エピソードを見る",

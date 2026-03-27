@@ -91,7 +91,7 @@
   "content.requires_extension": "此内容需要Resonote扩展程序",
   "content.install_chrome": "安装Chrome版",
   "content.install_firefox": "安装Firefox版",
-  "content.open_and_comment": "打开并评论此内容",
+  "content.open_and_comment": "打开原始页面",
   "content.unsupported": "不支持的内容",
   "content.back_home": "返回首页",
   "show.episodes": "在{name}上查看所有剧集",

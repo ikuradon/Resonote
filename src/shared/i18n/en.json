@@ -85,7 +85,7 @@
   "content.requires_extension": "This content requires the Resonote extension",
   "content.install_chrome": "Install for Chrome",
   "content.install_firefox": "Install for Firefox",
-  "content.open_and_comment": "Open and comment on this content",
+  "content.open_and_comment": "Open original",
   "content.unsupported": "Unsupported content",
   "content.back_home": "Back to home",
   "show.episodes": "View all episodes on {name}",
