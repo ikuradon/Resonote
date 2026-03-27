@@ -91,7 +91,12 @@
     // Rebuild offsets for new items
     untrack(() => rebuildOffsets());
     // Update containerHeight in case it was 0 at mount time (fixes 0→N transition #153)
-    if (container) containerHeight = container.clientHeight;
+    // Also sync scrollTop — browser clamps it when scrollHeight shrinks (e.g. item deletion),
+    // but our $state doesn't update without a scroll event.
+    if (container) {
+      containerHeight = container.clientHeight;
+      scrollTop = container.scrollTop;
+    }
 
     // Compensate scroll for items inserted above viewport
     if (container && oldKeys.length > 0) {
