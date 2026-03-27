@@ -182,12 +182,16 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
     return result;
   }
 
+  /** 'up' = current position is above viewport (user scrolled to future), 'down' = below (user scrolled to past) */
+  let jumpDirection = $state<'up' | 'down'>('down');
+
   function handleTimedRangeChange(start: number, end: number): void {
     const timedList = options.getTimedList?.();
     if (timedList && !timedList.isAutoScrolling() && player.position > 0) {
       const target = findNearestTimedIndex(player.position);
       if (target < start || target > end) {
         userScrolledAway = true;
+        jumpDirection = target < start ? 'up' : 'down';
       }
     }
   }
@@ -382,6 +386,9 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
     },
     get userScrolledAway() {
       return userScrolledAway;
+    },
+    get jumpDirection() {
+      return jumpDirection;
     },
     get loggedIn() {
       return auth.loggedIn;

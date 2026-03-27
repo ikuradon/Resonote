@@ -295,22 +295,23 @@
       </div>
     {:else}
       <section class="space-y-3 pt-3">
-        <div class="flex items-center gap-2">
-          {#if vm.userScrolledAway}
-            <button
-              type="button"
-              onclick={vm.jumpToNow}
-              class="rounded-lg bg-accent/20 px-2 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/30"
-            >
-              {t('comment.jump_to_now')}
-            </button>
-          {/if}
-        </div>
         {#each vm.orphanParents.filter((p) => p.positionMs !== null) as placeholder (placeholder.id)}
           {@render orphanPlaceholder(placeholder)}
         {/each}
         {#if vm.timedComments.length > 0}
-          <div class="flex max-h-[400px] flex-col rounded-xl border border-border-subtle">
+          <div class="relative flex max-h-[400px] flex-col rounded-xl border border-border-subtle">
+            {#if vm.userScrolledAway}
+              <button
+                type="button"
+                onclick={vm.jumpToNow}
+                class="absolute {vm.jumpDirection === 'up'
+                  ? 'top-2'
+                  : 'bottom-2'} right-2 z-30 rounded-lg bg-accent/90 px-3 py-1 text-xs font-medium text-white shadow-lg transition-colors hover:bg-accent"
+              >
+                {vm.jumpDirection === 'up' ? '↑' : '↓'}
+                {t('comment.jump_to_now')}
+              </button>
+            {/if}
             <VirtualScrollList
               bind:this={timedVirtualList}
               items={vm.timedComments}
