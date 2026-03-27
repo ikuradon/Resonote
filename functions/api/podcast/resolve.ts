@@ -91,7 +91,7 @@ function signBookmarkEvent(
 
 export function extractTagContent(xml: string, tag: string): string {
   const patterns = [
-    new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]></${tag}>`, 'i'),
+    new RegExp(`<${tag}[^>]*>\\s*<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>\\s*</${tag}>`, 'i'),
     new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'i')
   ];
   for (const pattern of patterns) {
@@ -119,6 +119,8 @@ function decodeEntities(text: string): string {
 export function stripHtml(html: string): string {
   const decoded = decodeEntities(html);
   return decoded
+    .replace(/<!\[CDATA\[/g, '')
+    .replace(/\]\]>/g, '')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
     .replace(/<[^>]+>/g, '')

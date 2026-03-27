@@ -91,6 +91,18 @@ describe('extractTagContent', () => {
     );
   });
 
+  it('should extract CDATA with whitespace before closing tag', () => {
+    expect(
+      extractTagContent('<description><![CDATA[content]]>\n</description>', 'description')
+    ).toBe('content');
+  });
+
+  it('should extract CDATA with whitespace after opening tag', () => {
+    expect(
+      extractTagContent('<description>\n<![CDATA[content]]></description>', 'description')
+    ).toBe('content');
+  });
+
   it('should handle namespaced tags', () => {
     expect(
       extractTagContent('<itunes:summary>Summary here</itunes:summary>', 'itunes:summary')
@@ -841,5 +853,13 @@ describe('stripHtml', () => {
 
   it('returns plain text unchanged', () => {
     expect(stripHtml('Just plain text')).toBe('Just plain text');
+  });
+
+  it('strips residual CDATA markers', () => {
+    expect(stripHtml('<![CDATA[<p>content</p>]]>')).toBe('content');
+  });
+
+  it('strips ]]> without matching <![CDATA[', () => {
+    expect(stripHtml('text]]> more')).toBe('text more');
   });
 });

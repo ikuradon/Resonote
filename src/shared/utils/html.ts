@@ -18,8 +18,10 @@ function decodeEntities(text: string): string {
 export function stripHtml(html: string): string {
   // Pass 1: decode XML entities so &lt;p&gt; becomes <p>
   const decoded = decodeEntities(html);
-  // Pass 2: convert block elements to whitespace, strip tags, decode again
+  // Pass 2: strip CDATA markers, convert block elements, strip tags
   return decoded
+    .replace(/<!\[CDATA\[/g, '')
+    .replace(/\]\]>/g, '')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
     .replace(/<[^>]+>/g, '')
