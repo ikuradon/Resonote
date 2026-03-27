@@ -53,6 +53,7 @@
     onQuote?: (comment: Comment) => void;
     onReplyContentChange: (content: string) => void;
     onReplyEmojiTagsChange: (tags: string[][]) => void;
+    selected?: boolean;
   }
 
   let {
@@ -93,7 +94,8 @@
     onMute,
     onQuote,
     onReplyContentChange,
-    onReplyEmojiTagsChange
+    onReplyEmojiTagsChange,
+    selected = false
   }: Props = $props();
 
   const segments = $derived(parseCommentContent(comment.content, comment.emojiTags));
@@ -122,7 +124,9 @@
     ? 'border-accent/50 bg-accent/5 shadow-[0_0_12px_rgba(var(--color-accent-rgb,29,185,84),0.1)]'
     : compact
       ? ''
-      : 'border-border-subtle bg-surface-1 hover:border-border'}"
+      : 'border-border-subtle bg-surface-1 hover:border-border'} {selected
+    ? 'ring-2 ring-accent/50'
+    : ''}"
   style={compact ? '' : `animation-delay: ${Math.min(index * 0.05, 0.5)}s`}
 >
   <div class="{compact ? 'mb-1.5' : 'mb-2'} flex items-center justify-between">

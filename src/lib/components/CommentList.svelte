@@ -9,6 +9,10 @@
   import { createCommentListViewModel } from '$features/comments/ui/comment-list-view-model.svelte.js';
   import { useCommentProfilePreload } from '$features/comments/ui/comment-profile-preload.svelte.js';
   import type { ContentMetadata } from '$features/content-resolution/domain/content-metadata.js';
+  import { createKeyboardShortcuts } from '$shared/browser/keyboard-shortcuts.js';
+  import { dispatchTogglePlayback } from '$shared/browser/playback-bridge.js';
+  import { getPlayer } from '$shared/browser/player.js';
+  import { dispatchSeek } from '$shared/browser/seek-bridge.js';
   import type { ContentId, ContentProvider } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
   import { formatPosition } from '$shared/nostr/events.js';
@@ -20,6 +24,7 @@
   import ConfirmDialog from './ConfirmDialog.svelte';
   import { allocateEmojiPopoverId } from './emoji-popover-id.js';
   import ShareButton from './ShareButton.svelte';
+  import ShortcutHelpDialog from './ShortcutHelpDialog.svelte';
   import VirtualScrollList from './VirtualScrollList.svelte';
   import WaveformLoader from './WaveformLoader.svelte';
 
@@ -81,6 +86,10 @@
   function handleShareClick(): void {
     shareButtonRef?.openMenu();
   }
+
+  // --- Keyboard shortcut state ---
+  let selectedIndex = $state(-1);
+  let shortcutHelpOpen = $state(false);
 
   // --- Virtual scroll auto-scroll ---
   let timedVirtualList = $state<VirtualScrollList<Comment> | undefined>();
@@ -187,6 +196,124 @@
       commentFormRef?.insertQuote(comment.id, comment.pubkey);
     }
   }
+
+  // --- Keyboard shortcuts ---
+  const SEEK_STEP = 5000;
+
+  let visibleComments = $derived(
+    vm.activeTab === 'flow' ? vm.timedComments : vm.activeTab === 'shout' ? vm.shoutComments : []
+  );
+
+  let selectedComment = $derived(
+    selectedIndex >= 0 && selectedIndex < visibleComments.length
+      ? visibleComments[selectedIndex]
+      : null
+  );
+
+  let activeVirtualList = $derived(
+    vm.activeTab === 'flow'
+      ? timedVirtualList
+      : vm.activeTab === 'shout'
+        ? shoutVirtualList
+        : undefined
+  );
+
+  // Reset selection on tab change
+  $effect(() => {
+    void vm.activeTab;
+    selectedIndex = -1;
+  });
+
+  // Initialize keyboard shortcuts + focus tracking
+  $effect(() => {
+    const s = createKeyboardShortcuts({
+      focusForm: () => {
+        if (vm.activeTab === 'info' || !vm.canWrite) return;
+        commentFormRef?.focusInput();
+      },
+      switchToFlow: () => vm.setActiveTab('flow'),
+      switchToShout: () => vm.setActiveTab('shout'),
+      switchToInfo: () => vm.setActiveTab('info'),
+      nextComment: () => {
+        if (vm.activeTab === 'info') return;
+        if (selectedIndex < visibleComments.length - 1) {
+          selectedIndex += 1;
+          activeVirtualList?.scrollToIndex(selectedIndex);
+        }
+      },
+      prevComment: () => {
+        if (vm.activeTab === 'info') return;
+        if (selectedIndex > 0) {
+          selectedIndex -= 1;
+          activeVirtualList?.scrollToIndex(selectedIndex);
+        } else if (selectedIndex === -1 && visibleComments.length > 0) {
+          selectedIndex = 0;
+          activeVirtualList?.scrollToIndex(0);
+        }
+      },
+      replyToSelected: () => {
+        if (!selectedComment || !vm.canWrite) return;
+        vm.startReply(selectedComment);
+      },
+      likeSelected: () => {
+        if (!selectedComment || !vm.canWrite) return;
+        vm.sendReaction(selectedComment);
+      },
+      clearSelection: () => {
+        selectedIndex = -1;
+      },
+      toggleBookmark: () => {
+        if (!vm.canWrite) return;
+        handleBookmarkClick();
+      },
+      openShare: () => {
+        handleShareClick();
+      },
+      togglePlayback: () => {
+        dispatchTogglePlayback();
+      },
+      seekBackward: () => {
+        const player = getPlayer();
+        dispatchSeek(Math.max(0, player.position - SEEK_STEP));
+      },
+      seekForward: () => {
+        const player = getPlayer();
+        dispatchSeek(Math.min(player.duration, player.position + SEEK_STEP));
+      },
+      showHelp: () => {
+        shortcutHelpOpen = true;
+      }
+    });
+
+    function onFocusIn(e: FocusEvent) {
+      const target = e.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        s.setInputFocused(true);
+      }
+    }
+    function onFocusOut(e: FocusEvent) {
+      const rt = e.relatedTarget;
+      if (
+        !(rt instanceof HTMLInputElement) &&
+        !(rt instanceof HTMLTextAreaElement) &&
+        !(rt instanceof HTMLElement && rt.isContentEditable)
+      ) {
+        s.setInputFocused(false);
+      }
+    }
+    document.addEventListener('focusin', onFocusIn);
+    document.addEventListener('focusout', onFocusOut);
+
+    return () => {
+      s.destroy();
+      document.removeEventListener('focusin', onFocusIn);
+      document.removeEventListener('focusout', onFocusOut);
+    };
+  });
 </script>
 
 <CommentTabBar
@@ -324,6 +451,7 @@
                   index={i}
                   mode="flow"
                   showPosition={true}
+                  selected={selectedIndex === i}
                   nearCurrent={comment.positionMs !== null &&
                     vm.isNearCurrentPosition(comment.positionMs)}
                   stats={vm.statsFor(comment.id)}
@@ -410,6 +538,7 @@
                   index={i}
                   mode="shout"
                   showPosition={false}
+                  selected={selectedIndex === i}
                   stats={vm.statsFor(comment.id)}
                   myReaction={vm.myReactionFor(comment.id)}
                   isOwn={vm.isOwn(comment.pubkey)}
@@ -507,3 +636,5 @@
 />
 
 <ShareButton bind:this={shareButtonRef} {contentId} {provider} headless />
+
+<ShortcutHelpDialog open={shortcutHelpOpen} onClose={() => (shortcutHelpOpen = false)} />

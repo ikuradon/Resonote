@@ -44,6 +44,11 @@
 
   let formEl = $state<HTMLFormElement | null>(null);
 
+  export function focusInput(): void {
+    const textarea = formEl?.querySelector('textarea');
+    if (textarea instanceof HTMLTextAreaElement) textarea.focus();
+  }
+
   export function insertQuote(eventId: string, authorPubkey: string): void {
     if (vm.busy) return;
     vm.insertQuote(eventId, authorPubkey);

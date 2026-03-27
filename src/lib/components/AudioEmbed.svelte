@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onTogglePlayback } from '$shared/browser/playback-bridge.js';
   import type { ContentId } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
   import { formatDuration } from '$shared/utils/format.js';
@@ -18,6 +19,12 @@
   const vm = createAudioEmbedViewModel({
     getContentId: () => contentId,
     getEnclosureUrl: () => enclosureUrl
+  });
+
+  $effect(() => {
+    return onTogglePlayback(() => {
+      vm.togglePlayPause();
+    });
   });
 </script>
 

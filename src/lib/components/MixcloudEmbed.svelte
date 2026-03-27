@@ -1,8 +1,10 @@
 <script lang="ts">
   import { createAsyncReadyTimeout } from '$shared/browser/async-ready-timeout.js';
+  import { onTogglePlayback } from '$shared/browser/playback-bridge.js';
   import { updatePlayback } from '$shared/browser/player.js';
   import { loadExternalScript } from '$shared/browser/script-loader.js';
   import { onSeek } from '$shared/browser/seek-bridge.js';
+  import { toastInfo } from '$shared/browser/toast.js';
   import { MixcloudProvider } from '$shared/content/mixcloud.js';
   import type { ContentId } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
@@ -46,6 +48,9 @@
     if (!iframeEl) return;
 
     const cleanupSeek = onSeek(handleSeek);
+    const cleanupToggle = onTogglePlayback(() => {
+      toastInfo(t('playback.shortcut_unsupported'));
+    });
 
     let cancelled = false;
     let cachedPaused = true;
@@ -97,6 +102,7 @@
       cancelled = true;
       readyTimeout.cancel();
       cleanupSeek();
+      cleanupToggle();
       if (widget && progressHandler && playHandler && pauseHandler) {
         widget.events.progress.off(progressHandler);
         widget.events.play.off(playHandler);

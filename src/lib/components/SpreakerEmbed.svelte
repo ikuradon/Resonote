@@ -16,8 +16,10 @@
 <script lang="ts">
   import { createAsyncReadyTimeout } from '$shared/browser/async-ready-timeout.js';
   import { type IntervalTaskHandle, startIntervalTask } from '$shared/browser/interval-task.js';
+  import { onTogglePlayback } from '$shared/browser/playback-bridge.js';
   import { setContent, updatePlayback } from '$shared/browser/player.js';
   import { onSeek } from '$shared/browser/seek-bridge.js';
+  import { toastInfo } from '$shared/browser/toast.js';
   import type { ContentId } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
 
@@ -52,6 +54,9 @@
     if (!containerEl) return;
 
     const cleanupSeek = onSeek(handleSeek);
+    const cleanupToggle = onTogglePlayback(() => {
+      toastInfo(t('playback.shortcut_unsupported'));
+    });
 
     let cancelled = false;
     let spReadyTimer: IntervalTaskHandle | undefined;
@@ -129,6 +134,7 @@
       readyTimeout.cancel();
       spReadyTimer?.stop();
       cleanupSeek();
+      cleanupToggle();
       pollTimer?.stop();
       pollTimer = undefined;
       clearTimeout(positionSyncDelay);
