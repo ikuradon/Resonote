@@ -27,7 +27,8 @@ export const LOCALES = [
   { code: 'pt_br', label: 'Português', flag: '🇧🇷', prefix: 'pt-br' },
   { code: 'ko', label: '한국어', flag: '🇰🇷', prefix: 'ko' },
   { code: 'fr', label: 'Français', flag: '🇫🇷', prefix: 'fr' },
-  { code: 'ja_osaka', label: '大阪弁', flag: '🏯', prefix: '' },
+  { code: 'ja_osaka', label: '大阪弁', flag: '🐙', prefix: '' },
+  { code: 'ja_kyoto', label: '京都弁', flag: '⛩️', prefix: '' },
   { code: 'ja_villainess', label: '悪役令嬢', flag: '👑', prefix: '' }
 ] as const satisfies readonly LocaleInfo[];
 

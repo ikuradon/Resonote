@@ -30,7 +30,6 @@
     class="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-text-muted transition-colors hover:bg-surface-1 hover:text-text-secondary"
   >
     <span>{currentLocale.flag}</span>
-    <span>{currentLocale.code.toUpperCase()}</span>
   </button>
 
   {#if open}
