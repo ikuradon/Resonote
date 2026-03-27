@@ -5,9 +5,10 @@ const log = createLogger('auth');
 interface AuthState {
   pubkey: string | null;
   initialized: boolean;
+  readOnly: boolean;
 }
 
-let state = $state<AuthState>({ pubkey: null, initialized: false });
+let state = $state<AuthState>({ pubkey: null, initialized: false, readOnly: false });
 
 async function onLogin(pubkey: string) {
   log.info('Login', { pubkey: shortHex(pubkey) });
@@ -24,6 +25,7 @@ async function onLogout() {
   try {
     log.info('Logout');
     state.pubkey = null;
+    state.readOnly = false;
     const { destroySession } = await import('$appcore/bootstrap/init-session.js');
     await destroySession();
   } finally {
@@ -41,6 +43,17 @@ export function getAuth() {
     },
     get loggedIn() {
       return state.pubkey !== null;
+    },
+    get readOnly() {
+      return state.readOnly;
+    },
+    /** Logged in with write capability (not readOnly) */
+    get canWrite() {
+      return state.pubkey !== null && !state.readOnly;
+    },
+    /** NIP-44 encryption available via window.nostr.nip44 */
+    get hasNip44() {
+      return typeof window !== 'undefined' && !!window.nostr?.nip44;
     }
   };
 }
@@ -52,9 +65,10 @@ export async function initAuth(): Promise<void> {
   log.info('Initializing nostr-login...');
 
   document.addEventListener('nlAuth', (e: Event) => {
-    const detail = (e as CustomEvent<{ type: string }>).detail;
-    log.debug('nlAuth event', { type: detail.type });
+    const detail = (e as CustomEvent<{ type: string; method?: string }>).detail;
+    log.debug('nlAuth event', { type: detail.type, method: detail.method });
     if (detail.type === 'login' || detail.type === 'signup') {
+      state.readOnly = detail.method === 'readOnly';
       window.nostr
         ?.getPublicKey()
         .then((pk) => onLogin(pk))

@@ -6,15 +6,20 @@
   const vm = createMuteSettingsViewModel();
 </script>
 
-<section class="rounded-2xl border border-border bg-surface-1 p-6 space-y-5">
+<section class="relative rounded-2xl border border-border bg-surface-1 p-6 space-y-5">
   <h2 class="font-display text-lg font-semibold text-text-primary">
     {t('mute.title')}
   </h2>
 
   {#if !vm.nip44Supported}
-    <p class="rounded-xl bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
-      {t('mute.nip44_required')}
-    </p>
+    <!-- Blur overlay for NIP-44 unsupported -->
+    <div
+      class="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-surface-1/60 backdrop-blur-sm"
+    >
+      <p class="rounded-xl bg-amber-500/10 px-6 py-4 text-sm font-medium text-amber-400">
+        {t('mute.nip44_required')}
+      </p>
+    </div>
   {/if}
 
   <div class="space-y-2">

@@ -202,7 +202,7 @@
               myReaction={vm.myReactionFor(reply.id)}
               isOwn={vm.isOwn(reply.pubkey)}
               acting={vm.isActing(reply.id)}
-              loggedIn={vm.loggedIn}
+              loggedIn={vm.canWrite}
               revealedCW={vm.isRevealed(reply.id)}
               canMute={vm.canMute}
               popoverId={getPopoverId(reply.id)}
@@ -295,7 +295,7 @@
                   myReaction={vm.myReactionFor(comment.id)}
                   isOwn={vm.isOwn(comment.pubkey)}
                   acting={vm.isActing(comment.id)}
-                  loggedIn={vm.loggedIn}
+                  loggedIn={vm.canWrite}
                   revealedCW={vm.isRevealed(comment.id)}
                   canMute={vm.canMute}
                   popoverId={getPopoverId(comment.id)}
@@ -374,7 +374,7 @@
                   myReaction={vm.myReactionFor(comment.id)}
                   isOwn={vm.isOwn(comment.pubkey)}
                   acting={vm.isActing(comment.id)}
-                  loggedIn={vm.loggedIn}
+                  loggedIn={vm.canWrite}
                   revealedCW={vm.isRevealed(comment.id)}
                   canMute={vm.canMute}
                   popoverId={getPopoverId(comment.id)}
@@ -412,7 +412,7 @@
     <CommentInfoTab
       {contentId}
       {provider}
-      loggedIn={vm.loggedIn}
+      loggedIn={vm.canWrite}
       {bookmarked}
       {bookmarkBusy}
       {onToggleBookmark}
@@ -422,7 +422,7 @@
 </div>
 
 {#if vm.activeTab !== 'info'}
-  {#if vm.loggedIn}
+  {#if vm.canWrite}
     <CommentForm
       bind:this={commentFormRef}
       {contentId}

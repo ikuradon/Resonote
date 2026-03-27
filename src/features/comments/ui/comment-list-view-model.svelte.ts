@@ -393,6 +393,9 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
     get loggedIn() {
       return auth.loggedIn;
     },
+    get canWrite() {
+      return auth.canWrite;
+    },
     get canMute() {
       return hasNip44Support();
     },
