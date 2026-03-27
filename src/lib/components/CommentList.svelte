@@ -197,6 +197,13 @@
     }
   }
 
+  // --- Podcast feed link ---
+  let feedHref = $derived(
+    contentId.platform === 'podcast' && contentId.type === 'episode'
+      ? `/podcast/feed/${contentId.id.split(':')[0]}`
+      : null
+  );
+
   // --- Keyboard shortcuts ---
   const SEEK_STEP = 5000;
 
@@ -580,7 +587,12 @@
       </section>
     {/if}
   {:else if vm.activeTab === 'info'}
-    <CommentInfoTab metadata={contentMetadata} metadataLoading={contentMetadataLoading} {openUrl} />
+    <CommentInfoTab
+      metadata={contentMetadata}
+      metadataLoading={contentMetadataLoading}
+      {openUrl}
+      subtitleHref={feedHref ?? undefined}
+    />
   {/if}
 </div>
 

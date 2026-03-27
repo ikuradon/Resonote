@@ -16,6 +16,13 @@
   }
 
   let { contentId, enclosureUrl, title, feedTitle, image, openUrl }: Props = $props();
+
+  /** Link to podcast feed page (episode list) when viewing a podcast episode */
+  let feedHref = $derived(
+    contentId.platform === 'podcast' && contentId.type === 'episode'
+      ? `/podcast/feed/${contentId.id.split(':')[0]}`
+      : null
+  );
   const vm = createAudioEmbedViewModel({
     getContentId: () => contentId,
     getEnclosureUrl: () => enclosureUrl
@@ -87,7 +94,15 @@
               <p class="truncate text-sm font-medium text-zinc-100">{title}</p>
             {/if}
             {#if feedTitle}
-              <p class="truncate text-xs text-zinc-400">{feedTitle}</p>
+              {#if feedHref}
+                <a
+                  href={feedHref}
+                  class="truncate text-xs text-zinc-400 hover:text-accent hover:underline"
+                  >{feedTitle}</a
+                >
+              {:else}
+                <p class="truncate text-xs text-zinc-400">{feedTitle}</p>
+              {/if}
             {/if}
           </div>
         {/if}

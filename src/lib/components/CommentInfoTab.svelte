@@ -6,9 +6,10 @@
     metadata: ContentMetadata | null;
     metadataLoading: boolean;
     openUrl?: string;
+    subtitleHref?: string;
   }
 
-  const { metadata, metadataLoading, openUrl }: Props = $props();
+  const { metadata, metadataLoading, openUrl, subtitleHref }: Props = $props();
 
   let expanded = $state(false);
 
@@ -41,7 +42,15 @@
           <h3 class="text-sm font-semibold text-text-primary">{metadata.title}</h3>
         {/if}
         {#if metadata.subtitle}
-          <p class="mt-0.5 text-xs text-text-muted">{metadata.subtitle}</p>
+          {#if subtitleHref}
+            <a
+              href={subtitleHref}
+              class="mt-0.5 block truncate text-xs text-text-muted hover:text-accent hover:underline"
+              >{metadata.subtitle}</a
+            >
+          {:else}
+            <p class="mt-0.5 text-xs text-text-muted">{metadata.subtitle}</p>
+          {/if}
         {/if}
         {#if metadata.description}
           <p
