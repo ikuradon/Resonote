@@ -274,12 +274,6 @@
     </div>
   {/snippet}
 
-  {#if import.meta.env.DEV}
-    <div class="rounded bg-red-950/50 px-2 py-1 font-mono text-xs text-red-300">
-      tab={vm.activeTab} loading={loading} filtered={vm.filteredComments.length} timed={vm
-        .timedComments.length} shout={vm.shoutComments.length}
-    </div>
-  {/if}
   {#if loading}
     <div class="flex items-center justify-center gap-3 py-8" role="status" aria-live="polite">
       <WaveformLoader />

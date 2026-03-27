@@ -326,14 +326,6 @@
   }
 </script>
 
-{#if import.meta.env.DEV}
-  <div class="bg-blue-950/50 px-2 py-0.5 font-mono text-[10px] text-blue-300">
-    cH={containerHeight} sT={Math.round(scrollTop)} tH={totalHeight} offLen={offsets.length} lastOff={offsets[
-      offsets.length - 1
-    ]}
-    est={currentEstimate()} range={visibleRange.start}-{visibleRange.end} rendered={renderedItems.length}/{items.length}
-  </div>
-{/if}
 <div bind:this={container} onscroll={handleScroll} class="min-h-0 flex-1 overflow-y-auto">
   <div style="height: {totalHeight}px; position: relative;">
     <div bind:this={innerEl} style="position: absolute; top: {offsetTop}px; left: 0; right: 0;">

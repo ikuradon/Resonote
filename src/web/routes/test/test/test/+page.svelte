@@ -447,13 +447,6 @@
 
     <!-- Right: Comment section -->
     <div class="min-w-0 flex-1">
-      <!-- Debug state -->
-      <div class="mb-2 rounded bg-zinc-800 px-3 py-1.5 font-mono text-xs text-zinc-400">
-        comments: {comments.length} (flow: {comments.filter(
-          (c) => c.positionMs !== null && c.replyTo === null
-        ).length}, shout: {comments.filter((c) => c.positionMs === null && c.replyTo === null)
-          .length})
-      </div>
       <CommentList
         {comments}
         {reactionIndex}
