@@ -53,7 +53,7 @@ const PLATFORMS: Record<string, PlatformConfig> = {
     oembedBase: 'https://api.spreaker.com/oembed',
     validTypes: new Set(['episode', 'show']),
     idPattern: /^[0-9]+$/,
-    buildUrl: (_type, id) => `https://www.spreaker.com/episode/${id}`
+    buildUrl: (type, id) => `https://www.spreaker.com/${type}/${id}`
   },
   podbean: {
     oembedBase: 'https://api.podbean.com/v1/oembed',

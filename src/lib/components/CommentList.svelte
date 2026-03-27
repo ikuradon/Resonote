@@ -358,6 +358,7 @@
               comment={reply}
               author={vm.authorDisplayFor(reply.pubkey)}
               index={0}
+              mode={placeholder.positionMs !== null ? 'flow' : 'shout'}
               showPosition={reply.positionMs !== null}
               nearCurrent={false}
               stats={vm.statsFor(reply.id)}
