@@ -240,5 +240,15 @@
   "menu.mute_thread": "スレッドお黙りやす",
   "menu.delete": "削除しますえ",
   "menu.copied": "コピーしましたえ",
-  "shout.jump_to_latest": "最新へ行きまひょ"
+  "shout.jump_to_latest": "最新へ行きまひょ",
+  "info.loading": "コンテンツ情報を読み込んでおりますえ...",
+  "info.error": "コンテンツ情報が取れまへんどしたえ",
+  "info.show_more": "もっと見とくれやす",
+  "info.show_less": "閉じとくれやす",
+  "bookmark.confirm.add.title": "ブックマークに追加どすえ",
+  "bookmark.confirm.add.message": "このコンテンツをブックマークに追加してよろしおすか？",
+  "bookmark.confirm.remove.title": "ブックマーク削除どすえ",
+  "bookmark.confirm.remove.message": "このコンテンツをブックマークから外してよろしおすか？",
+  "share.button.label": "共有どすえ",
+  "bookmark.button.label": "ブックマーク"
 }

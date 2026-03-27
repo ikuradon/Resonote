@@ -240,5 +240,15 @@
   "menu.mute_thread": "スレッドをミュート",
   "menu.delete": "削除",
   "menu.copied": "コピーしました",
-  "shout.jump_to_latest": "最新へ"
+  "shout.jump_to_latest": "最新へ",
+  "info.loading": "コンテンツ情報を読み込み中...",
+  "info.error": "コンテンツ情報を取得できませんでした",
+  "info.show_more": "もっと見る",
+  "info.show_less": "閉じる",
+  "bookmark.confirm.add.title": "ブックマークに追加",
+  "bookmark.confirm.add.message": "このコンテンツをブックマークに追加しますか？",
+  "bookmark.confirm.remove.title": "ブックマークを削除",
+  "bookmark.confirm.remove.message": "このコンテンツをブックマークから削除しますか？",
+  "share.button.label": "共有",
+  "bookmark.button.label": "ブックマーク"
 }

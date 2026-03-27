@@ -246,5 +246,15 @@
   "menu.delete": "Supprimer",
   "menu.copied": "Copié !",
   "shout.jump_to_latest": "Aller au dernier",
-  "menu.copy_link": "Copier le lien"
+  "menu.copy_link": "Copier le lien",
+  "info.loading": "Chargement des informations du contenu...",
+  "info.error": "Impossible de charger les informations du contenu",
+  "info.show_more": "Voir plus",
+  "info.show_less": "Voir moins",
+  "bookmark.confirm.add.title": "Ajouter un signet",
+  "bookmark.confirm.add.message": "Ajouter ce contenu à vos signets ?",
+  "bookmark.confirm.remove.title": "Supprimer le signet",
+  "bookmark.confirm.remove.message": "Supprimer ce contenu de vos signets ?",
+  "share.button.label": "Partager",
+  "bookmark.button.label": "Signet"
 }

@@ -1,46 +1,71 @@
 <script lang="ts">
-  import type { ContentId, ContentProvider } from '$shared/content/types.js';
+  import type { ContentMetadata } from '$features/content-resolution/domain/content-metadata.js';
   import { t } from '$shared/i18n/t.js';
 
-  import ShareButton from './ShareButton.svelte';
-
   interface Props {
-    contentId: ContentId;
-    provider: ContentProvider;
-    loggedIn: boolean;
-    bookmarked: boolean;
-    bookmarkBusy: boolean;
-    onToggleBookmark?: () => void;
+    metadata: ContentMetadata | null;
+    metadataLoading: boolean;
     openUrl?: string;
   }
 
-  const {
-    contentId,
-    provider,
-    loggedIn,
-    bookmarked,
-    bookmarkBusy,
-    onToggleBookmark,
-    openUrl
-  }: Props = $props();
+  const { metadata, metadataLoading, openUrl }: Props = $props();
+
+  let expanded = $state(false);
+
+  let isLong = $derived((metadata?.description?.length ?? 0) > 200);
 </script>
 
-<div class="space-y-3 py-6">
-  {#if onToggleBookmark && loggedIn}
-    <button
-      type="button"
-      onclick={onToggleBookmark}
-      disabled={bookmarkBusy}
-      class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 disabled:opacity-50
-        {bookmarked
-        ? 'bg-accent/10 text-accent hover:bg-accent/20'
-        : 'bg-surface-2 text-text-secondary hover:bg-surface-3 hover:text-text-primary'}"
-    >
-      {bookmarked ? '\u2605' : '\u2606'}
-      {bookmarked ? t('bookmark.remove') : t('bookmark.add')}
-    </button>
+<div class="space-y-4 py-6">
+  {#if metadataLoading}
+    <!-- Skeleton loading -->
+    <div class="flex gap-3 animate-pulse">
+      <div class="h-20 w-20 shrink-0 rounded-lg bg-surface-2"></div>
+      <div class="flex-1 space-y-2">
+        <div class="h-4 w-3/4 rounded bg-surface-2"></div>
+        <div class="h-3 w-1/2 rounded bg-surface-2"></div>
+        <div class="h-3 w-full rounded bg-surface-2"></div>
+      </div>
+    </div>
+  {:else if metadata && (metadata.title || metadata.description)}
+    <!-- Metadata card -->
+    <div class="flex gap-3 rounded-xl border border-border-subtle bg-surface-1 p-4">
+      {#if metadata.thumbnailUrl}
+        <img
+          src={metadata.thumbnailUrl}
+          alt=""
+          class="h-20 w-20 shrink-0 rounded-lg object-cover"
+        />
+      {/if}
+      <div class="min-w-0 flex-1">
+        {#if metadata.title}
+          <h3 class="text-sm font-semibold text-text-primary">{metadata.title}</h3>
+        {/if}
+        {#if metadata.subtitle}
+          <p class="mt-0.5 text-xs text-text-muted">{metadata.subtitle}</p>
+        {/if}
+        {#if metadata.description}
+          <p
+            class="mt-2 whitespace-pre-line text-xs leading-relaxed text-text-secondary
+              {!expanded && isLong ? 'line-clamp-3' : ''}"
+          >
+            {metadata.description}
+          </p>
+          {#if isLong}
+            <button
+              type="button"
+              onclick={() => (expanded = !expanded)}
+              class="mt-1 text-xs text-accent hover:text-accent-hover"
+            >
+              {expanded ? t('info.show_less') : t('info.show_more')}
+            </button>
+          {/if}
+        {/if}
+      </div>
+    </div>
+  {:else}
+    <p class="py-4 text-center text-sm text-text-muted">{t('info.error')}</p>
   {/if}
-  <ShareButton {contentId} {provider} />
+
   {#if openUrl}
     <a
       href={openUrl}

@@ -217,6 +217,134 @@ describe('oEmbed resolve API', () => {
     expect(res.headers.get('Cache-Control')).toBe('public, max-age=86400');
   });
 
+  it('returns metadata for mixcloud show', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            title: 'Mix Title',
+            author_name: 'DJ Name',
+            thumbnail_url: 'https://thumbnailer.mixcloud.com/test.jpg',
+            provider_name: 'Mixcloud'
+          }),
+          { status: 200 }
+        )
+      )
+    );
+
+    const ctx = makeContext({ platform: 'mixcloud', type: 'show', id: 'djname/mix-title' });
+    const res = await onRequestGet(ctx);
+    expect(res.status).toBe(200);
+    const body = await parseJson(res);
+    expect(body.title).toBe('Mix Title');
+    expect(body.subtitle).toBe('DJ Name');
+    expect(body.provider).toBe('Mixcloud');
+  });
+
+  it('returns metadata for spreaker episode', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            title: 'Episode Title',
+            author_name: 'Show Name',
+            thumbnail_url: 'https://d3wo5wojvuv7l.cloudfront.net/test.jpg',
+            provider_name: 'Spreaker'
+          }),
+          { status: 200 }
+        )
+      )
+    );
+
+    const ctx = makeContext({ platform: 'spreaker', type: 'episode', id: '12345678' });
+    const res = await onRequestGet(ctx);
+    expect(res.status).toBe(200);
+    const body = await parseJson(res);
+    expect(body.title).toBe('Episode Title');
+    expect(body.provider).toBe('Spreaker');
+  });
+
+  it('returns metadata for podbean episode', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            title: 'Podcast Episode',
+            author_name: 'Podcast Host',
+            thumbnail_url: 'https://pbcdn1.podbean.com/test.jpg',
+            provider_name: 'Podbean'
+          }),
+          { status: 200 }
+        )
+      )
+    );
+
+    const ctx = makeContext({ platform: 'podbean', type: 'episode', id: 'abc12-def34' });
+    const res = await onRequestGet(ctx);
+    expect(res.status).toBe(200);
+    const body = await parseJson(res);
+    expect(body.title).toBe('Podcast Episode');
+    expect(body.provider).toBe('Podbean');
+  });
+
+  it('returns metadata for niconico video from XML API', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          `<?xml version="1.0" encoding="UTF-8"?>
+<nicovideo_thumb_response status="ok">
+  <thumb>
+    <title>Test Video Title</title>
+    <thumbnail_url>https://nicovideo.cdn.nimg.jp/thumbnails/sm12345</thumbnail_url>
+    <user_nickname>TestUser</user_nickname>
+  </thumb>
+</nicovideo_thumb_response>`,
+          { status: 200 }
+        )
+      )
+    );
+
+    const ctx = makeContext({ platform: 'niconico', type: 'video', id: 'sm12345' });
+    const res = await onRequestGet(ctx);
+    expect(res.status).toBe(200);
+    const body = await parseJson(res);
+    expect(body.title).toBe('Test Video Title');
+    expect(body.subtitle).toBe('TestUser');
+    expect(body.thumbnailUrl).toBe('https://nicovideo.cdn.nimg.jp/thumbnails/sm12345');
+    expect(body.provider).toBe('niconico');
+  });
+
+  it('returns 502 for niconico error response', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          `<?xml version="1.0" encoding="UTF-8"?>
+<nicovideo_thumb_response status="fail">
+  <error><code>NOT_FOUND</code></error>
+</nicovideo_thumb_response>`,
+          { status: 200 }
+        )
+      )
+    );
+
+    const ctx = makeContext({ platform: 'niconico', type: 'video', id: 'sm99999' });
+    const res = await onRequestGet(ctx);
+    expect(res.status).toBe(502);
+  });
+
+  it('returns 400 for invalid niconico id', async () => {
+    const ctx = makeContext({ platform: 'niconico', type: 'video', id: 'invalid' });
+    const res = await onRequestGet(ctx);
+    expect(res.status).toBe(400);
+    const body = await parseJson(res);
+    expect(body.error).toBe('invalid_id');
+  });
+
   it('nullifies missing oembed fields', async () => {
     vi.stubGlobal(
       'fetch',

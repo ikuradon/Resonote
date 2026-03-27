@@ -27,9 +27,7 @@ test.describe('Bookmark flow', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
-    // Bookmark button is inside the Info tab
-    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
-
+    // Bookmark button is in the tab bar (always visible when logged in)
     const bookmarkButton = page.getByRole('button', { name: /Bookmark|ブックマーク/i });
     await expect(bookmarkButton).toBeVisible({ timeout: 10_000 });
   });
@@ -38,9 +36,7 @@ test.describe('Bookmark flow', () => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
 
-    // Open Info tab — bookmark button should not appear for unauthenticated users
-    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
-
+    // Bookmark button should not appear for unauthenticated users
     const bookmarkButton = page.getByRole('button', { name: /Bookmark|ブックマーク/i });
     await expect(bookmarkButton).toHaveCount(0);
   });
@@ -50,13 +46,16 @@ test.describe('Bookmark flow', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
-    // Bookmark button is inside the Info tab
-    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
-
+    // Bookmark button is in the tab bar
     const bookmarkButton = page.getByRole('button', { name: /Bookmark|ブックマーク/i });
     await expect(bookmarkButton).toBeVisible({ timeout: 10_000 });
 
     await bookmarkButton.click();
+
+    // Confirm the bookmark action in the ConfirmDialog
+    const confirmButton = page.getByRole('button', { name: /Confirm|確認/i });
+    await expect(confirmButton).toBeVisible({ timeout: 5_000 });
+    await confirmButton.click();
 
     // Wait for kind:10003 event to be published
     await expect
@@ -71,9 +70,7 @@ test.describe('Bookmark flow', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
-    // Bookmark button is inside the Info tab
-    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
-
+    // Bookmark button is in the tab bar
     const bookmarkButton = page.getByRole('button', { name: /Bookmark|ブックマーク/i });
     await expect(bookmarkButton).toBeVisible({ timeout: 10_000 });
 
@@ -82,10 +79,13 @@ test.describe('Bookmark flow', () => {
 
     await bookmarkButton.click();
 
-    // After bookmark, should show filled star
-    await expect(
-      page.getByRole('button', { name: /Remove bookmark|ブックマーク解除/i })
-    ).toBeVisible({ timeout: 10_000 });
+    // Confirm the bookmark action in the ConfirmDialog
+    const confirmButton = page.getByRole('button', { name: /Confirm|確認/i });
+    await expect(confirmButton).toBeVisible({ timeout: 5_000 });
+    await confirmButton.click();
+
+    // After bookmark, should show filled star (★)
+    await expect(bookmarkButton).toContainText('★', { timeout: 10_000 });
   });
 
   // MockPool responds instantly, so the disabled state is too brief to catch.
@@ -108,26 +108,31 @@ test.describe('Bookmark flow', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
-    // Bookmark button is inside the Info tab
-    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
-
+    // Bookmark button is in the tab bar
     const bookmarkButton = page.getByRole('button', { name: /Bookmark|ブックマーク/i });
     await expect(bookmarkButton).toBeVisible({ timeout: 10_000 });
 
     // Add bookmark
     await bookmarkButton.click();
-    await expect(
-      page.getByRole('button', { name: /Remove bookmark|ブックマーク解除/i })
-    ).toBeVisible({ timeout: 10_000 });
+
+    // Confirm the bookmark action
+    const confirmButton = page.getByRole('button', { name: /Confirm|確認/i });
+    await expect(confirmButton).toBeVisible({ timeout: 5_000 });
+    await confirmButton.click();
+
+    // Should show filled star (★) after adding
+    await expect(bookmarkButton).toContainText('★', { timeout: 10_000 });
 
     // Remove bookmark
-    const removeButton = page.getByRole('button', { name: /Remove bookmark|ブックマーク解除/i });
-    await removeButton.click();
+    await bookmarkButton.click();
 
-    // Should go back to empty star
-    await expect(
-      page.getByRole('button', { name: /Bookmark|ブックマーク/i }).filter({ hasNotText: /Remove/ })
-    ).toBeVisible({ timeout: 10_000 });
+    // Confirm the remove action
+    const confirmRemoveButton = page.getByRole('button', { name: /Confirm|確認/i });
+    await expect(confirmRemoveButton).toBeVisible({ timeout: 5_000 });
+    await confirmRemoveButton.click();
+
+    // Should go back to empty star (☆)
+    await expect(bookmarkButton).toContainText('☆', { timeout: 10_000 });
   });
 });
 

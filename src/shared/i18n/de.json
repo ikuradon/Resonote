@@ -246,5 +246,15 @@
   "menu.delete": "Löschen",
   "menu.copied": "Kopiert!",
   "shout.jump_to_latest": "Zum Neuesten",
-  "menu.copy_link": "Link kopieren"
+  "menu.copy_link": "Link kopieren",
+  "info.loading": "Inhaltsinformationen werden geladen...",
+  "info.error": "Inhaltsinformationen konnten nicht geladen werden",
+  "info.show_more": "Mehr anzeigen",
+  "info.show_less": "Weniger anzeigen",
+  "bookmark.confirm.add.title": "Lesezeichen hinzufügen",
+  "bookmark.confirm.add.message": "Diesen Inhalt zu Ihren Lesezeichen hinzufügen?",
+  "bookmark.confirm.remove.title": "Lesezeichen entfernen",
+  "bookmark.confirm.remove.message": "Diesen Inhalt aus Ihren Lesezeichen entfernen?",
+  "share.button.label": "Teilen",
+  "bookmark.button.label": "Lesezeichen"
 }

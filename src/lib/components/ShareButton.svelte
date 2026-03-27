@@ -9,40 +9,48 @@
   interface Props {
     contentId: ContentId;
     provider: ContentProvider;
+    /** When true, hide the trigger button (modal is opened externally via openMenu) */
+    headless?: boolean;
   }
 
-  let { contentId, provider }: Props = $props();
+  let { contentId, provider, headless = false }: Props = $props();
   const vm = createShareButtonViewModel({
     getContentId: () => contentId,
     getProvider: () => provider
   });
+
+  export function openMenu(): void {
+    vm.openMenu();
+  }
 </script>
 
 <svelte:window onkeydown={vm.handleKeydown} />
 
-<!-- Share trigger button -->
-<button
-  type="button"
-  onclick={vm.openMenu}
-  class="inline-flex items-center gap-1.5 rounded-lg bg-surface-2 px-3 py-2 text-sm font-medium text-text-secondary transition-all duration-200 hover:bg-surface-3 hover:text-text-primary"
-  title={t('share.title')}
->
-  <svg
-    class="h-4 w-4"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="2"
-    aria-hidden="true"
+{#if !headless}
+  <!-- Share trigger button -->
+  <button
+    type="button"
+    onclick={vm.openMenu}
+    class="inline-flex items-center gap-1.5 rounded-lg bg-surface-2 px-3 py-2 text-sm font-medium text-text-secondary transition-all duration-200 hover:bg-surface-3 hover:text-text-primary"
+    title={t('share.title')}
   >
-    <circle cx="18" cy="5" r="3" />
-    <circle cx="6" cy="12" r="3" />
-    <circle cx="18" cy="19" r="3" />
-    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-  </svg>
-  {t('share.button')}
-</button>
+    <svg
+      class="h-4 w-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      aria-hidden="true"
+    >
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+    </svg>
+    {t('share.button')}
+  </button>
+{/if}
 
 <!-- Modal overlay -->
 {#if vm.modalState !== 'closed'}

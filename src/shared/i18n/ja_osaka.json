@@ -246,5 +246,15 @@
   "menu.delete": "削除",
   "menu.copied": "コピーしたで",
   "shout.jump_to_latest": "最新へ",
-  "menu.copy_link": "リンクをコピー"
+  "menu.copy_link": "リンクをコピー",
+  "info.loading": "コンテンツ情報を読み込んでるで...",
+  "info.error": "コンテンツ情報が取れへんかったわ",
+  "info.show_more": "もっと見るで",
+  "info.show_less": "閉じるで",
+  "bookmark.confirm.add.title": "ブックマークに追加やで",
+  "bookmark.confirm.add.message": "このコンテンツをブックマークに追加してええか？",
+  "bookmark.confirm.remove.title": "ブックマーク削除やで",
+  "bookmark.confirm.remove.message": "このコンテンツをブックマークから外してええか？",
+  "share.button.label": "共有やで",
+  "bookmark.button.label": "ブックマーク"
 }

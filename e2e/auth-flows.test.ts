@@ -40,7 +40,7 @@ test.describe('Authenticated flows', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
-    const logoutButton = page.locator('button:has-text("Logout"), button:has-text("ログアウト")');
+    const logoutButton = page.getByRole('button', { name: /Logout|ログアウト/i });
     await expect(logoutButton).toBeVisible({ timeout: 10_000 });
   });
 
@@ -49,7 +49,7 @@ test.describe('Authenticated flows', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
-    const logoutButton = page.locator('button:has-text("Logout"), button:has-text("ログアウト")');
+    const logoutButton = page.getByRole('button', { name: /Logout|ログアウト/i });
     await expect(logoutButton).toBeVisible({ timeout: 10_000 });
 
     await page.evaluate(() => {

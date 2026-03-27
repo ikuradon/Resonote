@@ -246,5 +246,15 @@
   "menu.delete": "삭제",
   "menu.copied": "복사됨!",
   "shout.jump_to_latest": "최신으로",
-  "menu.copy_link": "링크 복사"
+  "menu.copy_link": "링크 복사",
+  "info.loading": "콘텐츠 정보 로딩 중...",
+  "info.error": "콘텐츠 정보를 불러올 수 없습니다",
+  "info.show_more": "더 보기",
+  "info.show_less": "접기",
+  "bookmark.confirm.add.title": "북마크 추가",
+  "bookmark.confirm.add.message": "이 콘텐츠를 북마크에 추가하시겠습니까?",
+  "bookmark.confirm.remove.title": "북마크 삭제",
+  "bookmark.confirm.remove.message": "이 콘텐츠를 북마크에서 삭제하시겠습니까?",
+  "share.button.label": "공유",
+  "bookmark.button.label": "북마크"
 }

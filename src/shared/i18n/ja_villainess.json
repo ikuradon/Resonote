@@ -240,5 +240,15 @@
   "menu.mute_thread": "スレッドをお黙りなさいませ",
   "menu.delete": "削除なさいませ",
   "menu.copied": "コピーいたしましたわ",
-  "shout.jump_to_latest": "最新へ参りますわ"
+  "shout.jump_to_latest": "最新へ参りますわ",
+  "info.loading": "コンテンツ情報を読み込んでおりますわ...",
+  "info.error": "コンテンツ情報を取得できませんでしたわ",
+  "info.show_more": "もっとご覧なさいませ",
+  "info.show_less": "お閉じなさいませ",
+  "bookmark.confirm.add.title": "ブックマークに追加ですわ",
+  "bookmark.confirm.add.message": "このコンテンツをブックマークに追加なさいますの？",
+  "bookmark.confirm.remove.title": "ブックマークを削除ですわ",
+  "bookmark.confirm.remove.message": "このコンテンツをブックマークから削除なさいますの？",
+  "share.button.label": "共有ですわ",
+  "bookmark.button.label": "ブックマーク"
 }

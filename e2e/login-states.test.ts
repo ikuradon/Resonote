@@ -322,9 +322,9 @@ test.describe('Login/logout transitions', () => {
     await simulateLogin(page);
 
     // After login
-    await expect(
-      page.locator('button:has-text("Logout"), button:has-text("ログアウト")')
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /Logout|ログアウト/i })).toBeVisible({
+      timeout: 10_000
+    });
   });
 
   test('should restore login prompt after logout', async ({ page }) => {

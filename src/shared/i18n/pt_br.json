@@ -246,5 +246,15 @@
   "menu.delete": "Excluir",
   "menu.copied": "Copiado!",
   "shout.jump_to_latest": "Ir para o mais recente",
-  "menu.copy_link": "Copiar link"
+  "menu.copy_link": "Copiar link",
+  "info.loading": "Carregando informações do conteúdo...",
+  "info.error": "Não foi possível carregar as informações do conteúdo",
+  "info.show_more": "Ver mais",
+  "info.show_less": "Ver menos",
+  "bookmark.confirm.add.title": "Adicionar favorito",
+  "bookmark.confirm.add.message": "Adicionar este conteúdo aos seus favoritos?",
+  "bookmark.confirm.remove.title": "Remover favorito",
+  "bookmark.confirm.remove.message": "Remover este conteúdo dos seus favoritos?",
+  "share.button.label": "Compartilhar",
+  "bookmark.button.label": "Favorito"
 }

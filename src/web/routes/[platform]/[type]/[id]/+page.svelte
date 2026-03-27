@@ -131,7 +131,6 @@
           episodeTitle={vm.episodeTitle}
           episodeFeedTitle={vm.episodeFeedTitle}
           episodeImage={vm.episodeImage}
-          episodeDescription={vm.episodeDescription}
         />
       </div>
 
@@ -211,6 +210,8 @@
                 onToggleBookmark={vm.toggleBookmark}
                 openUrl={provider.openUrl(contentId)}
                 {highlightCommentId}
+                contentMetadata={vm.contentMetadata}
+                contentMetadataLoading={vm.contentMetadataLoading}
               />
             {/if}
           </section>

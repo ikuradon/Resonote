@@ -1,7 +1,6 @@
 <script lang="ts">
   import { createPlayerColumnViewModel } from '$features/content-resolution/ui/player-column-view-model.svelte.js';
   import AudioEmbed from '$lib/components/AudioEmbed.svelte';
-  import EpisodeDescription from '$lib/components/EpisodeDescription.svelte';
   import PodcastEpisodeList from '$lib/components/PodcastEpisodeList.svelte';
   import YouTubeFeedList from '$lib/components/YouTubeFeedList.svelte';
   import type { ContentId, ContentProvider } from '$shared/content/types.js';
@@ -14,7 +13,6 @@
     episodeTitle?: string;
     episodeFeedTitle?: string;
     episodeImage?: string;
-    episodeDescription?: string;
   }
 
   let {
@@ -23,8 +21,7 @@
     resolvedEnclosureUrl,
     episodeTitle,
     episodeFeedTitle,
-    episodeImage,
-    episodeDescription
+    episodeImage
   }: Props = $props();
   const vm = createPlayerColumnViewModel({
     getContentId: () => contentId,
@@ -54,11 +51,6 @@
       image={episodeImage}
       openUrl={vm.openUrl}
     />
-    {#if episodeDescription}
-      <div class="mt-3">
-        <EpisodeDescription description={episodeDescription} />
-      </div>
-    {/if}
   {:else if vm.surfaceKind === 'embed' && vm.embedLoader}
     {#await vm.embedLoader()}
       {@render embedLoading()}

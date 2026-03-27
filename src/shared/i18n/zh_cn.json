@@ -246,5 +246,15 @@
   "menu.delete": "删除",
   "menu.copied": "已复制!",
   "shout.jump_to_latest": "跳到最新",
-  "menu.copy_link": "复制链接"
+  "menu.copy_link": "复制链接",
+  "info.loading": "正在加载内容信息...",
+  "info.error": "无法加载内容信息",
+  "info.show_more": "展开",
+  "info.show_less": "收起",
+  "bookmark.confirm.add.title": "添加书签",
+  "bookmark.confirm.add.message": "将此内容添加到书签？",
+  "bookmark.confirm.remove.title": "删除书签",
+  "bookmark.confirm.remove.message": "从书签中删除此内容？",
+  "share.button.label": "分享",
+  "bookmark.button.label": "书签"
 }

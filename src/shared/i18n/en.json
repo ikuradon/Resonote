@@ -240,5 +240,15 @@
   "menu.mute_thread": "Mute Thread",
   "menu.delete": "Delete",
   "menu.copied": "Copied!",
-  "shout.jump_to_latest": "Jump to latest"
+  "shout.jump_to_latest": "Jump to latest",
+  "info.loading": "Loading content info...",
+  "info.error": "Could not load content info",
+  "info.show_more": "Show more",
+  "info.show_less": "Show less",
+  "bookmark.confirm.add.title": "Add bookmark",
+  "bookmark.confirm.add.message": "Add this content to your bookmarks?",
+  "bookmark.confirm.remove.title": "Remove bookmark",
+  "bookmark.confirm.remove.message": "Remove this content from your bookmarks?",
+  "share.button.label": "Share",
+  "bookmark.button.label": "Bookmark"
 }

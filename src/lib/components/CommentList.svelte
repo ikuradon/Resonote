@@ -8,6 +8,7 @@
   } from '$features/comments/domain/comment-model.js';
   import { createCommentListViewModel } from '$features/comments/ui/comment-list-view-model.svelte.js';
   import { useCommentProfilePreload } from '$features/comments/ui/comment-profile-preload.svelte.js';
+  import type { ContentMetadata } from '$features/content-resolution/domain/content-metadata.js';
   import type { ContentId, ContentProvider } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
   import { formatPosition } from '$shared/nostr/events.js';
@@ -18,6 +19,7 @@
   import CommentTabBar from './CommentTabBar.svelte';
   import ConfirmDialog from './ConfirmDialog.svelte';
   import { allocateEmojiPopoverId } from './emoji-popover-id.js';
+  import ShareButton from './ShareButton.svelte';
   import VirtualScrollList from './VirtualScrollList.svelte';
   import WaveformLoader from './WaveformLoader.svelte';
 
@@ -36,6 +38,8 @@
     onToggleBookmark?: () => void;
     openUrl?: string;
     highlightCommentId?: string;
+    contentMetadata?: ContentMetadata | null;
+    contentMetadataLoading?: boolean;
   }
 
   let {
@@ -52,8 +56,31 @@
     bookmarkBusy = false,
     onToggleBookmark,
     openUrl,
-    highlightCommentId
+    highlightCommentId,
+    contentMetadata = null,
+    contentMetadataLoading = false
   }: Props = $props();
+
+  // --- Bookmark dialog + share ref ---
+  let bookmarkDialogOpen = $state(false);
+  let shareButtonRef = $state<ShareButton | undefined>();
+
+  function handleBookmarkClick(): void {
+    bookmarkDialogOpen = true;
+  }
+
+  function confirmBookmark(): void {
+    bookmarkDialogOpen = false;
+    onToggleBookmark?.();
+  }
+
+  function cancelBookmark(): void {
+    bookmarkDialogOpen = false;
+  }
+
+  function handleShareClick(): void {
+    shareButtonRef?.openMenu();
+  }
 
   // --- Virtual scroll auto-scroll ---
   let timedVirtualList = $state<VirtualScrollList<Comment> | undefined>();
@@ -169,6 +196,11 @@
   shoutCount={vm.shoutComments.length}
   onTabChange={vm.setActiveTab}
   onFilterChange={vm.setFollowFilter}
+  loggedIn={vm.canWrite}
+  {bookmarked}
+  {bookmarkBusy}
+  onBookmarkClick={handleBookmarkClick}
+  onShareClick={handleShareClick}
 />
 
 <!-- Tab content -->
@@ -417,15 +449,7 @@
       </section>
     {/if}
   {:else if vm.activeTab === 'info'}
-    <CommentInfoTab
-      {contentId}
-      {provider}
-      loggedIn={vm.canWrite}
-      {bookmarked}
-      {bookmarkBusy}
-      {onToggleBookmark}
-      {openUrl}
-    />
+    <CommentInfoTab metadata={contentMetadata} metadataLoading={contentMetadataLoading} {openUrl} />
   {/if}
 </div>
 
@@ -470,3 +494,16 @@
   onConfirm={vm.confirmMute}
   onCancel={vm.cancelMute}
 />
+
+<ConfirmDialog
+  open={bookmarkDialogOpen}
+  title={bookmarked ? t('bookmark.confirm.remove.title') : t('bookmark.confirm.add.title')}
+  message={bookmarked ? t('bookmark.confirm.remove.message') : t('bookmark.confirm.add.message')}
+  confirmLabel={t('confirm.ok')}
+  cancelLabel={t('confirm.cancel')}
+  variant="default"
+  onConfirm={confirmBookmark}
+  onCancel={cancelBookmark}
+/>
+
+<ShareButton bind:this={shareButtonRef} {contentId} {provider} headless />

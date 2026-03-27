@@ -42,6 +42,24 @@ const PLATFORMS: Record<string, PlatformConfig> = {
     validTypes: new Set(['video']),
     idPattern: /^[0-9]+$/,
     buildUrl: (_type, id) => `https://vimeo.com/${id}`
+  },
+  mixcloud: {
+    oembedBase: 'https://www.mixcloud.com/oembed/',
+    validTypes: new Set(['show']),
+    idPattern: /^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)+$/,
+    buildUrl: (_type, id) => `https://www.mixcloud.com/${id}/`
+  },
+  spreaker: {
+    oembedBase: 'https://api.spreaker.com/oembed',
+    validTypes: new Set(['episode', 'show']),
+    idPattern: /^[0-9]+$/,
+    buildUrl: (_type, id) => `https://www.spreaker.com/episode/${id}`
+  },
+  podbean: {
+    oembedBase: 'https://api.podbean.com/v1/oembed',
+    validTypes: new Set(['episode']),
+    idPattern: /^[a-zA-Z0-9_-]+$/,
+    buildUrl: (_type, id) => `https://www.podbean.com/e/${id}`
   }
 };
 
@@ -56,6 +74,11 @@ async function handleRequest(context: EventContext<Env, string, unknown>): Promi
 
   if (!platform || !type || !id) {
     return json({ error: 'missing_params' }, 400);
+  }
+
+  // Niconico uses getthumbinfo XML API instead of oEmbed
+  if (platform === 'niconico') {
+    return handleNiconico(type, id, allowPrivateIPs);
   }
 
   if (!Object.prototype.hasOwnProperty.call(PLATFORMS, platform)) {
@@ -92,6 +115,46 @@ async function handleRequest(context: EventContext<Env, string, unknown>): Promi
       200,
       { 'Cache-Control': 'public, max-age=86400' }
     );
+  } catch {
+    return json({ error: 'fetch_failed' }, 502);
+  }
+}
+
+const NICONICO_VALID_TYPES = new Set(['video']);
+const NICONICO_ID_PATTERN = /^(sm|nm|so)\d+$/;
+
+async function handleNiconico(
+  type: string,
+  id: string,
+  allowPrivateIPs: boolean
+): Promise<Response> {
+  if (!NICONICO_VALID_TYPES.has(type)) {
+    return json({ error: 'unsupported_type' }, 400);
+  }
+  if (!NICONICO_ID_PATTERN.test(id)) {
+    return json({ error: 'invalid_id' }, 400);
+  }
+
+  const apiUrl = `https://ext.nicovideo.jp/api/getthumbinfo/${id}`;
+  try {
+    const res = await safeFetch(apiUrl, { allowPrivateIPs });
+    if (!res.ok) {
+      return json({ error: 'oembed_failed' }, 502);
+    }
+    const xml = await res.text();
+
+    const statusMatch = xml.match(/status="(\w+)"/);
+    if (statusMatch?.[1] !== 'ok') {
+      return json({ error: 'oembed_failed' }, 502);
+    }
+
+    const title = xml.match(/<title>([^<]*)<\/title>/)?.[1] ?? null;
+    const subtitle = xml.match(/<user_nickname>([^<]*)<\/user_nickname>/)?.[1] ?? null;
+    const thumbnailUrl = xml.match(/<thumbnail_url>([^<]*)<\/thumbnail_url>/)?.[1] ?? null;
+
+    return json({ title, subtitle, thumbnailUrl, provider: 'niconico' }, 200, {
+      'Cache-Control': 'public, max-age=86400'
+    });
   } catch {
     return json({ error: 'fetch_failed' }, 502);
   }
