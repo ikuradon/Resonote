@@ -11,8 +11,8 @@
     {t('mute.title')}
   </h2>
 
-  {#if !vm.nip44Supported}
-    <!-- Blur overlay for NIP-44 unsupported -->
+  {#if !vm.canEdit}
+    <!-- Blur overlay for NIP-44 unsupported or readOnly auth -->
     <div
       class="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-surface-1/60 backdrop-blur-sm"
     >

@@ -1,3 +1,4 @@
+import { getAuth } from '$shared/browser/auth.js';
 import {
   getMuteList,
   hasNip44Support,
@@ -35,12 +36,14 @@ interface MutedUserEntry {
 }
 
 export function createMuteSettingsViewModel() {
+  const auth = getAuth();
   const muteList = getMuteList();
 
   let newMuteWord = $state('');
   let confirmAction = $state<ConfirmAction | null>(null);
 
   let nip44Supported = $derived(hasNip44Support());
+  let canEdit = $derived(auth.canWrite && nip44Supported);
   let confirmDialog = $derived.by<ConfirmDialogBinding>(() => ({
     open: confirmAction !== null,
     title: confirmAction?.title ?? '',
@@ -128,6 +131,9 @@ export function createMuteSettingsViewModel() {
     },
     get nip44Supported() {
       return nip44Supported;
+    },
+    get canEdit() {
+      return canEdit;
     },
     get mutedUsers() {
       return mutedUsers;
