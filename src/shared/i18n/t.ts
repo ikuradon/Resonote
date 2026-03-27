@@ -6,6 +6,7 @@ import es from './es.json';
 import fr from './fr.json';
 import ja from './ja.json';
 import ja_osaka from './ja_osaka.json';
+import ja_villainess from './ja_villainess.json';
 import ko from './ko.json';
 import { DEFAULT_LOCALE, type Locale } from './locales.js';
 import pt_br from './pt_br.json';
@@ -25,6 +26,7 @@ const _ptBrComplete: Record<TranslationKey, string> = pt_br;
 const _koComplete: Record<TranslationKey, string> = ko;
 const _frComplete: Record<TranslationKey, string> = fr;
 const _jaOsakaComplete: Record<TranslationKey, string> = ja_osaka;
+const _jaVillainessComplete: Record<TranslationKey, string> = ja_villainess;
 void _jaComplete;
 void _deComplete;
 void _esComplete;
@@ -33,6 +35,7 @@ void _ptBrComplete;
 void _koComplete;
 void _frComplete;
 void _jaOsakaComplete;
+void _jaVillainessComplete;
 
 const messages: Record<Locale, Partial<Record<string, string>>> = {
   en,
@@ -43,7 +46,8 @@ const messages: Record<Locale, Partial<Record<string, string>>> = {
   pt_br,
   ko,
   fr,
-  ja_osaka
+  ja_osaka,
+  ja_villainess
 };
 
 export function t(key: TranslationKey, params?: Record<string, string | number>): string {
