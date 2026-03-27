@@ -13,11 +13,11 @@
   import { formatPosition } from '$shared/nostr/events.js';
 
   import CommentCard from './CommentCard.svelte';
-  import CommentFilterBar from './CommentFilterBar.svelte';
   import CommentForm from './CommentForm.svelte';
+  import CommentInfoTab from './CommentInfoTab.svelte';
+  import CommentTabBar from './CommentTabBar.svelte';
   import ConfirmDialog from './ConfirmDialog.svelte';
   import { allocateEmojiPopoverId } from './emoji-popover-id.js';
-  import ShareButton from './ShareButton.svelte';
   import VirtualScrollList from './VirtualScrollList.svelte';
   import WaveformLoader from './WaveformLoader.svelte';
 
@@ -159,52 +159,14 @@
   }
 </script>
 
-<!-- Heading row with filter -->
-<div class="flex items-center gap-2">
-  <span class="text-sm font-semibold text-text-primary">{t('comment.heading')}</span>
-  <div class="h-px flex-1 bg-border-subtle"></div>
-  <CommentFilterBar followFilter={vm.followFilter} onFilterChange={vm.setFollowFilter} />
-</div>
-
-<!-- Tab bar -->
-<div class="flex border-b border-border-subtle">
-  <button
-    type="button"
-    onclick={() => vm.setActiveTab('flow')}
-    class="flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors
-      {vm.activeTab === 'flow'
-      ? 'border-b-2 border-accent text-accent -mb-px'
-      : 'text-text-muted hover:text-text-secondary'}"
-  >
-    🎶 <span class="hidden sm:inline">{t('tab.flow')}</span>
-    {#if vm.timedComments.length > 0}
-      <span class="text-xs opacity-70">({vm.timedComments.length})</span>
-    {/if}
-  </button>
-  <button
-    type="button"
-    onclick={() => vm.setActiveTab('shout')}
-    class="flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors
-      {vm.activeTab === 'shout'
-      ? 'border-b-2 border-amber-500 text-amber-500 -mb-px'
-      : 'text-text-muted hover:text-text-secondary'}"
-  >
-    📢 <span class="hidden sm:inline">{t('tab.shout')}</span>
-    {#if vm.shoutComments.length > 0}
-      <span class="text-xs opacity-70">({vm.shoutComments.length})</span>
-    {/if}
-  </button>
-  <button
-    type="button"
-    onclick={() => vm.setActiveTab('info')}
-    class="flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors
-      {vm.activeTab === 'info'
-      ? 'border-b-2 border-text-secondary text-text-secondary -mb-px'
-      : 'text-text-muted hover:text-text-secondary'}"
-  >
-    ℹ️ <span class="hidden sm:inline">{t('tab.info')}</span>
-  </button>
-</div>
+<CommentTabBar
+  activeTab={vm.activeTab}
+  followFilter={vm.followFilter}
+  timedCount={vm.timedComments.length}
+  shoutCount={vm.shoutComments.length}
+  onTabChange={vm.setActiveTab}
+  onFilterChange={vm.setFollowFilter}
+/>
 
 <!-- Tab content -->
 <div>
@@ -447,33 +409,15 @@
       </section>
     {/if}
   {:else if vm.activeTab === 'info'}
-    <div class="space-y-3 py-6">
-      {#if onToggleBookmark && vm.loggedIn}
-        <button
-          type="button"
-          onclick={onToggleBookmark}
-          disabled={bookmarkBusy}
-          class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 disabled:opacity-50
-              {bookmarked
-            ? 'bg-accent/10 text-accent hover:bg-accent/20'
-            : 'bg-surface-2 text-text-secondary hover:bg-surface-3 hover:text-text-primary'}"
-        >
-          {bookmarked ? '\u2605' : '\u2606'}
-          {bookmarked ? t('bookmark.remove') : t('bookmark.add')}
-        </button>
-      {/if}
-      <ShareButton {contentId} {provider} />
-      {#if openUrl}
-        <a
-          href={openUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="inline-flex items-center gap-1 text-sm text-accent hover:underline"
-        >
-          {t('content.open_and_comment')} &#8599;
-        </a>
-      {/if}
-    </div>
+    <CommentInfoTab
+      {contentId}
+      {provider}
+      loggedIn={vm.loggedIn}
+      {bookmarked}
+      {bookmarkBusy}
+      {onToggleBookmark}
+      {openUrl}
+    />
   {/if}
 </div>
 
