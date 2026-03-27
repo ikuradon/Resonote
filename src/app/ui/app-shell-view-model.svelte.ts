@@ -1,10 +1,11 @@
 import { afterNavigate } from '$app/navigation';
 import { initApp } from '$appcore/bootstrap/init-app.js';
 import { manageNotifications } from '$appcore/bootstrap/init-notifications.svelte.js';
-import { getAuth } from '$shared/browser/auth.js';
+import { getAuth, loginNostr, logoutNostr } from '$shared/browser/auth.js';
 import { isExtensionMode } from '$shared/browser/extension.js';
 import { getFollows } from '$shared/browser/follows.js';
 import { getLocale, setLocale } from '$shared/browser/locale.js';
+import { getProfileDisplay, getProfileHref } from '$shared/browser/profile.js';
 import {
   destroyRelayStatus,
   getRelays,
@@ -91,6 +92,14 @@ export function createAppShellViewModel() {
     get extensionMode() {
       return extensionMode;
     },
+    get profileHref() {
+      return auth.pubkey ? getProfileHref(auth.pubkey) : '/';
+    },
+    get profileDisplay() {
+      return auth.pubkey ? getProfileDisplay(auth.pubkey) : null;
+    },
+    login: loginNostr,
+    logout: logoutNostr,
     envBanner,
     openMenu,
     closeMenu,
