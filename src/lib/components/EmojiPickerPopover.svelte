@@ -72,8 +72,14 @@
   };
 
   onMount(() => {
+    // Close on any scroll (popover position becomes stale)
+    const onScroll = () => {
+      if (isOpen) activePopoverId = null;
+    };
+    window.addEventListener('scroll', onScroll, { capture: true, passive: true });
     return () => {
       if (activePopoverId === id) activePopoverId = null;
+      window.removeEventListener('scroll', onScroll, { capture: true });
     };
   });
 

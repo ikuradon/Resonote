@@ -84,8 +84,14 @@
   };
 
   onMount(() => {
+    // Close on any scroll (menu position becomes stale)
+    const onScroll = () => {
+      if (open) open = false;
+    };
+    window.addEventListener('scroll', onScroll, { capture: true, passive: true });
     return () => {
       open = false;
+      window.removeEventListener('scroll', onScroll, { capture: true });
     };
   });
 
