@@ -117,6 +117,9 @@ export function stripHtml(html: string): string {
     .trim();
 }
 
+// Note: functions/ cannot import from src/shared/ (different build targets).
+// The same stripHtml logic is duplicated in src/shared/utils/html.ts for client use.
+
 export function extractAttr(xml: string, tag: string, attr: string): string {
   const pattern = new RegExp(`<${tag}[^>]+${attr}=["']([^"']+)["'][^>]*>`, 'i');
   const match = xml.match(pattern);
