@@ -91,38 +91,103 @@
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
-  function addFlowComment() {
+  // --- Long text variants ---
+  const LONG_MESSAGES = [
+    'This is an absolutely incredible track that I have been listening to on repeat for the past week. The production quality is outstanding and every single element comes together perfectly. I cannot recommend this enough to anyone who enjoys this genre of music. Truly a masterpiece!',
+    "I first discovered this artist through a friend's recommendation and I have to say, this particular track exceeded all my expectations. The way the melody builds and the harmonies layer on top of each other creates such a rich and immersive listening experience.",
+    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa (testing long unbreakable text)'
+  ];
+
+  // --- CW reasons ---
+  const CW_REASONS = ['Spoiler', 'NSFW', 'Sensitive content', ''];
+
+  // --- Custom emoji sets ---
+  const CUSTOM_EMOJI_SETS: string[][][] = [
+    [['emoji', 'catjam', 'https://cdn.betterttv.net/emote/5f1b0186cf6d2144653d2970/3x.webp']],
+    [
+      ['emoji', 'pepeJAM', 'https://cdn.betterttv.net/emote/5b77ac3af7571e42e6ccc5a1/3x.webp'],
+      ['emoji', 'monkaS', 'https://cdn.betterttv.net/emote/56e9f494fff3cc5c35e5287e/3x.webp']
+    ],
+    []
+  ];
+
+  function makeComment(overrides: Partial<Comment> = {}): Comment {
     const id = `test-${++nextId}-${Date.now()}`;
-    const posMs = Math.floor(Math.random() * DURATION_MS);
+    return {
+      id,
+      pubkey: randomPick(TEST_PUBKEYS),
+      content: '',
+      createdAt: Math.floor(Date.now() / 1000),
+      positionMs: null,
+      emojiTags: [],
+      replyTo: null,
+      contentWarning: null,
+      ...overrides
+    };
+  }
+
+  function addFlowComment() {
     comments = [
       ...comments,
-      {
-        id,
-        pubkey: randomPick(TEST_PUBKEYS),
+      makeComment({
         content: randomPick(TEST_MESSAGES_FLOW),
-        createdAt: Math.floor(Date.now() / 1000),
-        positionMs: posMs,
-        emojiTags: [],
-        replyTo: null,
-        contentWarning: null
-      }
+        positionMs: Math.floor(Math.random() * DURATION_MS)
+      })
     ];
   }
 
   function addShoutComment() {
-    const id = `test-${++nextId}-${Date.now()}`;
+    comments = [...comments, makeComment({ content: randomPick(TEST_MESSAGES_SHOUT) })];
+  }
+
+  function addLongComment() {
+    const isTimed = Math.random() > 0.5;
     comments = [
       ...comments,
-      {
-        id,
-        pubkey: randomPick(TEST_PUBKEYS),
-        content: randomPick(TEST_MESSAGES_SHOUT),
-        createdAt: Math.floor(Date.now() / 1000),
-        positionMs: null,
-        emojiTags: [],
-        replyTo: null,
-        contentWarning: null
-      }
+      makeComment({
+        content: randomPick(LONG_MESSAGES),
+        positionMs: isTimed ? Math.floor(Math.random() * DURATION_MS) : null
+      })
+    ];
+  }
+
+  function addCWComment() {
+    const isTimed = Math.random() > 0.5;
+    comments = [
+      ...comments,
+      makeComment({
+        content: randomPick([...TEST_MESSAGES_FLOW, ...TEST_MESSAGES_SHOUT]),
+        positionMs: isTimed ? Math.floor(Math.random() * DURATION_MS) : null,
+        contentWarning: randomPick(CW_REASONS)
+      })
+    ];
+  }
+
+  function addEmojiComment() {
+    const emojiTags = randomPick(CUSTOM_EMOJI_SETS);
+    const shortcodes = emojiTags.map((t) => `:${t[1]}:`).join(' ');
+    const isTimed = Math.random() > 0.5;
+    comments = [
+      ...comments,
+      makeComment({
+        content: `Check this out ${shortcodes} so cool!`,
+        positionMs: isTimed ? Math.floor(Math.random() * DURATION_MS) : null,
+        emojiTags
+      })
+    ];
+  }
+
+  function addReply() {
+    const topLevel = comments.filter((c) => c.replyTo === null);
+    if (topLevel.length === 0) return;
+    const parent = randomPick(topLevel);
+    comments = [
+      ...comments,
+      makeComment({
+        content: `Replying to "${parent.content.slice(0, 30)}..." — totally agree!`,
+        replyTo: parent.id,
+        positionMs: parent.positionMs
+      })
     ];
   }
 
@@ -137,9 +202,25 @@
     const reactor = randomPick(TEST_PUBKEYS);
     const updatedReactors = new Set(current.reactors);
     updatedReactors.add(reactor);
+
+    // Occasionally add custom emoji reaction
+    const emojis = [...current.emojis];
+    if (Math.random() > 0.7) {
+      const emojiSet = randomPick(CUSTOM_EMOJI_SETS);
+      if (emojiSet.length > 0) {
+        const tag = emojiSet[0];
+        const existing = emojis.find((e) => e.content === `:${tag[1]}:`);
+        if (existing) {
+          existing.count++;
+        } else {
+          emojis.push({ content: `:${tag[1]}:`, url: tag[2], count: 1 });
+        }
+      }
+    }
+
     reactionIndex = new Map(reactionIndex).set(target.id, {
-      ...current,
       likes: updatedReactors.size,
+      emojis,
       reactors: updatedReactors
     });
   }
@@ -166,9 +247,13 @@
         const delay = 2000 + Math.random() * 1000;
         autoIntervalId = setInterval(() => {
           const r = Math.random();
-          if (r < 0.4) addFlowComment();
-          else if (r < 0.7) addShoutComment();
-          else if (r < 0.9) addReaction();
+          if (r < 0.2) addFlowComment();
+          else if (r < 0.35) addShoutComment();
+          else if (r < 0.45) addLongComment();
+          else if (r < 0.55) addCWComment();
+          else if (r < 0.63) addEmojiComment();
+          else if (r < 0.73) addReply();
+          else if (r < 0.88) addReaction();
           else deleteRandom();
         }, delay);
       };
@@ -265,32 +350,60 @@
           <span class="font-mono text-xs text-text-muted">{comments.length} comments</span>
         </div>
 
-        <div class="flex flex-wrap gap-2">
+        <div class="flex flex-wrap gap-1.5">
           <button
             type="button"
             onclick={addFlowComment}
-            class="rounded bg-accent/20 px-3 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-accent/30"
+            class="rounded bg-accent/20 px-2.5 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/30"
           >
-            + Flow Comment
+            + Flow
           </button>
           <button
             type="button"
             onclick={addShoutComment}
-            class="rounded bg-amber-500/20 px-3 py-1.5 text-xs font-medium text-amber-400 transition-colors hover:bg-amber-500/30"
+            class="rounded bg-amber-500/20 px-2.5 py-1 text-xs font-medium text-amber-400 transition-colors hover:bg-amber-500/30"
           >
             + Shout
           </button>
           <button
             type="button"
+            onclick={addLongComment}
+            class="rounded bg-blue-500/20 px-2.5 py-1 text-xs font-medium text-blue-400 transition-colors hover:bg-blue-500/30"
+          >
+            + Long
+          </button>
+          <button
+            type="button"
+            onclick={addCWComment}
+            class="rounded bg-orange-500/20 px-2.5 py-1 text-xs font-medium text-orange-400 transition-colors hover:bg-orange-500/30"
+          >
+            + CW
+          </button>
+          <button
+            type="button"
+            onclick={addEmojiComment}
+            class="rounded bg-purple-500/20 px-2.5 py-1 text-xs font-medium text-purple-400 transition-colors hover:bg-purple-500/30"
+          >
+            + Emoji
+          </button>
+          <button
+            type="button"
+            onclick={addReply}
+            class="rounded bg-cyan-500/20 px-2.5 py-1 text-xs font-medium text-cyan-400 transition-colors hover:bg-cyan-500/30"
+          >
+            + Reply
+          </button>
+          <button
+            type="button"
             onclick={addReaction}
-            class="rounded bg-pink-500/20 px-3 py-1.5 text-xs font-medium text-pink-400 transition-colors hover:bg-pink-500/30"
+            class="rounded bg-pink-500/20 px-2.5 py-1 text-xs font-medium text-pink-400 transition-colors hover:bg-pink-500/30"
           >
             + Reaction
           </button>
           <button
             type="button"
             onclick={deleteRandom}
-            class="rounded bg-red-500/20 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/30"
+            class="rounded bg-red-500/20 px-2.5 py-1 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/30"
           >
             Delete Random
           </button>
