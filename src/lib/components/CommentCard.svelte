@@ -310,6 +310,7 @@
         <button
           type="button"
           disabled
+          aria-label="ReNote"
           class="flex items-center gap-1 rounded-md border border-border-subtle px-2.5 py-1 text-xs text-text-muted opacity-50"
         >
           <svg

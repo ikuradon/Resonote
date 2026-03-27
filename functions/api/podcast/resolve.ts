@@ -101,6 +101,22 @@ export function extractTagContent(xml: string, tag: string): string {
   return '';
 }
 
+/** Strip HTML tags and decode common entities to produce plain text. */
+export function stripHtml(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export function extractAttr(xml: string, tag: string, attr: string): string {
   const pattern = new RegExp(`<${tag}[^>]+${attr}=["']([^"']+)["'][^>]*>`, 'i');
   const match = xml.match(pattern);
@@ -138,10 +154,11 @@ export async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed
     const pubDate = extractTagContent(itemXml, 'pubDate');
     const durationRaw = extractTagContent(itemXml, 'itunes:duration');
     const duration = parseDurationToSeconds(durationRaw);
-    const description =
+    const descriptionRaw =
       extractTagContent(itemXml, 'description') ||
       extractTagContent(itemXml, 'itunes:summary') ||
       '';
+    const description = stripHtml(descriptionRaw);
 
     items.push({
       title: itemTitle,

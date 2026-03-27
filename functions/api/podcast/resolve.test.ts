@@ -9,7 +9,8 @@ import {
   normalizeForDTag,
   onRequestGet,
   parseDurationToSeconds,
-  parseRss
+  parseRss,
+  stripHtml
 } from './resolve.js';
 
 describe('normalizeForDTag', () => {
@@ -317,7 +318,7 @@ describe('parseRss', () => {
         <description><![CDATA[<p>HTML description</p>]]></description>
       </item></channel></rss>`;
     const result = await parseRss(xml, 'https://example.com/feed.xml');
-    expect(result!.episodes[0].description).toBe('<p>HTML description</p>');
+    expect(result!.episodes[0].description).toBe('HTML description');
   });
 
   it('should extract itunes:image href', async () => {
@@ -796,5 +797,41 @@ describe('handleRequest (onRequestGet)', () => {
       const res = await onRequestGet(ctx);
       expect(res.status).toBe(404);
     });
+  });
+});
+
+describe('stripHtml', () => {
+  it('removes HTML tags and returns plain text', () => {
+    expect(stripHtml('<p>Hello <b>world</b></p>')).toBe('Hello world');
+  });
+
+  it('converts <br> to newline', () => {
+    expect(stripHtml('Line 1<br>Line 2<br/>Line 3')).toBe('Line 1\nLine 2\nLine 3');
+  });
+
+  it('converts </p> to double newline', () => {
+    expect(stripHtml('<p>Para 1</p><p>Para 2</p>')).toBe('Para 1\n\nPara 2');
+  });
+
+  it('decodes HTML entities', () => {
+    expect(stripHtml('&amp; &lt; &gt; &quot; &#39;')).toBe('& < > " \'');
+  });
+
+  it('handles CDATA-extracted content with HTML', () => {
+    expect(stripHtml('<p>Episode about <a href="https://example.com">topic</a></p>')).toBe(
+      'Episode about topic'
+    );
+  });
+
+  it('collapses excessive newlines', () => {
+    expect(stripHtml('<p>A</p><p></p><p>B</p>')).toBe('A\n\nB');
+  });
+
+  it('returns empty string for empty input', () => {
+    expect(stripHtml('')).toBe('');
+  });
+
+  it('returns plain text unchanged', () => {
+    expect(stripHtml('Just plain text')).toBe('Just plain text');
   });
 });
