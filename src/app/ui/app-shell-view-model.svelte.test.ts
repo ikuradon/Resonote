@@ -13,7 +13,11 @@ const {
   mockInitRelayStatus,
   mockDestroyRelayStatus,
   mockInitApp,
-  mockManageNotifications
+  mockManageNotifications,
+  mockLoginNostr,
+  mockLogoutNostr,
+  mockGetProfileDisplay,
+  mockGetProfileHref
 } = vi.hoisted(() => {
   const authState = { pubkey: null as string | null, initialized: false, loggedIn: false };
   const followsState = { follows: new Set<string>() };
@@ -32,7 +36,11 @@ const {
     mockInitRelayStatus: vi.fn().mockResolvedValue(undefined),
     mockDestroyRelayStatus: vi.fn(),
     mockInitApp: vi.fn(),
-    mockManageNotifications: vi.fn().mockReturnValue(undefined)
+    mockManageNotifications: vi.fn().mockReturnValue(undefined),
+    mockLoginNostr: vi.fn().mockResolvedValue(undefined),
+    mockLogoutNostr: vi.fn().mockResolvedValue(undefined),
+    mockGetProfileDisplay: vi.fn().mockReturnValue({ displayName: 'Test', picture: null }),
+    mockGetProfileHref: vi.fn().mockReturnValue('/profile/test')
   };
 });
 
@@ -41,7 +49,9 @@ vi.mock('$app/navigation', () => ({
 }));
 
 vi.mock('$shared/browser/auth.js', () => ({
-  getAuth: () => authState
+  getAuth: () => authState,
+  loginNostr: (...args: unknown[]) => mockLoginNostr(...(args as [])),
+  logoutNostr: (...args: unknown[]) => mockLogoutNostr(...(args as []))
 }));
 
 vi.mock('$shared/browser/follows.js', () => ({
@@ -62,6 +72,16 @@ vi.mock('$shared/browser/relays.js', () => ({
   isTransitionalState: (s: string) => mockIsTransitionalState(s),
   initRelayStatus: (...args: unknown[]) => mockInitRelayStatus(...(args as [])),
   destroyRelayStatus: (...args: unknown[]) => mockDestroyRelayStatus(...(args as []))
+}));
+
+vi.mock('$shared/browser/profile.js', () => ({
+  getProfileDisplay: (...args: unknown[]) => mockGetProfileDisplay(...(args as [])),
+  getProfileHref: (...args: unknown[]) => mockGetProfileHref(...(args as []))
+}));
+
+vi.mock('$shared/utils/deploy-env.js', () => ({
+  getDeployEnv: () => 'development',
+  getEnvBannerConfig: () => null
 }));
 
 vi.mock('$appcore/bootstrap/init-app.js', () => ({

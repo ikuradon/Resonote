@@ -20,7 +20,7 @@ const {
   logErrorMock
 } = vi.hoisted(() => ({
   playerState: { position: 6_000 },
-  authState: { pubkey: 'me' as string | null, loggedIn: true },
+  authState: { pubkey: 'me' as string | null, loggedIn: true, canWrite: true },
   muteListState: { mutedPubkeys: new Set(['muted-user']) },
   displayByPubkey: {
     me: { displayName: 'Me', profileHref: '/profile/me' },

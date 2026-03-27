@@ -97,8 +97,10 @@
   >
     <div class="flex items-center gap-2 text-xs">
       {#if activeTab === 'flow'}
-        <span class="font-mono text-xs rounded-full px-2 py-0.5
-          {vm.hasPosition ? 'bg-accent/10 text-accent' : 'bg-surface-3 text-text-muted/40'}">
+        <span
+          class="font-mono text-xs rounded-full px-2 py-0.5
+          {vm.hasPosition ? 'bg-accent/10 text-accent' : 'bg-surface-3 text-text-muted/40'}"
+        >
           {vm.positionLabel ?? '--:--'}
         </span>
       {/if}

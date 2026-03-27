@@ -102,7 +102,10 @@ test.describe('Toast notifications', () => {
 
     // Delete is in the More actions menu
     const commentEl = page.locator('article, div').filter({ hasText: 'Delete toast test' }).first();
-    await commentEl.getByRole('button', { name: /More actions/i }).first().click();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
     const deleteButton = page.getByRole('button', { name: /Delete|削除/i }).first();
     await deleteButton.click();
 
@@ -221,7 +224,10 @@ test.describe('ConfirmDialog — all variants', () => {
 
     // Delete is in the More actions menu
     const commentEl = page.locator('article, div').filter({ hasText: 'Red button test' }).first();
-    await commentEl.getByRole('button', { name: /More actions/i }).first().click();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
     const deleteButton = page.getByRole('button', { name: /Delete|削除/i }).first();
     await deleteButton.click();
 
@@ -245,7 +251,10 @@ test.describe('ConfirmDialog — all variants', () => {
 
     // Delete is in the More actions menu
     const commentEl = page.locator('article, div').filter({ hasText: 'Dialog text test' }).first();
-    await commentEl.getByRole('button', { name: /More actions/i }).first().click();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
     const deleteButton = page.getByRole('button', { name: /Delete|削除/i }).first();
     await deleteButton.click();
 
@@ -271,11 +280,11 @@ test.describe('ConfirmDialog — all variants', () => {
     await expect(page.getByText('Cancel click test').first()).toBeVisible({ timeout: 15_000 });
 
     // Delete is in the More actions menu
-    const commentEl = page
-      .locator('article, div')
-      .filter({ hasText: 'Cancel click test' })
-      .first();
-    await commentEl.getByRole('button', { name: /More actions/i }).first().click();
+    const commentEl = page.locator('article, div').filter({ hasText: 'Cancel click test' }).first();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
     const deleteButton = page.getByRole('button', { name: /Delete|削除/i }).first();
     await deleteButton.click();
 

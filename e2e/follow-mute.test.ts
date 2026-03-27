@@ -163,7 +163,10 @@ test.describe('Mute from comment card', () => {
 
     // Mute is in the More actions menu
     const commentEl = page.locator('article, div').filter({ hasText: 'Mutable comment' }).first();
-    await commentEl.getByRole('button', { name: /More actions/i }).first().click();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
 
     const muteBtn = page.getByRole('button', { name: /Mute User|Mute user/i }).first();
     await expect(muteBtn).toBeVisible({ timeout: 5_000 });
@@ -185,8 +188,14 @@ test.describe('Mute from comment card', () => {
     await expect(page.getByText('Own comment no mute').first()).toBeVisible({ timeout: 15_000 });
 
     // Open More actions menu on own comment
-    const commentEl = page.locator('article, div').filter({ hasText: 'Own comment no mute' }).first();
-    await commentEl.getByRole('button', { name: /More actions/i }).first().click();
+    const commentEl = page
+      .locator('article, div')
+      .filter({ hasText: 'Own comment no mute' })
+      .first();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
 
     // Mute User button should not exist for own comment
     const muteButtons = page.getByRole('button', { name: /Mute User|Mute user/i });
@@ -226,7 +235,10 @@ test.describe('Mute from comment card', () => {
 
     // Mute is in the More actions menu
     const commentEl = page.locator('article, div').filter({ hasText: 'Mute dialog test' }).first();
-    await commentEl.getByRole('button', { name: /More actions/i }).first().click();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
     const muteBtn = page.getByRole('button', { name: /Mute User|Mute user/i }).first();
     await muteBtn.click();
 
@@ -250,7 +262,10 @@ test.describe('Mute from comment card', () => {
 
     // Mute is in the More actions menu
     const commentEl = page.locator('article, div').filter({ hasText: 'Mute publish test' }).first();
-    await commentEl.getByRole('button', { name: /More actions/i }).first().click();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
     const muteBtn = page.getByRole('button', { name: /Mute User|Mute user/i }).first();
     await muteBtn.click();
 
@@ -284,7 +299,10 @@ test.describe('Mute from comment card', () => {
       .locator('article, div')
       .filter({ hasText: 'Will be muted comment' })
       .first();
-    await commentEl.getByRole('button', { name: /More actions/i }).first().click();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
     const muteBtn = page.getByRole('button', { name: /Mute User|Mute user/i }).first();
     await muteBtn.click();
 
