@@ -198,6 +198,13 @@
       untrack(() => updateOffsetsFrom(pendingMinChanged));
       pendingScrollDelta = 0;
       pendingMinChanged = items.length;
+
+      // If scrollToEnd is pending, re-scroll after DOM reflects new totalHeight
+      if (pendingScrollToEnd && container) {
+        requestAnimationFrame(() => {
+          container?.scrollTo({ top: container.scrollHeight, behavior: 'instant' });
+        });
+      }
     }
 
     resizeObserver = new ResizeObserver((entries) => {
@@ -307,12 +314,16 @@
     return container;
   }
 
+  let pendingScrollToEnd = false;
+
   export function scrollToEnd() {
     if (!container) return;
     isProgrammaticScroll = true;
+    pendingScrollToEnd = true;
     if (programmaticScrollTimer) clearTimeout(programmaticScrollTimer);
     programmaticScrollTimer = setTimeout(() => {
       isProgrammaticScroll = false;
+      pendingScrollToEnd = false;
     }, 500);
     container.scrollTo({ top: container.scrollHeight, behavior: 'instant' });
   }
