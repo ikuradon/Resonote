@@ -88,17 +88,20 @@
     if (vm.activeTab === 'shout' && shoutVirtualList && vm.shoutComments.length > 0) {
       const isInitial = !shoutHasBeenShown;
       const restoreOffset = shoutSavedScrollTop;
-      // Mark as shown immediately (before async) so onRangeChange guard activates
-      // only AFTER we've decided what to do with scroll position.
       if (isInitial) shoutHasBeenShown = true;
       if (restoreOffset !== null) shoutSavedScrollTop = null;
 
       void tick().then(() => {
         requestAnimationFrame(() => {
           if (isInitial) {
+            // First time: scroll to bottom
             shoutVirtualList?.scrollToEnd();
           } else if (restoreOffset !== null) {
+            // Returning from another tab: restore saved position
             shoutVirtualList?.scrollToOffset(restoreOffset);
+          } else if (vm.shoutAtBottom) {
+            // At bottom + new comment arrived: auto-follow
+            shoutVirtualList?.scrollToEnd();
           }
         });
       });
@@ -357,9 +360,14 @@
               keyFn={(c) => c.id}
               estimateHeight={120}
               overscan={3}
-              onRangeChange={(start, end) => {
-                if (shoutHasBeenShown) {
-                  vm.setShoutAtBottom(end >= vm.shoutComments.length - 1);
+              onRangeChange={() => {
+                if (shoutHasBeenShown && shoutVirtualList) {
+                  // Use scroll position instead of range indices (which include overscan).
+                  // "At bottom" = scrolled within 50px of the end.
+                  const el = shoutVirtualList.getContainer?.();
+                  if (el) {
+                    vm.setShoutAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 50);
+                  }
                 }
               }}
             >

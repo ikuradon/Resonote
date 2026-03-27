@@ -302,6 +302,11 @@
     return container?.scrollTop ?? 0;
   }
 
+  /** Get the scroll container element for direct measurement. */
+  export function getContainer(): HTMLDivElement | undefined {
+    return container;
+  }
+
   export function scrollToEnd() {
     if (!container) return;
     isProgrammaticScroll = true;
