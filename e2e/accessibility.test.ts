@@ -43,6 +43,9 @@ test.describe('ARIA attributes', () => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
 
+    // Share button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
+
     const shareButton = page.getByRole('button', { name: /Share|共有/i });
     await expect(shareButton).toBeVisible({ timeout: 10_000 });
     await shareButton.click();
@@ -53,6 +56,9 @@ test.describe('ARIA attributes', () => {
   test('should have aria-modal on share dialog', async ({ page }) => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
+
+    // Share button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
 
     const shareButton = page.getByRole('button', { name: /Share|共有/i });
     await shareButton.click();
@@ -65,6 +71,9 @@ test.describe('Keyboard navigation', () => {
   test('should close share modal with Escape', async ({ page }) => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
+
+    // Share button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
 
     const shareButton = page.getByRole('button', { name: /Share|共有/i });
     await shareButton.click();
@@ -94,15 +103,18 @@ test.describe('Keyboard navigation', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Focus test').first()).toBeVisible({ timeout: 15_000 });
 
-    // Click delete
-    const deleteButton = page
-      .locator('article, div')
-      .filter({ hasText: 'Focus test' })
+    // Click "More actions" then delete
+    const commentEl = page.locator('article, div').filter({ hasText: 'Focus test' }).first();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
       .first()
-      .getByRole('button', { name: /Delete|削除/i })
-      .first();
+      .click();
+    const deleteButton = page.getByRole('button', { name: /Delete|削除/i }).first();
     await deleteButton.click();
 
     // Cancel button should be focused (confirm dialog auto-focuses cancel)
@@ -121,14 +133,21 @@ test.describe('Keyboard navigation', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Escape dialog test').first()).toBeVisible({ timeout: 15_000 });
 
-    const deleteButton = page
+    // Click "More actions" then delete
+    const commentEl = page
       .locator('article, div')
       .filter({ hasText: 'Escape dialog test' })
-      .first()
-      .getByRole('button', { name: /Delete|削除/i })
       .first();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
+    const deleteButton = page.getByRole('button', { name: /Delete|削除/i }).first();
     await deleteButton.click();
 
     await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 5_000 });

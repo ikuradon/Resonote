@@ -58,6 +58,9 @@ test.describe('XSS prevention in comment content', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [xssComment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     // Should render as text, not execute
     await expect(page.getByText('<script>').first()).toBeVisible({ timeout: 15_000 });
 
@@ -76,6 +79,9 @@ test.describe('XSS prevention in comment content', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [xssComment]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     // Should be rendered as text
     await expect(page.getByText('<img').first()).toBeVisible({ timeout: 15_000 });
@@ -99,6 +105,9 @@ test.describe('XSS prevention in profile data', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [metadata, comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Profile XSS test').first()).toBeVisible({ timeout: 15_000 });
 
     // Profile name should be rendered as text, not executed as HTML
@@ -118,6 +127,9 @@ test.describe('XSS prevention in profile data', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [jsComment]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     await expect(page.getByText('Click here:').first()).toBeVisible({ timeout: 15_000 });
 
@@ -141,6 +153,9 @@ test.describe('Malformed event handling', () => {
     // Inject a normal comment alongside to verify page still works
     const normalComment = buildComment(otherUser, 'Normal after bad', TEST_I_TAG, TEST_K_TAG);
     await broadcastEventsOnAllRelays(page, [normalComment]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     // Page should still be functional
     await expect(page.getByText('Normal after bad').first()).toBeVisible({ timeout: 15_000 });

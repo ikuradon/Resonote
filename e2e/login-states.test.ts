@@ -44,10 +44,14 @@ test.describe('Content page — not logged in', () => {
     await expect(page.locator('[data-testid="comment-form"]')).toHaveCount(0);
   });
 
-  test('should show share button (copy only)', async ({ page }) => {
+  test('should show share button in Info tab (copy only)', async ({ page }) => {
     await setupMockPool(page);
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
+
+    // Share button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
+
     await expect(page.getByRole('button', { name: /Share|共有/i })).toBeVisible({
       timeout: 10_000
     });
@@ -57,6 +61,10 @@ test.describe('Content page — not logged in', () => {
     await setupMockPool(page);
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
+
+    // Open Info tab — bookmark button should not appear for unauthenticated users
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
+
     await expect(page.getByRole('button', { name: /Bookmark|ブックマーク/i })).toHaveCount(0);
   });
 
@@ -64,7 +72,9 @@ test.describe('Content page — not logged in', () => {
     await setupMockPool(page);
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
-    await expect(page.getByRole('button', { name: /^All$|^すべて$/ })).toHaveCount(0);
+
+    // Filter is now a <select> dropdown, only shown when logged in
+    await expect(page.locator('select')).toHaveCount(0);
   });
 });
 
@@ -81,28 +91,36 @@ test.describe('Content page — full login', () => {
     await expect(page.locator('[data-testid="comment-form"]')).toBeVisible({ timeout: 10_000 });
   });
 
-  test('should show bookmark button', async ({ page }) => {
+  test('should show bookmark button in Info tab', async ({ page }) => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+
+    // Bookmark button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
+
     await expect(page.getByRole('button', { name: /Bookmark|ブックマーク/i })).toBeVisible({
       timeout: 10_000
     });
   });
 
-  test('should show filter bar', async ({ page }) => {
+  test('should show filter dropdown', async ({ page }) => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
-    await expect(page.getByRole('button', { name: /^All$|^すべて$/ }).first()).toBeVisible({
-      timeout: 10_000
-    });
+
+    // Filter is now a <select> dropdown
+    await expect(page.locator('select').first()).toBeVisible({ timeout: 10_000 });
   });
 
   test('should show "Post to Nostr" in share menu', async ({ page }) => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+
+    // Share button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
+
     await page.getByRole('button', { name: /Share|共有/i }).click();
     await expect(page.getByText(/Post to Nostr|Nostrに投稿/).first()).toBeVisible({
       timeout: 5_000
@@ -122,13 +140,13 @@ test.describe('Content page — read-only login', () => {
     await expect(page.locator('textarea')).toBeVisible({ timeout: 10_000 });
   });
 
-  test('should show filter bar', async ({ page }) => {
+  test('should show filter dropdown', async ({ page }) => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateReadOnlyLogin(page, user.pubkey);
-    await expect(page.getByRole('button', { name: /^All$|^すべて$/ }).first()).toBeVisible({
-      timeout: 10_000
-    });
+
+    // Filter is now a <select> dropdown
+    await expect(page.locator('select').first()).toBeVisible({ timeout: 10_000 });
   });
 });
 
@@ -351,22 +369,19 @@ test.describe('Logout UI transitions', () => {
     await setupFullLogin(page, user.pubkey, user.sign);
   });
 
-  test('should hide filter bar after logout', async ({ page }) => {
+  test('should hide filter dropdown after logout', async ({ page }) => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
-    await expect(page.getByRole('button', { name: /^All$|^すべて$/ }).first()).toBeVisible({
-      timeout: 10_000
-    });
+    // Filter is now a <select> dropdown
+    await expect(page.locator('select').first()).toBeVisible({ timeout: 10_000 });
 
     await page.evaluate(() => {
       document.dispatchEvent(new CustomEvent('nlAuth', { detail: { type: 'logout' } }));
     });
 
-    await expect(page.getByRole('button', { name: /^All$|^すべて$/ })).toHaveCount(0, {
-      timeout: 10_000
-    });
+    await expect(page.locator('select')).toHaveCount(0, { timeout: 10_000 });
   });
 
   test('should hide bookmark button after logout', async ({ page }) => {
@@ -374,6 +389,8 @@ test.describe('Logout UI transitions', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    // Open Info tab to see bookmark button
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
     await expect(page.getByRole('button', { name: /Bookmark|ブックマーク/i })).toBeVisible({
       timeout: 10_000
     });

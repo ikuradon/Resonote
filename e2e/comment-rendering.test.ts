@@ -37,6 +37,9 @@ test.describe('Comment text rendering', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Check').first()).toBeVisible({ timeout: 15_000 });
     const link = page.locator('a[href="https://example.com"]').first();
     await expect(link).toBeVisible();
@@ -55,6 +58,9 @@ test.describe('Comment text rendering', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Line one').first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Line two').first()).toBeVisible();
     await expect(page.getByText('Line three').first()).toBeVisible();
@@ -68,6 +74,9 @@ test.describe('Comment text rendering', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     // Just verify it renders without crash
     await expect(page.getByText('AAAAA').first()).toBeVisible({ timeout: 15_000 });
   });
@@ -79,6 +88,9 @@ test.describe('Comment text rendering', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     const link = page.locator('a[href="https://example.com/page"]').first();
     await expect(link).toBeVisible({ timeout: 15_000 });
   });
@@ -89,6 +101,9 @@ test.describe('Comment text rendering', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     await expect(page.getByText('#NowPlaying').first()).toBeVisible({ timeout: 15_000 });
     // Hashtag should have accent color class
@@ -105,6 +120,7 @@ test.describe('Comment text rendering', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // Timed comments appear in Flow tab (default tab)
     await expect(page.getByText('At this moment').first()).toBeVisible({ timeout: 15_000 });
     // Position badge should show 1:30
     await expect(page.getByText('1:30').first()).toBeVisible();
@@ -116,6 +132,9 @@ test.describe('Comment text rendering', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     await expect(page.getByText('Timestamp test').first()).toBeVisible({ timeout: 15_000 });
     // Verify comment card has a muted timestamp element

@@ -32,6 +32,9 @@ test.describe('Concurrent operations', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    // Switch to Shout tab to see general comments
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
     await textarea.fill('Draft in progress');
@@ -54,21 +57,18 @@ test.describe('Concurrent operations', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
-    const allBtn = page.getByRole('button', { name: /^All$|^すべて$/ }).first();
-    const followsBtn = page.getByRole('button', { name: /^Follows$|^フォロー$/ }).first();
-    const wotBtn = page.getByRole('button', { name: /^WoT$/ }).first();
-
-    await expect(allBtn).toBeVisible({ timeout: 10_000 });
+    const filterSelect = page.locator('select').first();
+    await expect(filterSelect).toBeVisible({ timeout: 10_000 });
 
     // Rapid switching
-    await followsBtn.click();
-    await wotBtn.click();
-    await allBtn.click();
-    await followsBtn.click();
-    await allBtn.click();
+    await filterSelect.selectOption('follows');
+    await filterSelect.selectOption('wot');
+    await filterSelect.selectOption('all');
+    await filterSelect.selectOption('follows');
+    await filterSelect.selectOption('all');
 
-    // Should be stable on "All"
-    await expect(allBtn).toHaveClass(/shadow-sm/, { timeout: 5_000 });
+    // Should be stable on "all"
+    await expect(filterSelect).toHaveValue('all', { timeout: 5_000 });
   });
 
   test('should handle rapid page navigation', async ({ page }) => {
@@ -96,6 +96,9 @@ test.describe('Cross-feature interactions', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Cross-feature comment').first()).toBeVisible({ timeout: 15_000 });
 
     // React to it
@@ -120,16 +123,23 @@ test.describe('Cross-feature interactions', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('My cross-feat comment').first()).toBeVisible({ timeout: 15_000 });
 
     // Another user reacts
     const reaction = buildReaction(otherUser, comment.id, user.pubkey, TEST_I_TAG);
     await broadcastEventsOnAllRelays(page, [reaction]);
 
-    // Heart count should appear (scoped to the comment containing our text)
-    const commentCard = page.getByText('My cross-feat comment').locator('..');
-    const heartCount = commentCard.locator('span.font-mono').filter({ hasText: '1' }).first();
-    await expect(heartCount).toBeVisible({ timeout: 15_000 });
+    // Heart count should appear — the Like button shows count as text
+    const commentCard = page
+      .locator('article, div')
+      .filter({ hasText: 'My cross-feat comment' })
+      .first();
+    await expect(commentCard.locator('button').filter({ hasText: '1' }).first()).toBeVisible({
+      timeout: 15_000
+    });
   });
 
   test('should navigate from comment avatar to profile page', async ({ page }) => {
@@ -138,6 +148,9 @@ test.describe('Cross-feature interactions', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     await expect(page.getByText('Avatar click test').first()).toBeVisible({ timeout: 15_000 });
 
@@ -152,6 +165,9 @@ test.describe('Cross-feature interactions', () => {
   test('should show share menu and close with Escape', async ({ page }) => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
+
+    // Share button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
 
     const shareButton = page.getByRole('button', { name: /Share|共有/i });
     await shareButton.click();
@@ -246,6 +262,9 @@ test.describe('Cross-feature: multiple rapid sends', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    // Switch to Shout tab to post general comments
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
 
@@ -260,7 +279,7 @@ test.describe('Cross-feature: multiple rapid sends', () => {
     await sendButton.click();
     await expect(textarea).toHaveValue('', { timeout: 10_000 });
 
-    // Both should appear
+    // Both should appear in Shout tab
     await expect(page.getByText('First rapid comment').first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Second rapid comment').first()).toBeVisible({ timeout: 15_000 });
   });
@@ -283,11 +302,19 @@ test.describe('Cross-feature: mute hides comments immediately', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment1, comment2, userComment, otherReaction]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Other visible 1').first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Other visible 2').first()).toBeVisible({ timeout: 15_000 });
 
-    // Mute alice
-    const muteBtn = page.locator('button[title="Mute user"]').first();
+    // Mute user via More actions menu
+    const commentEl = page.locator('article, div').filter({ hasText: 'Other visible 1' }).first();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
+    const muteBtn = page.getByRole('button', { name: /Mute User|Mute user/i }).first();
     await muteBtn.click();
 
     const confirmBtn = page.getByRole('button', { name: /Confirm|確認/i }).first();

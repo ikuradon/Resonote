@@ -69,6 +69,9 @@ test.describe('Toast notifications', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('React toast test').first()).toBeVisible({ timeout: 15_000 });
 
     const likeButton = page
@@ -92,14 +95,15 @@ test.describe('Toast notifications', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Delete toast test').first()).toBeVisible({ timeout: 15_000 });
 
-    const deleteButton = page
-      .locator('article, div')
-      .filter({ hasText: 'Delete toast test' })
-      .first()
-      .getByRole('button', { name: /Delete|削除/i })
-      .first();
+    // Delete is in the More actions menu
+    const commentEl = page.locator('article, div').filter({ hasText: 'Delete toast test' }).first();
+    await commentEl.getByRole('button', { name: /More actions/i }).first().click();
+    const deleteButton = page.getByRole('button', { name: /Delete|削除/i }).first();
     await deleteButton.click();
 
     const confirmButton = page.getByRole('button', { name: /^Delete$|^削除$/ }).last();
@@ -149,9 +153,17 @@ test.describe('Toast — failure and manual close', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Reply toast target').first()).toBeVisible({ timeout: 15_000 });
 
-    const replyButton = page.locator('button[title="Reply"]').first();
+    const replyButton = page
+      .locator('article, div')
+      .filter({ hasText: 'Reply toast target' })
+      .first()
+      .getByRole('button', { name: /Reply|返信/i })
+      .first();
     await replyButton.click();
 
     const replyTextarea = page.locator('textarea').last();
@@ -202,14 +214,15 @@ test.describe('ConfirmDialog — all variants', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Red button test').first()).toBeVisible({ timeout: 15_000 });
 
-    const deleteButton = page
-      .locator('article, div')
-      .filter({ hasText: 'Red button test' })
-      .first()
-      .getByRole('button', { name: /Delete|削除/i })
-      .first();
+    // Delete is in the More actions menu
+    const commentEl = page.locator('article, div').filter({ hasText: 'Red button test' }).first();
+    await commentEl.getByRole('button', { name: /More actions/i }).first().click();
+    const deleteButton = page.getByRole('button', { name: /Delete|削除/i }).first();
     await deleteButton.click();
 
     // Confirm button should have danger/red styling
@@ -225,14 +238,15 @@ test.describe('ConfirmDialog — all variants', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Dialog text test').first()).toBeVisible({ timeout: 15_000 });
 
-    const deleteButton = page
-      .locator('article, div')
-      .filter({ hasText: 'Dialog text test' })
-      .first()
-      .getByRole('button', { name: /Delete|削除/i })
-      .first();
+    // Delete is in the More actions menu
+    const commentEl = page.locator('article, div').filter({ hasText: 'Dialog text test' }).first();
+    await commentEl.getByRole('button', { name: /More actions/i }).first().click();
+    const deleteButton = page.getByRole('button', { name: /Delete|削除/i }).first();
     await deleteButton.click();
 
     // Dialog should have title
@@ -251,14 +265,18 @@ test.describe('ConfirmDialog — all variants', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Cancel click test').first()).toBeVisible({ timeout: 15_000 });
 
-    const deleteButton = page
+    // Delete is in the More actions menu
+    const commentEl = page
       .locator('article, div')
       .filter({ hasText: 'Cancel click test' })
-      .first()
-      .getByRole('button', { name: /Delete|削除/i })
       .first();
+    await commentEl.getByRole('button', { name: /More actions/i }).first().click();
+    const deleteButton = page.getByRole('button', { name: /Delete|削除/i }).first();
     await deleteButton.click();
 
     const cancelButton = page.getByRole('button', { name: /Cancel|キャンセル/ }).last();

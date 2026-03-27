@@ -27,6 +27,9 @@ test.describe('Bookmark flow', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    // Bookmark button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
+
     const bookmarkButton = page.getByRole('button', { name: /Bookmark|ブックマーク/i });
     await expect(bookmarkButton).toBeVisible({ timeout: 10_000 });
   });
@@ -34,6 +37,9 @@ test.describe('Bookmark flow', () => {
   test('should not show bookmark button when not logged in', async ({ page }) => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
+
+    // Open Info tab — bookmark button should not appear for unauthenticated users
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
 
     const bookmarkButton = page.getByRole('button', { name: /Bookmark|ブックマーク/i });
     await expect(bookmarkButton).toHaveCount(0);
@@ -43,6 +49,9 @@ test.describe('Bookmark flow', () => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+
+    // Bookmark button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
 
     const bookmarkButton = page.getByRole('button', { name: /Bookmark|ブックマーク/i });
     await expect(bookmarkButton).toBeVisible({ timeout: 10_000 });
@@ -61,6 +70,9 @@ test.describe('Bookmark flow', () => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+
+    // Bookmark button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
 
     const bookmarkButton = page.getByRole('button', { name: /Bookmark|ブックマーク/i });
     await expect(bookmarkButton).toBeVisible({ timeout: 10_000 });
@@ -95,6 +107,9 @@ test.describe('Bookmark flow', () => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+
+    // Bookmark button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
 
     const bookmarkButton = page.getByRole('button', { name: /Bookmark|ブックマーク/i });
     await expect(bookmarkButton).toBeVisible({ timeout: 10_000 });
@@ -150,6 +165,9 @@ test.describe('Share flow', () => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
 
+    // Share button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
+
     const shareButton = page.getByRole('button', { name: /Share|共有/i });
     await expect(shareButton).toBeVisible({ timeout: 10_000 });
     await shareButton.click();
@@ -164,6 +182,9 @@ test.describe('Share flow', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    // Share button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
+
     const shareButton = page.getByRole('button', { name: /Share|共有/i });
     await shareButton.click();
 
@@ -175,6 +196,9 @@ test.describe('Share flow', () => {
   test('should not show "Post to Nostr" when not logged in', async ({ page }) => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
+
+    // Share button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
 
     const shareButton = page.getByRole('button', { name: /Share|共有/i });
     await shareButton.click();
@@ -188,6 +212,9 @@ test.describe('Share flow', () => {
   test('should close share menu with Escape', async ({ page }) => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
+
+    // Share button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
 
     const shareButton = page.getByRole('button', { name: /Share|共有/i });
     await shareButton.click();
@@ -204,6 +231,9 @@ test.describe('Share flow', () => {
   test('should close share menu on backdrop click', async ({ page }) => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
+
+    // Share button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
 
     const shareButton = page.getByRole('button', { name: /Share|共有/i });
     await shareButton.click();
@@ -226,6 +256,9 @@ test.describe('Share flow', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    // Share button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
+
     const shareButton = page.getByRole('button', { name: /Share|共有/i });
     await shareButton.click();
 
@@ -241,6 +274,9 @@ test.describe('Share flow', () => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+
+    // Share button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
 
     const shareButton = page.getByRole('button', { name: /Share|共有/i });
     await shareButton.click();
@@ -265,6 +301,9 @@ test.describe('Share — Post to Nostr flow', () => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+
+    // Share button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
 
     const shareButton = page.getByRole('button', { name: /Share|共有/i });
     await expect(shareButton).toBeVisible({ timeout: 10_000 });
@@ -296,6 +335,9 @@ test.describe('Share — Post to Nostr flow', () => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+
+    // Share button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
 
     const shareButton = page.getByRole('button', { name: /Share|共有/i });
     await expect(shareButton).toBeVisible({ timeout: 10_000 });

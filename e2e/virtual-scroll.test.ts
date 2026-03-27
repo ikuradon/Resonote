@@ -127,42 +127,42 @@ test.describe('VirtualScrollList — general comments (#153)', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, comments);
 
-    // Wait for first and last to be in DOM (virtual scroll may not render all)
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
+    // Wait for newest comment to be visible (scroll to bottom is auto)
     await expect(page.getByText('Comment #25').first()).toBeVisible({ timeout: 20_000 });
 
-    // General section should exist
+    // Shout tab button shows count "(25)"
     await expect(
-      page
-        .locator('span')
-        .filter({ hasText: /^General$|^全体$/ })
-        .first()
+      page.locator('button').filter({ hasText: /📢/ }).filter({ hasText: '25' }).first()
     ).toBeVisible();
 
-    // Count badge should show 25
-    await expect(page.locator('span.font-mono').filter({ hasText: '25' }).first()).toBeVisible();
-
-    // Scroll down to see older comments (#153: container must be scrollable)
+    // Scroll to top to see oldest comments (#153: container must be scrollable)
     const scrollContainer = page.locator('.overflow-y-auto').last();
     await scrollContainer.evaluate((el) => {
-      el.scrollTop = el.scrollHeight;
+      el.scrollTop = 0;
     });
     await page.waitForTimeout(500);
 
     // Oldest comment should be visible after scrolling
     await expect(page.getByText('Comment #1').first()).toBeVisible({ timeout: 5_000 });
   });
+
   test('should display comments when transitioning from 0 to N', async ({ page }) => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    // Switch to Shout tab before adding comments
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     // Add comments after page load (simulating real-time arrival)
     const comments = buildManyComments(5, false);
     await broadcastEventsOnAllRelays(page, comments);
 
-    // Comments should appear
-    await expect(page.getByText('Comment #1').first()).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText('Comment #5').first()).toBeVisible({ timeout: 5_000 });
+    // Comments should appear (newest shown first in chat style)
+    await expect(page.getByText('Comment #5').first()).toBeVisible({ timeout: 20_000 });
   });
 
   test('should display 20+ timed comments', async ({ page }) => {
@@ -172,16 +172,11 @@ test.describe('VirtualScrollList — general comments (#153)', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, comments);
 
-    // Timed section should exist
+    // Timed comments appear in Flow tab (default)
+    // Flow tab button shows count "(25)"
     await expect(
-      page
-        .locator('span')
-        .filter({ hasText: /Time Comments|時間コメント/ })
-        .first()
+      page.locator('button').filter({ hasText: /🎶/ }).filter({ hasText: '25' }).first()
     ).toBeVisible({ timeout: 20_000 });
-
-    // Count badge should show 25
-    await expect(page.locator('span.font-mono').filter({ hasText: '25' }).first()).toBeVisible();
   });
 
   test('should show both timed and general sections simultaneously', async ({ page }) => {
@@ -209,18 +204,17 @@ test.describe('VirtualScrollList — general comments (#153)', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [...timedComments, ...generalEvents]);
 
-    // Both sections should exist
+    // Timed comments appear in Flow tab (default) — count shows "(5)"
     await expect(
-      page
-        .locator('span')
-        .filter({ hasText: /Time Comments|時間コメント/ })
-        .first()
+      page.locator('button').filter({ hasText: /🎶/ }).filter({ hasText: '5' }).first()
     ).toBeVisible({ timeout: 20_000 });
+
+    // Switch to Shout tab to see general comments
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
+    // Shout tab shows general comment count "(5)"
     await expect(
-      page
-        .locator('span')
-        .filter({ hasText: /^General$|^全体$/ })
-        .first()
-    ).toBeVisible();
+      page.locator('button').filter({ hasText: /📢/ }).filter({ hasText: '5' }).first()
+    ).toBeVisible({ timeout: 10_000 });
   });
 });

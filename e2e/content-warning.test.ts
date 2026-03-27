@@ -30,6 +30,9 @@ test.describe('Content warning (CW)', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [cwComment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('spoiler').first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: /Show|表示/i }).first()).toBeVisible();
     await expect(page.getByText('Spoiler content here')).toHaveCount(0);
@@ -43,6 +46,9 @@ test.describe('Content warning (CW)', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [cwComment]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     await expect(page.getByText('nsfw').first()).toBeVisible({ timeout: 15_000 });
 
@@ -60,6 +66,9 @@ test.describe('Content warning (CW)', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [cwComment]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     await expect(page.getByText('test').first()).toBeVisible({ timeout: 15_000 });
 
@@ -86,6 +95,9 @@ test.describe('Content warning (CW)', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [cwComment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByRole('button', { name: /Show|表示/i }).first()).toBeVisible({
       timeout: 15_000
     });
@@ -98,6 +110,9 @@ test.describe('Content warning (CW)', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [normalComment]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     await expect(page.getByText('Normal visible comment').first()).toBeVisible({
       timeout: 15_000

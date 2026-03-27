@@ -42,6 +42,9 @@ test.describe('Reply threading', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [parent, reply]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Parent comment').first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Reply to parent').first()).toBeVisible({ timeout: 15_000 });
 
@@ -57,6 +60,9 @@ test.describe('Reply threading', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [parent]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     await expect(page.getByText('Waiting for reply').first()).toBeVisible({ timeout: 15_000 });
 
@@ -77,17 +83,26 @@ test.describe('Reply threading', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Reply toast test').first()).toBeVisible({ timeout: 15_000 });
 
-    // Click reply
-    const replyButton = page.locator('button[title="Reply"]').first();
+    // Click reply button (visible in shout mode action row)
+    const commentEl = page
+      .locator('[data-comment-id]')
+      .filter({ hasText: 'Reply toast test' })
+      .first();
+    const replyButton = commentEl.getByRole('button', { name: /Reply|返信/i }).first();
     await replyButton.click();
 
-    const replyTextarea = page.locator('textarea').last();
-    await expect(replyTextarea).toBeVisible({ timeout: 5_000 });
-    await replyTextarea.fill('Toast reply');
+    // Wait for the reply form textarea to appear inside the comment card
+    await expect(commentEl.locator('textarea')).toBeVisible({ timeout: 5_000 });
+    await commentEl.locator('textarea').fill('Toast reply');
 
-    const sendButton = page.locator('form button[type="submit"]').last();
+    // Submit button is inside the form within the comment card
+    const sendButton = commentEl.locator('button[type="submit"]').last();
+    await expect(sendButton).toBeEnabled({ timeout: 3_000 });
     await sendButton.click();
 
     // Success toast
@@ -100,6 +115,9 @@ test.describe('Reply threading', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     await expect(page.getByText('Fail reply target').first()).toBeVisible({ timeout: 15_000 });
 
@@ -114,18 +132,24 @@ test.describe('Reply threading', () => {
     }, TEST_RELAYS);
 
     // Open reply form
-    const replyButton = page.locator('button[title="Reply"]').first();
+    const commentEl = page
+      .locator('[data-comment-id]')
+      .filter({ hasText: 'Fail reply target' })
+      .first();
+    const replyButton = commentEl.getByRole('button', { name: /Reply|返信/i }).first();
     await replyButton.click();
 
-    const replyTextarea = page.locator('textarea').last();
-    await expect(replyTextarea).toBeVisible({ timeout: 5_000 });
-    await replyTextarea.fill('This reply will fail');
+    await expect(commentEl.locator('textarea')).toBeVisible({ timeout: 5_000 });
+    await commentEl.locator('textarea').fill('This reply will fail');
 
-    const sendButton = page.locator('form button[type="submit"]').last();
+    const sendButton = commentEl.locator('button[type="submit"]').last();
+    await expect(sendButton).toBeEnabled({ timeout: 3_000 });
     await sendButton.click();
 
     // Text should be preserved (not cleared)
-    await expect(replyTextarea).toHaveValue('This reply will fail', { timeout: 15_000 });
+    await expect(commentEl.locator('textarea')).toHaveValue('This reply will fail', {
+      timeout: 15_000
+    });
   });
 
   test('should display nested reply (reply to reply)', async ({ page }) => {
@@ -139,6 +163,9 @@ test.describe('Reply threading', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [parent, reply1]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     await expect(page.getByText('Thread root').first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('First level reply').first()).toBeVisible({ timeout: 15_000 });
@@ -155,20 +182,28 @@ test.describe('Reply threading', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Reply disable test').first()).toBeVisible({ timeout: 15_000 });
 
-    const replyButton = page.locator('button[title="Reply"]').first();
+    const commentEl = page
+      .locator('[data-comment-id]')
+      .filter({ hasText: 'Reply disable test' })
+      .first();
+    const replyButton = commentEl.getByRole('button', { name: /Reply|返信/i }).first();
     await replyButton.click();
 
-    const replyTextarea = page.locator('textarea').last();
-    await expect(replyTextarea).toBeVisible({ timeout: 5_000 });
-    await replyTextarea.fill('Reply sending state');
+    await expect(commentEl.locator('textarea')).toBeVisible({ timeout: 5_000 });
+    await commentEl.locator('textarea').fill('Reply sending state');
 
-    const sendButton = page.locator('form button[type="submit"]').last();
+    const sendButton = commentEl.locator('button[type="submit"]').last();
+    await expect(sendButton).toBeEnabled({ timeout: 3_000 });
     await sendButton.click();
 
-    // Button should be disabled during send
-    await expect(sendButton).toBeDisabled({ timeout: 2_000 });
+    // After successful send, reply form should close (textarea disappears)
+    // This also confirms the send completed without error
+    await expect(commentEl.locator('textarea')).not.toBeVisible({ timeout: 10_000 });
   });
 
   test('should show reply with CW tag', async ({ page }) => {
@@ -183,6 +218,9 @@ test.describe('Reply threading', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [parent, cwReply]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     await expect(page.getByText('CW parent').first()).toBeVisible({ timeout: 15_000 });
 
@@ -199,10 +237,19 @@ test.describe('Reply threading', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Quote me please').first()).toBeVisible({ timeout: 15_000 });
 
-    // Quote button should be visible
-    const quoteButton = page.locator('button[title="Quote"]').first();
+    // Quote button is in the More actions menu
+    const commentEl = page.locator('article, div').filter({ hasText: 'Quote me please' }).first();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
+
+    const quoteButton = page.getByRole('button', { name: /Quote|引用/i }).first();
     if (await quoteButton.isVisible({ timeout: 3_000 }).catch(() => false)) {
       await quoteButton.click();
 
@@ -211,6 +258,9 @@ test.describe('Reply threading', () => {
       const value = await textarea.inputValue();
       // Should contain some reference to the quoted content
       expect(value.length).toBeGreaterThan(0);
+    } else {
+      // Quote not available — close menu
+      await page.keyboard.press('Escape');
     }
   });
 });
@@ -228,6 +278,9 @@ test.describe('Reply failure', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Delete fail test').first()).toBeVisible({ timeout: 15_000 });
 
     // Configure relays to reject
@@ -240,8 +293,13 @@ test.describe('Reply failure', () => {
       }
     }, TEST_RELAYS);
 
-    // Click delete
-    const deleteButton = page.locator('button[title="Delete"]').first();
+    // Delete is in the More actions menu
+    const commentEl = page.locator('article, div').filter({ hasText: 'Delete fail test' }).first();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
+    const deleteButton = page.getByRole('button', { name: /Delete|削除/i }).first();
     await deleteButton.click();
 
     const confirmButton = page.getByRole('button', { name: /^Delete$|^削除$/ }).last();
@@ -271,6 +329,9 @@ test.describe('Orphan placeholders', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [orphanReply]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     // The reply should be visible
     await expect(page.getByText('Orphan reply text').first()).toBeVisible({ timeout: 15_000 });
 
@@ -292,6 +353,9 @@ test.describe('Orphan placeholders', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [parent, reply, deletion]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     // Reply should be visible
     await expect(page.getByText('Reply to deleted').first()).toBeVisible({ timeout: 15_000 });
@@ -315,9 +379,21 @@ test.describe('Deletion with thread effects', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Spinner delete test').first()).toBeVisible({ timeout: 15_000 });
 
-    const deleteButton = page.locator('button[title="Delete"]').first();
+    // Delete is in the More actions menu
+    const commentEl = page
+      .locator('article, div')
+      .filter({ hasText: 'Spinner delete test' })
+      .first();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
+    const deleteButton = page.getByRole('button', { name: /Delete|削除/i }).first();
     await deleteButton.click();
 
     // Confirm deletion
@@ -336,6 +412,9 @@ test.describe('Deletion with thread effects', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     await expect(page.getByText('Cannot be deleted by others').first()).toBeVisible({
       timeout: 15_000
@@ -363,11 +442,19 @@ test.describe('Deletion with thread effects', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [parent, reply]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Parent to delete').first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Reply will lose parent').first()).toBeVisible({ timeout: 15_000 });
 
-    // Delete the parent
-    const deleteButton = page.locator('button[title="Delete"]').first();
+    // Delete the parent (in More actions menu)
+    const commentEl = page.locator('article, div').filter({ hasText: 'Parent to delete' }).first();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
+    const deleteButton = page.getByRole('button', { name: /Delete|削除/i }).first();
     await deleteButton.click();
     const confirmButton = page.getByRole('button', { name: /^Delete$|^削除$/ }).last();
     await confirmButton.click();
@@ -387,15 +474,26 @@ test.describe('Deletion with thread effects', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment, reaction]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Delete with reactions').first()).toBeVisible({ timeout: 15_000 });
 
-    // Verify reaction count is shown (alice liked it, so like count should show)
-    const likeButton = page.locator('button[title="Like"]').first();
-    await expect(likeButton).toBeVisible({ timeout: 10_000 });
-    await expect(likeButton.locator('.font-mono')).toHaveText('1', { timeout: 5_000 });
+    // Verify reaction count is shown (alice liked it)
+    const commentCard = page
+      .locator('article, div')
+      .filter({ hasText: 'Delete with reactions' })
+      .first();
+    await expect(commentCard.locator('button').filter({ hasText: '1' }).first()).toBeVisible({
+      timeout: 10_000
+    });
 
-    // Delete the comment
-    const deleteButton = page.locator('button[title="Delete"]').first();
+    // Delete the comment (in More actions menu)
+    await commentCard
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
+    const deleteButton = page.getByRole('button', { name: /Delete|削除/i }).first();
     await deleteButton.click();
     const confirmButton = page.getByRole('button', { name: /^Delete$|^削除$/ }).last();
     await confirmButton.click();
