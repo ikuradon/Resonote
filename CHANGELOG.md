@@ -96,3 +96,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Optimized WoT restoration with single index scan instead of N lookups
 - Auto-resume playback when seeking from comment timestamp
 - Simplified preview deploy workflow with deterministic branch names
+
+[Unreleased]: https://github.com/ikuradon/Resonote/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/ikuradon/Resonote/releases/tag/v0.1.0
