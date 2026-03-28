@@ -138,6 +138,20 @@ describe('sendReply', () => {
     expect(castSignedMock).toHaveBeenCalledWith(builtEvent);
   });
 
+  it('passes relayHint in parentEvent to buildComment when provided', async () => {
+    const parentWithHint = {
+      id: 'parent-event-id',
+      pubkey: 'parent-pubkey',
+      relayHint: 'wss://relay.example.com'
+    };
+    await sendReply({ content: 'reply', contentId, provider, parentEvent: parentWithHint });
+    expect(buildCommentMock).toHaveBeenCalledWith('reply', contentId, provider, {
+      positionMs: undefined,
+      emojiTags: undefined,
+      parentEvent: parentWithHint
+    });
+  });
+
   it('propagates errors from castSigned', async () => {
     castSignedMock.mockRejectedValueOnce(new Error('send failed'));
     await expect(sendReply({ content: 'reply', contentId, provider, parentEvent })).rejects.toThrow(
