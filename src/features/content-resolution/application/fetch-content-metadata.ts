@@ -34,13 +34,14 @@ export async function fetchContentMetadata(contentId: ContentId): Promise<Conten
       title: string | null;
       subtitle: string | null;
       thumbnailUrl: string | null;
+      description: string | null;
     };
 
     return {
       title: data.title,
       subtitle: data.subtitle,
       thumbnailUrl: data.thumbnailUrl,
-      description: null
+      description: data.description ?? null
     };
   } catch {
     return null;

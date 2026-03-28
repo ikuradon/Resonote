@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { onRequestGet } from './resolve.js';
 
-function makeContext(params: Record<string, string>) {
+function makeContext(params: Record<string, string>, env: Record<string, string> = {}) {
   const url = new URL('https://example.com/api/oembed/resolve');
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);
   }
   return {
     request: new Request(url.toString()),
-    env: {},
+    env,
     params: {},
     waitUntil: vi.fn(),
     passThroughOnException: vi.fn(),
@@ -162,7 +162,7 @@ describe('oEmbed resolve API', () => {
     expect(body.provider).toBe('Spotify');
   });
 
-  it('returns metadata for youtube video', async () => {
+  it('returns metadata for youtube video (oEmbed only, no API key)', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -184,6 +184,44 @@ describe('oEmbed resolve API', () => {
     const body = await parseJson(res);
     expect(body.title).toBe('Never Gonna Give You Up');
     expect(body.subtitle).toBe('Rick Astley');
+    expect(body.description).toBeNull();
+  });
+
+  it('returns youtube description from Data API when API key is set', async () => {
+    const mockFetch = vi.fn();
+    // First call: oEmbed
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          title: 'Test Video',
+          author_name: 'Author',
+          provider_name: 'YouTube'
+        }),
+        { status: 200 }
+      )
+    );
+    // Second call: Data API v3
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          items: [{ snippet: { description: 'Video description with https://example.com link' } }]
+        }),
+        { status: 200 }
+      )
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
+    const ctx = makeContext(
+      { platform: 'youtube', type: 'video', id: 'abc123' },
+      { YOUTUBE_API_KEY: 'test-key' }
+    );
+    const res = await onRequestGet(ctx);
+    expect(res.status).toBe(200);
+    const body = await parseJson(res);
+    expect(body.title).toBe('Test Video');
+    expect(body.description).toBe(
+      'Video description with [https://example.com](https://example.com) link'
+    );
   });
 
   it('returns 502 when oembed API fails', async () => {
