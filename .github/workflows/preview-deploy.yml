@@ -86,7 +86,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy .svelte-kit/cloudflare --project-name=resonote-preview --branch=pr-${{ github.event.pull_request.number }}
+          command: pages deploy .svelte-kit/cloudflare --no-bundle --project-name=resonote-preview --branch=pr-${{ github.event.pull_request.number }}
           wranglerVersion: '4'
 
       - name: Comment preview URL
