@@ -99,7 +99,7 @@ export async function fetchLatestEvent(
           import('$shared/nostr/event-db.js')
             .then(({ getEventsDB }) => getEventsDB())
             .then((db) => db.put(packet.event))
-            .catch(() => {});
+            .catch((e) => log.error('Failed to cache event to IndexedDB', e));
         },
         complete: () => {
           if (!resolved) {

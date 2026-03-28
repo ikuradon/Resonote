@@ -11,7 +11,9 @@ const observer = new MutationObserver((mutations) => {
       try {
         const data = JSON.parse(raw);
         if (typeof data === 'object' && data !== null && isKnownMessageType(data.type)) {
-          chrome.runtime.sendMessage(data).catch(() => {});
+          chrome.runtime
+            .sendMessage(data)
+            .catch((e) => console.warn('[resonote:ext] Message send failed:', e));
         }
       } catch {
         // Ignore malformed data

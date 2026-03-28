@@ -146,7 +146,9 @@ async function applyApiResolution(
 
   // Publish signed events internally (no need for route to handle this)
   if (data.signedEvents && data.signedEvents.length > 0) {
-    publishSignedEvents(data.signedEvents).catch(() => {});
+    publishSignedEvents(data.signedEvents).catch((e) =>
+      log.error('Failed to publish signed events', e)
+    );
   }
 
   // Podcast resolution (guid discovery)

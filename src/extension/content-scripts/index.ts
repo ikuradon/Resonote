@@ -45,7 +45,9 @@ function handleTimeUpdate(): void {
     duration,
     isPaused
   };
-  chrome.runtime.sendMessage(msg).catch(() => {});
+  chrome.runtime
+    .sendMessage(msg)
+    .catch((e) => console.warn('[resonote:ext] Message send failed:', e));
 }
 
 function attachToElement(adapter: SiteAdapter, element: HTMLVideoElement | HTMLAudioElement): void {
@@ -80,7 +82,7 @@ function detect(): void {
         contentId,
         siteUrl: location.href
       } satisfies SiteDetectedMessage)
-      .catch(() => {});
+      .catch((e) => console.warn('[resonote:ext] Message send failed:', e));
     detected = true;
   }
 
@@ -111,7 +113,7 @@ const observer = new MutationObserver(() => {
     if (detected) {
       chrome.runtime
         .sendMessage({ type: 'resonote:site-lost' } satisfies SiteLostMessage)
-        .catch(() => {});
+        .catch((e) => console.warn('[resonote:ext] Message send failed:', e));
       detected = false;
       currentAdapter = null;
     }

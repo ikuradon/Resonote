@@ -28,7 +28,8 @@ export function getSystemPubkey(): Promise<string> {
         return '';
       });
     })
-    .catch(() => {
+    .catch((e) => {
+      console.warn('[podcast-resolver] Failed to fetch system pubkey:', e);
       pubkeyPromise = undefined;
       return '';
     });

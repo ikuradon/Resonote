@@ -21,7 +21,10 @@ export async function resolveEpisode(
   if (!guid || !feedUrl) return null;
 
   const [nostrResult, apiResult] = await Promise.all([
-    queryNostrForEpisode(guid).catch(() => null),
+    queryNostrForEpisode(guid).catch((e) => {
+      console.warn('[episode-resolver] Nostr episode query failed:', e);
+      return null;
+    }),
     resolveByApi(feedUrl).catch((err) => {
       console.error('[episode-resolver] resolveByApi failed:', err);
       return null;
