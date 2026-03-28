@@ -440,7 +440,10 @@ async function handleApplePodcasts(
     const res = await safeFetch(lookupUrl, { allowPrivateIPs });
     if (!res.ok) return { status: 502, body: { error: 'apple_lookup_failed' } };
 
-    const data = (await res.json()) as { resultCount: number; results: { feedUrl?: string }[] };
+    const data = (await res.json()) as {
+      resultCount: number;
+      results?: { feedUrl?: string }[];
+    };
     const feedUrl = data.results?.[0]?.feedUrl;
     if (!feedUrl) return { status: 404, body: { error: 'feed_not_found' } };
 
