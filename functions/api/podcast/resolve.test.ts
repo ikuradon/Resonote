@@ -224,6 +224,24 @@ describe('detectInputType', () => {
   it('should detect regular URL as site', () => {
     expect(detectInputType(new URL('https://example.com/podcast/episode-1'))).toBe('site');
   });
+
+  it('should detect Apple Podcasts URL as apple-podcasts', () => {
+    expect(
+      detectInputType(new URL('https://podcasts.apple.com/us/podcast/my-podcast/id1234567890'))
+    ).toBe('apple-podcasts');
+  });
+
+  it('should detect Apple Podcasts URL without country as apple-podcasts', () => {
+    expect(
+      detectInputType(new URL('https://podcasts.apple.com/podcast/my-podcast/id1234567890'))
+    ).toBe('apple-podcasts');
+  });
+
+  it('should detect Apple Podcasts URL without slug as apple-podcasts', () => {
+    expect(detectInputType(new URL('https://podcasts.apple.com/us/podcast/id1234567890'))).toBe(
+      'apple-podcasts'
+    );
+  });
 });
 
 describe('findRssLink', () => {
@@ -349,6 +367,50 @@ describe('parseRss', () => {
       </item></channel></rss>`;
     const result = await parseRss(xml, 'https://example.com/feed.xml');
     expect(result!.episodes[0].description).toBe('Summary text');
+  });
+
+  it('should extract feed description from channel', async () => {
+    const xml = `<rss><channel><title>Podcast</title><podcast:guid>g</podcast:guid>
+      <description>Feed description text</description>
+      <item><title>Ep</title><guid>e1</guid><enclosure url="https://example.com/ep.mp3"/></item>
+    </channel></rss>`;
+    const result = await parseRss(xml, 'https://example.com/feed.xml');
+    expect(result!.description).toBe('Feed description text');
+  });
+
+  it('should fall back to itunes:summary for feed description', async () => {
+    const xml = `<rss><channel><title>Podcast</title><podcast:guid>g</podcast:guid>
+      <itunes:summary>Feed summary</itunes:summary>
+      <item><title>Ep</title><guid>e1</guid><enclosure url="https://example.com/ep.mp3"/></item>
+    </channel></rss>`;
+    const result = await parseRss(xml, 'https://example.com/feed.xml');
+    expect(result!.description).toBe('Feed summary');
+  });
+
+  it('should return empty string for feed description when none present', async () => {
+    const xml = `<rss><channel><title>Podcast</title><podcast:guid>g</podcast:guid>
+      <item><title>Ep</title><guid>e1</guid><enclosure url="https://example.com/ep.mp3"/></item>
+    </channel></rss>`;
+    const result = await parseRss(xml, 'https://example.com/feed.xml');
+    expect(result!.description).toBe('');
+  });
+
+  it('should convert HTML in feed description to markdown', async () => {
+    const xml = `<rss><channel><title>Podcast</title><podcast:guid>g</podcast:guid>
+      <description><![CDATA[<p>A <b>bold</b> podcast</p>]]></description>
+      <item><title>Ep</title><guid>e1</guid><enclosure url="https://example.com/ep.mp3"/></item>
+    </channel></rss>`;
+    const result = await parseRss(xml, 'https://example.com/feed.xml');
+    expect(result!.description).toBe('A **bold** podcast');
+  });
+
+  it('should convert HTML in episode description to markdown', async () => {
+    const xml = `<rss><channel><title>Podcast</title><podcast:guid>g</podcast:guid>
+      <item><title>Ep</title><guid>e1</guid><enclosure url="https://example.com/ep.mp3"/>
+        <description><![CDATA[<p>Visit <a href="https://example.com">us</a></p>]]></description>
+      </item></channel></rss>`;
+    const result = await parseRss(xml, 'https://example.com/feed.xml');
+    expect(result!.episodes[0].description).toBe('Visit [us](https://example.com)');
   });
 });
 
@@ -759,6 +821,131 @@ describe('handleRequest (onRequestGet)', () => {
       expect(res.status).toBe(502);
       const body = await parseJson(res);
       expect(body.error).toBe('fetch_failed');
+    });
+  });
+
+  describe('handleApplePodcasts', () => {
+    it('routes Apple Podcasts URL through iTunes Lookup and feed handler', async () => {
+      const rssXml = `<rss><channel><title>Apple Pod</title><podcast:guid>ag</podcast:guid>
+        <item><title>Ep1</title><guid>ae1</guid><enclosure url="https://example.com/ae.mp3"/></item>
+      </channel></rss>`;
+
+      const mockFetch = vi.fn().mockImplementation((url: string) => {
+        if (url.includes('itunes.apple.com/lookup')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                resultCount: 1,
+                results: [{ feedUrl: 'https://example.com/apple-feed.xml' }]
+              }),
+              { status: 200 }
+            )
+          );
+        }
+        return Promise.resolve(new Response(rssXml, { status: 200 }));
+      });
+      vi.stubGlobal('fetch', mockFetch);
+
+      const ctx = makeContext(
+        { url: 'https://podcasts.apple.com/us/podcast/my-podcast/id1234567890' },
+        { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
+      );
+      const res = await onRequestGet(ctx);
+      expect(res.status).toBe(200);
+      const body = await parseJson(res);
+      expect(body.type).toBe('feed');
+      expect(body.feed.title).toBe('Apple Pod');
+    });
+
+    it('returns 404 when iTunes lookup has no feedUrl', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValue(
+            new Response(JSON.stringify({ resultCount: 0, results: [{}] }), { status: 200 })
+          )
+      );
+
+      const ctx = makeContext(
+        { url: 'https://podcasts.apple.com/us/podcast/my-podcast/id1234567890' },
+        { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
+      );
+      const res = await onRequestGet(ctx);
+      expect(res.status).toBe(404);
+      const body = await parseJson(res);
+      expect(body.error).toBe('feed_not_found');
+    });
+
+    it('returns 502 when iTunes lookup request fails', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Error', { status: 500 })));
+
+      const ctx = makeContext(
+        { url: 'https://podcasts.apple.com/us/podcast/my-podcast/id1234567890' },
+        { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
+      );
+      const res = await onRequestGet(ctx);
+      expect(res.status).toBe(502);
+      const body = await parseJson(res);
+      expect(body.error).toBe('apple_lookup_failed');
+    });
+
+    it('returns 502 when iTunes lookup throws', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network')));
+
+      const ctx = makeContext(
+        { url: 'https://podcasts.apple.com/us/podcast/my-podcast/id1234567890' },
+        { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
+      );
+      const res = await onRequestGet(ctx);
+      expect(res.status).toBe(502);
+      const body = await parseJson(res);
+      expect(body.error).toBe('apple_lookup_failed');
+    });
+  });
+
+  describe('handleFeedUrl feed description in response', () => {
+    it('includes feed description in response body', async () => {
+      const rssXml = `<rss><channel><title>Pod</title><podcast:guid>g</podcast:guid>
+        <description>My podcast description</description>
+        <item><title>E</title><guid>e</guid><enclosure url="https://example.com/e.mp3"/></item>
+      </channel></rss>`;
+
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(rssXml, { status: 200 })));
+
+      const ctx = makeContext(
+        { url: 'https://example.com/feed.xml' },
+        { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
+      );
+      const res = await onRequestGet(ctx);
+      const body = await parseJson(res);
+      expect(body.feed.description).toBe('My podcast description');
+    });
+
+    it('includes feed description in signed feed event content', async () => {
+      const rssXml = `<rss><channel><title>Pod</title><podcast:guid>g</podcast:guid>
+        <description>My podcast description</description>
+        <item><title>E</title><guid>e</guid><enclosure url="https://example.com/e.mp3"/>
+          <description>Episode desc</description>
+        </item>
+      </channel></rss>`;
+
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(rssXml, { status: 200 })));
+
+      const ctx = makeContext(
+        { url: 'https://example.com/feed.xml' },
+        { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
+      );
+      const res = await onRequestGet(ctx);
+      const body = await parseJson(res);
+
+      // First signed event is the feed bookmark
+      const feedEvent = body.signedEvents[0];
+      expect(feedEvent.content).toBe('My podcast description');
+
+      // Second signed event is the episode bookmark
+      const episodeEvent = body.signedEvents[1];
+      expect(episodeEvent.content).toBe('Episode desc');
     });
   });
 

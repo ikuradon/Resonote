@@ -225,6 +225,48 @@ describe('createAppShellViewModel', () => {
     });
   });
 
+  describe('profileHref', () => {
+    it('returns profile path when pubkey is set', () => {
+      authState.pubkey = 'abc123';
+      const vm = createAppShellViewModel();
+      expect(vm.profileHref).toBe('/profile/test');
+      expect(mockGetProfileHref).toHaveBeenCalledWith('abc123');
+    });
+
+    it('returns "/" when pubkey is null', () => {
+      authState.pubkey = null;
+      const vm = createAppShellViewModel();
+      expect(vm.profileHref).toBe('/');
+    });
+  });
+
+  describe('profileDisplay', () => {
+    it('returns profile display when pubkey is set', () => {
+      authState.pubkey = 'abc123';
+      const vm = createAppShellViewModel();
+      expect(vm.profileDisplay).toEqual({ displayName: 'Test', picture: null });
+      expect(mockGetProfileDisplay).toHaveBeenCalledWith('abc123');
+    });
+
+    it('returns null when pubkey is null', () => {
+      authState.pubkey = null;
+      const vm = createAppShellViewModel();
+      expect(vm.profileDisplay).toBeNull();
+    });
+  });
+
+  describe('login/logout', () => {
+    it('exposes login as a function', () => {
+      const vm = createAppShellViewModel();
+      expect(typeof vm.login).toBe('function');
+    });
+
+    it('exposes logout as a function', () => {
+      const vm = createAppShellViewModel();
+      expect(typeof vm.logout).toBe('function');
+    });
+  });
+
   describe('afterNavigate callback registration', () => {
     it('registers an afterNavigate callback on creation', () => {
       createAppShellViewModel();

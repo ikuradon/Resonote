@@ -397,4 +397,258 @@ describe('oEmbed resolve API', () => {
     expect(body.thumbnailUrl).toBeNull();
     expect(body.provider).toBe('spotify');
   });
+
+  it('includes description from oembed response', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            title: 'Title',
+            description: 'A description'
+          }),
+          { status: 200 }
+        )
+      )
+    );
+
+    const ctx = makeContext({ platform: 'spotify', type: 'track', id: '123' });
+    const res = await onRequestGet(ctx);
+    const body = await parseJson(res);
+    expect(body.description).toBe('A description');
+  });
+
+  it('returns null description when not provided by oembed', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ title: 'T' }), { status: 200 }))
+    );
+
+    const ctx = makeContext({ platform: 'spotify', type: 'track', id: '123' });
+    const res = await onRequestGet(ctx);
+    const body = await parseJson(res);
+    expect(body.description).toBeNull();
+  });
+
+  describe('niconico CDATA handling', () => {
+    it('extracts fields wrapped in CDATA', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(
+            `<?xml version="1.0" encoding="UTF-8"?>
+<nicovideo_thumb_response status="ok">
+  <thumb>
+    <title><![CDATA[CDATA Title]]></title>
+    <thumbnail_url><![CDATA[https://example.com/thumb.jpg]]></thumbnail_url>
+    <user_nickname><![CDATA[CDataUser]]></user_nickname>
+    <description><![CDATA[Description with https://example.com link]]></description>
+  </thumb>
+</nicovideo_thumb_response>`,
+            { status: 200 }
+          )
+        )
+      );
+
+      const ctx = makeContext({ platform: 'niconico', type: 'video', id: 'sm12345' });
+      const res = await onRequestGet(ctx);
+      expect(res.status).toBe(200);
+      const body = await parseJson(res);
+      expect(body.title).toBe('CDATA Title');
+      expect(body.subtitle).toBe('CDataUser');
+      expect(body.thumbnailUrl).toBe('https://example.com/thumb.jpg');
+      expect(body.description).toBe(
+        'Description with [https://example.com](https://example.com) link'
+      );
+    });
+
+    it('returns null description when description tag is absent', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(
+            `<?xml version="1.0" encoding="UTF-8"?>
+<nicovideo_thumb_response status="ok">
+  <thumb>
+    <title>Title</title>
+    <thumbnail_url>https://example.com/thumb.jpg</thumbnail_url>
+    <user_nickname>User</user_nickname>
+  </thumb>
+</nicovideo_thumb_response>`,
+            { status: 200 }
+          )
+        )
+      );
+
+      const ctx = makeContext({ platform: 'niconico', type: 'video', id: 'sm12345' });
+      const res = await onRequestGet(ctx);
+      const body = await parseJson(res);
+      expect(body.description).toBeNull();
+    });
+
+    it('returns 400 for unsupported niconico type', async () => {
+      const ctx = makeContext({ platform: 'niconico', type: 'audio', id: 'sm12345' });
+      const res = await onRequestGet(ctx);
+      expect(res.status).toBe(400);
+      const body = await parseJson(res);
+      expect(body.error).toBe('unsupported_type');
+    });
+
+    it('returns 502 when niconico API HTTP error', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Error', { status: 500 })));
+
+      const ctx = makeContext({ platform: 'niconico', type: 'video', id: 'sm12345' });
+      const res = await onRequestGet(ctx);
+      expect(res.status).toBe(502);
+      const body = await parseJson(res);
+      expect(body.error).toBe('oembed_failed');
+    });
+
+    it('returns 502 when niconico fetch throws', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('timeout')));
+
+      const ctx = makeContext({ platform: 'niconico', type: 'video', id: 'sm12345' });
+      const res = await onRequestGet(ctx);
+      expect(res.status).toBe(502);
+      const body = await parseJson(res);
+      expect(body.error).toBe('fetch_failed');
+    });
+
+    it('accepts nm prefix for niconico id', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValue(
+            new Response(
+              `<nicovideo_thumb_response status="ok"><thumb><title>T</title></thumb></nicovideo_thumb_response>`,
+              { status: 200 }
+            )
+          )
+      );
+
+      const ctx = makeContext({ platform: 'niconico', type: 'video', id: 'nm99999' });
+      const res = await onRequestGet(ctx);
+      expect(res.status).toBe(200);
+    });
+  });
+
+  describe('YouTube Data API edge cases', () => {
+    it('returns 400 for unsupported youtube type', async () => {
+      const ctx = makeContext({ platform: 'youtube', type: 'playlist', id: 'abc' });
+      const res = await onRequestGet(ctx);
+      expect(res.status).toBe(400);
+      const body = await parseJson(res);
+      expect(body.error).toBe('unsupported_type');
+    });
+
+    it('returns 400 for invalid youtube id', async () => {
+      const ctx = makeContext({ platform: 'youtube', type: 'video', id: 'invalid!@#' });
+      const res = await onRequestGet(ctx);
+      expect(res.status).toBe(400);
+      const body = await parseJson(res);
+      expect(body.error).toBe('invalid_id');
+    });
+
+    it('returns 502 when both oEmbed and Data API fail', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Error', { status: 500 })));
+
+      const ctx = makeContext(
+        { platform: 'youtube', type: 'video', id: 'abc123' },
+        { YOUTUBE_API_KEY: 'key' }
+      );
+      const res = await onRequestGet(ctx);
+      expect(res.status).toBe(502);
+      const body = await parseJson(res);
+      expect(body.error).toBe('oembed_failed');
+    });
+
+    it('returns data when oEmbed fails but Data API succeeds', async () => {
+      const mockFetch = vi.fn();
+      // oEmbed fails
+      mockFetch.mockResolvedValueOnce(new Response('Error', { status: 500 }));
+      // Data API succeeds
+      mockFetch.mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [{ snippet: { description: 'API desc' } }]
+          }),
+          { status: 200 }
+        )
+      );
+      vi.stubGlobal('fetch', mockFetch);
+
+      const ctx = makeContext(
+        { platform: 'youtube', type: 'video', id: 'abc123' },
+        { YOUTUBE_API_KEY: 'key' }
+      );
+      const res = await onRequestGet(ctx);
+      expect(res.status).toBe(200);
+      const body = await parseJson(res);
+      expect(body.description).toBe('API desc');
+    });
+
+    it('returns null description when Data API returns empty items', async () => {
+      const mockFetch = vi.fn();
+      // oEmbed success
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify({ title: 'T', provider_name: 'YouTube' }), { status: 200 })
+      );
+      // Data API returns no items
+      mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({ items: [] }), { status: 200 }));
+      vi.stubGlobal('fetch', mockFetch);
+
+      const ctx = makeContext(
+        { platform: 'youtube', type: 'video', id: 'abc123' },
+        { YOUTUBE_API_KEY: 'key' }
+      );
+      const res = await onRequestGet(ctx);
+      expect(res.status).toBe(200);
+      const body = await parseJson(res);
+      expect(body.description).toBeNull();
+    });
+
+    it('handles Data API fetch throwing gracefully', async () => {
+      const mockFetch = vi.fn();
+      // oEmbed success
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify({ title: 'T' }), { status: 200 })
+      );
+      // Data API throws
+      mockFetch.mockRejectedValueOnce(new Error('network'));
+      vi.stubGlobal('fetch', mockFetch);
+
+      const ctx = makeContext(
+        { platform: 'youtube', type: 'video', id: 'abc123' },
+        { YOUTUBE_API_KEY: 'key' }
+      );
+      const res = await onRequestGet(ctx);
+      expect(res.status).toBe(200);
+      const body = await parseJson(res);
+      expect(body.title).toBe('T');
+      expect(body.description).toBeNull();
+    });
+
+    it('handles oEmbed throwing gracefully when Data API succeeds', async () => {
+      const mockFetch = vi.fn();
+      // oEmbed throws
+      mockFetch.mockRejectedValueOnce(new Error('oEmbed fail'));
+      // Data API succeeds
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify({ items: [{ snippet: { description: 'Fallback' } }] }), {
+          status: 200
+        })
+      );
+      vi.stubGlobal('fetch', mockFetch);
+
+      const ctx = makeContext(
+        { platform: 'youtube', type: 'video', id: 'abc123' },
+        { YOUTUBE_API_KEY: 'key' }
+      );
+      const res = await onRequestGet(ctx);
+      expect(res.status).toBe(200);
+      const body = await parseJson(res);
+      expect(body.description).toBe('Fallback');
+    });
+  });
 });
