@@ -74,7 +74,9 @@ export default defineConfig({
         'src/server/api/bindings.ts',
         // Application-layer re-export facades
         'src/features/content-resolution/application/resolve-podbean-embed.ts',
-        'src/features/content-resolution/application/resolve-soundcloud-embed.ts'
+        'src/features/content-resolution/application/resolve-soundcloud-embed.ts',
+        // Svelte rune-dependent files (unit test impractical, E2E で担保)
+        'src/features/comments/ui/comment-profile-preload.svelte.ts'
       ]
       // Coverage 対象外の理由:
       // - src/web/ — Svelte コンポーネント (.svelte) が主体、コンポーネントテスト/E2E で担保
