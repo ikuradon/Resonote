@@ -134,7 +134,7 @@ test.describe('API integration: UI flow', () => {
     await expect(page).toHaveURL(/\/podcast\/feed\//, { timeout: 15_000 });
 
     // Feed page should display the podcast title
-    await expect(page.locator('text=Test Podcast')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('h2:has-text("Test Podcast")')).toBeVisible({ timeout: 10_000 });
   });
 
   test('should show feed episodes on podcast feed page', async ({ page }) => {
@@ -146,7 +146,7 @@ test.describe('API integration: UI flow', () => {
     await expect(page).toHaveURL(/\/podcast\/feed\//);
 
     // Feed page should display episodes from the mock feed
-    await expect(page.locator('text=Test Podcast')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('h2:has-text("Test Podcast")')).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('text=Episode 1: Hello World')).toBeVisible();
     await expect(page.locator('text=Episode 2: Testing')).toBeVisible();
   });
@@ -161,6 +161,6 @@ test.describe('API integration: UI flow', () => {
 
     // Domain root has RSS → redirects to feed page
     await expect(page).toHaveURL(/\/podcast\/feed\//, { timeout: 15_000 });
-    await expect(page.locator('text=Test Podcast')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('h2:has-text("Test Podcast")')).toBeVisible({ timeout: 10_000 });
   });
 });
