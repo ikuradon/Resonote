@@ -1,13 +1,15 @@
+import { zValidator } from '@hono/zod-validator';
+import { Hono } from 'hono';
 import { finalizeEvent } from 'nostr-tools/pure';
 import { hexToBytes } from 'nostr-tools/utils';
+import { z } from 'zod';
 
-import { fetchAudioMetadata } from '../../lib/audio-metadata.js';
-import { assertSafeUrl, safeFetch, safeReadText } from '../../lib/url-validation.js';
+import { fetchAudioMetadata } from '$server/lib/audio-metadata.js';
+import { assertSafeUrl, safeFetch, safeReadText } from '$server/lib/safe-fetch.js';
+import { htmlToMarkdown } from '$shared/utils/html.js';
 
-interface Env {
-  SYSTEM_NOSTR_PRIVKEY: string;
-  UNSAFE_ALLOW_PRIVATE_IPS?: string;
-}
+import type { Bindings } from './bindings.js';
+import { cacheMiddleware } from './middleware/cache.js';
 
 export interface ParsedEpisode {
   title: string;
@@ -25,13 +27,6 @@ export interface ParsedFeed {
   imageUrl: string;
   description: string;
   episodes: ParsedEpisode[];
-}
-
-function jsonResponse(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json' }
-  });
 }
 
 export function normalizeForDTag(url: string): string {
@@ -101,39 +96,6 @@ export function extractTagContent(xml: string, tag: string): string {
   }
   return '';
 }
-
-function decodeEntities(text: string): string {
-  return text
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ');
-}
-
-/**
- * Convert HTML to Markdown, preserving links, emphasis, and structure.
- * Two-pass: decode entities first, then convert HTML elements to Markdown.
- */
-export function htmlToMarkdown(html: string): string {
-  const decoded = decodeEntities(html);
-  return decoded
-    .replace(/<!\[CDATA\[/g, '')
-    .replace(/\]\]>/g, '')
-    .replace(/<a\s+[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, '[$2]($1)')
-    .replace(/<(?:strong|b)\b[^>]*>([\s\S]*?)<\/(?:strong|b)>/gi, '**$1**')
-    .replace(/<(?:em|i)\b[^>]*>([\s\S]*?)<\/(?:em|i)>/gi, '*$1*')
-    .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, '- $1\n')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(?:p|div|blockquote|h[1-6])>/gi, '\n\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
-// Note: functions/ cannot import from src/shared/ (different build targets).
-// The same htmlToMarkdown logic is duplicated in src/shared/utils/html.ts for client use.
 
 export function extractAttr(xml: string, tag: string, attr: string): string {
   const pattern = new RegExp(`<${tag}[^>]+${attr}=["']([^"']+)["'][^>]*>`, 'i');
@@ -234,15 +196,15 @@ async function handleFeedUrl(
   feedUrl: string,
   privkey: Uint8Array,
   allowPrivateIPs = false
-): Promise<Response> {
+): Promise<{ status: number; body: Record<string, unknown> }> {
   const res = await safeFetch(feedUrl, { allowPrivateIPs });
   if (!res.ok) {
-    return jsonResponse({ error: 'fetch_failed', status: res.status }, 502);
+    return { status: 502, body: { error: 'fetch_failed', status: res.status } };
   }
   const xml = await safeReadText(res);
   const feed = await parseRss(xml, feedUrl);
   if (!feed) {
-    return jsonResponse({ error: 'parse_failed' }, 422);
+    return { status: 422, body: { error: 'parse_failed' } };
   }
 
   const feedDTag = normalizeForDTag(feedUrl);
@@ -275,25 +237,28 @@ async function handleFeedUrl(
     );
   }
 
-  return jsonResponse({
-    type: 'feed',
-    feed: {
-      title: feed.title,
-      feedUrl: feed.feedUrl,
-      podcastGuid: feed.podcastGuid,
-      imageUrl: feed.imageUrl,
-      description: feed.description
-    },
-    episodes: feed.episodes,
-    signedEvents
-  });
+  return {
+    status: 200,
+    body: {
+      type: 'feed',
+      feed: {
+        title: feed.title,
+        feedUrl: feed.feedUrl,
+        podcastGuid: feed.podcastGuid,
+        imageUrl: feed.imageUrl,
+        description: feed.description
+      },
+      episodes: feed.episodes,
+      signedEvents
+    }
+  };
 }
 
 async function handleAudioUrl(
   audioUrl: string,
   privkey: Uint8Array,
   allowPrivateIPs = false
-): Promise<Response> {
+): Promise<{ status: number; body: Record<string, unknown> }> {
   const rootUrl = domainRoot(audioUrl);
   let rssUrl: string | null = null;
   let feed: ParsedFeed | null = null;
@@ -350,59 +315,68 @@ async function handleAudioUrl(
         content: matchedEpisode.description
       });
 
-      return jsonResponse({
-        type: 'episode',
-        episode: matchedEpisode,
-        feed: {
-          title: feed.title,
-          feedUrl: feed.feedUrl,
-          podcastGuid: feed.podcastGuid,
-          imageUrl: feed.imageUrl
-        },
-        signedEvents: [feedEvent, episodeEvent],
-        metadata: {
-          title: matchedEpisode.title,
-          artist: feed.title,
-          image: feed.imageUrl || undefined
+      return {
+        status: 200,
+        body: {
+          type: 'episode',
+          episode: matchedEpisode,
+          feed: {
+            title: feed.title,
+            feedUrl: feed.feedUrl,
+            podcastGuid: feed.podcastGuid,
+            imageUrl: feed.imageUrl
+          },
+          signedEvents: [feedEvent, episodeEvent],
+          metadata: {
+            title: matchedEpisode.title,
+            artist: feed.title,
+            image: feed.imageUrl || undefined
+          }
         }
-      });
+      };
     }
   }
 
   // No RSS match — try extracting metadata from audio file headers
   const audioMeta = await fetchAudioMetadata(audioUrl, allowPrivateIPs);
 
-  return jsonResponse({
-    type: 'episode',
-    episode: {
-      title: audioMeta.title ?? '',
-      guid: '',
-      enclosureUrl: audioUrl,
-      pubDate: '',
-      duration: 0,
-      description: ''
-    },
-    feed: null,
-    signedEvents: [],
-    metadata: {
-      title: audioMeta.title,
-      artist: audioMeta.artist,
-      album: audioMeta.album,
-      image: audioMeta.image
+  return {
+    status: 200,
+    body: {
+      type: 'episode',
+      episode: {
+        title: audioMeta.title ?? '',
+        guid: '',
+        enclosureUrl: audioUrl,
+        pubDate: '',
+        duration: 0,
+        description: ''
+      },
+      feed: null,
+      signedEvents: [],
+      metadata: {
+        title: audioMeta.title,
+        artist: audioMeta.artist,
+        album: audioMeta.album,
+        image: audioMeta.image
+      }
     }
-  });
+  };
 }
 
-async function handleSiteUrl(siteUrl: string, allowPrivateIPs = false): Promise<Response> {
+async function handleSiteUrl(
+  siteUrl: string,
+  allowPrivateIPs = false
+): Promise<{ status: number; body: Record<string, unknown> }> {
   const res = await safeFetch(siteUrl, { allowPrivateIPs });
   if (!res.ok) {
-    return jsonResponse({ error: 'fetch_failed', status: res.status }, 502);
+    return { status: 502, body: { error: 'fetch_failed', status: res.status } };
   }
   const html = await safeReadText(res);
   const rssUrl = findRssLink(html, siteUrl);
 
   if (rssUrl) {
-    return jsonResponse({ type: 'redirect', feedUrl: rssUrl });
+    return { status: 200, body: { type: 'redirect', feedUrl: rssUrl } };
   }
 
   const rootUrl = domainRoot(siteUrl);
@@ -413,7 +387,7 @@ async function handleSiteUrl(siteUrl: string, allowPrivateIPs = false): Promise<
         const rootHtml = await safeReadText(rootRes);
         const rootRssUrl = findRssLink(rootHtml, rootUrl);
         if (rootRssUrl) {
-          return jsonResponse({ type: 'redirect', feedUrl: rootRssUrl });
+          return { status: 200, body: { type: 'redirect', feedUrl: rootRssUrl } };
         }
       }
     } catch {
@@ -421,7 +395,7 @@ async function handleSiteUrl(siteUrl: string, allowPrivateIPs = false): Promise<
     }
   }
 
-  return jsonResponse({ error: 'rss_not_found' }, 404);
+  return { status: 404, body: { error: 'rss_not_found' } };
 }
 
 const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.ogg', '.wav', '.opus', '.flac', '.aac'];
@@ -455,81 +429,94 @@ async function handleApplePodcasts(
   url: string,
   privkey: Uint8Array,
   allowPrivateIPs: boolean
-): Promise<Response> {
+): Promise<{ status: number; body: Record<string, unknown> }> {
   const match = url.match(APPLE_PODCASTS_RE);
-  if (!match) return jsonResponse({ error: 'invalid_url' }, 400);
+  if (!match) return { status: 400, body: { error: 'invalid_url' } };
 
   const appleId = match[1];
   const lookupUrl = `https://itunes.apple.com/lookup?id=${appleId}&entity=podcast`;
 
   try {
     const res = await safeFetch(lookupUrl, { allowPrivateIPs });
-    if (!res.ok) return jsonResponse({ error: 'apple_lookup_failed' }, 502);
+    if (!res.ok) return { status: 502, body: { error: 'apple_lookup_failed' } };
 
-    const data = (await res.json()) as { resultCount: number; results: { feedUrl?: string }[] };
+    const data = (await res.json()) as {
+      resultCount: number;
+      results?: { feedUrl?: string }[];
+    };
     const feedUrl = data.results?.[0]?.feedUrl;
-    if (!feedUrl) return jsonResponse({ error: 'feed_not_found' }, 404);
+    if (!feedUrl) return { status: 404, body: { error: 'feed_not_found' } };
 
     // Redirect to existing feed handler
     return await handleFeedUrl(feedUrl, privkey, allowPrivateIPs);
   } catch {
-    return jsonResponse({ error: 'apple_lookup_failed' }, 502);
+    return { status: 502, body: { error: 'apple_lookup_failed' } };
   }
 }
 
-export const onRequestGet: PagesFunction<Env> = handleRequest;
+const querySchema = z.object({
+  url: z.url()
+});
 
-async function handleRequest(context: EventContext<Env, string, unknown>): Promise<Response> {
-  const { searchParams } = new URL(context.request.url);
-  const urlParam = searchParams.get('url');
-  const allowPrivateIPs = !!context.env.UNSAFE_ALLOW_PRIVATE_IPS;
-
-  if (!urlParam) {
-    return jsonResponse({ error: 'missing_url' }, 400);
-  }
-
-  let parsed: URL;
-  try {
-    parsed = new URL(urlParam);
-  } catch {
-    return jsonResponse({ error: 'invalid_url' }, 400);
-  }
-
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    return jsonResponse({ error: 'invalid_url' }, 400);
-  }
-
-  try {
-    assertSafeUrl(urlParam, allowPrivateIPs);
-  } catch {
-    return jsonResponse({ error: 'url_blocked' }, 400);
-  }
-
-  const privkeyHex = context.env.SYSTEM_NOSTR_PRIVKEY;
-  if (!privkeyHex) {
-    return jsonResponse({ error: 'server_misconfigured' }, 500);
-  }
-
-  let privkey: Uint8Array;
-  try {
-    privkey = hexToBytes(privkeyHex);
-  } catch {
-    return jsonResponse({ error: 'server_misconfigured' }, 500);
-  }
-
-  const inputType = detectInputType(parsed);
-
-  try {
-    if (inputType === 'apple-podcasts') {
-      return await handleApplePodcasts(urlParam, privkey, allowPrivateIPs);
-    } else if (inputType === 'audio') {
-      return await handleAudioUrl(urlParam, privkey, allowPrivateIPs);
-    } else if (inputType === 'feed') {
-      return await handleFeedUrl(urlParam, privkey, allowPrivateIPs);
-    } else {
-      return await handleSiteUrl(urlParam, allowPrivateIPs);
+export const podcastRoute = new Hono<{ Bindings: Bindings }>().get(
+  '/resolve',
+  cacheMiddleware({ ttl: 3600 }),
+  zValidator('query', querySchema, (result, c) => {
+    if (!result.success) {
+      return c.json({ error: 'missing_url' }, 400);
     }
-  } catch {
-    return jsonResponse({ error: 'internal_error' }, 500);
+  }),
+  async (c) => {
+    const { url: urlParam } = c.req.valid('query');
+    const allowPrivateIPs = !!c.env.UNSAFE_ALLOW_PRIVATE_IPS;
+
+    let parsed: URL;
+    try {
+      parsed = new URL(urlParam);
+    } catch {
+      return c.json({ error: 'invalid_url' }, 400);
+    }
+
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return c.json({ error: 'invalid_url' }, 400);
+    }
+
+    try {
+      assertSafeUrl(urlParam, allowPrivateIPs);
+    } catch {
+      return c.json({ error: 'url_blocked' }, 400);
+    }
+
+    const privkeyHex = c.env.SYSTEM_NOSTR_PRIVKEY;
+    if (!privkeyHex) {
+      return c.json({ error: 'server_misconfigured' }, 500);
+    }
+
+    let privkey: Uint8Array;
+    try {
+      privkey = hexToBytes(privkeyHex);
+    } catch {
+      return c.json({ error: 'server_misconfigured' }, 500);
+    }
+
+    const inputType = detectInputType(parsed);
+
+    try {
+      let result: { status: number; body: Record<string, unknown> };
+
+      if (inputType === 'apple-podcasts') {
+        result = await handleApplePodcasts(urlParam, privkey, allowPrivateIPs);
+      } else if (inputType === 'audio') {
+        result = await handleAudioUrl(urlParam, privkey, allowPrivateIPs);
+      } else if (inputType === 'feed') {
+        result = await handleFeedUrl(urlParam, privkey, allowPrivateIPs);
+      } else {
+        result = await handleSiteUrl(urlParam, allowPrivateIPs);
+      }
+
+      return c.json(result.body, result.status as 200);
+    } catch {
+      return c.json({ error: 'internal_error' }, 500);
+    }
   }
-}
+);

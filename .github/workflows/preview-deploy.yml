@@ -59,7 +59,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: preview-build-${{ github.event.pull_request.number }}
-          path: build/
+          path: .svelte-kit/cloudflare/
           retention-days: 1
 
   deploy-preview:
@@ -78,14 +78,14 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: preview-build-${{ github.event.pull_request.number }}
-          path: build/
+          path: .svelte-kit/cloudflare/
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy build --project-name=resonote-preview --branch=pr-${{ github.event.pull_request.number }}
+          command: pages deploy .svelte-kit/cloudflare --project-name=resonote-preview --branch=pr-${{ github.event.pull_request.number }}
           wranglerVersion: '4'
 
       - name: Comment preview URL
@@ -108,7 +108,7 @@ jobs:
           | **Updated** | ${TIMESTAMP} |"
 
           # Update existing comment or create new one
-          COMMENT_ID=$(gh api "repos/$REPO/issues/${PR_NUMBER}/comments?per_page=100" \
+          COMMENT_ID=$(gh api "repos/$REPO/issues/${PR_NUMBER}/comments" --paginate \
             --jq '[.[] | select((.user.login | startswith("github-actions")) and (.body | contains("<!-- preview-deploy -->"))) | .id] | last // ""')
 
           if [[ -n "$COMMENT_ID" ]]; then

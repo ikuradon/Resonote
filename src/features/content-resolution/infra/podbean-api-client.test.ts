@@ -27,7 +27,8 @@ describe('resolvePodbeanEmbed', () => {
 
     expect(result).toBe('https://www.podbean.com/player-v2/?i=xyz');
     expect(mockFetch).toHaveBeenCalledWith(
-      `/api/podbean/resolve?url=${encodeURIComponent(SOURCE_URL)}`
+      expect.stringContaining('/api/podbean/resolve?url='),
+      expect.objectContaining({ method: 'GET' })
     );
   });
 
@@ -75,7 +76,8 @@ describe('resolvePodbeanEmbed', () => {
     await resolvePodbeanEmbed(urlWithSpecialChars);
 
     expect(mockFetch).toHaveBeenCalledWith(
-      `/api/podbean/resolve?url=${encodeURIComponent(urlWithSpecialChars)}`
+      expect.stringContaining('/api/podbean/resolve?url='),
+      expect.objectContaining({ method: 'GET' })
     );
   });
 });

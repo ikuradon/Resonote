@@ -1,9 +1,12 @@
-import { safeFetch } from '../../lib/url-validation.js';
+import { zValidator } from '@hono/zod-validator';
+import { Hono } from 'hono';
+import type { ContentfulStatusCode } from 'hono/utils/http-status';
+import { z } from 'zod';
 
-interface Env {
-  UNSAFE_ALLOW_PRIVATE_IPS?: string;
-  YOUTUBE_API_KEY?: string;
-}
+import { safeFetch, safeReadText } from '$server/lib/safe-fetch.js';
+
+import type { Bindings } from './bindings.js';
+import { cacheMiddleware } from './middleware/cache.js';
 
 interface OEmbedResponse {
   title?: string;
@@ -70,81 +73,24 @@ function autoLinkUrls(text: string): string {
   return text.replace(/(?<!\[)(?<!\()(https?:\/\/[^\s)>\]]+)/g, '[$1]($1)');
 }
 
-export const onRequestGet: PagesFunction<Env> = handleRequest;
-
-async function handleRequest(context: EventContext<Env, string, unknown>): Promise<Response> {
-  const url = new URL(context.request.url);
-  const platform = url.searchParams.get('platform');
-  const type = url.searchParams.get('type');
-  const id = url.searchParams.get('id');
-  const allowPrivateIPs = !!context.env.UNSAFE_ALLOW_PRIVATE_IPS;
-
-  if (!platform || !type || !id) {
-    return json({ error: 'missing_params' }, 400);
-  }
-
-  // Niconico uses getthumbinfo XML API instead of oEmbed
-  if (platform === 'niconico') {
-    return handleNiconico(type, id, allowPrivateIPs);
-  }
-
-  // YouTube: fetch description from Data API v3 if API key available
-  if (platform === 'youtube') {
-    return handleYouTube(type, id, context.env, allowPrivateIPs);
-  }
-
-  if (!Object.prototype.hasOwnProperty.call(PLATFORMS, platform)) {
-    return json({ error: 'unsupported_platform' }, 400);
-  }
-  const config = PLATFORMS[platform];
-
-  if (!config.validTypes.has(type)) {
-    return json({ error: 'unsupported_type' }, 400);
-  }
-
-  if (!config.idPattern.test(id)) {
-    return json({ error: 'invalid_id' }, 400);
-  }
-
-  const contentUrl = config.buildUrl(type, id);
-  const oembedUrl = `${config.oembedBase}?format=json&url=${encodeURIComponent(contentUrl)}`;
-
-  try {
-    const res = await safeFetch(oembedUrl, { allowPrivateIPs });
-    if (!res.ok) {
-      return json({ error: 'oembed_failed' }, 502);
-    }
-
-    const data = (await res.json()) as OEmbedResponse;
-
-    return json(
-      {
-        title: data.title ?? null,
-        subtitle: data.author_name ?? null,
-        thumbnailUrl: data.thumbnail_url ?? null,
-        description: data.description ?? null,
-        provider: data.provider_name ?? platform
-      },
-      200,
-      { 'Cache-Control': 'public, max-age=86400' }
-    );
-  } catch {
-    return json({ error: 'fetch_failed' }, 502);
-  }
-}
+const NICONICO_VALID_TYPES = new Set(['video']);
+const NICONICO_ID_PATTERN = /^(sm|nm|so)\d+$/;
 
 async function handleYouTube(
   type: string,
   id: string,
-  env: Env,
+  env: Bindings,
   allowPrivateIPs: boolean
-): Promise<Response> {
+): Promise<{
+  status: ContentfulStatusCode;
+  body: Record<string, unknown>;
+}> {
   const config = PLATFORMS.youtube;
   if (!config.validTypes.has(type)) {
-    return json({ error: 'unsupported_type' }, 400);
+    return { status: 400, body: { error: 'unsupported_type' } };
   }
   if (!config.idPattern.test(id)) {
-    return json({ error: 'invalid_id' }, 400);
+    return { status: 400, body: { error: 'invalid_id' } };
   }
 
   // Fetch oEmbed for title/author/thumbnail
@@ -183,48 +129,47 @@ async function handleYouTube(
   }
 
   if (!oembedData.title && !description) {
-    return json({ error: 'oembed_failed' }, 502);
+    return { status: 502, body: { error: 'oembed_failed' } };
   }
 
-  return json(
-    {
+  return {
+    status: 200,
+    body: {
       title: oembedData.title ?? null,
       subtitle: oembedData.author_name ?? null,
       thumbnailUrl: oembedData.thumbnail_url ?? null,
       description,
       provider: oembedData.provider_name ?? 'youtube'
-    },
-    200,
-    { 'Cache-Control': 'public, max-age=86400' }
-  );
+    }
+  };
 }
-
-const NICONICO_VALID_TYPES = new Set(['video']);
-const NICONICO_ID_PATTERN = /^(sm|nm|so)\d+$/;
 
 async function handleNiconico(
   type: string,
   id: string,
   allowPrivateIPs: boolean
-): Promise<Response> {
+): Promise<{
+  status: ContentfulStatusCode;
+  body: Record<string, unknown>;
+}> {
   if (!NICONICO_VALID_TYPES.has(type)) {
-    return json({ error: 'unsupported_type' }, 400);
+    return { status: 400, body: { error: 'unsupported_type' } };
   }
   if (!NICONICO_ID_PATTERN.test(id)) {
-    return json({ error: 'invalid_id' }, 400);
+    return { status: 400, body: { error: 'invalid_id' } };
   }
 
   const apiUrl = `https://ext.nicovideo.jp/api/getthumbinfo/${id}`;
   try {
     const res = await safeFetch(apiUrl, { allowPrivateIPs });
     if (!res.ok) {
-      return json({ error: 'oembed_failed' }, 502);
+      return { status: 502, body: { error: 'oembed_failed' } };
     }
-    const xml = await res.text();
+    const xml = await safeReadText(res);
 
     const statusMatch = xml.match(/status="(\w+)"/);
     if (statusMatch?.[1] !== 'ok') {
-      return json({ error: 'oembed_failed' }, 502);
+      return { status: 502, body: { error: 'oembed_failed' } };
     }
 
     const title = xml.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/)?.[1] ?? null;
@@ -238,20 +183,78 @@ async function handleNiconico(
       xml.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/)?.[1] ?? null;
     const description = rawDescription ? autoLinkUrls(rawDescription) : null;
 
-    return json({ title, subtitle, thumbnailUrl, description, provider: 'niconico' }, 200, {
-      'Cache-Control': 'public, max-age=86400'
-    });
+    return {
+      status: 200,
+      body: { title, subtitle, thumbnailUrl, description, provider: 'niconico' }
+    };
   } catch {
-    return json({ error: 'fetch_failed' }, 502);
+    return { status: 502, body: { error: 'fetch_failed' } };
   }
 }
 
-function json(body: unknown, status: number, extraHeaders?: Record<string, string>): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      ...extraHeaders
+const querySchema = z.object({
+  platform: z.string(),
+  type: z.string(),
+  id: z.string()
+});
+
+export const oembedRoute = new Hono<{ Bindings: Bindings }>().get(
+  '/resolve',
+  cacheMiddleware({ ttl: 86400 }),
+  zValidator('query', querySchema, (result, c) => {
+    if (!result.success) {
+      return c.json({ error: 'missing_params' }, 400);
     }
-  });
-}
+  }),
+  async (c) => {
+    const { platform, type, id } = c.req.valid('query');
+    const allowPrivateIPs = !!c.env.UNSAFE_ALLOW_PRIVATE_IPS;
+
+    // Niconico uses getthumbinfo XML API instead of oEmbed
+    if (platform === 'niconico') {
+      const result = await handleNiconico(type, id, allowPrivateIPs);
+      return c.json(result.body, result.status);
+    }
+
+    // YouTube: fetch description from Data API v3 if API key available
+    if (platform === 'youtube') {
+      const result = await handleYouTube(type, id, c.env, allowPrivateIPs);
+      return c.json(result.body, result.status);
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(PLATFORMS, platform)) {
+      return c.json({ error: 'unsupported_platform' }, 400);
+    }
+    const config = PLATFORMS[platform];
+
+    if (!config.validTypes.has(type)) {
+      return c.json({ error: 'unsupported_type' }, 400);
+    }
+
+    if (!config.idPattern.test(id)) {
+      return c.json({ error: 'invalid_id' }, 400);
+    }
+
+    const contentUrl = config.buildUrl(type, id);
+    const oembedUrl = `${config.oembedBase}?format=json&url=${encodeURIComponent(contentUrl)}`;
+
+    try {
+      const res = await safeFetch(oembedUrl, { allowPrivateIPs });
+      if (!res.ok) {
+        return c.json({ error: 'oembed_failed' }, 502);
+      }
+
+      const data = (await res.json()) as OEmbedResponse;
+
+      return c.json({
+        title: data.title ?? null,
+        subtitle: data.author_name ?? null,
+        thumbnailUrl: data.thumbnail_url ?? null,
+        description: data.description ?? null,
+        provider: data.provider_name ?? platform
+      });
+    } catch {
+      return c.json({ error: 'fetch_failed' }, 502);
+    }
+  }
+);

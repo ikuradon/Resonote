@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { assertSafeUrl, safeFetch, safeReadText } from './url-validation.js';
+import { assertSafeUrl, safeFetch, safeReadText } from './safe-fetch.js';
 
 describe('assertSafeUrl', () => {
   it('should allow valid public URLs', () => {

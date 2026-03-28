@@ -1,30 +1,41 @@
+import { Hono } from 'hono';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { onRequestGet } from './resolve.js';
+import { podbeanRoute } from './podbean.js';
 
-function makeContext(params: Record<string, string>) {
-  const url = new URL('https://example.com/api/podbean/resolve');
+interface Bindings {
+  UNSAFE_ALLOW_PRIVATE_IPS?: string;
+}
+
+function createApp(): Hono<{ Bindings: Bindings }> {
+  const app = new Hono<{ Bindings: Bindings }>();
+  app.route('/podbean', podbeanRoute);
+  return app;
+}
+
+function requestResolve(
+  app: Hono<{ Bindings: Bindings }>,
+  params: Record<string, string>,
+  env: Partial<Bindings> = {}
+): Response | Promise<Response> {
+  const url = new URL('http://localhost/podbean/resolve');
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);
   }
-  return {
-    request: new Request(url.toString()),
-    env: {},
-    params: {},
-    waitUntil: vi.fn(),
-    passThroughOnException: vi.fn(),
-    next: vi.fn(),
-    data: {},
-    functionPath: ''
-  } as unknown as Parameters<typeof onRequestGet>[0];
+  return app.request(url.toString(), undefined, env as Bindings);
 }
 
 async function parseJson(response: Response) {
   return JSON.parse(await response.text());
 }
 
+const mockCache = { match: vi.fn(), put: vi.fn() };
+
 beforeEach(() => {
   vi.restoreAllMocks();
+  mockCache.match.mockReset().mockResolvedValue(undefined);
+  mockCache.put.mockReset();
+  vi.stubGlobal('caches', { default: mockCache });
 });
 
 afterEach(() => {
@@ -33,13 +44,15 @@ afterEach(() => {
 
 describe('podbean resolve', () => {
   it('should return missing_url when no url param', async () => {
-    const res = await onRequestGet(makeContext({}));
+    const app = createApp();
+    const res = await requestResolve(app, {});
     expect(res.status).toBe(400);
     expect(await parseJson(res)).toEqual({ error: 'missing_url' });
   });
 
   it('should block private IP addresses', async () => {
-    const res = await onRequestGet(makeContext({ url: 'http://127.0.0.1/secret' }));
+    const app = createApp();
+    const res = await requestResolve(app, { url: 'http://127.0.0.1/secret' });
     expect(res.status).toBe(400);
     expect(await parseJson(res)).toEqual({ error: 'url_blocked' });
   });
@@ -54,7 +67,8 @@ describe('podbean resolve', () => {
     );
     vi.stubGlobal('fetch', mockFetch);
 
-    const res = await onRequestGet(makeContext({ url: 'https://www.podbean.com/ew/pb-abc123' }));
+    const app = createApp();
+    const res = await requestResolve(app, { url: 'https://www.podbean.com/ew/pb-abc123' });
     expect(res.status).toBe(200);
     const data = await parseJson(res);
     expect(data.embedSrc).toBe('https://www.podbean.com/player-v2/?i=abc123');
@@ -73,7 +87,8 @@ describe('podbean resolve', () => {
       );
     vi.stubGlobal('fetch', mockFetch);
 
-    const res = await onRequestGet(makeContext({ url: 'https://www.podbean.com/ew/pb-abc123' }));
+    const app = createApp();
+    const res = await requestResolve(app, { url: 'https://www.podbean.com/ew/pb-abc123' });
     expect(res.status).toBe(404);
     expect(await parseJson(res)).toEqual({ error: 'embed_not_found' });
   });
@@ -91,7 +106,8 @@ describe('podbean resolve', () => {
       );
     vi.stubGlobal('fetch', mockFetch);
 
-    const res = await onRequestGet(makeContext({ url: 'https://www.podbean.com/ew/pb-abc123' }));
+    const app = createApp();
+    const res = await requestResolve(app, { url: 'https://www.podbean.com/ew/pb-abc123' });
     expect(res.status).toBe(200);
     expect(await parseJson(res)).toEqual({ embedId: 'pb-a1b2c3-d4e5f6' });
   });
@@ -100,7 +116,8 @@ describe('podbean resolve', () => {
     const mockFetch = vi.fn().mockResolvedValueOnce(new Response('', { status: 500 }));
     vi.stubGlobal('fetch', mockFetch);
 
-    const res = await onRequestGet(makeContext({ url: 'https://www.podbean.com/ew/pb-abc123' }));
+    const app = createApp();
+    const res = await requestResolve(app, { url: 'https://www.podbean.com/ew/pb-abc123' });
     expect(res.status).toBe(502);
     expect(await parseJson(res)).toEqual({ error: 'oembed_failed', status: 500 });
   });
@@ -109,7 +126,8 @@ describe('podbean resolve', () => {
     const mockFetch = vi.fn().mockRejectedValueOnce(new Error('network error'));
     vi.stubGlobal('fetch', mockFetch);
 
-    const res = await onRequestGet(makeContext({ url: 'https://www.podbean.com/ew/pb-abc123' }));
+    const app = createApp();
+    const res = await requestResolve(app, { url: 'https://www.podbean.com/ew/pb-abc123' });
     expect(res.status).toBe(502);
     expect(await parseJson(res)).toEqual({ error: 'fetch_failed' });
   });
@@ -121,7 +139,8 @@ describe('podbean resolve', () => {
       .mockResolvedValueOnce(new Response('<html>nothing useful</html>'));
     vi.stubGlobal('fetch', mockFetch);
 
-    const res = await onRequestGet(makeContext({ url: 'https://www.podbean.com/ew/pb-abc123' }));
+    const app = createApp();
+    const res = await requestResolve(app, { url: 'https://www.podbean.com/ew/pb-abc123' });
     expect(res.status).toBe(404);
     expect(await parseJson(res)).toEqual({ error: 'embed_not_found' });
   });
@@ -133,7 +152,8 @@ describe('podbean resolve', () => {
       .mockResolvedValueOnce(new Response('', { status: 503 }));
     vi.stubGlobal('fetch', mockFetch);
 
-    const res = await onRequestGet(makeContext({ url: 'https://www.podbean.com/ew/pb-abc123' }));
+    const app = createApp();
+    const res = await requestResolve(app, { url: 'https://www.podbean.com/ew/pb-abc123' });
     expect(res.status).toBe(404);
     expect(await parseJson(res)).toEqual({ error: 'embed_not_found' });
   });
@@ -145,7 +165,8 @@ describe('podbean resolve', () => {
       .mockRejectedValueOnce(new Error('network error'));
     vi.stubGlobal('fetch', mockFetch);
 
-    const res = await onRequestGet(makeContext({ url: 'https://www.podbean.com/ew/pb-abc123' }));
+    const app = createApp();
+    const res = await requestResolve(app, { url: 'https://www.podbean.com/ew/pb-abc123' });
     expect(res.status).toBe(502);
     expect(await parseJson(res)).toEqual({ error: 'fetch_failed' });
   });

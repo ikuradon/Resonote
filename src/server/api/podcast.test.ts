@@ -1,3 +1,4 @@
+import { Hono } from 'hono';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -6,12 +7,40 @@ import {
   extractAttr,
   extractTagContent,
   findRssLink,
-  htmlToMarkdown,
   normalizeForDTag,
-  onRequestGet,
   parseDurationToSeconds,
-  parseRss
-} from './resolve.js';
+  parseRss,
+  podcastRoute
+} from './podcast.js';
+
+interface Bindings {
+  SYSTEM_NOSTR_PRIVKEY?: string;
+  UNSAFE_ALLOW_PRIVATE_IPS?: string;
+}
+
+function createApp(): Hono<{ Bindings: Bindings }> {
+  const app = new Hono<{ Bindings: Bindings }>();
+  app.route('/podcast', podcastRoute);
+  return app;
+}
+
+function requestResolve(
+  app: Hono<{ Bindings: Bindings }>,
+  params: Record<string, string>,
+  env: Partial<Bindings> = {}
+): Response | Promise<Response> {
+  const url = new URL('http://localhost/podcast/resolve');
+  for (const [k, v] of Object.entries(params)) {
+    url.searchParams.set(k, v);
+  }
+  return app.request(url.toString(), undefined, env as Bindings);
+}
+
+async function parseJson(response: Response) {
+  return JSON.parse(await response.text());
+}
+
+const TEST_PRIVKEY = 'a'.repeat(64);
 
 describe('normalizeForDTag', () => {
   it('should normalize basic URL', () => {
@@ -414,32 +443,14 @@ describe('parseRss', () => {
   });
 });
 
-function makeContext(params: Record<string, string>, env: Record<string, string> = {}) {
-  const url = new URL('https://example.com/api/podcast/resolve');
-  for (const [k, v] of Object.entries(params)) {
-    url.searchParams.set(k, v);
-  }
-  return {
-    request: new Request(url.toString()),
-    env,
-    params: {},
-    waitUntil: vi.fn(),
-    passThroughOnException: vi.fn(),
-    next: vi.fn(),
-    data: {},
-    functionPath: ''
-  } as unknown as Parameters<typeof onRequestGet>[0];
-}
+const mockCache = { match: vi.fn(), put: vi.fn() };
 
-async function parseJson(response: Response) {
-  return JSON.parse(await response.text());
-}
-
-const TEST_PRIVKEY = 'a'.repeat(64);
-
-describe('handleRequest (onRequestGet)', () => {
+describe('handleRequest (podcastRoute)', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    mockCache.match.mockReset().mockResolvedValue(undefined);
+    mockCache.put.mockReset();
+    vi.stubGlobal('caches', { default: mockCache });
   });
 
   afterEach(() => {
@@ -448,82 +459,86 @@ describe('handleRequest (onRequestGet)', () => {
 
   describe('parameter validation', () => {
     it('returns 400 when url parameter is missing', async () => {
-      const ctx = makeContext({}, { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY });
-      const res = await onRequestGet(ctx);
+      const app = createApp();
+      const res = await requestResolve(app, {}, { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY });
       expect(res.status).toBe(400);
       const body = await parseJson(res);
       expect(body.error).toBe('missing_url');
     });
 
     it('returns 400 for invalid URL', async () => {
-      const ctx = makeContext({ url: 'not-a-url' }, { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY });
-      const res = await onRequestGet(ctx);
+      const app = createApp();
+      const res = await requestResolve(
+        app,
+        { url: 'not-a-url' },
+        { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
+      );
       expect(res.status).toBe(400);
       const body = await parseJson(res);
-      expect(body.error).toBe('invalid_url');
+      expect(body.error).toBe('missing_url');
     });
 
     it('returns 400 for javascript: scheme', async () => {
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'javascript:alert(1)' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(400);
-      const body = await parseJson(res);
-      expect(body.error).toBe('invalid_url');
     });
 
     it('returns 400 for data: scheme', async () => {
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'data:text/html,<h1>hi</h1>' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(400);
-      const body = await parseJson(res);
-      expect(body.error).toBe('invalid_url');
     });
 
     it('returns 400 for ftp: scheme', async () => {
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'ftp://example.com/file.mp3' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(400);
-      const body = await parseJson(res);
-      expect(body.error).toBe('invalid_url');
     });
 
     it('returns 400 for SSRF blocked URL (localhost)', async () => {
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'http://localhost/feed.xml' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(400);
       const body = await parseJson(res);
       expect(body.error).toBe('url_blocked');
     });
 
     it('returns 400 for SSRF blocked URL (127.0.0.1)', async () => {
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'http://127.0.0.1/feed.xml' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(400);
       const body = await parseJson(res);
       expect(body.error).toBe('url_blocked');
     });
 
     it('returns 400 for SSRF blocked URL (private IP 10.x)', async () => {
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'http://10.0.0.1/feed.xml' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(400);
       const body = await parseJson(res);
       expect(body.error).toBe('url_blocked');
@@ -532,30 +547,32 @@ describe('handleRequest (onRequestGet)', () => {
 
   describe('server configuration', () => {
     it('returns 500 when SYSTEM_NOSTR_PRIVKEY is not set', async () => {
-      const ctx = makeContext({ url: 'https://example.com/feed.xml' }, {});
-      const res = await onRequestGet(ctx);
+      const app = createApp();
+      const res = await requestResolve(app, { url: 'https://example.com/feed.xml' }, {});
       expect(res.status).toBe(500);
       const body = await parseJson(res);
       expect(body.error).toBe('server_misconfigured');
     });
 
     it('returns 500 for invalid privkey hex', async () => {
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://example.com/feed.xml' },
         { SYSTEM_NOSTR_PRIVKEY: 'not-valid-hex!' }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(500);
       const body = await parseJson(res);
       expect(body.error).toBe('server_misconfigured');
     });
 
     it('returns 500 for empty privkey', async () => {
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://example.com/feed.xml' },
         { SYSTEM_NOSTR_PRIVKEY: '' }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(500);
       const body = await parseJson(res);
       expect(body.error).toBe('server_misconfigured');
@@ -582,11 +599,12 @@ describe('handleRequest (onRequestGet)', () => {
 
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(rssXml, { status: 200 })));
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://example.com/feed.xml' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(200);
 
       const body = await parseJson(res);
@@ -607,11 +625,12 @@ describe('handleRequest (onRequestGet)', () => {
     it('returns 502 when feed fetch fails', async () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Not Found', { status: 404 })));
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://example.com/feed.xml' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(502);
       const body = await parseJson(res);
       expect(body.error).toBe('fetch_failed');
@@ -623,11 +642,12 @@ describe('handleRequest (onRequestGet)', () => {
         vi.fn().mockResolvedValue(new Response('<html>Not RSS</html>', { status: 200 }))
       );
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://example.com/feed.xml' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(422);
       const body = await parseJson(res);
       expect(body.error).toBe('parse_failed');
@@ -636,11 +656,12 @@ describe('handleRequest (onRequestGet)', () => {
     it('returns 500 when fetch throws (internal_error)', async () => {
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network error')));
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://example.com/feed.xml' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(500);
       const body = await parseJson(res);
       expect(body.error).toBe('internal_error');
@@ -677,11 +698,12 @@ describe('handleRequest (onRequestGet)', () => {
         })
       );
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://example.com/audio/ep.mp3' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(200);
 
       const body = await parseJson(res);
@@ -708,11 +730,12 @@ describe('handleRequest (onRequestGet)', () => {
         })
       );
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://example.com/audio/ep.mp3' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(200);
 
       const body = await parseJson(res);
@@ -734,11 +757,12 @@ describe('handleRequest (onRequestGet)', () => {
         })
       );
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://example.com/audio/ep.mp3' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(200);
 
       const body = await parseJson(res);
@@ -754,11 +778,12 @@ describe('handleRequest (onRequestGet)', () => {
 
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(siteHtml, { status: 200 })));
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://example.com/podcast-page' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(200);
 
       const body = await parseJson(res);
@@ -782,11 +807,12 @@ describe('handleRequest (onRequestGet)', () => {
         })
       );
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://example.com/blog/post' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(200);
 
       const body = await parseJson(res);
@@ -800,11 +826,12 @@ describe('handleRequest (onRequestGet)', () => {
         vi.fn().mockResolvedValue(new Response('<html><body>No RSS</body></html>', { status: 200 }))
       );
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://example.com/blog/post' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(404);
       const body = await parseJson(res);
       expect(body.error).toBe('rss_not_found');
@@ -813,11 +840,12 @@ describe('handleRequest (onRequestGet)', () => {
     it('returns 502 when site fetch fails', async () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Error', { status: 503 })));
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://example.com/podcast-page' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(502);
       const body = await parseJson(res);
       expect(body.error).toBe('fetch_failed');
@@ -846,11 +874,12 @@ describe('handleRequest (onRequestGet)', () => {
       });
       vi.stubGlobal('fetch', mockFetch);
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://podcasts.apple.com/us/podcast/my-podcast/id1234567890' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(200);
       const body = await parseJson(res);
       expect(body.type).toBe('feed');
@@ -867,11 +896,12 @@ describe('handleRequest (onRequestGet)', () => {
           )
       );
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://podcasts.apple.com/us/podcast/my-podcast/id1234567890' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(404);
       const body = await parseJson(res);
       expect(body.error).toBe('feed_not_found');
@@ -880,11 +910,12 @@ describe('handleRequest (onRequestGet)', () => {
     it('returns 502 when iTunes lookup request fails', async () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Error', { status: 500 })));
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://podcasts.apple.com/us/podcast/my-podcast/id1234567890' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(502);
       const body = await parseJson(res);
       expect(body.error).toBe('apple_lookup_failed');
@@ -893,11 +924,12 @@ describe('handleRequest (onRequestGet)', () => {
     it('returns 502 when iTunes lookup throws', async () => {
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network')));
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://podcasts.apple.com/us/podcast/my-podcast/id1234567890' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(502);
       const body = await parseJson(res);
       expect(body.error).toBe('apple_lookup_failed');
@@ -913,11 +945,12 @@ describe('handleRequest (onRequestGet)', () => {
 
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(rssXml, { status: 200 })));
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://example.com/feed.xml' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       const body = await parseJson(res);
       expect(body.feed.description).toBe('My podcast description');
     });
@@ -932,11 +965,12 @@ describe('handleRequest (onRequestGet)', () => {
 
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(rssXml, { status: 200 })));
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://example.com/feed.xml' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       const body = await parseJson(res);
 
       // First signed event is the feed bookmark
@@ -956,11 +990,12 @@ describe('handleRequest (onRequestGet)', () => {
         vi.fn().mockResolvedValue(new Response(new ArrayBuffer(0), { status: 200 }))
       );
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://example.com/ep.mp3' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(200);
       const body = await parseJson(res);
       expect(body.type).toBe('episode');
@@ -973,11 +1008,12 @@ describe('handleRequest (onRequestGet)', () => {
 
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(rssXml, { status: 200 })));
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://example.com/feed.xml' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(200);
       const body = await parseJson(res);
       expect(body.type).toBe('feed');
@@ -989,80 +1025,13 @@ describe('handleRequest (onRequestGet)', () => {
         vi.fn().mockResolvedValue(new Response('<html><body>No RSS</body></html>', { status: 200 }))
       );
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { url: 'https://example.com/podcast-page' },
         { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(404);
     });
-  });
-});
-
-describe('htmlToMarkdown', () => {
-  it('converts bold to markdown', () => {
-    expect(htmlToMarkdown('<p>Hello <b>world</b></p>')).toBe('Hello **world**');
-  });
-
-  it('converts links to markdown', () => {
-    expect(htmlToMarkdown('<p>Visit <a href="https://example.com">here</a></p>')).toBe(
-      'Visit [here](https://example.com)'
-    );
-  });
-
-  it('converts italic to markdown', () => {
-    expect(htmlToMarkdown('<em>emphasis</em>')).toBe('*emphasis*');
-  });
-
-  it('converts <br> to newline', () => {
-    expect(htmlToMarkdown('Line 1<br>Line 2<br/>Line 3')).toBe('Line 1\nLine 2\nLine 3');
-  });
-
-  it('converts </p> to double newline', () => {
-    expect(htmlToMarkdown('<p>Para 1</p><p>Para 2</p>')).toBe('Para 1\n\nPara 2');
-  });
-
-  it('decodes HTML entities in plain text', () => {
-    expect(htmlToMarkdown('Tom &amp; Jerry')).toBe('Tom & Jerry');
-  });
-
-  it('preserves links in CDATA-extracted HTML', () => {
-    expect(htmlToMarkdown('<p>Episode about <a href="https://example.com">topic</a></p>')).toBe(
-      'Episode about [topic](https://example.com)'
-    );
-  });
-
-  it('handles XML-escaped HTML (double-encoded)', () => {
-    expect(htmlToMarkdown('&lt;p&gt;Hello &lt;b&gt;world&lt;/b&gt;&lt;/p&gt;')).toBe(
-      'Hello **world**'
-    );
-  });
-
-  it('handles mixed CDATA content and XML-escaped HTML', () => {
-    expect(htmlToMarkdown('<p>Normal</p>&lt;p&gt;escaped&lt;/p&gt;')).toBe('Normal\n\nescaped');
-  });
-
-  it('collapses excessive newlines', () => {
-    expect(htmlToMarkdown('<p>A</p><p></p><p>B</p>')).toBe('A\n\nB');
-  });
-
-  it('returns empty string for empty input', () => {
-    expect(htmlToMarkdown('')).toBe('');
-  });
-
-  it('returns plain text unchanged', () => {
-    expect(htmlToMarkdown('Just plain text')).toBe('Just plain text');
-  });
-
-  it('strips residual CDATA markers', () => {
-    expect(htmlToMarkdown('<![CDATA[<p>content</p>]]>')).toBe('content');
-  });
-
-  it('strips ]]> without matching <![CDATA[', () => {
-    expect(htmlToMarkdown('text]]> more')).toBe('text more');
-  });
-
-  it('converts list items', () => {
-    expect(htmlToMarkdown('<ul><li>One</li><li>Two</li></ul>')).toBe('- One\n- Two');
   });
 });

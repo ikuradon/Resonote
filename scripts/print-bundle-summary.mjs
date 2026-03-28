@@ -4,7 +4,7 @@ import { gzipSync } from 'node:zlib';
 
 const args = process.argv.slice(2);
 const summaryOnly = args.includes('--summary');
-const buildDir = getArgValue('--dir') ?? 'build';
+const buildDir = getArgValue('--dir') ?? '.svelte-kit/cloudflare';
 
 function getArgValue(name) {
   const index = args.indexOf(name);

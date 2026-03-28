@@ -7,8 +7,8 @@ NIP-73 (External Content IDs) + NIP-22 (Comments, kind:1111) + NIP-25 (Reactions
 
 ```bash
 pnpm run dev          # dev server (http://localhost:5173)
-pnpm run dev:full     # Vite + Cloudflare Pages Functions (.dev.vars 読み込み)
-pnpm run build        # production build → build/
+pnpm run dev:full     # Vite + Cloudflare Pages (.dev.vars 読み込み)
+pnpm run build        # production build → .svelte-kit/cloudflare/
 pnpm run preview      # preview production build
 pnpm run check        # svelte-kit sync + svelte-check
 pnpm run lint         # ESLint
@@ -40,13 +40,13 @@ This matches the CI pipeline order. Do not skip any step.
 ## Tech Stack
 
 - **Framework**: SvelteKit (SPA mode, Svelte 5 runes)
-- **Adapter**: @sveltejs/adapter-static (`fallback: 'index.html'`)
+- **Adapter**: @sveltejs/adapter-cloudflare (SSR + API via hooks.server.ts)
+- **API**: Hono (src/server/api/, SvelteKit hooks.server.ts 経由で `/api/` をハンドル)
 - **Styling**: Tailwind CSS v4 (`@tailwindcss/vite` plugin)
 - **Nostr**: rx-nostr + @rx-nostr/crypto (verifier/signer)
 - **Auth**: @konemono/nostr-login (`init()` + `nlAuth` DOM event)
 - **NIP utils**: nostr-tools (nip19 subpath only)
 - **Package manager**: pnpm
-- **Pages Functions**: Cloudflare Pages Functions (`functions/` dir, adapter-static と共存)
 
 ## Code Style
 
@@ -81,9 +81,9 @@ This matches the CI pipeline order. Do not skip any step.
 - `src/shared/i18n/` — Translation runtime API (`t`, locales, message dictionaries)
 - `src/lib/` — `src/lib/components/` のみ残存。runtime ownership を置かない。新規業務ロジック追加禁止。
 - `src/web/` — SvelteKit entry points (routes, app.html, app.css)
+- `src/server/` — Server-side API (Hono routes, middleware, utilities)
 - `src/extension/` — Browser extension (Chrome/Firefox Manifest V3)
-- `functions/` — Cloudflare Pages Functions (API endpoints)
-- `static/` — Static assets copied to build output (favicon, `_headers`, etc.)
+- `static/` — Static assets copied to build output (favicon, etc.)
 
 ### Path Aliases
 
@@ -91,6 +91,7 @@ This matches the CI pipeline order. Do not skip any step.
 - `$shared` — `src/shared` (public runtime boundary)
 - `$features` — `src/features` (feature slices)
 - `$appcore` — `src/app` (bootstrap, session)
+- `$server` — `src/server` (server-side API)
 
 ### Feature Slice Architecture
 
@@ -132,22 +133,27 @@ Web embed 対応: Spotify, YouTube, Vimeo, SoundCloud, Mixcloud, Spreaker, Nicon
 - SoundCloud/Podbean: oEmbed API で embed URL 解決 (CORS プロキシ経由)
 - Spreaker: widgets.js を毎回 remove+re-add (SPA 再ナビゲーション対応)
 
-### Pages Functions (API)
+### Server API (Hono)
 
-- `functions/api/podcast/resolve.ts`: RSS パース + NIP-B0 ブックマーク署名 + 音声メタデータ解析
-- `functions/api/podbean/resolve.ts`: Podbean oEmbed プロキシ
-- `functions/api/oembed/resolve.ts`: oEmbed メタデータプロキシ (Spotify, YouTube, SoundCloud, Vimeo) — プラットフォーム別 type/id バリデーション付き
-- `functions/api/youtube/feed.ts`: YouTube プレイリスト/チャンネルの Atom RSS フィードパース (最新 15 件)
-- `functions/api/system/pubkey.ts`: システム鍵の pubkey 公開
-- `functions/lib/audio-metadata.ts`: ID3v2/Vorbis/FLAC メタデータパーサー
-- `functions/lib/url-validation.ts`: SSRF 防御 — `safeFetch()` で全 server-side fetch を行う (リダイレクト各ホップで `assertSafeUrl()` 検証)
+- `src/server/api/app.ts`: Hono アプリケーション (全ルートの統合 + ミドルウェア適用)
+- `src/server/api/bindings.ts`: Cloudflare Workers 環境変数の型定義
+- `src/server/api/podcast.ts`: RSS パース + NIP-B0 ブックマーク署名 + 音声メタデータ解析
+- `src/server/api/podbean.ts`: Podbean oEmbed プロキシ
+- `src/server/api/oembed.ts`: oEmbed メタデータプロキシ (Spotify, YouTube, SoundCloud, Vimeo) — プラットフォーム別 type/id バリデーション付き
+- `src/server/api/youtube.ts`: YouTube プレイリスト/チャンネルの Atom RSS フィードパース (最新 15 件)
+- `src/server/api/system.ts`: システム鍵の pubkey 公開
+- `src/server/api/middleware/cache.ts`: キャッシュミドルウェア
+- `src/server/api/middleware/error-handler.ts`: エラーハンドリングミドルウェア
+- `src/server/lib/audio-metadata.ts`: ID3v2/Vorbis/FLAC メタデータパーサー
+- `src/server/lib/safe-fetch.ts`: SSRF 防御 — `safeFetch()` で全 server-side fetch を行う (リダイレクト各ホップで `assertSafeUrl()` 検証)
+- `src/hooks.server.ts`: SvelteKit hooks — `/api/` パスを Hono アプリにルーティング
 - 環境変数: `SYSTEM_NOSTR_PRIVKEY` (hex) — `.dev.vars` (ローカル) / `wrangler pages secret` (本番)
 
 ### Nostr Layer
 
 - `src/shared/nostr/client.ts`: Singleton `getRxNostr()` with `@rx-nostr/crypto` verifier
 - `src/shared/nostr/events.ts`: Event builders for kind:1111 (comment) and kind:7 (reaction)
-- `src/shared/nostr/events.ts` にないイベント: kind:3 (follows.svelte.ts), kind:10000 (mute.svelte.ts), kind:10002 (relays.svelte.ts), kind:10003 (bookmarks.svelte.ts), kind:39701 (functions/api/podcast/resolve.ts)
+- `src/shared/nostr/events.ts` にないイベント: kind:3 (follows.svelte.ts), kind:10000 (mute.svelte.ts), kind:10002 (relays.svelte.ts), kind:10003 (bookmarks.svelte.ts), kind:39701 (src/server/api/podcast.ts)
 - `src/shared/nostr/event-db.ts`: IndexedDB-based event cache (`idb` wrapper)
 - `src/shared/nostr/relays.ts`: Default relay list
 - `src/shared/nostr/user-relays.ts`: Per-user relay discovery
@@ -213,7 +219,7 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
 
 ## Testing
 
-- Unit: vitest (`src/**/*.test.ts` + `functions/**/*.test.ts`)
+- Unit: vitest (`src/**/*.test.ts`)
 - E2E: Playwright (`e2e/*.test.ts`, Chromium, build+preview on :4173)
 - Structure guard: `src/architecture/structure-guard.test.ts` が legacy store / i18n runtime import の再流入を止める
 - `pnpm check:structure` を通常の検証セットに含める
@@ -251,7 +257,7 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
 ## Key Decisions
 
 - SPA mode (`ssr = false`, `prerender = false`) — Nostr requires client-side WebSocket
-- `fallback: 'index.html'` enables client-side routing for direct URL access
+- adapter-cloudflare handles client-side routing fallback
 - `kit.files.routes = 'src/web/routes'`, `kit.files.appTemplate = 'src/web/app.html'` — Web/Extension directory separation
 - `noBanner: true` in nostr-login init — manual login UI via `launch()`
 - rx-nostr verifier is mandatory; using `@rx-nostr/crypto`'s `verifier`
@@ -263,15 +269,15 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
 
 ## Gotchas
 
-- CSP テスト: `pnpm build && wrangler pages dev build --port 8788` + `cloudflared tunnel --url http://localhost:8788` で本番同等テスト可能 (localhost は CSP を無視しがち)
+- CSP テスト: `pnpm build && wrangler pages dev .svelte-kit/cloudflare --port 8788` + `cloudflared tunnel --url http://localhost:8788` で本番同等テスト可能 (localhost は CSP を無視しがち)
 - CSP `script-src` にはワイルドカードサブドメイン (`*.spotify.com` 等) を使用。プロバイダーが CDN サブドメインにリダイレクトするため個別指定は漏れやすい
 - Spotify IFrame API は内部で eval を使用 → CSP に `'unsafe-eval'` が必要
 - SPA ナビゲーション時に iframe が先に DOM から消え、widget の cleanup (`destroy()`, `unbind()`) で `postMessage` が null に対して呼ばれる → `try-catch` で囲む
-- `static/_headers` は静的アセットにのみ適用される。Pages Functions のレスポンスヘッダーは関数内で制御
+- `_headers` (プロジェクトルート) は静的アセットにのみ適用される。Server API のレスポンスヘッダーは Hono ミドルウェアで制御
 - `/_app/immutable/` のチャンクはコンテンツハッシュ付き → immutable キャッシュ設定済み。Resonote 側コード変更でもハッシュが変わりうる
-- 新しい embed プロバイダー追加時は `static/_headers` の CSP `frame-src` / `script-src` も更新すること
+- 新しい embed プロバイダー追加時は `_headers` (プロジェクトルート) の CSP `frame-src` / `script-src` も更新すること
 - Nostr イベント由来の画像 URL は `sanitizeImageUrl()` (`src/shared/utils/url.ts`) でスキーム検証すること
-- `pnpm dev` では Pages Functions が動かない。API 必要時は `pnpm dev:full`
+- `pnpm dev` では `.dev.vars` の環境変数が読み込まれない。API テスト時は `pnpm dev:full`
 - Spreaker `widgets.js` は SPA 再ナビゲーション時に再走査しない → script remove+re-add が必要
 - SoundCloud embed は permalink URL を受け付けない → oEmbed API で api.soundcloud.com URL に解決
 - Podbean `PB.Widget.Events.READY` は文字列リテラル (プロパティアクセスではない)

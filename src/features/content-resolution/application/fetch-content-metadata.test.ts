@@ -38,7 +38,8 @@ describe('fetchContentMetadata', () => {
       description: null
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      '/api/oembed/resolve?platform=spotify&type=track&id=abc123'
+      expect.stringContaining('/api/oembed/resolve?platform=spotify&type=track&id=abc123'),
+      expect.objectContaining({ method: 'GET' })
     );
   });
 

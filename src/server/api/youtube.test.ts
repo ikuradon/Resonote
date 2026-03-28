@@ -1,22 +1,28 @@
+import { Hono } from 'hono';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { onRequestGet } from './feed.js';
+import { youtubeRoute } from './youtube.js';
 
-function makeContext(params: Record<string, string>) {
-  const url = new URL('https://example.com/api/youtube/feed');
+interface Bindings {
+  UNSAFE_ALLOW_PRIVATE_IPS?: string;
+}
+
+function createApp(): Hono<{ Bindings: Bindings }> {
+  const app = new Hono<{ Bindings: Bindings }>();
+  app.route('/youtube', youtubeRoute);
+  return app;
+}
+
+function requestFeed(
+  app: Hono<{ Bindings: Bindings }>,
+  params: Record<string, string>,
+  env: Partial<Bindings> = {}
+): Response | Promise<Response> {
+  const url = new URL('http://localhost/youtube/feed');
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);
   }
-  return {
-    request: new Request(url.toString()),
-    env: {},
-    params: {},
-    waitUntil: vi.fn(),
-    passThroughOnException: vi.fn(),
-    next: vi.fn(),
-    data: {},
-    functionPath: ''
-  } as unknown as Parameters<typeof onRequestGet>[0];
+  return app.request(url.toString(), undefined, env as Bindings);
 }
 
 async function parseJson(response: Response) {
@@ -44,8 +50,13 @@ const SAMPLE_ATOM = `<?xml version="1.0" encoding="UTF-8"?>
   </entry>
 </feed>`;
 
+const mockCache = { match: vi.fn(), put: vi.fn() };
+
 beforeEach(() => {
   vi.restoreAllMocks();
+  mockCache.match.mockReset().mockResolvedValue(undefined);
+  mockCache.put.mockReset();
+  vi.stubGlobal('caches', { default: mockCache });
 });
 
 afterEach(() => {
@@ -54,40 +65,40 @@ afterEach(() => {
 
 describe('YouTube feed API', () => {
   it('returns 400 when type is missing', async () => {
-    const ctx = makeContext({ id: 'PLxxxx' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestFeed(app, { id: 'PLxxxx' });
     expect(res.status).toBe(400);
     const body = await parseJson(res);
     expect(body.error).toBe('missing_params');
   });
 
   it('returns 400 when id is missing', async () => {
-    const ctx = makeContext({ type: 'playlist' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestFeed(app, { type: 'playlist' });
     expect(res.status).toBe(400);
     const body = await parseJson(res);
     expect(body.error).toBe('missing_params');
   });
 
   it('returns 400 for unsupported type', async () => {
-    const ctx = makeContext({ type: 'video', id: 'xxx' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestFeed(app, { type: 'video', id: 'xxx' });
     expect(res.status).toBe(400);
     const body = await parseJson(res);
     expect(body.error).toBe('unsupported_type');
   });
 
   it('returns 400 for invalid playlist id (no PL prefix)', async () => {
-    const ctx = makeContext({ type: 'playlist', id: 'notaplaylist' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestFeed(app, { type: 'playlist', id: 'notaplaylist' });
     expect(res.status).toBe(400);
     const body = await parseJson(res);
     expect(body.error).toBe('invalid_id');
   });
 
   it('returns 400 for invalid channel id (no UC prefix)', async () => {
-    const ctx = makeContext({ type: 'channel', id: 'notachannel' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestFeed(app, { type: 'channel', id: 'notachannel' });
     expect(res.status).toBe(400);
     const body = await parseJson(res);
     expect(body.error).toBe('invalid_id');
@@ -96,8 +107,11 @@ describe('YouTube feed API', () => {
   it('parses playlist Atom feed and returns videos', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(SAMPLE_ATOM, { status: 200 })));
 
-    const ctx = makeContext({ type: 'playlist', id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestFeed(app, {
+      type: 'playlist',
+      id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf'
+    });
     expect(res.status).toBe(200);
 
     const body = await parseJson(res);
@@ -115,8 +129,8 @@ describe('YouTube feed API', () => {
   it('parses channel feed', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(SAMPLE_ATOM, { status: 200 })));
 
-    const ctx = makeContext({ type: 'channel', id: 'UCddiUEpeqJcYeBxX1IVBKvQ' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestFeed(app, { type: 'channel', id: 'UCddiUEpeqJcYeBxX1IVBKvQ' });
     expect(res.status).toBe(200);
 
     const body = await parseJson(res);
@@ -128,8 +142,8 @@ describe('YouTube feed API', () => {
     const mockFetch = vi.fn().mockResolvedValue(new Response(SAMPLE_ATOM, { status: 200 }));
     vi.stubGlobal('fetch', mockFetch);
 
-    const ctx = makeContext({ type: 'playlist', id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf' });
-    await onRequestGet(ctx);
+    const app = createApp();
+    await requestFeed(app, { type: 'playlist', id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf' });
 
     const calledUrl = mockFetch.mock.calls[0][0] as string;
     expect(calledUrl).toContain('playlist_id=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf');
@@ -139,8 +153,8 @@ describe('YouTube feed API', () => {
     const mockFetch = vi.fn().mockResolvedValue(new Response(SAMPLE_ATOM, { status: 200 }));
     vi.stubGlobal('fetch', mockFetch);
 
-    const ctx = makeContext({ type: 'channel', id: 'UCddiUEpeqJcYeBxX1IVBKvQ' });
-    await onRequestGet(ctx);
+    const app = createApp();
+    await requestFeed(app, { type: 'channel', id: 'UCddiUEpeqJcYeBxX1IVBKvQ' });
 
     const calledUrl = mockFetch.mock.calls[0][0] as string;
     expect(calledUrl).toContain('channel_id=UCddiUEpeqJcYeBxX1IVBKvQ');
@@ -149,24 +163,33 @@ describe('YouTube feed API', () => {
   it('returns 502 when RSS fetch fails', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Not Found', { status: 404 })));
 
-    const ctx = makeContext({ type: 'playlist', id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestFeed(app, {
+      type: 'playlist',
+      id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf'
+    });
     expect(res.status).toBe(502);
   });
 
   it('returns 502 when fetch throws', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network')));
 
-    const ctx = makeContext({ type: 'playlist', id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestFeed(app, {
+      type: 'playlist',
+      id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf'
+    });
     expect(res.status).toBe(502);
   });
 
   it('includes Cache-Control header', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(SAMPLE_ATOM, { status: 200 })));
 
-    const ctx = makeContext({ type: 'playlist', id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestFeed(app, {
+      type: 'playlist',
+      id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf'
+    });
     expect(res.headers.get('Cache-Control')).toBe('public, max-age=900');
   });
 
@@ -174,8 +197,11 @@ describe('YouTube feed API', () => {
     const emptyFeed = `<?xml version="1.0"?><feed><title>Empty</title></feed>`;
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(emptyFeed, { status: 200 })));
 
-    const ctx = makeContext({ type: 'playlist', id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestFeed(app, {
+      type: 'playlist',
+      id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf'
+    });
     expect(res.status).toBe(200);
     const body = await parseJson(res);
     expect(body.title).toBe('Empty');
@@ -195,8 +221,11 @@ describe('YouTube feed API', () => {
 </feed>`;
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(entityFeed, { status: 200 })));
 
-    const ctx = makeContext({ type: 'playlist', id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestFeed(app, {
+      type: 'playlist',
+      id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf'
+    });
     const body = await parseJson(res);
     expect(body.title).toBe('Rock & Roll');
     expect(body.videos[0].title).toBe('Tom & Jerry <3>');
@@ -215,10 +244,13 @@ describe('YouTube feed API', () => {
 </feed>`;
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(numRefFeed, { status: 200 })));
 
-    const ctx = makeContext({ type: 'playlist', id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestFeed(app, {
+      type: 'playlist',
+      id: 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf'
+    });
     const body = await parseJson(res);
     expect(body.title).toBe("It's a test");
-    expect(body.videos[0].title).toBe("Don't Stop — Believin'");
+    expect(body.videos[0].title).toBe("Don't Stop \u2014 Believin'");
   });
 });

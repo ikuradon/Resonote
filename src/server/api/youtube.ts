@@ -1,10 +1,13 @@
-import { safeFetch, safeReadText } from '../../lib/url-validation.js';
+import { zValidator } from '@hono/zod-validator';
+import { Hono } from 'hono';
+import { z } from 'zod';
 
-interface Env {
-  UNSAFE_ALLOW_PRIVATE_IPS?: string;
-}
+import { safeFetch, safeReadText } from '$server/lib/safe-fetch.js';
 
-interface FeedVideo {
+import type { Bindings } from './bindings.js';
+import { cacheMiddleware } from './middleware/cache.js';
+
+export interface FeedVideo {
   videoId: string;
   title: string;
   published: number;
@@ -30,8 +33,8 @@ function decodeXmlEntities(s: string): string {
       .replace(/&quot;/g, '"')
       .replace(/&apos;/g, "'")
       // Numeric character references: &#NN; and &#xHH;
-      .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
-      .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)))
+      .replace(/&#x([0-9a-fA-F]+);/g, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+      .replace(/&#(\d+);/g, (_, dec: string) => String.fromCodePoint(parseInt(dec, 10)))
       .replace(/&amp;/g, '&')
   );
 }
@@ -64,50 +67,46 @@ function parseAtomFeed(xml: string): { title: string; videos: FeedVideo[] } {
   return { title, videos };
 }
 
-export const onRequestGet: PagesFunction<Env> = handleRequest;
+const querySchema = z.object({
+  type: z.string(),
+  id: z.string()
+});
 
-async function handleRequest(context: EventContext<Env, string, unknown>): Promise<Response> {
-  const url = new URL(context.request.url);
-  const type = url.searchParams.get('type');
-  const id = url.searchParams.get('id');
-  const allowPrivateIPs = !!context.env.UNSAFE_ALLOW_PRIVATE_IPS;
+export const youtubeRoute = new Hono<{ Bindings: Bindings }>().get(
+  '/feed',
+  cacheMiddleware({ ttl: 900 }),
+  zValidator('query', querySchema, (result, c) => {
+    if (!result.success) {
+      return c.json({ error: 'missing_params' }, 400);
+    }
+  }),
+  async (c) => {
+    const { type, id } = c.req.valid('query');
+    const allowPrivateIPs = !!c.env.UNSAFE_ALLOW_PRIVATE_IPS;
 
-  if (!type || !id) {
-    return json({ error: 'missing_params' }, 400);
-  }
-
-  if (!VALID_TYPES.has(type)) {
-    return json({ error: 'unsupported_type' }, 400);
-  }
-
-  if (!Object.prototype.hasOwnProperty.call(ID_PATTERNS, type) || !ID_PATTERNS[type].test(id)) {
-    return json({ error: 'invalid_id' }, 400);
-  }
-
-  const rssParam = RSS_PARAMS[type];
-  const rssUrl = `https://www.youtube.com/feeds/videos.xml?${rssParam}=${id}`;
-
-  try {
-    const res = await safeFetch(rssUrl, { allowPrivateIPs });
-    if (!res.ok) {
-      return json({ error: 'feed_fetch_failed' }, 502);
+    if (!VALID_TYPES.has(type)) {
+      return c.json({ error: 'unsupported_type' }, 400);
     }
 
-    const xml = await safeReadText(res);
-    const { title, videos } = parseAtomFeed(xml);
-
-    return json({ title, videos }, 200, { 'Cache-Control': 'public, max-age=900' });
-  } catch {
-    return json({ error: 'feed_fetch_failed' }, 502);
-  }
-}
-
-function json(body: unknown, status: number, extraHeaders?: Record<string, string>): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      ...extraHeaders
+    if (!Object.prototype.hasOwnProperty.call(ID_PATTERNS, type) || !ID_PATTERNS[type].test(id)) {
+      return c.json({ error: 'invalid_id' }, 400);
     }
-  });
-}
+
+    const rssParam = RSS_PARAMS[type];
+    const rssUrl = `https://www.youtube.com/feeds/videos.xml?${rssParam}=${id}`;
+
+    try {
+      const res = await safeFetch(rssUrl, { allowPrivateIPs });
+      if (!res.ok) {
+        return c.json({ error: 'feed_fetch_failed' }, 502);
+      }
+
+      const xml = await safeReadText(res);
+      const { title, videos } = parseAtomFeed(xml);
+
+      return c.json({ title, videos });
+    } catch {
+      return c.json({ error: 'feed_fetch_failed' }, 502);
+    }
+  }
+);

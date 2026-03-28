@@ -1,13 +1,25 @@
+import { Hono } from 'hono';
 import { getPublicKey } from 'nostr-tools/pure';
 import { hexToBytes } from 'nostr-tools/utils';
 import { describe, expect, it } from 'vitest';
 
-import { onRequestGet } from './pubkey.js';
+import { systemRoute } from './system.js';
 
-// --- Helper to build Cloudflare Pages Function context ---
+interface Bindings {
+  SYSTEM_NOSTR_PRIVKEY: string;
+}
 
-function buildContext(env: Record<string, string | undefined>): Parameters<typeof onRequestGet>[0] {
-  return { env } as Parameters<typeof onRequestGet>[0];
+function createApp(): Hono<{ Bindings: Bindings }> {
+  const app = new Hono<{ Bindings: Bindings }>();
+  app.route('/system', systemRoute);
+  return app;
+}
+
+function requestPubkey(
+  app: Hono<{ Bindings: Bindings }>,
+  env: Partial<Bindings> = {}
+): Response | Promise<Response> {
+  return app.request('/system/pubkey', undefined, env as Bindings);
 }
 
 async function parseJsonResponse(res: Response): Promise<Record<string, unknown>> {
@@ -31,12 +43,13 @@ describe('system/pubkey', () => {
     });
   });
 
-  describe('onRequestGet handler', () => {
+  describe('GET /system/pubkey', () => {
     it('should return 200 with pubkey JSON for valid private key', async () => {
       const privkeyHex = '0000000000000000000000000000000000000000000000000000000000000001';
       const expectedPubkey = getPublicKey(hexToBytes(privkeyHex));
 
-      const res = await onRequestGet(buildContext({ SYSTEM_NOSTR_PRIVKEY: privkeyHex }));
+      const app = createApp();
+      const res = await requestPubkey(app, { SYSTEM_NOSTR_PRIVKEY: privkeyHex });
 
       expect(res.status).toBe(200);
       const body = await parseJsonResponse(res);
@@ -46,21 +59,24 @@ describe('system/pubkey', () => {
     it('should include Content-Type application/json header', async () => {
       const privkeyHex = '0000000000000000000000000000000000000000000000000000000000000001';
 
-      const res = await onRequestGet(buildContext({ SYSTEM_NOSTR_PRIVKEY: privkeyHex }));
+      const app = createApp();
+      const res = await requestPubkey(app, { SYSTEM_NOSTR_PRIVKEY: privkeyHex });
 
-      expect(res.headers.get('Content-Type')).toBe('application/json');
+      expect(res.headers.get('Content-Type')).toContain('application/json');
     });
 
     it('should include Cache-Control header with max-age=86400', async () => {
       const privkeyHex = '0000000000000000000000000000000000000000000000000000000000000001';
 
-      const res = await onRequestGet(buildContext({ SYSTEM_NOSTR_PRIVKEY: privkeyHex }));
+      const app = createApp();
+      const res = await requestPubkey(app, { SYSTEM_NOSTR_PRIVKEY: privkeyHex });
 
       expect(res.headers.get('Cache-Control')).toBe('public, max-age=86400');
     });
 
     it('should return 503 when SYSTEM_NOSTR_PRIVKEY is missing', async () => {
-      const res = await onRequestGet(buildContext({ SYSTEM_NOSTR_PRIVKEY: undefined }));
+      const app = createApp();
+      const res = await requestPubkey(app, {});
 
       expect(res.status).toBe(503);
       const body = await parseJsonResponse(res);
@@ -68,7 +84,8 @@ describe('system/pubkey', () => {
     });
 
     it('should return 503 when SYSTEM_NOSTR_PRIVKEY is empty string', async () => {
-      const res = await onRequestGet(buildContext({ SYSTEM_NOSTR_PRIVKEY: '' }));
+      const app = createApp();
+      const res = await requestPubkey(app, { SYSTEM_NOSTR_PRIVKEY: '' });
 
       expect(res.status).toBe(503);
       const body = await parseJsonResponse(res);
@@ -76,13 +93,15 @@ describe('system/pubkey', () => {
     });
 
     it('should return Content-Type application/json on 503 error', async () => {
-      const res = await onRequestGet(buildContext({ SYSTEM_NOSTR_PRIVKEY: '' }));
+      const app = createApp();
+      const res = await requestPubkey(app, { SYSTEM_NOSTR_PRIVKEY: '' });
 
-      expect(res.headers.get('Content-Type')).toBe('application/json');
+      expect(res.headers.get('Content-Type')).toContain('application/json');
     });
 
     it('should not include Cache-Control header on 503 error', async () => {
-      const res = await onRequestGet(buildContext({ SYSTEM_NOSTR_PRIVKEY: '' }));
+      const app = createApp();
+      const res = await requestPubkey(app, { SYSTEM_NOSTR_PRIVKEY: '' });
 
       expect(res.headers.get('Cache-Control')).toBeNull();
     });
@@ -91,8 +110,9 @@ describe('system/pubkey', () => {
       const key1 = '0000000000000000000000000000000000000000000000000000000000000001';
       const key2 = '0000000000000000000000000000000000000000000000000000000000000002';
 
-      const res1 = await onRequestGet(buildContext({ SYSTEM_NOSTR_PRIVKEY: key1 }));
-      const res2 = await onRequestGet(buildContext({ SYSTEM_NOSTR_PRIVKEY: key2 }));
+      const app = createApp();
+      const res1 = await requestPubkey(app, { SYSTEM_NOSTR_PRIVKEY: key1 });
+      const res2 = await requestPubkey(app, { SYSTEM_NOSTR_PRIVKEY: key2 });
 
       const body1 = await parseJsonResponse(res1);
       const body2 = await parseJsonResponse(res2);
@@ -101,7 +121,8 @@ describe('system/pubkey', () => {
     });
 
     it('should return 503 for invalid hex string in SYSTEM_NOSTR_PRIVKEY', async () => {
-      const res = await onRequestGet(buildContext({ SYSTEM_NOSTR_PRIVKEY: 'not-valid-hex' }));
+      const app = createApp();
+      const res = await requestPubkey(app, { SYSTEM_NOSTR_PRIVKEY: 'not-valid-hex' });
 
       expect(res.status).toBe(503);
       const body = await parseJsonResponse(res);

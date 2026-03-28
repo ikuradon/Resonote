@@ -194,19 +194,19 @@ export default ts.config(
       '@typescript-eslint/no-non-null-assertion': 'error'
     }
   },
-  // #8: Functions security
+  // #8: Server security
   {
-    files: ['functions/**/*.ts'],
+    files: ['src/server/**/*.ts'],
     rules: {
       'no-eval': 'error',
       'no-implied-eval': 'error'
     }
   },
-  // #19: safeFetch enforcement — bare fetch() banned in functions/ (SSRF protection)
-  // url-validation.ts is excluded because safeFetch() uses fetch() internally.
+  // #19: safeFetch enforcement — bare fetch() banned in src/server/ (SSRF protection)
+  // safe-fetch.ts is excluded because safeFetch() uses fetch() internally.
   {
-    files: ['functions/**/*.ts'],
-    ignores: ['functions/**/*.test.ts', 'functions/lib/url-validation.ts'],
+    files: ['src/server/**/*.ts'],
+    ignores: ['src/server/**/*.test.ts', 'src/server/lib/safe-fetch.ts'],
     rules: {
       // Includes global event/name restrictions (from code quality rules) because
       // no-restricted-globals is last-config-wins — this scope overrides the global scope.
@@ -215,7 +215,7 @@ export default ts.config(
         {
           name: 'fetch',
           message:
-            'Use safeFetch() from functions/lib/url-validation.ts for SSRF protection. See CLAUDE.md.'
+            'Use safeFetch() from src/server/lib/safe-fetch.ts for SSRF protection. See CLAUDE.md.'
         },
         { name: 'event', message: 'Use explicit event parameter instead of global `event`.' },
         { name: 'name', message: 'Shadowed by window.name. Use a more specific variable name.' }
@@ -262,7 +262,7 @@ export default ts.config(
   // Test files: relax rules that conflict with mock patterns
   // MUST come after type-checked scope to override require-await
   {
-    files: ['src/**/*.test.ts', 'functions/**/*.test.ts'],
+    files: ['src/**/*.test.ts'],
     rules: {
       // Mock functions are often async without await (e.g., async json() { return {...} })
       '@typescript-eslint/require-await': 'off'

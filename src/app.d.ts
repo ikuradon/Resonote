@@ -6,7 +6,14 @@ declare global {
     // interface Locals {}
     // interface PageData {}
     // interface PageState {}
-    // interface Platform {}
+    interface Platform {
+      env: {
+        SYSTEM_NOSTR_PRIVKEY: string;
+        YOUTUBE_API_KEY?: string;
+        UNSAFE_ALLOW_PRIVATE_IPS?: string;
+      };
+      context: ExecutionContext;
+    }
   }
 }
 

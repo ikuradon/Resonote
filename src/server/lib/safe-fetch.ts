@@ -56,7 +56,7 @@ const SENSITIVE_HEADERS = ['authorization', 'cookie', 'cookie2', 'proxy-authoriz
 
 function stripSensitiveHeaders(options: RequestInit): RequestInit {
   if (!options.headers) return options;
-  const headers = new Headers(options.headers as HeadersInit);
+  const headers = new Headers(options.headers);
   for (const name of SENSITIVE_HEADERS) {
     headers.delete(name);
   }
@@ -86,7 +86,7 @@ export async function safeFetch(url: string, options?: SafeFetchOptions): Promis
       const nextParsed = new URL(location, currentUrl);
 
       // クロスオリジン後は同一オリジンに戻っても機密ヘッダは復元しない（Fetch spec 4.4 準拠）
-      if (currentOptions && currentOrigin !== nextParsed.origin) {
+      if (currentOrigin !== nextParsed.origin) {
         currentOptions = stripSensitiveHeaders(currentOptions);
       }
 

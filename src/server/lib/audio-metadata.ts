@@ -4,7 +4,7 @@
  * Uses Range requests to avoid downloading entire files.
  */
 
-import { safeFetch } from './url-validation.js';
+import { safeFetch } from './safe-fetch.js';
 
 export interface AudioMetadata {
   title?: string;

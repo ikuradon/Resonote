@@ -1,6 +1,7 @@
 // @public — Stable API for route/component/feature consumers
 import type { EventParameters } from 'nostr-typedef';
 
+import { apiClient } from '$shared/api/client.js';
 import { normalizeUrl } from '$shared/content/url-utils.js';
 import { getEventsDB, getRxNostr } from '$shared/nostr/gateway.js';
 import { htmlToMarkdown } from '$shared/utils/html.js';
@@ -8,7 +9,8 @@ import { htmlToMarkdown } from '$shared/utils/html.js';
 let pubkeyPromise: Promise<string> | undefined;
 
 export function getSystemPubkey(): Promise<string> {
-  pubkeyPromise ??= fetch('/api/system/pubkey')
+  pubkeyPromise ??= apiClient.api.system.pubkey
+    .$get()
     .then((res) => {
       if (!res.ok) {
         pubkeyPromise = undefined;
@@ -226,7 +228,7 @@ async function validateResolveResponse(data: unknown): Promise<ResolveApiRespons
 }
 
 export async function resolveByApi(url: string): Promise<ResolveApiResponse> {
-  const res = await fetch(`/api/podcast/resolve?url=${encodeURIComponent(url)}`);
+  const res = await apiClient.api.podcast.resolve.$get({ query: { url } });
   if (!res.ok) return { type: 'episode', error: 'fetch_failed' };
   let data: unknown;
   try {

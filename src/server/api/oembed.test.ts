@@ -1,30 +1,42 @@
+import { Hono } from 'hono';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { onRequestGet } from './resolve.js';
+import { oembedRoute } from './oembed.js';
 
-function makeContext(params: Record<string, string>, env: Record<string, string> = {}) {
-  const url = new URL('https://example.com/api/oembed/resolve');
+interface Bindings {
+  UNSAFE_ALLOW_PRIVATE_IPS?: string;
+  YOUTUBE_API_KEY?: string;
+}
+
+function createApp(): Hono<{ Bindings: Bindings }> {
+  const app = new Hono<{ Bindings: Bindings }>();
+  app.route('/oembed', oembedRoute);
+  return app;
+}
+
+function requestResolve(
+  app: Hono<{ Bindings: Bindings }>,
+  params: Record<string, string>,
+  env: Partial<Bindings> = {}
+): Response | Promise<Response> {
+  const url = new URL('http://localhost/oembed/resolve');
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);
   }
-  return {
-    request: new Request(url.toString()),
-    env,
-    params: {},
-    waitUntil: vi.fn(),
-    passThroughOnException: vi.fn(),
-    next: vi.fn(),
-    data: {},
-    functionPath: ''
-  } as unknown as Parameters<typeof onRequestGet>[0];
+  return app.request(url.toString(), undefined, env as Bindings);
 }
 
 async function parseJson(response: Response) {
   return JSON.parse(await response.text());
 }
 
+const mockCache = { match: vi.fn(), put: vi.fn() };
+
 beforeEach(() => {
   vi.restoreAllMocks();
+  mockCache.match.mockReset().mockResolvedValue(undefined);
+  mockCache.put.mockReset();
+  vi.stubGlobal('caches', { default: mockCache });
 });
 
 afterEach(() => {
@@ -33,56 +45,60 @@ afterEach(() => {
 
 describe('oEmbed resolve API', () => {
   it('returns 400 when platform is missing', async () => {
-    const ctx = makeContext({ type: 'track', id: '123' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, { type: 'track', id: '123' });
     expect(res.status).toBe(400);
     const body = await parseJson(res);
     expect(body.error).toBe('missing_params');
   });
 
   it('returns 400 when type is missing', async () => {
-    const ctx = makeContext({ platform: 'spotify', id: '123' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, { platform: 'spotify', id: '123' });
     expect(res.status).toBe(400);
     const body = await parseJson(res);
     expect(body.error).toBe('missing_params');
   });
 
   it('returns 400 when id is missing', async () => {
-    const ctx = makeContext({ platform: 'spotify', type: 'track' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, { platform: 'spotify', type: 'track' });
     expect(res.status).toBe(400);
     const body = await parseJson(res);
     expect(body.error).toBe('missing_params');
   });
 
   it('returns 400 for unsupported platform', async () => {
-    const ctx = makeContext({ platform: 'tiktok', type: 'video', id: '123' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, { platform: 'tiktok', type: 'video', id: '123' });
     expect(res.status).toBe(400);
     const body = await parseJson(res);
     expect(body.error).toBe('unsupported_platform');
   });
 
   it('returns 400 for __proto__ platform (prototype pollution)', async () => {
-    const ctx = makeContext({ platform: '__proto__', type: 'track', id: '123' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, { platform: '__proto__', type: 'track', id: '123' });
     expect(res.status).toBe(400);
     const body = await parseJson(res);
     expect(body.error).toBe('unsupported_platform');
   });
 
   it('returns 400 for unsupported type', async () => {
-    const ctx = makeContext({ platform: 'youtube', type: 'playlist', id: 'PLxxxx' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, { platform: 'youtube', type: 'playlist', id: 'PLxxxx' });
     expect(res.status).toBe(400);
     const body = await parseJson(res);
     expect(body.error).toBe('unsupported_type');
   });
 
   it('returns 400 for invalid id format', async () => {
-    const ctx = makeContext({ platform: 'spotify', type: 'track', id: '../../../etc/passwd' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, {
+      platform: 'spotify',
+      type: 'track',
+      id: '../../../etc/passwd'
+    });
     expect(res.status).toBe(400);
     const body = await parseJson(res);
     expect(body.error).toBe('invalid_id');
@@ -98,12 +114,12 @@ describe('oEmbed resolve API', () => {
       )
     );
 
-    const ctx = makeContext({
+    const app = createApp();
+    const res = await requestResolve(app, {
       platform: 'soundcloud',
       type: 'set',
       id: 'artist-name/sets/my-playlist'
     });
-    const res = await onRequestGet(ctx);
     expect(res.status).toBe(200);
     const body = await parseJson(res);
     expect(body.title).toBe('My Playlist');
@@ -124,12 +140,12 @@ describe('oEmbed resolve API', () => {
       )
     );
 
-    const ctx = makeContext({
+    const app = createApp();
+    const res = await requestResolve(app, {
       platform: 'soundcloud',
       type: 'track',
       id: 'artist-name/my-track'
     });
-    const res = await onRequestGet(ctx);
     expect(res.status).toBe(200);
     const body = await parseJson(res);
     expect(body.title).toBe('My Track');
@@ -152,8 +168,12 @@ describe('oEmbed resolve API', () => {
       )
     );
 
-    const ctx = makeContext({ platform: 'spotify', type: 'track', id: '4uLU6hMCjMI75M1A2tKUQC' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, {
+      platform: 'spotify',
+      type: 'track',
+      id: '4uLU6hMCjMI75M1A2tKUQC'
+    });
     expect(res.status).toBe(200);
     const body = await parseJson(res);
     expect(body.title).toBe('Bohemian Rhapsody');
@@ -178,8 +198,12 @@ describe('oEmbed resolve API', () => {
       )
     );
 
-    const ctx = makeContext({ platform: 'youtube', type: 'video', id: 'dQw4w9WgXcQ' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, {
+      platform: 'youtube',
+      type: 'video',
+      id: 'dQw4w9WgXcQ'
+    });
     expect(res.status).toBe(200);
     const body = await parseJson(res);
     expect(body.title).toBe('Never Gonna Give You Up');
@@ -211,11 +235,12 @@ describe('oEmbed resolve API', () => {
     );
     vi.stubGlobal('fetch', mockFetch);
 
-    const ctx = makeContext(
+    const app = createApp();
+    const res = await requestResolve(
+      app,
       { platform: 'youtube', type: 'video', id: 'abc123' },
       { YOUTUBE_API_KEY: 'test-key' }
     );
-    const res = await onRequestGet(ctx);
     expect(res.status).toBe(200);
     const body = await parseJson(res);
     expect(body.title).toBe('Test Video');
@@ -227,8 +252,8 @@ describe('oEmbed resolve API', () => {
   it('returns 502 when oembed API fails', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Not Found', { status: 404 })));
 
-    const ctx = makeContext({ platform: 'spotify', type: 'track', id: 'invalid' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, { platform: 'spotify', type: 'track', id: 'invalid' });
     expect(res.status).toBe(502);
     const body = await parseJson(res);
     expect(body.error).toBe('oembed_failed');
@@ -237,8 +262,8 @@ describe('oEmbed resolve API', () => {
   it('returns 502 when fetch throws', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network error')));
 
-    const ctx = makeContext({ platform: 'spotify', type: 'track', id: '123' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, { platform: 'spotify', type: 'track', id: '123' });
     expect(res.status).toBe(502);
     const body = await parseJson(res);
     expect(body.error).toBe('fetch_failed');
@@ -250,8 +275,8 @@ describe('oEmbed resolve API', () => {
       vi.fn().mockResolvedValue(new Response(JSON.stringify({ title: 'Test' }), { status: 200 }))
     );
 
-    const ctx = makeContext({ platform: 'spotify', type: 'track', id: '123' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, { platform: 'spotify', type: 'track', id: '123' });
     expect(res.headers.get('Cache-Control')).toBe('public, max-age=86400');
   });
 
@@ -271,8 +296,12 @@ describe('oEmbed resolve API', () => {
       )
     );
 
-    const ctx = makeContext({ platform: 'mixcloud', type: 'show', id: 'djname/mix-title' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, {
+      platform: 'mixcloud',
+      type: 'show',
+      id: 'djname/mix-title'
+    });
     expect(res.status).toBe(200);
     const body = await parseJson(res);
     expect(body.title).toBe('Mix Title');
@@ -296,8 +325,12 @@ describe('oEmbed resolve API', () => {
       )
     );
 
-    const ctx = makeContext({ platform: 'spreaker', type: 'episode', id: '12345678' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, {
+      platform: 'spreaker',
+      type: 'episode',
+      id: '12345678'
+    });
     expect(res.status).toBe(200);
     const body = await parseJson(res);
     expect(body.title).toBe('Episode Title');
@@ -320,8 +353,12 @@ describe('oEmbed resolve API', () => {
       )
     );
 
-    const ctx = makeContext({ platform: 'podbean', type: 'episode', id: 'abc12-def34' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, {
+      platform: 'podbean',
+      type: 'episode',
+      id: 'abc12-def34'
+    });
     expect(res.status).toBe(200);
     const body = await parseJson(res);
     expect(body.title).toBe('Podcast Episode');
@@ -346,8 +383,8 @@ describe('oEmbed resolve API', () => {
       )
     );
 
-    const ctx = makeContext({ platform: 'niconico', type: 'video', id: 'sm12345' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, { platform: 'niconico', type: 'video', id: 'sm12345' });
     expect(res.status).toBe(200);
     const body = await parseJson(res);
     expect(body.title).toBe('Test Video Title');
@@ -370,14 +407,14 @@ describe('oEmbed resolve API', () => {
       )
     );
 
-    const ctx = makeContext({ platform: 'niconico', type: 'video', id: 'sm99999' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, { platform: 'niconico', type: 'video', id: 'sm99999' });
     expect(res.status).toBe(502);
   });
 
   it('returns 400 for invalid niconico id', async () => {
-    const ctx = makeContext({ platform: 'niconico', type: 'video', id: 'invalid' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, { platform: 'niconico', type: 'video', id: 'invalid' });
     expect(res.status).toBe(400);
     const body = await parseJson(res);
     expect(body.error).toBe('invalid_id');
@@ -389,8 +426,8 @@ describe('oEmbed resolve API', () => {
       vi.fn().mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }))
     );
 
-    const ctx = makeContext({ platform: 'spotify', type: 'track', id: '123' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, { platform: 'spotify', type: 'track', id: '123' });
     const body = await parseJson(res);
     expect(body.title).toBeNull();
     expect(body.subtitle).toBeNull();
@@ -412,8 +449,8 @@ describe('oEmbed resolve API', () => {
       )
     );
 
-    const ctx = makeContext({ platform: 'spotify', type: 'track', id: '123' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, { platform: 'spotify', type: 'track', id: '123' });
     const body = await parseJson(res);
     expect(body.description).toBe('A description');
   });
@@ -424,8 +461,8 @@ describe('oEmbed resolve API', () => {
       vi.fn().mockResolvedValue(new Response(JSON.stringify({ title: 'T' }), { status: 200 }))
     );
 
-    const ctx = makeContext({ platform: 'spotify', type: 'track', id: '123' });
-    const res = await onRequestGet(ctx);
+    const app = createApp();
+    const res = await requestResolve(app, { platform: 'spotify', type: 'track', id: '123' });
     const body = await parseJson(res);
     expect(body.description).toBeNull();
   });
@@ -450,8 +487,8 @@ describe('oEmbed resolve API', () => {
         )
       );
 
-      const ctx = makeContext({ platform: 'niconico', type: 'video', id: 'sm12345' });
-      const res = await onRequestGet(ctx);
+      const app = createApp();
+      const res = await requestResolve(app, { platform: 'niconico', type: 'video', id: 'sm12345' });
       expect(res.status).toBe(200);
       const body = await parseJson(res);
       expect(body.title).toBe('CDATA Title');
@@ -480,15 +517,15 @@ describe('oEmbed resolve API', () => {
         )
       );
 
-      const ctx = makeContext({ platform: 'niconico', type: 'video', id: 'sm12345' });
-      const res = await onRequestGet(ctx);
+      const app = createApp();
+      const res = await requestResolve(app, { platform: 'niconico', type: 'video', id: 'sm12345' });
       const body = await parseJson(res);
       expect(body.description).toBeNull();
     });
 
     it('returns 400 for unsupported niconico type', async () => {
-      const ctx = makeContext({ platform: 'niconico', type: 'audio', id: 'sm12345' });
-      const res = await onRequestGet(ctx);
+      const app = createApp();
+      const res = await requestResolve(app, { platform: 'niconico', type: 'audio', id: 'sm12345' });
       expect(res.status).toBe(400);
       const body = await parseJson(res);
       expect(body.error).toBe('unsupported_type');
@@ -497,8 +534,8 @@ describe('oEmbed resolve API', () => {
     it('returns 502 when niconico API HTTP error', async () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Error', { status: 500 })));
 
-      const ctx = makeContext({ platform: 'niconico', type: 'video', id: 'sm12345' });
-      const res = await onRequestGet(ctx);
+      const app = createApp();
+      const res = await requestResolve(app, { platform: 'niconico', type: 'video', id: 'sm12345' });
       expect(res.status).toBe(502);
       const body = await parseJson(res);
       expect(body.error).toBe('oembed_failed');
@@ -507,8 +544,8 @@ describe('oEmbed resolve API', () => {
     it('returns 502 when niconico fetch throws', async () => {
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('timeout')));
 
-      const ctx = makeContext({ platform: 'niconico', type: 'video', id: 'sm12345' });
-      const res = await onRequestGet(ctx);
+      const app = createApp();
+      const res = await requestResolve(app, { platform: 'niconico', type: 'video', id: 'sm12345' });
       expect(res.status).toBe(502);
       const body = await parseJson(res);
       expect(body.error).toBe('fetch_failed');
@@ -527,24 +564,28 @@ describe('oEmbed resolve API', () => {
           )
       );
 
-      const ctx = makeContext({ platform: 'niconico', type: 'video', id: 'nm99999' });
-      const res = await onRequestGet(ctx);
+      const app = createApp();
+      const res = await requestResolve(app, { platform: 'niconico', type: 'video', id: 'nm99999' });
       expect(res.status).toBe(200);
     });
   });
 
   describe('YouTube Data API edge cases', () => {
     it('returns 400 for unsupported youtube type', async () => {
-      const ctx = makeContext({ platform: 'youtube', type: 'playlist', id: 'abc' });
-      const res = await onRequestGet(ctx);
+      const app = createApp();
+      const res = await requestResolve(app, { platform: 'youtube', type: 'playlist', id: 'abc' });
       expect(res.status).toBe(400);
       const body = await parseJson(res);
       expect(body.error).toBe('unsupported_type');
     });
 
     it('returns 400 for invalid youtube id', async () => {
-      const ctx = makeContext({ platform: 'youtube', type: 'video', id: 'invalid!@#' });
-      const res = await onRequestGet(ctx);
+      const app = createApp();
+      const res = await requestResolve(app, {
+        platform: 'youtube',
+        type: 'video',
+        id: 'invalid!@#'
+      });
       expect(res.status).toBe(400);
       const body = await parseJson(res);
       expect(body.error).toBe('invalid_id');
@@ -553,11 +594,12 @@ describe('oEmbed resolve API', () => {
     it('returns 502 when both oEmbed and Data API fail', async () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Error', { status: 500 })));
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { platform: 'youtube', type: 'video', id: 'abc123' },
         { YOUTUBE_API_KEY: 'key' }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(502);
       const body = await parseJson(res);
       expect(body.error).toBe('oembed_failed');
@@ -578,11 +620,12 @@ describe('oEmbed resolve API', () => {
       );
       vi.stubGlobal('fetch', mockFetch);
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { platform: 'youtube', type: 'video', id: 'abc123' },
         { YOUTUBE_API_KEY: 'key' }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(200);
       const body = await parseJson(res);
       expect(body.description).toBe('API desc');
@@ -598,11 +641,12 @@ describe('oEmbed resolve API', () => {
       mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({ items: [] }), { status: 200 }));
       vi.stubGlobal('fetch', mockFetch);
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { platform: 'youtube', type: 'video', id: 'abc123' },
         { YOUTUBE_API_KEY: 'key' }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(200);
       const body = await parseJson(res);
       expect(body.description).toBeNull();
@@ -618,11 +662,12 @@ describe('oEmbed resolve API', () => {
       mockFetch.mockRejectedValueOnce(new Error('network'));
       vi.stubGlobal('fetch', mockFetch);
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { platform: 'youtube', type: 'video', id: 'abc123' },
         { YOUTUBE_API_KEY: 'key' }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(200);
       const body = await parseJson(res);
       expect(body.title).toBe('T');
@@ -641,11 +686,12 @@ describe('oEmbed resolve API', () => {
       );
       vi.stubGlobal('fetch', mockFetch);
 
-      const ctx = makeContext(
+      const app = createApp();
+      const res = await requestResolve(
+        app,
         { platform: 'youtube', type: 'video', id: 'abc123' },
         { YOUTUBE_API_KEY: 'key' }
       );
-      const res = await onRequestGet(ctx);
       expect(res.status).toBe(200);
       const body = await parseJson(res);
       expect(body.description).toBe('Fallback');

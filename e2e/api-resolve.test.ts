@@ -116,7 +116,8 @@ test.describe('API integration: /api/podcast/resolve', () => {
     const res = await request.get('/api/podcast/resolve?url=not-a-url');
     expect(res.status()).toBe(400);
     const data = await res.json();
-    expect(data.error).toBe('invalid_url');
+    // Zod z.url() rejects non-URL strings before handler validation
+    expect(data.error).toBe('missing_url');
   });
 });
 

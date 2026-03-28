@@ -1,3 +1,4 @@
+import { apiClient } from '$shared/api/client.js';
 import type { ContentId } from '$shared/content/types.js';
 
 import type { ContentMetadata } from '../domain/content-metadata.js';
@@ -22,12 +23,9 @@ export async function fetchContentMetadata(contentId: ContentId): Promise<Conten
   if (!OEMBED_PLATFORMS.has(contentId.platform)) return null;
 
   try {
-    const params = new URLSearchParams({
-      platform: contentId.platform,
-      type: contentId.type,
-      id: contentId.id
+    const res = await apiClient.api.oembed.resolve.$get({
+      query: { platform: contentId.platform, type: contentId.type, id: contentId.id }
     });
-    const res = await fetch(`/api/oembed/resolve?${params}`);
     if (!res.ok) return null;
 
     const data = (await res.json()) as {
