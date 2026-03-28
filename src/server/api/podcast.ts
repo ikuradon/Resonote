@@ -441,7 +441,7 @@ async function handleApplePodcasts(
     if (!res.ok) return { status: 502, body: { error: 'apple_lookup_failed' } };
 
     const data = (await res.json()) as { resultCount: number; results: { feedUrl?: string }[] };
-    const feedUrl = data.results[0]?.feedUrl;
+    const feedUrl = data.results?.[0]?.feedUrl;
     if (!feedUrl) return { status: 404, body: { error: 'feed_not_found' } };
 
     // Redirect to existing feed handler

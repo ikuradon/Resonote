@@ -2,7 +2,7 @@ import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { z } from 'zod';
 
-import { safeFetch } from '$server/lib/safe-fetch.js';
+import { safeFetch, safeReadText } from '$server/lib/safe-fetch.js';
 
 import type { Bindings } from './bindings.js';
 import { cacheMiddleware } from './middleware/cache.js';
@@ -167,7 +167,7 @@ async function handleNiconico(
     if (!res.ok) {
       return { status: 502, body: { error: 'oembed_failed' } };
     }
-    const xml = await res.text();
+    const xml = await safeReadText(res);
 
     const statusMatch = xml.match(/status="(\w+)"/);
     if (statusMatch?.[1] !== 'ok') {

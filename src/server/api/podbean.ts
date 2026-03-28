@@ -2,7 +2,7 @@ import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { z } from 'zod';
 
-import { assertSafeUrl, safeFetch } from '$server/lib/safe-fetch.js';
+import { assertSafeUrl, safeFetch, safeReadText } from '$server/lib/safe-fetch.js';
 
 import type { Bindings } from './bindings.js';
 import { cacheMiddleware } from './middleware/cache.js';
@@ -53,7 +53,7 @@ export const podbeanRoute = new Hono<{ Bindings: Bindings }>().get(
       // Fallback: fetch page HTML and extract embed ID
       const pageRes = await safeFetch(targetUrl, { allowPrivateIPs });
       if (pageRes.ok) {
-        const html = await pageRes.text();
+        const html = await safeReadText(pageRes);
         const idMatch = html.match(/pb-[a-z0-9]+-[a-z0-9]+/);
         if (idMatch) {
           return c.json({ embedId: idMatch[0] });
