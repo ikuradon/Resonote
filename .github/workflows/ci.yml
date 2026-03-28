@@ -150,8 +150,13 @@ jobs:
           retention-days: 7
 
   e2e:
-    name: E2E Test
+    name: E2E Test (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2, 3, 4]
+        shardTotal: [4]
     steps:
       - uses: actions/checkout@v6
 

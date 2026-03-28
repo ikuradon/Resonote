@@ -9,7 +9,7 @@
  */
 
 import { readFileSync } from 'fs';
-import { finalizeEvent,getPublicKey } from 'nostr-tools/pure';
+import { finalizeEvent, getPublicKey } from 'nostr-tools/pure';
 import { hexToBytes } from 'nostr-tools/utils';
 import { WebSocket } from 'ws';
 
@@ -78,7 +78,7 @@ function connectRelay(url) {
 
 function fetchEvents(ws, filter) {
   return new Promise((resolve) => {
-    const subId = `migrate-${  Math.random().toString(36).slice(2, 8)}`;
+    const subId = `migrate-${Math.random().toString(36).slice(2, 8)}`;
     const events = [];
 
     ws.on('message', (data) => {
