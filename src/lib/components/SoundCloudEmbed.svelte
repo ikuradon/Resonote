@@ -182,7 +182,10 @@
       {/if}
     </div>
   {:else if !ready}
-    <EmbedLoading color="bg-orange-500" minHeight={contentId.type === 'set' ? 'min-h-[450px]' : 'min-h-[166px]'}>
+    <EmbedLoading
+      color="bg-orange-500"
+      minHeight={contentId.type === 'set' ? 'min-h-[450px]' : 'min-h-[166px]'}
+    >
       {#snippet icon()}
         <svg
           aria-hidden="true"
