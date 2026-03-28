@@ -66,6 +66,29 @@ describe('rateLimitMiddleware', () => {
     vi.useRealTimers();
   });
 
+  it('should evict expired entries when store exceeds threshold', async () => {
+    vi.useFakeTimers();
+    const evictApp = new Hono();
+    evictApp.use('*', rateLimitMiddleware({ windowMs: 1000, max: 10, evictThreshold: 2 }));
+    evictApp.get('/test', (c) => c.json({ ok: true }));
+
+    // Create 3 entries (exceeds threshold of 2)
+    for (let i = 0; i < 3; i++) {
+      await evictApp.request('/test', {
+        headers: { 'cf-connecting-ip': `10.0.0.${i}` }
+      });
+    }
+
+    // Advance past window so all entries expire
+    vi.advanceTimersByTime(1100);
+
+    // Next request triggers eviction and should succeed (fresh entry)
+    const res = await evictApp.request('/test', {
+      headers: { 'cf-connecting-ip': '10.0.0.0' }
+    });
+    expect(res.status).toBe(200);
+  });
+
   it('should fall back to x-forwarded-for when cf-connecting-ip is absent', async () => {
     for (let i = 0; i < 3; i++) {
       await app.request('/test', {

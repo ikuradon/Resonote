@@ -3,6 +3,8 @@ import type { MiddlewareHandler } from 'hono';
 interface RateLimitOptions {
   windowMs?: number;
   max?: number;
+  /** Evict expired entries when store exceeds this size. Default: 1000. */
+  evictThreshold?: number;
 }
 
 interface RateLimitEntry {
@@ -13,6 +15,7 @@ interface RateLimitEntry {
 export function rateLimitMiddleware(options?: RateLimitOptions): MiddlewareHandler {
   const windowMs = options?.windowMs ?? 60_000;
   const max = options?.max ?? 30;
+  const evictThreshold = options?.evictThreshold ?? 1000;
   const store = new Map<string, RateLimitEntry>();
 
   return async (c, next) => {
@@ -24,7 +27,7 @@ export function rateLimitMiddleware(options?: RateLimitOptions): MiddlewareHandl
     const now = Date.now();
 
     // Evict expired entries to prevent unbounded memory growth
-    if (store.size > 1000) {
+    if (store.size > evictThreshold) {
       for (const [key, val] of store) {
         if (now >= val.resetAt) store.delete(key);
       }
