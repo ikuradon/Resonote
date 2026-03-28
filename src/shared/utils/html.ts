@@ -50,6 +50,20 @@ export function htmlToMarkdown(html: string): string {
   );
 }
 
+/**
+ * Strip all HTML tags and decode entities.
+ * Use for plain-text fields (e.g. RSS title) where HTML should not appear.
+ */
+export function stripHtmlTags(html: string): string {
+  // Decode entities first so &lt;script&gt; becomes <script>, then strip all tags
+  const decoded = decodeEntities(html);
+  return decoded
+    .replace(/<!\[CDATA\[/g, '')
+    .replace(/\]\]>/g, '')
+    .replace(/<[^>]+>/g, '')
+    .trim();
+}
+
 /** Unescape HTML entities that were introduced by our own escaping pass. */
 function unescapeHtmlEntities(s: string): string {
   return s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');

@@ -441,6 +441,49 @@ describe('parseRss', () => {
     const result = await parseRss(xml, 'https://example.com/feed.xml');
     expect(result!.episodes[0].description).toBe('Visit [us](https://example.com)');
   });
+
+  it('should strip HTML from episode titles', async () => {
+    const rss = `<?xml version="1.0"?>
+<rss><channel>
+  <title>My Podcast</title>
+  <item>
+    <title><![CDATA[<b>Episode</b> <script>alert(1)</script>One]]></title>
+    <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg"/>
+    <guid>guid1</guid>
+  </item>
+</channel></rss>`;
+    const result = await parseRss(rss, 'https://example.com/feed.xml');
+    expect(result!.episodes[0].title).toBe('Episode alert(1)One');
+  });
+
+  it('should reject non-http imageUrl', async () => {
+    const rss = `<?xml version="1.0"?>
+<rss><channel>
+  <title>My Podcast</title>
+  <itunes:image href="javascript:alert(1)"/>
+  <item>
+    <title>Ep1</title>
+    <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg"/>
+    <guid>guid1</guid>
+  </item>
+</channel></rss>`;
+    const result = await parseRss(rss, 'https://example.com/feed.xml');
+    expect(result!.imageUrl).toBe('');
+  });
+
+  it('should reject non-http enclosureUrl', async () => {
+    const rss = `<?xml version="1.0"?>
+<rss><channel>
+  <title>My Podcast</title>
+  <item>
+    <title>Ep1</title>
+    <enclosure url="javascript:alert(1)" type="audio/mpeg"/>
+    <guid>guid1</guid>
+  </item>
+</channel></rss>`;
+    const result = await parseRss(rss, 'https://example.com/feed.xml');
+    expect(result!.episodes.length).toBe(0);
+  });
 });
 
 const mockCache = { match: vi.fn(), put: vi.fn() };
