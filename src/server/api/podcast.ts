@@ -6,7 +6,8 @@ import { z } from 'zod';
 
 import { fetchAudioMetadata } from '$server/lib/audio-metadata.js';
 import { assertSafeUrl, safeFetch, safeReadText } from '$server/lib/safe-fetch.js';
-import { htmlToMarkdown } from '$shared/utils/html.js';
+import { htmlToMarkdown, stripHtmlTags } from '$shared/utils/html.js';
+import { sanitizeImageUrl } from '$shared/utils/url.js';
 
 import type { Bindings } from './bindings.js';
 import { cacheMiddleware } from './middleware/cache.js';
@@ -108,7 +109,7 @@ export async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed
   if (!channelMatch) return null;
   const channelXml = channelMatch[1];
 
-  const title = extractTagContent(channelXml, 'title');
+  const title = stripHtmlTags(extractTagContent(channelXml, 'title'));
   if (!title) return null;
 
   let podcastGuid = extractTagContent(channelXml, 'podcast:guid');
@@ -116,8 +117,9 @@ export async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed
     podcastGuid = await syntheticGuid(feedUrl);
   }
 
-  const imageUrl =
+  const imageUrlRaw =
     extractAttr(channelXml, 'itunes:image', 'href') || extractTagContent(channelXml, 'url') || '';
+  const imageUrl = sanitizeImageUrl(imageUrlRaw) ?? '';
 
   const feedDescriptionRaw =
     extractTagContent(channelXml, 'description') ||
@@ -133,9 +135,9 @@ export async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed
     const itemXml = itemMatch[1];
 
     const enclosureUrl = extractAttr(itemXml, 'enclosure', 'url');
-    if (!enclosureUrl) continue;
+    if (!enclosureUrl || !sanitizeImageUrl(enclosureUrl)) continue;
 
-    const itemTitle = extractTagContent(itemXml, 'title');
+    const itemTitle = stripHtmlTags(extractTagContent(itemXml, 'title'));
     const guid = extractTagContent(itemXml, 'guid');
     const pubDate = extractTagContent(itemXml, 'pubDate');
     const durationRaw = extractTagContent(itemXml, 'itunes:duration');

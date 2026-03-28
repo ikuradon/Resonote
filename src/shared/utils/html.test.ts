@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { htmlToMarkdown, renderMarkdown } from '$shared/utils/html.js';
+import { htmlToMarkdown, renderMarkdown, stripHtmlTags } from '$shared/utils/html.js';
 
 describe('htmlToMarkdown', () => {
   it('converts links', () => {
@@ -88,5 +88,31 @@ describe('renderMarkdown', () => {
     const result = renderMarkdown('[<script>](https://example.com)');
     expect(result).toContain('&lt;script&gt;');
     expect(result).not.toContain('<script>');
+  });
+});
+
+describe('stripHtmlTags', () => {
+  it('should strip HTML tags from text', () => {
+    expect(stripHtmlTags('<b>bold</b> text')).toBe('bold text');
+  });
+
+  it('should decode HTML entities', () => {
+    expect(stripHtmlTags('Tom &amp; Jerry')).toBe('Tom & Jerry');
+  });
+
+  it('should strip XSS payloads', () => {
+    expect(stripHtmlTags('<img src=x onerror="alert(1)">My Podcast')).toBe('My Podcast');
+  });
+
+  it('should handle CDATA wrappers', () => {
+    expect(stripHtmlTags('<![CDATA[My Title]]>')).toBe('My Title');
+  });
+
+  it('should return empty string for empty input', () => {
+    expect(stripHtmlTags('')).toBe('');
+  });
+
+  it('should preserve plain text', () => {
+    expect(stripHtmlTags('Hello World')).toBe('Hello World');
   });
 });
