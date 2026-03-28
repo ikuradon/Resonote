@@ -3,6 +3,9 @@ import { untrack } from 'svelte';
 import { fetchProfiles } from '$shared/browser/profile.js';
 import { cachedFetchById } from '$shared/nostr/cached-query.js';
 import { truncateString } from '$shared/utils/format.js';
+import { createLogger } from '$shared/utils/logger.js';
+
+const log = createLogger('notif-feed-vm');
 
 import type { Notification, NotificationType } from '../domain/notification-model.js';
 import { getLastRead, markAllAsRead } from './notifications-view-model.svelte.js';
@@ -75,14 +78,18 @@ export function createNotificationFeedViewModel(
           const event = await cachedFetchById(id);
           return { id, event };
         })
-      ).then((results) => {
-        const next = new Map(targetTexts);
-        for (const { id, event } of results) {
-          if (!event) continue;
-          next.set(id, truncateString(event.content, targetPreviewLength));
-        }
-        targetTexts = next;
-      });
+      )
+        .then((results) => {
+          const next = new Map(targetTexts);
+          for (const { id, event } of results) {
+            if (!event) continue;
+            next.set(id, truncateString(event.content, targetPreviewLength));
+          }
+          targetTexts = next;
+        })
+        .catch((err) => {
+          log.error('Failed to fetch notification target events', err);
+        });
     });
   });
 
