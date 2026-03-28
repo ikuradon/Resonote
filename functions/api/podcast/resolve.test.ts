@@ -10,7 +10,8 @@ import {
   normalizeForDTag,
   onRequestGet,
   parseDurationToSeconds,
-  parseRss} from './resolve.js';
+  parseRss
+} from './resolve.js';
 
 describe('normalizeForDTag', () => {
   it('should normalize basic URL', () => {

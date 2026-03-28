@@ -95,7 +95,7 @@ export async function resolveByDTag(
 
 export interface ResolveApiResponse {
   type: 'episode' | 'feed' | 'redirect';
-  feed?: { guid: string; title: string; feedUrl: string; imageUrl: string };
+  feed?: { guid: string; title: string; feedUrl: string; imageUrl: string; description?: string };
   episode?: {
     guid: string;
     title: string;

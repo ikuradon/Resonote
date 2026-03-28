@@ -12,15 +12,17 @@
 
   interface Props {
     contentId: ContentId;
+    onFeedLoaded?: (info: { title: string; imageUrl: string; description: string }) => void;
   }
 
-  let { contentId }: Props = $props();
+  let { contentId, onFeedLoaded }: Props = $props();
 
   type Status = 'loading' | 'loaded' | 'error';
 
   let status = $state<Status>('loading');
   let feedTitle = $state('');
   let feedImage = $state('');
+  let feedDescription = $state('');
   let episodes = $state<
     {
       guid: string;
@@ -62,8 +64,10 @@
 
       feedTitle = result.title;
       feedImage = result.imageUrl;
+      feedDescription = result.description;
       episodes = result.episodes;
       status = 'loaded';
+      onFeedLoaded?.({ title: feedTitle, imageUrl: feedImage, description: feedDescription });
     } catch {
       status = 'error';
       errorMessage = t('podcast.error');

@@ -281,7 +281,8 @@ async function handleFeedUrl(
       title: feed.title,
       feedUrl: feed.feedUrl,
       podcastGuid: feed.podcastGuid,
-      imageUrl: feed.imageUrl
+      imageUrl: feed.imageUrl,
+      description: feed.description
     },
     episodes: feed.episodes,
     signedEvents
