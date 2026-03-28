@@ -5,6 +5,9 @@ import { apiClient } from '$shared/api/client.js';
 import { normalizeUrl } from '$shared/content/url-utils.js';
 import { getEventsDB, getRxNostr } from '$shared/nostr/gateway.js';
 import { htmlToMarkdown } from '$shared/utils/html.js';
+import { createLogger } from '$shared/utils/logger.js';
+
+const log = createLogger('podcast-resolver');
 
 let pubkeyPromise: Promise<string> | undefined;
 
@@ -29,7 +32,7 @@ export function getSystemPubkey(): Promise<string> {
       });
     })
     .catch((e) => {
-      console.warn('[podcast-resolver] Failed to fetch system pubkey:', e);
+      log.warn('Failed to fetch system pubkey', e);
       pubkeyPromise = undefined;
       return '';
     });
