@@ -115,4 +115,8 @@ describe('stripHtmlTags', () => {
   it('should preserve plain text', () => {
     expect(stripHtmlTags('Hello World')).toBe('Hello World');
   });
+
+  it('should strip entity-encoded HTML tags', () => {
+    expect(stripHtmlTags('&lt;script&gt;alert(1)&lt;/script&gt;Safe')).toBe('alert(1)Safe');
+  });
 });
