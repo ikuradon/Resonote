@@ -64,7 +64,6 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   let loadingTimeout: ReturnType<typeof setTimeout> | undefined;
 
   const eventPubkeys = new Map<string, string>();
-  const relayHints = new Map<string, string>();
 
   // Infra refs
   let subscriptionRefs: SubscriptionRefs | undefined;
@@ -97,11 +96,11 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     log.debug('Reaction received', { id: shortHex(reaction.id), target: shortHex(targetId) });
   }
 
-  function handleCommentPacket(event: CachedEvent) {
+  function handleCommentPacket(event: CachedEvent, relayHint?: string) {
     if (commentIds.has(event.id)) return;
     commentIds.add(event.id);
     eventPubkeys.set(event.id, event.pubkey);
-    commentsRaw = [...commentsRaw, commentFromEvent(event)];
+    commentsRaw = [...commentsRaw, commentFromEvent(event, relayHint)];
     log.debug('Comment received', { id: shortHex(event.id) });
   }
 
@@ -152,11 +151,10 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   }
 
   function dispatchPacket(event: CachedEvent, relayHint?: string) {
-    if (relayHint) relayHints.set(event.id, relayHint);
     eventsDB?.put(event);
     switch (event.kind) {
       case COMMENT_KIND:
-        handleCommentPacket(event);
+        handleCommentPacket(event, relayHint);
         break;
       case REACTION_KIND:
         handleReactionPacket(event);
@@ -480,7 +478,6 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     fetchedParentIds = new Set();
     prevDeletedSize = 0;
     eventPubkeys.clear();
-    relayHints.clear();
   }
 
   return {
@@ -499,7 +496,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     get placeholders() {
       return placeholders;
     },
-    getRelayHint: (eventId: string) => relayHints.get(eventId),
+    getRelayHint: (eventId: string) => commentsRaw.find((c) => c.id === eventId)?.relayHint,
     subscribe,
     addSubscription,
     fetchOrphanParent,

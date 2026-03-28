@@ -236,7 +236,6 @@
                 {threadPubkeys}
                 getPlaceholders={() => vm.store!.placeholders}
                 fetchOrphanParent={vm.store.fetchOrphanParent}
-                getRelayHint={vm.store.getRelayHint}
                 bookmarked={vm.bookmarked}
                 bookmarkBusy={vm.bookmarkBusy}
                 onToggleBookmark={vm.toggleBookmark}

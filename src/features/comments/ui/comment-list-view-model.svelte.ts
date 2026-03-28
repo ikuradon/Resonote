@@ -49,7 +49,6 @@ interface CommentListViewModelOptions {
   getTimedList?: () => TimedListScroller | undefined;
   getPlaceholders?: () => Map<string, PlaceholderComment>;
   fetchOrphanParent?: (parentId: string, positionMs: number | null) => void;
-  getRelayHint?: (eventId: string) => string | undefined;
 }
 
 export function createCommentListViewModel(options: CommentListViewModelOptions) {
@@ -259,7 +258,7 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
         provider: options.getProvider(),
         reaction,
         emojiUrl,
-        relayHint: options.getRelayHint?.(comment.id)
+        relayHint: comment.relayHint
       });
       toastSuccess(t('toast.reaction_sent'));
     } catch (err) {
@@ -353,7 +352,7 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
         parentEvent: {
           id: replyTarget.id,
           pubkey: replyTarget.pubkey,
-          relayHint: options.getRelayHint?.(replyTarget.id)
+          relayHint: replyTarget.relayHint
         },
         positionMs: replyTarget.positionMs ?? undefined,
         emojiTags: tags
