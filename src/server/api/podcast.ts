@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { fetchAudioMetadata } from '$server/lib/audio-metadata.js';
 import { assertSafeUrl, safeFetch, safeReadText } from '$server/lib/safe-fetch.js';
 import { htmlToMarkdown, stripHtmlTags } from '$shared/utils/html.js';
-import { sanitizeImageUrl } from '$shared/utils/url.js';
+import { sanitizeUrl } from '$shared/utils/url.js';
 
 import type { Bindings } from './bindings.js';
 import { cacheMiddleware } from './middleware/cache.js';
@@ -119,7 +119,7 @@ export async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed
 
   const imageUrlRaw =
     extractAttr(channelXml, 'itunes:image', 'href') || extractTagContent(channelXml, 'url') || '';
-  const imageUrl = sanitizeImageUrl(imageUrlRaw) ?? '';
+  const imageUrl = sanitizeUrl(imageUrlRaw) ?? '';
 
   const feedDescriptionRaw =
     extractTagContent(channelXml, 'description') ||
@@ -135,7 +135,7 @@ export async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed
     const itemXml = itemMatch[1];
 
     const enclosureUrl = extractAttr(itemXml, 'enclosure', 'url');
-    if (!enclosureUrl || !sanitizeImageUrl(enclosureUrl)) continue;
+    if (!enclosureUrl || !sanitizeUrl(enclosureUrl)) continue;
 
     const itemTitle = stripHtmlTags(extractTagContent(itemXml, 'title'));
     const guid = extractTagContent(itemXml, 'guid');

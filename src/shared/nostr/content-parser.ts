@@ -1,6 +1,6 @@
 import { getProvider } from '$shared/content/registry.js';
 import type { ContentId } from '$shared/content/types.js';
-import { sanitizeImageUrl } from '$shared/utils/url.js';
+import { sanitizeUrl } from '$shared/utils/url.js';
 
 import { decodeContentLink, type DecodedNip19, decodeNip19 } from './helpers.js';
 
@@ -90,7 +90,7 @@ export function parseCommentContent(content: string, emojiTags: string[][]): Con
   const emojiMap = new Map<string, string>();
   for (const tag of emojiTags) {
     if (tag.length >= 3) {
-      const safeUrl = sanitizeImageUrl(tag[2]);
+      const safeUrl = sanitizeUrl(tag[2]);
       if (safeUrl) emojiMap.set(tag[1], safeUrl);
     }
   }
