@@ -246,14 +246,14 @@ test.describe('Dangerous URL rejection', () => {
   });
 });
 
-test.describe('SoundCloud rejection', () => {
-  test('should reject SoundCloud playlist (sets) URL', async ({ page }) => {
+test.describe('SoundCloud Sets', () => {
+  test('should navigate to SoundCloud set content page', async ({ page }) => {
     await page.goto('/');
     const input = page.locator('[data-testid="track-url-input"]');
     await input.fill('https://soundcloud.com/user/sets/my-playlist');
     await page.locator('[data-testid="track-submit-button"]').click();
-    // Sets are rejected → goes to resolve page
-    await expect(page).toHaveURL(/\/resolve\//);
+    // Sets are now supported → navigates to content page
+    await expect(page).toHaveURL(/\/soundcloud\/set\//);
   });
 });
 
