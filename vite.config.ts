@@ -39,7 +39,45 @@ export default defineConfig({
         'src/shared/**/*.ts',
         'src/server/**/*.ts'
       ],
-      exclude: ['src/**/*.test.ts', 'src/**/*.d.ts']
+      exclude: [
+        'src/**/*.test.ts',
+        'src/**/*.d.ts',
+        // Re-export facades (pure re-exports, no testable logic)
+        'src/shared/browser/auth.ts',
+        'src/shared/browser/bookmarks.ts',
+        'src/shared/browser/click-outside.ts',
+        'src/shared/browser/dev-tools.ts',
+        'src/shared/browser/emoji-mart.ts',
+        'src/shared/browser/emoji-sets.ts',
+        'src/shared/browser/extension.ts',
+        'src/shared/browser/follows.ts',
+        'src/shared/browser/keyboard-shortcuts.ts',
+        'src/shared/browser/locale.ts',
+        'src/shared/browser/media-query.ts',
+        'src/shared/browser/mute.ts',
+        'src/shared/browser/player.ts',
+        'src/shared/browser/profile.ts',
+        'src/shared/browser/relays.ts',
+        'src/shared/browser/stores.ts',
+        'src/shared/browser/toast.ts',
+        'src/shared/content/resolution.ts',
+        'src/shared/nostr/cached-query.ts',
+        'src/shared/nostr/content-link.ts',
+        'src/shared/nostr/gateway.ts',
+        'src/shared/nostr/nip19-decode.ts',
+        'src/shared/nostr/relays.ts',
+        'src/shared/nostr/user-relays.ts',
+        // Type-only files (no runtime code)
+        'src/features/comments/domain/comment-model.ts',
+        'src/features/content-resolution/domain/content-metadata.ts',
+        'src/features/notifications/domain/notification-model.ts',
+        'src/server/api/bindings.ts',
+        // Application-layer re-export facades
+        'src/features/content-resolution/application/resolve-podbean-embed.ts',
+        'src/features/content-resolution/application/resolve-soundcloud-embed.ts',
+        // Svelte rune-dependent files (unit test impractical, E2E で担保)
+        'src/features/comments/ui/comment-profile-preload.svelte.ts'
+      ]
       // Coverage 対象外の理由:
       // - src/web/ — Svelte コンポーネント (.svelte) が主体、コンポーネントテスト/E2E で担保
       // - src/extension/ — chrome.* API 依存、E2E で担保
