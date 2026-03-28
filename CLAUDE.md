@@ -143,6 +143,7 @@ Web embed 対応: Spotify, YouTube, Vimeo, SoundCloud, Mixcloud, Spreaker, Nicon
 - `src/server/api/youtube.ts`: YouTube プレイリスト/チャンネルの Atom RSS フィードパース (最新 15 件)
 - `src/server/api/system.ts`: システム鍵の pubkey 公開
 - `src/server/api/middleware/cache.ts`: キャッシュミドルウェア
+- `src/server/api/middleware/rate-limit.ts`: IP ベース in-memory レートリミッター (60s/30req、eviction 付き)
 - `src/server/api/middleware/error-handler.ts`: エラーハンドリングミドルウェア
 - `src/server/lib/audio-metadata.ts`: ID3v2/Vorbis/FLAC メタデータパーサー
 - `src/server/lib/safe-fetch.ts`: SSRF 防御 — `safeFetch()` で全 server-side fetch を行う (リダイレクト各ホップで `assertSafeUrl()` 検証)
@@ -153,6 +154,7 @@ Web embed 対応: Spotify, YouTube, Vimeo, SoundCloud, Mixcloud, Spreaker, Nicon
 
 - `src/shared/nostr/client.ts`: Singleton `getRxNostr()` with `@rx-nostr/crypto` verifier
 - `src/shared/nostr/events.ts`: Event builders for kind:1111 (comment) and kind:7 (reaction)
+- `buildComment` / `buildReaction` は `relayHint` パラメータを受け付け、e-tag / p-tag に relay hint を埋め込む (NIP-22/NIP-25 準拠)
 - `src/shared/nostr/events.ts` にないイベント: kind:3 (follows.svelte.ts), kind:10000 (mute.svelte.ts), kind:10002 (relays.svelte.ts), kind:10003 (bookmarks.svelte.ts), kind:39701 (src/server/api/podcast.ts)
 - `src/shared/nostr/event-db.ts`: IndexedDB-based event cache (`idb` wrapper)
 - `src/shared/nostr/relays.ts`: Default relay list
@@ -192,7 +194,7 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
 - `src/shared/browser/relays.svelte.ts`: Relay connection status
 - `src/shared/browser/emoji-sets.svelte.ts`: Custom emoji set management
 - `src/shared/browser/extension.svelte.ts`: Browser extension mode state + postMessage listener
-- `src/features/comments/ui/comment-view-model.svelte.ts`: Per-content comment subscription + additional tag merge + orphan parent fetch (`fetchOrphanParent`, `placeholders`)
+- `src/features/comments/ui/comment-view-model.svelte.ts`: Per-content comment subscription + additional tag merge + orphan parent fetch (`fetchOrphanParent`, `placeholders`)。relay hint は `Comment.relayHint` フィールドに保持 (取得元 relay の `packet.from`)
 - `src/features/comments/ui/comment-profile-preload.svelte.ts`: CommentList の profile preload helper
 - `src/lib/stores/`: 削除済み
 
@@ -301,3 +303,4 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
 - PR review comment への返信は `gh api repos/{owner}/{repo}/pulls/{pr}/comments/{id}/replies` を使う。`gh pr comment` は issue comment を作成するため review thread に紐づかず二重投稿になる
 - `gh pr view --json comments` の `author.login` は `"github-actions"` を返す（`"github-actions[bot]"` ではない）。bot コメント検索は `startswith("github-actions")` を使うこと
 - Vite 8 では `build.rollupOptions` は deprecated → `build.rolldownOptions` を使う（`vite.config.extension.ts` で使用）
+- アプリ内モジュールのエラーログは `createLogger` (`src/shared/utils/logger.ts`) を使用。`console.error/warn` は extension context と logger.ts / error-handler.ts のみ許可
