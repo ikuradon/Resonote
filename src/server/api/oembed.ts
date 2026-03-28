@@ -1,6 +1,6 @@
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
-import type { StatusCode } from 'hono/utils/http-status';
+import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { z } from 'zod';
 
 import { safeFetch, safeReadText } from '$server/lib/safe-fetch.js';
@@ -82,7 +82,7 @@ async function handleYouTube(
   env: Bindings,
   allowPrivateIPs: boolean
 ): Promise<{
-  status: StatusCode;
+  status: ContentfulStatusCode;
   body: Record<string, unknown>;
   headers?: Record<string, string>;
 }> {
@@ -151,7 +151,7 @@ async function handleNiconico(
   id: string,
   allowPrivateIPs: boolean
 ): Promise<{
-  status: StatusCode;
+  status: ContentfulStatusCode;
   body: Record<string, unknown>;
   headers?: Record<string, string>;
 }> {
