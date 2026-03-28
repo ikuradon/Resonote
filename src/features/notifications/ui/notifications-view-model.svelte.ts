@@ -160,25 +160,30 @@ export async function subscribeNotifications(
   const notifSub = merge(
     rxNostr.use(notifBackward).pipe(uniq()),
     rxNostr.use(notifForward).pipe(uniq())
+  ).subscribe({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ).subscribe((packet: any) => {
-    const event = packet.event;
-    const type = classifyNotificationEvent(event, myPubkey, follows);
-    if (!type || type === 'follow_comment') return;
+    next: (packet: any) => {
+      const event = packet.event;
+      const type = classifyNotificationEvent(event, myPubkey, follows);
+      if (!type || type === 'follow_comment') return;
 
-    const eTag = event.tags.find((t: string[]) => t[0] === 'e' && t[1]);
-    addNotification(
-      {
-        id: event.id,
-        type,
-        pubkey: event.pubkey,
-        content: event.content,
-        createdAt: event.created_at,
-        tags: event.tags,
-        targetEventId: eTag?.[1]
-      },
-      type
-    );
+      const eTag = event.tags.find((t: string[]) => t[0] === 'e' && t[1]);
+      addNotification(
+        {
+          id: event.id,
+          type,
+          pubkey: event.pubkey,
+          content: event.content,
+          createdAt: event.created_at,
+          tags: event.tags,
+          targetEventId: eTag?.[1]
+        },
+        type
+      );
+    },
+    error: (err: unknown) => {
+      log.error('Notification subscription error', err);
+    }
   });
 
   notifBackward.emit(mentionFilter);
@@ -197,23 +202,28 @@ export async function subscribeNotifications(
   const followSub = merge(
     rxNostr.use(followBackward).pipe(uniq()),
     rxNostr.use(followForward).pipe(uniq())
+  ).subscribe({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ).subscribe((packet: any) => {
-    const event = packet.event;
-    if (event.pubkey === myPubkey) return;
-    if (!follows.has(event.pubkey)) return;
+    next: (packet: any) => {
+      const event = packet.event;
+      if (event.pubkey === myPubkey) return;
+      if (!follows.has(event.pubkey)) return;
 
-    addNotification(
-      {
-        id: event.id,
-        type: 'follow_comment',
-        pubkey: event.pubkey,
-        content: event.content,
-        createdAt: event.created_at,
-        tags: event.tags
-      },
-      'follow_comment'
-    );
+      addNotification(
+        {
+          id: event.id,
+          type: 'follow_comment',
+          pubkey: event.pubkey,
+          content: event.content,
+          createdAt: event.created_at,
+          tags: event.tags
+        },
+        'follow_comment'
+      );
+    },
+    error: (err: unknown) => {
+      log.error('Follow comments subscription error', err);
+    }
   });
 
   for (let i = 0; i < followArray.length; i += BATCH_SIZE) {

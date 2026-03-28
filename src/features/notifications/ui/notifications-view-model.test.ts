@@ -68,8 +68,8 @@ vi.mock('../domain/notification-classifier.js', () => ({
 // Mock rxjs and rx-nostr for dynamic imports
 vi.mock('rxjs', () => ({
   merge: vi.fn(() => ({
-    subscribe: vi.fn((cb: (packet: unknown) => void) => {
-      subscriberCallbacks.push(cb);
+    subscribe: vi.fn((observer: { next: (packet: unknown) => void }) => {
+      subscriberCallbacks.push(observer.next);
       return { unsubscribe: unsubscribeMock };
     })
   }))
