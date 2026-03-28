@@ -6,9 +6,9 @@ import { assertSafeUrl, safeFetch, safeReadText } from '$server/lib/safe-fetch.j
 import { createLogger } from '$shared/utils/logger.js';
 
 import type { Bindings } from './bindings.js';
+import { cacheMiddleware } from './middleware/cache.js';
 
 const log = createLogger('podbean');
-import { cacheMiddleware } from './middleware/cache.js';
 
 const querySchema = z.object({
   url: z.url()
