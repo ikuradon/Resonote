@@ -47,12 +47,12 @@
 
   // Resolve embed URL via oEmbed API
   $effect(() => {
-    const trackUrl = `https://soundcloud.com/${contentId.id}`;
+    const contentUrl = `https://soundcloud.com/${contentId.id}`;
     embedSrc = '';
     error = false;
 
     let cancelled = false;
-    resolveSoundCloudEmbed(trackUrl)
+    resolveSoundCloudEmbed(contentUrl)
       .then((src) => {
         if (!cancelled) embedSrc = src;
       })
