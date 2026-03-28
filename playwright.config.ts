@@ -14,6 +14,8 @@ const TEST_NOSTR_PRIVKEY = envKey ?? DEFAULT_TEST_PRIVKEY;
 
 export default defineConfig({
   testDir: 'e2e',
+  fullyParallel: true,
+  workers: process.env.CI ? 4 : undefined,
   timeout: 30_000,
   retries: process.env.CI ? 1 : 0,
   use: {
