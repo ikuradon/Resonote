@@ -51,8 +51,8 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
-          COMMENT_ID=$(gh api "repos/$REPO/issues/${PR_NUMBER}/comments?per_page=100" \
-            --jq '[.[] | select((.user.login | startswith("github-actions")) and (.body | contains("<!-- preview-deploy -->"))) | .id] | last // ""')
+          COMMENT_ID=$(gh api "repos/$REPO/issues/${PR_NUMBER}/comments" --paginate \
+            --jq '[.[] | select((.author.login | startswith("github-actions")) and (.body | contains("<!-- preview-deploy -->"))) | .id] | last // ""')
           if [[ -n "$COMMENT_ID" ]]; then
             gh api "repos/$REPO/issues/comments/$COMMENT_ID" -X PATCH \
               -f body="<!-- preview-deploy -->

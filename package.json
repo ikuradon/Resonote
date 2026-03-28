@@ -40,8 +40,7 @@
     "@eslint/js": "^10.0.1",
     "@ikuradon/tsunagiya": "^0.4.0",
     "@playwright/test": "^1.58.2",
-    "@sveltejs/adapter-auto": "^7.0.0",
-    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/adapter-cloudflare": "^7.2.8",
     "@sveltejs/kit": "^2.55.0",
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "@tailwindcss/vite": "^4.2.2",
@@ -70,15 +69,18 @@
     "wrangler": "^4.76.0"
   },
   "dependencies": {
+    "@hono/zod-validator": "^0.7.6",
     "@ikuradon/emoji-kitchen-mart": "^7.0.0",
     "@ikuradon/emoji-kitchen-mart-data": "^2.0.0",
     "@konemono/nostr-login": "^1.15.2",
     "@rx-nostr/crypto": "^0.0.0",
     "@scure/base": "^2.0.0",
+    "hono": "^4.12.9",
     "idb": "^8.0.3",
     "nostr-tools": "^2.23.3",
     "rx-nostr": "^3.6.2",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "zod": "^4.3.6"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

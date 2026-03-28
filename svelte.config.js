@@ -1,16 +1,15 @@
-import adapter from '@sveltejs/adapter-static';
+import adapter from '@sveltejs/adapter-cloudflare';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
   kit: {
-    adapter: adapter({
-      fallback: 'index.html'
-    }),
+    adapter: adapter(),
     alias: {
       $shared: 'src/shared',
       $features: 'src/features',
       $appcore: 'src/app',
-      $extension: 'src/extension'
+      $extension: 'src/extension',
+      $server: 'src/server'
     },
     files: {
       routes: 'src/web/routes',
