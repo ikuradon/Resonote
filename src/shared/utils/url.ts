@@ -1,8 +1,8 @@
 /**
- * Validate and sanitize an image URL. Returns the URL if safe, undefined otherwise.
+ * Validate and sanitize a URL. Returns the URL if safe, undefined otherwise.
  * Only allows http: and https: protocols.
  */
-export function sanitizeImageUrl(url: string | undefined): string | undefined {
+export function sanitizeUrl(url: string | undefined): string | undefined {
   if (!url) return undefined;
   try {
     const parsed = new URL(url);

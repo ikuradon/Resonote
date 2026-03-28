@@ -197,7 +197,7 @@
 - [x] `#nostr` → アクセントカラー `<span>` — `comment-rendering.test.ts` "should display hashtag with accent color"
 - [x] `#aaa...` (64 文字 hex) → ハッシュタグ除外 — N/A (isHexString covered by content-parser.test.ts)
 - [x] `#123` (数字のみ) → ハッシュタグ除外 — N/A (isDigitsOnly covered by content-parser.test.ts)
-- [x] 絵文字画像 URL の sanitize — N/A (sanitizeImageUrl covered by url.test.ts)
+- [x] 絵文字画像 URL の sanitize — N/A (sanitizeUrl covered by url.test.ts)
 
 ### 3D. CW (コンテンツ警告)
 
@@ -521,7 +521,7 @@
 - [x] コメントのアバタークリック — N/A (profile page detail) → プロフィール遷移
 - [x] コメント内メンションクリック — N/A (profile page detail) → プロフィール遷移
 - [x] 通知のアクタークリック — N/A (profile page detail) → プロフィール遷移
-- [x] プロフィール画像の sanitize — N/A (profile page detail) (`sanitizeImageUrl()`)
+- [x] プロフィール画像の sanitize — N/A (profile page detail) (`sanitizeUrl()`)
 - [x] プロフィールページからの戻る — N/A (profile page detail) → 前ページ
 - [x] プロフィール → コンテンツ → back — N/A (profile page detail) → プロフィール
 
@@ -816,8 +816,8 @@
 - [x] コメント content に `javascript:alert(1)` → リンク化しない — `security.test.ts` "should not linkify javascript: URL"
 - [x] プロフィール名に `<b onmouseover=alert(1)>` → 無害化 — `security.test.ts` "should sanitize script tags in profile name"
 - [x] プロフィール bio に `<script>` → 無害化 — `security.test.ts` "should sanitize script tags in profile name"
-- [x] プロフィール画像 URL に `javascript:` → `sanitizeImageUrl` 拒否 — N/A (unit test for internal utility)
-- [x] 絵文字 URL に `data:text/html` → `sanitizeImageUrl` 拒否 — N/A (unit test for internal utility)
+- [x] プロフィール画像 URL に `javascript:` → `sanitizeUrl` 拒否 — N/A (unit test for internal utility)
+- [x] 絵文字 URL に `data:text/html` → `sanitizeUrl` 拒否 — N/A (unit test for internal utility)
 - [x] NIP-05 identifier に `<script>` — `security.test.ts` XSS tests → 無害化
 - [x] リレー URL に `javascript:` → wss:// バリデーション拒否 — N/A (internal URL validation)
 - [x] ブックマーク hint に `<script>` → 無害化 — N/A (hint is text content, not rendered as HTML)

@@ -276,7 +276,7 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
 - `_headers` (プロジェクトルート) は静的アセットにのみ適用される。Server API のレスポンスヘッダーは Hono ミドルウェアで制御
 - `/_app/immutable/` のチャンクはコンテンツハッシュ付き → immutable キャッシュ設定済み。Resonote 側コード変更でもハッシュが変わりうる
 - 新しい embed プロバイダー追加時は `_headers` (プロジェクトルート) の CSP `frame-src` / `script-src` も更新すること
-- Nostr イベント由来の画像 URL は `sanitizeImageUrl()` (`src/shared/utils/url.ts`) でスキーム検証すること
+- Nostr イベント由来の画像 URL は `sanitizeUrl()` (`src/shared/utils/url.ts`) でスキーム検証すること
 - `pnpm dev` では `.dev.vars` の環境変数が読み込まれない。API テスト時は `pnpm dev:full`
 - Spreaker `widgets.js` は SPA 再ナビゲーション時に再走査しない → script remove+re-add が必要
 - SoundCloud embed は permalink URL を受け付けない → oEmbed API で api.soundcloud.com URL に解決

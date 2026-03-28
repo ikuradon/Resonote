@@ -6,7 +6,7 @@ import {
   truncateProfileName
 } from '$features/profiles/domain/profile-model.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
-import { sanitizeImageUrl } from '$shared/utils/url.js';
+import { sanitizeUrl } from '$shared/utils/url.js';
 
 const log = createLogger('profile');
 
@@ -22,7 +22,7 @@ function parseProfileContent(content: string): Profile {
     name: typeof meta.name === 'string' ? truncateProfileName(meta.name) : undefined,
     displayName:
       typeof meta.display_name === 'string' ? truncateProfileName(meta.display_name) : undefined,
-    picture: typeof meta.picture === 'string' ? sanitizeImageUrl(meta.picture) : undefined,
+    picture: typeof meta.picture === 'string' ? sanitizeUrl(meta.picture) : undefined,
     about: typeof meta.about === 'string' ? meta.about : undefined,
     nip05: typeof meta.nip05 === 'string' ? meta.nip05 : undefined
   };
