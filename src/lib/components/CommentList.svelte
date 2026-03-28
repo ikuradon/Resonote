@@ -145,16 +145,16 @@
   });
 
   // --- Scroll to highlighted comment from URL hash ---
-  let highlightHandled = false;
+  let highlightHandled = $state<string | null>(null);
   $effect(() => {
-    if (highlightHandled || !highlightCommentId || loading) return;
+    if (highlightCommentId === highlightHandled || !highlightCommentId || loading) return;
     const allComments = comments;
     if (allComments.length === 0) return;
 
     const target = allComments.find((c) => c.id === highlightCommentId);
     if (!target) return;
 
-    highlightHandled = true;
+    highlightHandled = highlightCommentId;
 
     // Determine which tab the comment belongs to
     const isTimed = target.positionMs !== null && target.replyTo === null;

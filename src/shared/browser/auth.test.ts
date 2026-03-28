@@ -29,8 +29,8 @@ const TEST_PUBKEY = 'abcdef1234567890abcdef1234567890abcdef1234567890abcdef12345
 // document を EventTarget ベースの stub に差し替える
 let fakeDocument: EventTarget;
 
-function dispatchNlAuth(type: string) {
-  fakeDocument.dispatchEvent(new CustomEvent('nlAuth', { detail: { type } }));
+function dispatchNlAuth(type: string, method?: string) {
+  fakeDocument.dispatchEvent(new CustomEvent('nlAuth', { detail: { type, method } }));
 }
 
 beforeEach(() => {
@@ -218,6 +218,108 @@ describe('loginNostr()', () => {
     await loginNostr();
 
     expect(launchLogin).toHaveBeenCalled();
+  });
+});
+
+describe('canWrite getter', () => {
+  it('未ログイン時は false', async () => {
+    const { getAuth } = await import('./auth.svelte.js');
+    expect(getAuth().canWrite).toBe(false);
+  });
+
+  it('通常ログイン時は true', async () => {
+    const { getAuth, initAuth } = await import('./auth.svelte.js');
+    await initAuth();
+
+    dispatchNlAuth('login');
+    await vi.waitUntil(() => getAuth().pubkey !== null);
+
+    expect(getAuth().canWrite).toBe(true);
+  });
+
+  it('readOnly ログイン時は false', async () => {
+    const { getAuth, initAuth } = await import('./auth.svelte.js');
+    await initAuth();
+
+    dispatchNlAuth('login', 'readOnly');
+    await vi.waitUntil(() => getAuth().pubkey !== null);
+
+    expect(getAuth().canWrite).toBe(false);
+    expect(getAuth().readOnly).toBe(true);
+  });
+});
+
+describe('readOnly getter', () => {
+  it('初期状態は false', async () => {
+    const { getAuth } = await import('./auth.svelte.js');
+    expect(getAuth().readOnly).toBe(false);
+  });
+
+  it('readOnly メソッドでログインすると true', async () => {
+    const { getAuth, initAuth } = await import('./auth.svelte.js');
+    await initAuth();
+
+    dispatchNlAuth('login', 'readOnly');
+    await vi.waitUntil(() => getAuth().pubkey !== null);
+
+    expect(getAuth().readOnly).toBe(true);
+  });
+
+  it('通常メソッドでログインすると false のまま', async () => {
+    const { getAuth, initAuth } = await import('./auth.svelte.js');
+    await initAuth();
+
+    dispatchNlAuth('login', 'extension');
+    await vi.waitUntil(() => getAuth().pubkey !== null);
+
+    expect(getAuth().readOnly).toBe(false);
+  });
+
+  it('logout 後は false にリセットされる', async () => {
+    const { getAuth, initAuth } = await import('./auth.svelte.js');
+    const { destroySession } = await import('$appcore/bootstrap/init-session.js');
+    await initAuth();
+
+    dispatchNlAuth('login', 'readOnly');
+    await vi.waitUntil(() => getAuth().pubkey !== null);
+    expect(getAuth().readOnly).toBe(true);
+
+    dispatchNlAuth('logout');
+    await vi.waitUntil(() => (destroySession as ReturnType<typeof vi.fn>).mock.calls.length > 0);
+
+    expect(getAuth().readOnly).toBe(false);
+  });
+});
+
+describe('hasNip44 getter', () => {
+  it('window.nostr.nip44 が存在すると true', async () => {
+    vi.stubGlobal('window', {
+      nostr: {
+        getPublicKey: vi.fn().mockResolvedValue(TEST_PUBKEY),
+        nip44: { encrypt: vi.fn(), decrypt: vi.fn() }
+      }
+    });
+
+    const { getAuth } = await import('./auth.svelte.js');
+    expect(getAuth().hasNip44).toBe(true);
+  });
+
+  it('window.nostr.nip44 が未定義だと false', async () => {
+    vi.stubGlobal('window', {
+      nostr: {
+        getPublicKey: vi.fn().mockResolvedValue(TEST_PUBKEY)
+      }
+    });
+
+    const { getAuth } = await import('./auth.svelte.js');
+    expect(getAuth().hasNip44).toBe(false);
+  });
+
+  it('window.nostr が未定義だと false', async () => {
+    vi.stubGlobal('window', {});
+
+    const { getAuth } = await import('./auth.svelte.js');
+    expect(getAuth().hasNip44).toBe(false);
   });
 });
 

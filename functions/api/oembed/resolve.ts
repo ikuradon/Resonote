@@ -227,10 +227,15 @@ async function handleNiconico(
       return json({ error: 'oembed_failed' }, 502);
     }
 
-    const title = xml.match(/<title>([^<]*)<\/title>/)?.[1] ?? null;
-    const subtitle = xml.match(/<user_nickname>([^<]*)<\/user_nickname>/)?.[1] ?? null;
-    const thumbnailUrl = xml.match(/<thumbnail_url>([^<]*)<\/thumbnail_url>/)?.[1] ?? null;
-    const rawDescription = xml.match(/<description>([^<]*)<\/description>/)?.[1] ?? null;
+    const title = xml.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/)?.[1] ?? null;
+    const subtitle =
+      xml.match(/<user_nickname>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/user_nickname>/)?.[1] ??
+      null;
+    const thumbnailUrl =
+      xml.match(/<thumbnail_url>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/thumbnail_url>/)?.[1] ??
+      null;
+    const rawDescription =
+      xml.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/)?.[1] ?? null;
     const description = rawDescription ? autoLinkUrls(rawDescription) : null;
 
     return json({ title, subtitle, thumbnailUrl, description, provider: 'niconico' }, 200, {

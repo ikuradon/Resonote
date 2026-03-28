@@ -50,6 +50,16 @@ export function htmlToMarkdown(html: string): string {
   );
 }
 
+/** Unescape HTML entities that were introduced by our own escaping pass. */
+function unescapeHtmlEntities(s: string): string {
+  return s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+}
+
+/** Escape text for safe HTML display (but NOT for attributes). */
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 /**
  * Render Markdown to sanitized HTML for display.
  * Only supports: links, bold, italic, newlines.
@@ -63,11 +73,14 @@ export function renderMarkdown(md: string): string {
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       // Links: [text](url) → <a>
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, text: string, url: string) =>
-        isSafeUrl(url)
-          ? `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${text}</a>`
-          : text
-      )
+      // Unescape &amp; in URL/text since we escaped & above before link conversion
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, rawText: string, rawUrl: string) => {
+        const url = unescapeHtmlEntities(rawUrl);
+        const text = unescapeHtmlEntities(rawText);
+        return isSafeUrl(url)
+          ? `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(text)}</a>`
+          : escapeHtml(text);
+      })
       // Bold: **text**
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
       // Italic: *text*
