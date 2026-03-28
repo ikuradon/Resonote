@@ -325,11 +325,11 @@ describe('startMergedSubscription', () => {
     startMergedSubscription(refs, filters, onPacket);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const subscribeFn = (refs.mergedStream.subscribe.mock.calls[0] as any)[0] as (
-      p: unknown
-    ) => void;
+    const observer = (refs.mergedStream.subscribe.mock.calls[0] as any)[0] as {
+      next: (p: unknown) => void;
+    };
     const fakeEvent = { id: 'e2', pubkey: 'pk2', content: '', created_at: 2, tags: [], kind: 7 };
-    subscribeFn({ event: fakeEvent });
+    observer.next({ event: fakeEvent });
     expect(onPacket).toHaveBeenCalledWith(fakeEvent, undefined);
   });
 
@@ -338,11 +338,11 @@ describe('startMergedSubscription', () => {
     startMergedSubscription(refs, filters, onPacket);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const subscribeFn = (refs.mergedStream.subscribe.mock.calls[0] as any)[0] as (
-      p: unknown
-    ) => void;
+    const observer = (refs.mergedStream.subscribe.mock.calls[0] as any)[0] as {
+      next: (p: unknown) => void;
+    };
     const fakeEvent = { id: 'e3', pubkey: 'pk3', content: '', created_at: 3, tags: [], kind: 7 };
-    subscribeFn({ event: fakeEvent, from: 'wss://relay2.test' });
+    observer.next({ event: fakeEvent, from: 'wss://relay2.test' });
     expect(onPacket).toHaveBeenCalledWith(fakeEvent, 'wss://relay2.test');
   });
 });

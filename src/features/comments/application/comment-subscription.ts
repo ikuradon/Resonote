@@ -93,9 +93,12 @@ export function startSubscription(
   const forwardSub = refs.rxNostr
     .use(forward)
     .pipe(uniq())
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .subscribe((packet: any) => {
-      onPacket(packet.event, packet.from);
+    .subscribe({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      next: (packet: any) => onPacket(packet.event, packet.from),
+      error: (err: unknown) => {
+        log.error('Forward subscription error', err);
+      }
     });
 
   backward.emit(backwardFilters);
@@ -132,9 +135,14 @@ export function startMergedSubscription(
     refs.rxNostr.use(backward).pipe(uniq()),
     refs.rxNostr.use(forward).pipe(uniq())
   );
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sub = merged.subscribe((rawPacket: any) => {
-    onPacket(rawPacket.event, rawPacket.from);
+  const sub = merged.subscribe({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    next: (rawPacket: any) => {
+      onPacket(rawPacket.event, rawPacket.from);
+    },
+    error: (err: unknown) => {
+      log.error('Merged subscription error', err);
+    }
   });
 
   backward.emit(filters);
