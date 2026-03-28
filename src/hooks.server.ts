@@ -11,7 +11,7 @@ const SECURITY_HEADERS: Record<string, string> = {
     "img-src 'self' https: data:",
     "media-src 'self' https:",
     "connect-src 'self' https: wss:",
-    "frame-src https://*.spotify.com https://*.youtube.com https://*.vimeo.com https://*.soundcloud.com https://*.mixcloud.com https://*.spreaker.com https://*.nicovideo.jp https://*.podbean.com https://*.apple.com",
+    'frame-src https://*.spotify.com https://*.youtube.com https://*.vimeo.com https://*.soundcloud.com https://*.mixcloud.com https://*.spreaker.com https://*.nicovideo.jp https://*.podbean.com https://*.apple.com',
     "frame-ancestors 'none'"
   ].join('; '),
   'X-Content-Type-Options': 'nosniff',
