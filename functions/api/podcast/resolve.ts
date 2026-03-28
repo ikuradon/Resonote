@@ -428,7 +428,13 @@ const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.ogg', '.wav', '.opus', '.flac', '.aa
 const FEED_EXTENSIONS = ['.rss', '.xml', '.atom', '.json'];
 const FEED_PATH_SEGMENTS = ['/feed', '/rss', '/atom'];
 
-export function detectInputType(url: URL): 'audio' | 'feed' | 'site' {
+const APPLE_PODCASTS_RE =
+  /^https?:\/\/podcasts\.apple\.com\/(?:[a-z]{2}\/)?podcast\/(?:[^/]+\/)?id(\d+)/i;
+
+export function detectInputType(url: URL): 'audio' | 'feed' | 'site' | 'apple-podcasts' {
+  if (APPLE_PODCASTS_RE.test(`${url.origin}${url.pathname}`)) {
+    return 'apple-podcasts';
+  }
   const pathname = url.pathname.toLowerCase();
 
   if (AUDIO_EXTENSIONS.some((ext) => pathname.endsWith(ext))) {
@@ -443,6 +449,32 @@ export function detectInputType(url: URL): 'audio' | 'feed' | 'site' {
   }
 
   return 'site';
+}
+
+async function handleApplePodcasts(
+  url: string,
+  privkey: Uint8Array,
+  allowPrivateIPs: boolean
+): Promise<Response> {
+  const match = url.match(APPLE_PODCASTS_RE);
+  if (!match) return jsonResponse({ error: 'invalid_url' }, 400);
+
+  const appleId = match[1];
+  const lookupUrl = `https://itunes.apple.com/lookup?id=${appleId}&entity=podcast`;
+
+  try {
+    const res = await safeFetch(lookupUrl, { allowPrivateIPs });
+    if (!res.ok) return jsonResponse({ error: 'apple_lookup_failed' }, 502);
+
+    const data = (await res.json()) as { resultCount: number; results: { feedUrl?: string }[] };
+    const feedUrl = data.results?.[0]?.feedUrl;
+    if (!feedUrl) return jsonResponse({ error: 'feed_not_found' }, 404);
+
+    // Redirect to existing feed handler
+    return await handleFeedUrl(feedUrl, privkey, allowPrivateIPs);
+  } catch {
+    return jsonResponse({ error: 'apple_lookup_failed' }, 502);
+  }
 }
 
 export const onRequestGet: PagesFunction<Env> = handleRequest;
@@ -488,7 +520,9 @@ async function handleRequest(context: EventContext<Env, string, unknown>): Promi
   const inputType = detectInputType(parsed);
 
   try {
-    if (inputType === 'audio') {
+    if (inputType === 'apple-podcasts') {
+      return await handleApplePodcasts(urlParam, privkey, allowPrivateIPs);
+    } else if (inputType === 'audio') {
       return await handleAudioUrl(urlParam, privkey, allowPrivateIPs);
     } else if (inputType === 'feed') {
       return await handleFeedUrl(urlParam, privkey, allowPrivateIPs);
