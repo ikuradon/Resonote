@@ -1,5 +1,6 @@
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
+import type { StatusCode } from 'hono/utils/http-status';
 import { z } from 'zod';
 
 import { safeFetch, safeReadText } from '$server/lib/safe-fetch.js';
@@ -81,7 +82,7 @@ async function handleYouTube(
   env: Bindings,
   allowPrivateIPs: boolean
 ): Promise<{
-  status: number;
+  status: StatusCode;
   body: Record<string, unknown>;
   headers?: Record<string, string>;
 }> {
@@ -150,7 +151,7 @@ async function handleNiconico(
   id: string,
   allowPrivateIPs: boolean
 ): Promise<{
-  status: number;
+  status: StatusCode;
   body: Record<string, unknown>;
   headers?: Record<string, string>;
 }> {
@@ -221,7 +222,7 @@ export const oembedRoute = new Hono<{ Bindings: Bindings }>().get(
           c.header(k, v);
         }
       }
-      return c.json(result.body, result.status as 200);
+      return c.json(result.body, result.status);
     }
 
     // YouTube: fetch description from Data API v3 if API key available
@@ -232,7 +233,7 @@ export const oembedRoute = new Hono<{ Bindings: Bindings }>().get(
           c.header(k, v);
         }
       }
-      return c.json(result.body, result.status as 200);
+      return c.json(result.body, result.status);
     }
 
     if (!Object.prototype.hasOwnProperty.call(PLATFORMS, platform)) {
