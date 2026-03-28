@@ -5,6 +5,9 @@
 
 import { resolveByApi } from '$shared/content/resolution.js';
 import { publishSignedEvents } from '$shared/nostr/gateway.js';
+import { createLogger } from '$shared/utils/logger.js';
+
+const log = createLogger('resolve-feed');
 
 export interface FeedEpisode {
   guid: string;
@@ -31,7 +34,9 @@ export async function resolvePodcastFeed(feedUrl: string): Promise<FeedResolveRe
 
   // Publish signed bookmark events internally
   if (data.signedEvents && data.signedEvents.length > 0) {
-    publishSignedEvents(data.signedEvents).catch(() => {});
+    publishSignedEvents(data.signedEvents).catch((e) =>
+      log.error('Failed to publish signed events', e)
+    );
   }
 
   return {

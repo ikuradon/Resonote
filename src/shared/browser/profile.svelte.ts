@@ -91,7 +91,9 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
           try {
             const profile = parseProfileContent(packet.event.content);
             profiles.set(packet.event.pubkey, profile);
-            eventsDB.put(packet.event).catch(() => {});
+            eventsDB
+              .put(packet.event)
+              .catch((e) => log.error('Failed to persist profile event', e));
             const nip05 = profile.nip05;
             if (nip05) {
               void import('$shared/nostr/nip05.js').then(({ verifyNip05 }) =>

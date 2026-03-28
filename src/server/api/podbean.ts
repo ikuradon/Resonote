@@ -3,8 +3,11 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 
 import { assertSafeUrl, safeFetch, safeReadText } from '$server/lib/safe-fetch.js';
+import { createLogger } from '$shared/utils/logger.js';
 
 import type { Bindings } from './bindings.js';
+
+const log = createLogger('podbean');
 import { cacheMiddleware } from './middleware/cache.js';
 
 const querySchema = z.object({
@@ -46,7 +49,7 @@ export const podbeanRoute = new Hono<{ Bindings: Bindings }>().get(
             return c.json({ embedSrc: srcMatch[1] });
           }
         } catch (err) {
-          console.warn('[podbean/resolve] oEmbed returned unsafe or invalid src URL:', err);
+          log.warn('oEmbed returned unsafe or invalid src URL', err);
         }
       }
 

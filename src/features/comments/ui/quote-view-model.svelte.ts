@@ -53,7 +53,7 @@ export function createQuoteViewModel(eventId: string) {
         .then(() => {
           authorName = getDisplayName(event.pubkey);
         })
-        .catch(() => {});
+        .catch((e) => log.warn('Failed to fetch profile for quote', e));
     } catch (err) {
       log.warn('Failed to load quoted event', { eventId, error: err });
       status = 'not-found';

@@ -13,8 +13,11 @@ import { addBookmark, isBookmarked, removeBookmark } from '$shared/browser/bookm
 import { requestSeek, resetPlayer } from '$shared/browser/player.js';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import { fromBase64url } from '$shared/content/url-utils.js';
+import { createLogger } from '$shared/utils/logger.js';
 
 import { fetchContentMetadata } from '../application/fetch-content-metadata.js';
+
+const log = createLogger('resolved-content-vm');
 import { resolveAudioUrl, resolvePodcastEpisode } from '../application/resolve-content.js';
 import type { ContentMetadata } from '../domain/content-metadata.js';
 
@@ -116,7 +119,7 @@ export function createResolvedContentViewModel(
         })
         .catch((err: unknown) => {
           if (signal.cancelled) return;
-          console.error('[resolved-content-vm] resolvePodcastEpisode failed:', err);
+          log.error('resolvePodcastEpisode failed', err);
           resolvedEnclosureUrl = '';
         });
     }
@@ -152,7 +155,7 @@ export function createResolvedContentViewModel(
       })
       .catch((err: unknown) => {
         if (signal.cancelled) return;
-        console.error('[resolved-content-vm] resolveAudioUrl failed:', err);
+        log.error('resolveAudioUrl failed', err);
       });
 
     return () => {
@@ -172,8 +175,8 @@ export function createResolvedContentViewModel(
         if (signal.cancelled) return;
         contentMetadata = meta;
       })
-      .catch(() => {
-        // Silently fail — metadata is non-critical
+      .catch((e) => {
+        log.warn('Failed to fetch content metadata', e);
       })
       .finally(() => {
         if (!signal.cancelled) contentMetadataLoading = false;

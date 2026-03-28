@@ -16,6 +16,6 @@ export function initApp(): void {
     initExtensionListener()
   );
   void import('$shared/nostr/gateway.js').then(({ retryPendingPublishes }) =>
-    retryPendingPublishes().catch(() => {})
+    retryPendingPublishes().catch((e) => log.error('Failed to retry pending publishes', e))
   );
 }

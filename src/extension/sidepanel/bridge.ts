@@ -68,7 +68,7 @@ onExtensionFrameMessage(
           type: 'resonote:seek',
           position: message.position
         })
-        .catch(() => {});
+        .catch((e) => console.warn('[resonote:ext] Message send failed:', e));
     }
   },
   { acceptOrigin: (origin) => origin === RESONOTE_ORIGIN }

@@ -3,6 +3,9 @@ import type { DTagResult } from '$shared/content/podcast-resolver.js';
 import { getSystemPubkey, parseDTagEvent, resolveByApi } from '$shared/content/podcast-resolver.js';
 import { fromBase64url } from '$shared/content/url-utils.js';
 import { getEventsDB, getRxNostr } from '$shared/nostr/gateway.js';
+import { createLogger } from '$shared/utils/logger.js';
+
+const log = createLogger('episode-resolver');
 
 export interface EpisodeInfo {
   enclosureUrl: string;
@@ -21,9 +24,12 @@ export async function resolveEpisode(
   if (!guid || !feedUrl) return null;
 
   const [nostrResult, apiResult] = await Promise.all([
-    queryNostrForEpisode(guid).catch(() => null),
+    queryNostrForEpisode(guid).catch((e) => {
+      log.warn('Nostr episode query failed', e);
+      return null;
+    }),
     resolveByApi(feedUrl).catch((err) => {
-      console.error('[episode-resolver] resolveByApi failed:', err);
+      log.warn('resolveByApi failed', err);
       return null;
     })
   ]);
