@@ -84,7 +84,6 @@ async function handleYouTube(
 ): Promise<{
   status: ContentfulStatusCode;
   body: Record<string, unknown>;
-  headers?: Record<string, string>;
 }> {
   const config = PLATFORMS.youtube;
   if (!config.validTypes.has(type)) {
@@ -141,8 +140,7 @@ async function handleYouTube(
       thumbnailUrl: oembedData.thumbnail_url ?? null,
       description,
       provider: oembedData.provider_name ?? 'youtube'
-    },
-    headers: { 'Cache-Control': 'public, max-age=86400' }
+    }
   };
 }
 
@@ -153,7 +151,6 @@ async function handleNiconico(
 ): Promise<{
   status: ContentfulStatusCode;
   body: Record<string, unknown>;
-  headers?: Record<string, string>;
 }> {
   if (!NICONICO_VALID_TYPES.has(type)) {
     return { status: 400, body: { error: 'unsupported_type' } };
@@ -188,8 +185,7 @@ async function handleNiconico(
 
     return {
       status: 200,
-      body: { title, subtitle, thumbnailUrl, description, provider: 'niconico' },
-      headers: { 'Cache-Control': 'public, max-age=86400' }
+      body: { title, subtitle, thumbnailUrl, description, provider: 'niconico' }
     };
   } catch {
     return { status: 502, body: { error: 'fetch_failed' } };
@@ -217,22 +213,12 @@ export const oembedRoute = new Hono<{ Bindings: Bindings }>().get(
     // Niconico uses getthumbinfo XML API instead of oEmbed
     if (platform === 'niconico') {
       const result = await handleNiconico(type, id, allowPrivateIPs);
-      if (result.headers) {
-        for (const [k, v] of Object.entries(result.headers)) {
-          c.header(k, v);
-        }
-      }
       return c.json(result.body, result.status);
     }
 
     // YouTube: fetch description from Data API v3 if API key available
     if (platform === 'youtube') {
       const result = await handleYouTube(type, id, c.env, allowPrivateIPs);
-      if (result.headers) {
-        for (const [k, v] of Object.entries(result.headers)) {
-          c.header(k, v);
-        }
-      }
       return c.json(result.body, result.status);
     }
 
@@ -260,7 +246,6 @@ export const oembedRoute = new Hono<{ Bindings: Bindings }>().get(
 
       const data = (await res.json()) as OEmbedResponse;
 
-      c.header('Cache-Control', 'public, max-age=86400');
       return c.json({
         title: data.title ?? null,
         subtitle: data.author_name ?? null,

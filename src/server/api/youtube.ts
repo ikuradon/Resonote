@@ -104,7 +104,6 @@ export const youtubeRoute = new Hono<{ Bindings: Bindings }>().get(
       const xml = await safeReadText(res);
       const { title, videos } = parseAtomFeed(xml);
 
-      c.header('Cache-Control', 'public, max-age=900');
       return c.json({ title, videos });
     } catch {
       return c.json({ error: 'feed_fetch_failed' }, 502);
