@@ -4,6 +4,8 @@ import { fromBase64url, toBase64url } from '$shared/content/url-utils.js';
 
 const FEED_EXTENSIONS = /\.(rss|xml|atom|json)$/i;
 const FEED_PATH_SEGMENTS = /\/(feed|rss|atom)(\/|$)/i;
+const APPLE_PODCASTS_RE =
+  /^https?:\/\/podcasts\.apple\.com\/(?:[a-z]{2}\/)?podcast\/(?:[^/]+\/)?id(\d+)/i;
 
 export class PodcastProvider implements ContentProvider {
   readonly platform = 'podcast';
@@ -12,6 +14,15 @@ export class PodcastProvider implements ContentProvider {
 
   parseUrl(url: string): ContentId | null {
     if (!url) return null;
+
+    // Apple Podcasts URL → treat as feed (server resolves to RSS via iTunes API)
+    if (APPLE_PODCASTS_RE.test(url)) {
+      return {
+        platform: this.platform,
+        type: 'feed',
+        id: toBase64url(url)
+      };
+    }
 
     const withoutQuery = url.split('?')[0].split('#')[0];
     const isFeedExtension = FEED_EXTENSIONS.test(withoutQuery);

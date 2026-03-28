@@ -6,6 +6,7 @@ import {
   extractAttr,
   extractTagContent,
   findRssLink,
+  htmlToMarkdown,
   normalizeForDTag,
   onRequestGet,
   parseDurationToSeconds,
@@ -88,6 +89,18 @@ describe('extractTagContent', () => {
     expect(extractTagContent('<description>Line 1\nLine 2</description>', 'description')).toBe(
       'Line 1\nLine 2'
     );
+  });
+
+  it('should extract CDATA with whitespace before closing tag', () => {
+    expect(
+      extractTagContent('<description><![CDATA[content]]>\n</description>', 'description')
+    ).toBe('content');
+  });
+
+  it('should extract CDATA with whitespace after opening tag', () => {
+    expect(
+      extractTagContent('<description>\n<![CDATA[content]]></description>', 'description')
+    ).toBe('content');
   });
 
   it('should handle namespaced tags', () => {
@@ -211,6 +224,24 @@ describe('detectInputType', () => {
   it('should detect regular URL as site', () => {
     expect(detectInputType(new URL('https://example.com/podcast/episode-1'))).toBe('site');
   });
+
+  it('should detect Apple Podcasts URL as apple-podcasts', () => {
+    expect(
+      detectInputType(new URL('https://podcasts.apple.com/us/podcast/my-podcast/id1234567890'))
+    ).toBe('apple-podcasts');
+  });
+
+  it('should detect Apple Podcasts URL without country as apple-podcasts', () => {
+    expect(
+      detectInputType(new URL('https://podcasts.apple.com/podcast/my-podcast/id1234567890'))
+    ).toBe('apple-podcasts');
+  });
+
+  it('should detect Apple Podcasts URL without slug as apple-podcasts', () => {
+    expect(detectInputType(new URL('https://podcasts.apple.com/us/podcast/id1234567890'))).toBe(
+      'apple-podcasts'
+    );
+  });
 });
 
 describe('findRssLink', () => {
@@ -317,7 +348,7 @@ describe('parseRss', () => {
         <description><![CDATA[<p>HTML description</p>]]></description>
       </item></channel></rss>`;
     const result = await parseRss(xml, 'https://example.com/feed.xml');
-    expect(result!.episodes[0].description).toBe('<p>HTML description</p>');
+    expect(result!.episodes[0].description).toBe('HTML description');
   });
 
   it('should extract itunes:image href', async () => {
@@ -336,6 +367,50 @@ describe('parseRss', () => {
       </item></channel></rss>`;
     const result = await parseRss(xml, 'https://example.com/feed.xml');
     expect(result!.episodes[0].description).toBe('Summary text');
+  });
+
+  it('should extract feed description from channel', async () => {
+    const xml = `<rss><channel><title>Podcast</title><podcast:guid>g</podcast:guid>
+      <description>Feed description text</description>
+      <item><title>Ep</title><guid>e1</guid><enclosure url="https://example.com/ep.mp3"/></item>
+    </channel></rss>`;
+    const result = await parseRss(xml, 'https://example.com/feed.xml');
+    expect(result!.description).toBe('Feed description text');
+  });
+
+  it('should fall back to itunes:summary for feed description', async () => {
+    const xml = `<rss><channel><title>Podcast</title><podcast:guid>g</podcast:guid>
+      <itunes:summary>Feed summary</itunes:summary>
+      <item><title>Ep</title><guid>e1</guid><enclosure url="https://example.com/ep.mp3"/></item>
+    </channel></rss>`;
+    const result = await parseRss(xml, 'https://example.com/feed.xml');
+    expect(result!.description).toBe('Feed summary');
+  });
+
+  it('should return empty string for feed description when none present', async () => {
+    const xml = `<rss><channel><title>Podcast</title><podcast:guid>g</podcast:guid>
+      <item><title>Ep</title><guid>e1</guid><enclosure url="https://example.com/ep.mp3"/></item>
+    </channel></rss>`;
+    const result = await parseRss(xml, 'https://example.com/feed.xml');
+    expect(result!.description).toBe('');
+  });
+
+  it('should convert HTML in feed description to markdown', async () => {
+    const xml = `<rss><channel><title>Podcast</title><podcast:guid>g</podcast:guid>
+      <description><![CDATA[<p>A <b>bold</b> podcast</p>]]></description>
+      <item><title>Ep</title><guid>e1</guid><enclosure url="https://example.com/ep.mp3"/></item>
+    </channel></rss>`;
+    const result = await parseRss(xml, 'https://example.com/feed.xml');
+    expect(result!.description).toBe('A **bold** podcast');
+  });
+
+  it('should convert HTML in episode description to markdown', async () => {
+    const xml = `<rss><channel><title>Podcast</title><podcast:guid>g</podcast:guid>
+      <item><title>Ep</title><guid>e1</guid><enclosure url="https://example.com/ep.mp3"/>
+        <description><![CDATA[<p>Visit <a href="https://example.com">us</a></p>]]></description>
+      </item></channel></rss>`;
+    const result = await parseRss(xml, 'https://example.com/feed.xml');
+    expect(result!.episodes[0].description).toBe('Visit [us](https://example.com)');
   });
 });
 
@@ -749,6 +824,131 @@ describe('handleRequest (onRequestGet)', () => {
     });
   });
 
+  describe('handleApplePodcasts', () => {
+    it('routes Apple Podcasts URL through iTunes Lookup and feed handler', async () => {
+      const rssXml = `<rss><channel><title>Apple Pod</title><podcast:guid>ag</podcast:guid>
+        <item><title>Ep1</title><guid>ae1</guid><enclosure url="https://example.com/ae.mp3"/></item>
+      </channel></rss>`;
+
+      const mockFetch = vi.fn().mockImplementation((url: string) => {
+        if (url.includes('itunes.apple.com/lookup')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                resultCount: 1,
+                results: [{ feedUrl: 'https://example.com/apple-feed.xml' }]
+              }),
+              { status: 200 }
+            )
+          );
+        }
+        return Promise.resolve(new Response(rssXml, { status: 200 }));
+      });
+      vi.stubGlobal('fetch', mockFetch);
+
+      const ctx = makeContext(
+        { url: 'https://podcasts.apple.com/us/podcast/my-podcast/id1234567890' },
+        { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
+      );
+      const res = await onRequestGet(ctx);
+      expect(res.status).toBe(200);
+      const body = await parseJson(res);
+      expect(body.type).toBe('feed');
+      expect(body.feed.title).toBe('Apple Pod');
+    });
+
+    it('returns 404 when iTunes lookup has no feedUrl', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValue(
+            new Response(JSON.stringify({ resultCount: 0, results: [{}] }), { status: 200 })
+          )
+      );
+
+      const ctx = makeContext(
+        { url: 'https://podcasts.apple.com/us/podcast/my-podcast/id1234567890' },
+        { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
+      );
+      const res = await onRequestGet(ctx);
+      expect(res.status).toBe(404);
+      const body = await parseJson(res);
+      expect(body.error).toBe('feed_not_found');
+    });
+
+    it('returns 502 when iTunes lookup request fails', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Error', { status: 500 })));
+
+      const ctx = makeContext(
+        { url: 'https://podcasts.apple.com/us/podcast/my-podcast/id1234567890' },
+        { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
+      );
+      const res = await onRequestGet(ctx);
+      expect(res.status).toBe(502);
+      const body = await parseJson(res);
+      expect(body.error).toBe('apple_lookup_failed');
+    });
+
+    it('returns 502 when iTunes lookup throws', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network')));
+
+      const ctx = makeContext(
+        { url: 'https://podcasts.apple.com/us/podcast/my-podcast/id1234567890' },
+        { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
+      );
+      const res = await onRequestGet(ctx);
+      expect(res.status).toBe(502);
+      const body = await parseJson(res);
+      expect(body.error).toBe('apple_lookup_failed');
+    });
+  });
+
+  describe('handleFeedUrl feed description in response', () => {
+    it('includes feed description in response body', async () => {
+      const rssXml = `<rss><channel><title>Pod</title><podcast:guid>g</podcast:guid>
+        <description>My podcast description</description>
+        <item><title>E</title><guid>e</guid><enclosure url="https://example.com/e.mp3"/></item>
+      </channel></rss>`;
+
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(rssXml, { status: 200 })));
+
+      const ctx = makeContext(
+        { url: 'https://example.com/feed.xml' },
+        { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
+      );
+      const res = await onRequestGet(ctx);
+      const body = await parseJson(res);
+      expect(body.feed.description).toBe('My podcast description');
+    });
+
+    it('includes feed description in signed feed event content', async () => {
+      const rssXml = `<rss><channel><title>Pod</title><podcast:guid>g</podcast:guid>
+        <description>My podcast description</description>
+        <item><title>E</title><guid>e</guid><enclosure url="https://example.com/e.mp3"/>
+          <description>Episode desc</description>
+        </item>
+      </channel></rss>`;
+
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(rssXml, { status: 200 })));
+
+      const ctx = makeContext(
+        { url: 'https://example.com/feed.xml' },
+        { SYSTEM_NOSTR_PRIVKEY: TEST_PRIVKEY }
+      );
+      const res = await onRequestGet(ctx);
+      const body = await parseJson(res);
+
+      // First signed event is the feed bookmark
+      const feedEvent = body.signedEvents[0];
+      expect(feedEvent.content).toBe('My podcast description');
+
+      // Second signed event is the episode bookmark
+      const episodeEvent = body.signedEvents[1];
+      expect(episodeEvent.content).toBe('Episode desc');
+    });
+  });
+
   describe('input type routing', () => {
     it('routes .mp3 to audio handler', async () => {
       vi.stubGlobal(
@@ -796,5 +996,73 @@ describe('handleRequest (onRequestGet)', () => {
       const res = await onRequestGet(ctx);
       expect(res.status).toBe(404);
     });
+  });
+});
+
+describe('htmlToMarkdown', () => {
+  it('converts bold to markdown', () => {
+    expect(htmlToMarkdown('<p>Hello <b>world</b></p>')).toBe('Hello **world**');
+  });
+
+  it('converts links to markdown', () => {
+    expect(htmlToMarkdown('<p>Visit <a href="https://example.com">here</a></p>')).toBe(
+      'Visit [here](https://example.com)'
+    );
+  });
+
+  it('converts italic to markdown', () => {
+    expect(htmlToMarkdown('<em>emphasis</em>')).toBe('*emphasis*');
+  });
+
+  it('converts <br> to newline', () => {
+    expect(htmlToMarkdown('Line 1<br>Line 2<br/>Line 3')).toBe('Line 1\nLine 2\nLine 3');
+  });
+
+  it('converts </p> to double newline', () => {
+    expect(htmlToMarkdown('<p>Para 1</p><p>Para 2</p>')).toBe('Para 1\n\nPara 2');
+  });
+
+  it('decodes HTML entities in plain text', () => {
+    expect(htmlToMarkdown('Tom &amp; Jerry')).toBe('Tom & Jerry');
+  });
+
+  it('preserves links in CDATA-extracted HTML', () => {
+    expect(htmlToMarkdown('<p>Episode about <a href="https://example.com">topic</a></p>')).toBe(
+      'Episode about [topic](https://example.com)'
+    );
+  });
+
+  it('handles XML-escaped HTML (double-encoded)', () => {
+    expect(htmlToMarkdown('&lt;p&gt;Hello &lt;b&gt;world&lt;/b&gt;&lt;/p&gt;')).toBe(
+      'Hello **world**'
+    );
+  });
+
+  it('handles mixed CDATA content and XML-escaped HTML', () => {
+    expect(htmlToMarkdown('<p>Normal</p>&lt;p&gt;escaped&lt;/p&gt;')).toBe('Normal\n\nescaped');
+  });
+
+  it('collapses excessive newlines', () => {
+    expect(htmlToMarkdown('<p>A</p><p></p><p>B</p>')).toBe('A\n\nB');
+  });
+
+  it('returns empty string for empty input', () => {
+    expect(htmlToMarkdown('')).toBe('');
+  });
+
+  it('returns plain text unchanged', () => {
+    expect(htmlToMarkdown('Just plain text')).toBe('Just plain text');
+  });
+
+  it('strips residual CDATA markers', () => {
+    expect(htmlToMarkdown('<![CDATA[<p>content</p>]]>')).toBe('content');
+  });
+
+  it('strips ]]> without matching <![CDATA[', () => {
+    expect(htmlToMarkdown('text]]> more')).toBe('text more');
+  });
+
+  it('converts list items', () => {
+    expect(htmlToMarkdown('<ul><li>One</li><li>Two</li></ul>')).toBe('- One\n- Two');
   });
 });

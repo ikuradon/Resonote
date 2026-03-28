@@ -102,6 +102,8 @@ test.describe('Locale matrix — English', () => {
     await page.waitForLoadState('networkidle');
     await switchToEnglish(page);
 
+    // Share button is in the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
     await page.getByRole('button', { name: /Share/i }).click();
     await expect(page.getByText('Copy link').first()).toBeVisible({ timeout: 5_000 });
   });
@@ -156,6 +158,8 @@ test.describe('Locale matrix — Japanese', () => {
     await page.waitForLoadState('networkidle');
     await switchToJapanese(page);
 
+    // Share button is in the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
     await page.getByRole('button', { name: /共有/i }).click();
     await expect(page.getByText('リンクをコピー').first()).toBeVisible({ timeout: 5_000 });
   });
@@ -194,9 +198,11 @@ test.describe('Locale matrix — Japanese', () => {
     await simulateLogin(page);
     await switchToJapanese(page);
 
-    await expect(page.getByRole('button', { name: 'すべて' }).first()).toBeVisible({
-      timeout: 10_000
-    });
-    await expect(page.getByRole('button', { name: 'フォロー' }).first()).toBeVisible();
+    // Filter bar is now a <select> dropdown with Japanese option labels
+    const filterSelect = page.locator('select').first();
+    await expect(filterSelect).toBeVisible({ timeout: 10_000 });
+    // Verify options include Japanese translations
+    await expect(filterSelect.locator('option[value="all"]')).toHaveText('すべて');
+    await expect(filterSelect.locator('option[value="follows"]')).toHaveText('フォロー');
   });
 });

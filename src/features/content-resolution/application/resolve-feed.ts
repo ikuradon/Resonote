@@ -17,6 +17,7 @@ export interface FeedEpisode {
 export interface FeedResolveResult {
   title: string;
   imageUrl: string;
+  description: string;
   episodes: FeedEpisode[];
   error?: string;
 }
@@ -25,7 +26,7 @@ export async function resolvePodcastFeed(feedUrl: string): Promise<FeedResolveRe
   const data = await resolveByApi(feedUrl);
 
   if (data.error) {
-    return { title: '', imageUrl: '', episodes: [], error: data.error };
+    return { title: '', imageUrl: '', description: '', episodes: [], error: data.error };
   }
 
   // Publish signed bookmark events internally
@@ -36,6 +37,7 @@ export async function resolvePodcastFeed(feedUrl: string): Promise<FeedResolveRe
   return {
     title: data.feed?.title ?? '',
     imageUrl: data.feed?.imageUrl ?? '',
+    description: data.feed?.description ?? '',
     episodes: data.episodes ?? []
   };
 }

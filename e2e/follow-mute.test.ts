@@ -156,10 +156,23 @@ test.describe('Mute from comment card', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Mutable comment').first()).toBeVisible({ timeout: 15_000 });
 
-    const muteBtn = page.locator('button[title="Mute user"]').first();
+    // Mute is in the More actions menu
+    const commentEl = page.locator('article, div').filter({ hasText: 'Mutable comment' }).first();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
+
+    const muteBtn = page.getByRole('button', { name: /Mute User|Mute user/i }).first();
     await expect(muteBtn).toBeVisible({ timeout: 5_000 });
+
+    // Close menu
+    await page.keyboard.press('Escape');
   });
 
   test('should not show mute button on own comment', async ({ page }) => {
@@ -169,9 +182,27 @@ test.describe('Mute from comment card', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Own comment no mute').first()).toBeVisible({ timeout: 15_000 });
 
-    await expect(page.locator('button[title="Mute user"]')).toHaveCount(0);
+    // Open More actions menu on own comment
+    const commentEl = page
+      .locator('article, div')
+      .filter({ hasText: 'Own comment no mute' })
+      .first();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
+
+    // Mute User button should not exist for own comment
+    const muteButtons = page.getByRole('button', { name: /Mute User|Mute user/i });
+    await expect(muteButtons).toHaveCount(0);
+
+    // Close menu
+    await page.keyboard.press('Escape');
   });
 
   test('should not show mute button when not logged in', async ({ page }) => {
@@ -180,9 +211,14 @@ test.describe('Mute from comment card', () => {
     await page.waitForLoadState('networkidle');
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('No auth mute').first()).toBeVisible({ timeout: 15_000 });
 
-    await expect(page.locator('button[title="Mute user"]')).toHaveCount(0);
+    // When not logged in, More actions menu is still present but Mute is not shown
+    // Check there's no Mute User button visible anywhere
+    await expect(page.getByRole('button', { name: /Mute User|Mute user/i })).toHaveCount(0);
   });
 
   test('should show confirm dialog when mute clicked', async ({ page }) => {
@@ -192,9 +228,18 @@ test.describe('Mute from comment card', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Mute dialog test').first()).toBeVisible({ timeout: 15_000 });
 
-    const muteBtn = page.locator('button[title="Mute user"]').first();
+    // Mute is in the More actions menu
+    const commentEl = page.locator('article, div').filter({ hasText: 'Mute dialog test' }).first();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
+    const muteBtn = page.getByRole('button', { name: /Mute User|Mute user/i }).first();
     await muteBtn.click();
 
     // Confirm dialog should appear with mute message
@@ -210,9 +255,18 @@ test.describe('Mute from comment card', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Mute publish test').first()).toBeVisible({ timeout: 15_000 });
 
-    const muteBtn = page.locator('button[title="Mute user"]').first();
+    // Mute is in the More actions menu
+    const commentEl = page.locator('article, div').filter({ hasText: 'Mute publish test' }).first();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
+    const muteBtn = page.getByRole('button', { name: /Mute User|Mute user/i }).first();
     await muteBtn.click();
 
     // Click confirm button in dialog
@@ -235,9 +289,21 @@ test.describe('Mute from comment card', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Will be muted comment').first()).toBeVisible({ timeout: 15_000 });
 
-    const muteBtn = page.locator('button[title="Mute user"]').first();
+    // Mute is in the More actions menu
+    const commentEl = page
+      .locator('article, div')
+      .filter({ hasText: 'Will be muted comment' })
+      .first();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
+    const muteBtn = page.getByRole('button', { name: /Mute User|Mute user/i }).first();
     await muteBtn.click();
 
     const confirmBtn = page.getByRole('button', { name: /Confirm|確認/i }).last();

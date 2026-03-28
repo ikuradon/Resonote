@@ -59,6 +59,12 @@
       platform: 'Podcast EP',
       label: '当たり前かのように配信を始めたふたり',
       url: 'https://op3.dev/e/dts.podtrac.com/redirect.mp3/media-cdn.uncrop.jp/uncrop-jp/production/media/audio-348cbbc4e1841a4cbc517dd4dace84ba.mp3'
+    },
+    {
+      icon: '🍎',
+      platform: 'Apple Podcasts',
+      label: 'NHKラジオニュース',
+      url: 'https://podcasts.apple.com/jp/podcast/nhk%E3%83%A9%E3%82%B8%E3%82%AA%E3%83%8B%E3%83%A5%E3%83%BC%E3%82%B9/id400203229'
     }
   ].sort(() => Math.random() - 0.5);
 

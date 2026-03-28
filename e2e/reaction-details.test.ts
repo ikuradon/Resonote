@@ -38,6 +38,9 @@ test.describe('Reaction details', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Self react test').first()).toBeVisible({ timeout: 15_000 });
 
     const likeButton = page.locator(`button[title="Like"]`).first();
@@ -55,6 +58,9 @@ test.describe('Reaction details', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     await expect(page.getByText('Reaction fail test').first()).toBeVisible({ timeout: 15_000 });
 
@@ -82,6 +88,9 @@ test.describe('Reaction details', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Disable during send').first()).toBeVisible({ timeout: 15_000 });
 
     const likeButton = page.locator('button[title="Like"]').first();
@@ -98,6 +107,9 @@ test.describe('Reaction details', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     await expect(page.getByText('Filled heart test').first()).toBeVisible({ timeout: 15_000 });
 
@@ -121,6 +133,9 @@ test.describe('Reaction details', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment, reaction1, reaction2]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Multi emoji test').first()).toBeVisible({ timeout: 15_000 });
 
     // Both emojis should be displayed
@@ -138,6 +153,9 @@ test.describe('Reaction details', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment, reaction1, reaction2]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Count emoji test').first()).toBeVisible({ timeout: 15_000 });
     // Should show 🔥 with count 2
     await expect(page.getByText('🔥').first()).toBeVisible({ timeout: 10_000 });
@@ -152,6 +170,9 @@ test.describe('Reaction details', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     await expect(page.getByText('Zero count test').first()).toBeVisible({ timeout: 15_000 });
 
@@ -169,6 +190,9 @@ test.describe('Reaction details', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Emoji picker test').first()).toBeVisible({ timeout: 15_000 });
 
     // Emoji button should be visible
@@ -182,6 +206,9 @@ test.describe('Reaction details', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     await expect(page.getByText('Picker toggle test').first()).toBeVisible({ timeout: 15_000 });
 
@@ -203,6 +230,9 @@ test.describe('Reaction details', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     await expect(page.getByText('Custom emoji test').first()).toBeVisible({ timeout: 15_000 });
 
@@ -237,11 +267,15 @@ test.describe('Reaction details', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment, reaction1, reaction2]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Existing likes test').first()).toBeVisible({ timeout: 15_000 });
 
     // Like count should show 2 (since user already reacted, button shows "Liked")
     const likedButton = page.locator('button[title="Liked"]').first();
     await expect(likedButton).toBeVisible({ timeout: 10_000 });
-    await expect(likedButton.locator('.font-mono')).toHaveText('2');
+    // In Shout tab the count is plain inline text inside the button (not in a .font-mono span)
+    await expect(likedButton).toContainText('2');
   });
 });

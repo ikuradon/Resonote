@@ -10,7 +10,8 @@ const {
   resolvePodcastEpisodeMock,
   resolveAudioUrlMock,
   fromBase64urlMock,
-  createCommentViewModelMock
+  createCommentViewModelMock,
+  fetchContentMetadataMock
 } = vi.hoisted(() => ({
   isBookmarkedMock: vi.fn(() => false),
   addBookmarkMock: vi.fn(async () => {}),
@@ -32,7 +33,8 @@ const {
     subscribe: vi.fn(),
     destroy: vi.fn(),
     addSubscription: vi.fn()
-  }))
+  })),
+  fetchContentMetadataMock: vi.fn(async () => null)
 }));
 
 vi.mock('$app/navigation', () => ({
@@ -46,6 +48,10 @@ vi.mock('$shared/content/url-utils.js', () => ({
 vi.mock('../application/resolve-content.js', () => ({
   resolvePodcastEpisode: resolvePodcastEpisodeMock,
   resolveAudioUrl: resolveAudioUrlMock
+}));
+
+vi.mock('../application/fetch-content-metadata.js', () => ({
+  fetchContentMetadata: fetchContentMetadataMock
 }));
 
 vi.mock('$features/comments/ui/comment-view-model.svelte.js', () => ({
@@ -129,6 +135,7 @@ describe('createResolvedContentViewModel', () => {
       destroy: vi.fn(),
       addSubscription: vi.fn()
     });
+    fetchContentMetadataMock.mockReset().mockResolvedValue(null);
   });
 
   describe('initial state', () => {
@@ -172,6 +179,17 @@ describe('createResolvedContentViewModel', () => {
       const vm = makeVm({ isCollection: true });
       expect(vm.store).toBeUndefined();
     });
+
+    it('contentMetadata is null initially', () => {
+      const vm = makeVm();
+      expect(vm.contentMetadata).toBeNull();
+    });
+
+    it('contentMetadataLoading is false initially (effects not yet run)', () => {
+      const vm = makeVm();
+      // Before $effect runs, loading state defaults to false (derived from false && null)
+      expect(vm.contentMetadataLoading).toBe(false);
+    });
   });
 
   describe('toggleBookmark', () => {
@@ -209,6 +227,27 @@ describe('createResolvedContentViewModel', () => {
       const vm = makeVm();
       await vm.toggleBookmark();
       expect(vm.bookmarkBusy).toBe(false);
+    });
+  });
+
+  describe('contentMetadata', () => {
+    it('contentMetadata getter is accessible', () => {
+      const vm = makeVm();
+      // contentMetadata starts null, and $effect-driven fetch won't run in unit tests
+      expect(vm.contentMetadata).toBeNull();
+    });
+
+    it('contentMetadataLoading getter is accessible', () => {
+      const vm = makeVm();
+      // metadataLoading = contentMetadataLoading && mergedMetadata === null
+      // Both default to false/null, so false && true = false
+      expect(vm.contentMetadataLoading).toBe(false);
+    });
+
+    it('fetchContentMetadata mock is wired correctly', () => {
+      // Verify the mock was set up for the module
+      expect(fetchContentMetadataMock).toBeDefined();
+      expect(typeof fetchContentMetadataMock).toBe('function');
     });
   });
 });

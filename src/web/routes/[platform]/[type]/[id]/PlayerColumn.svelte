@@ -1,7 +1,6 @@
 <script lang="ts">
   import { createPlayerColumnViewModel } from '$features/content-resolution/ui/player-column-view-model.svelte.js';
   import AudioEmbed from '$lib/components/AudioEmbed.svelte';
-  import EpisodeDescription from '$lib/components/EpisodeDescription.svelte';
   import PodcastEpisodeList from '$lib/components/PodcastEpisodeList.svelte';
   import YouTubeFeedList from '$lib/components/YouTubeFeedList.svelte';
   import type { ContentId, ContentProvider } from '$shared/content/types.js';
@@ -14,7 +13,7 @@
     episodeTitle?: string;
     episodeFeedTitle?: string;
     episodeImage?: string;
-    episodeDescription?: string;
+    onFeedLoaded?: (info: { title: string; imageUrl: string; description: string }) => void;
   }
 
   let {
@@ -24,7 +23,7 @@
     episodeTitle,
     episodeFeedTitle,
     episodeImage,
-    episodeDescription
+    onFeedLoaded
   }: Props = $props();
   const vm = createPlayerColumnViewModel({
     getContentId: () => contentId,
@@ -42,7 +41,7 @@
   class="md:sticky md:top-[var(--header-height)] md:max-h-[calc(100vh-var(--header-height)-2rem)] md:overflow-y-auto md:scrollbar-hide"
 >
   {#if vm.surfaceKind === 'podcast-feed'}
-    <PodcastEpisodeList {contentId} />
+    <PodcastEpisodeList {contentId} {onFeedLoaded} />
   {:else if vm.surfaceKind === 'youtube-feed'}
     <YouTubeFeedList {contentId} />
   {:else if vm.surfaceKind === 'audio'}
@@ -54,11 +53,6 @@
       image={episodeImage}
       openUrl={vm.openUrl}
     />
-    {#if episodeDescription}
-      <div class="mt-3">
-        <EpisodeDescription description={episodeDescription} />
-      </div>
-    {/if}
   {:else if vm.surfaceKind === 'embed' && vm.embedLoader}
     {#await vm.embedLoader()}
       {@render embedLoading()}

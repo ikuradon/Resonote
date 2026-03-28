@@ -22,6 +22,7 @@
 
 <script lang="ts">
   import { createAsyncReadyTimeout } from '$shared/browser/async-ready-timeout.js';
+  import { onTogglePlayback } from '$shared/browser/playback-bridge.js';
   import { updatePlayback } from '$shared/browser/player.js';
   import { onSeek } from '$shared/browser/seek-bridge.js';
   import type { ContentId } from '$shared/content/types.js';
@@ -76,11 +77,16 @@
     const uri = spotifyUri(contentId);
 
     const cleanupSeek = onSeek(handleSeek);
+    const cleanupToggle = onTogglePlayback(() => {
+      if (!controller) return;
+      controller.togglePlay();
+    });
 
     if (controller) {
       controller.loadUri(uri);
       return () => {
         cleanupSeek();
+        cleanupToggle();
       };
     }
 
@@ -112,6 +118,7 @@
       cancelled = true;
       readyTimeout.cancel();
       cleanupSeek();
+      cleanupToggle();
       controller?.destroy();
       controller = undefined;
       ready = false;

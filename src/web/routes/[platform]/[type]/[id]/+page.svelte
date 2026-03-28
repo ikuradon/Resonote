@@ -2,10 +2,8 @@
   import { page } from '$app/state';
   import { createPlayerColumnViewModel } from '$features/content-resolution/ui/player-column-view-model.svelte.js';
   import { createResolvedContentViewModel } from '$features/content-resolution/ui/resolved-content-view-model.svelte.js';
-  import CommentForm from '$lib/components/CommentForm.svelte';
+  import CommentInfoTab from '$lib/components/CommentInfoTab.svelte';
   import CommentList from '$lib/components/CommentList.svelte';
-  import ShareButton from '$lib/components/ShareButton.svelte';
-  import { getAuth } from '$shared/browser/auth.js';
   import { getPlayer, requestSeek } from '$shared/browser/player.js';
   import { getProvider } from '$shared/content/registry.js';
   import type { ContentId } from '$shared/content/types.js';
@@ -26,6 +24,9 @@
     platform === 'youtube' && (contentType === 'playlist' || contentType === 'channel')
   );
   let initialTimeSec = $derived(Number(page.url.searchParams.get('t')) || 0);
+  let highlightCommentId = $derived(
+    page.url.hash.startsWith('#comment-') ? page.url.hash.slice('#comment-'.length) : undefined
+  );
 
   // --- View model (single facade for all content page logic) ---
   const vm = createResolvedContentViewModel(
@@ -40,14 +41,23 @@
   );
 
   // --- UI-only state ---
-  const auth = getAuth();
   const isDev = import.meta.env.DEV;
   const player = isDev ? getPlayer() : undefined;
   let devSeekSec = $state(0);
-  let commentFormRef = $state<CommentForm | undefined>();
   let threadPubkeys = $derived(
     vm.store ? [...new Set(vm.store.comments.map((c) => c.pubkey))] : []
   );
+  // --- Feed metadata (for podcast feed info display) ---
+  let feedMetadata = $state<{
+    title: string;
+    imageUrl: string;
+    description: string;
+  } | null>(null);
+
+  function handleFeedLoaded(info: { title: string; imageUrl: string; description: string }) {
+    feedMetadata = info;
+  }
+
   const collectionVm = createPlayerColumnViewModel({
     getContentId: () => contentId,
     getProvider: () => provider!
@@ -133,12 +143,30 @@
           episodeTitle={vm.episodeTitle}
           episodeFeedTitle={vm.episodeFeedTitle}
           episodeImage={vm.episodeImage}
-          episodeDescription={vm.episodeDescription}
+          onFeedLoaded={handleFeedLoaded}
         />
       </div>
 
       <div class="mt-6 min-w-0 flex-1 md:mt-0">
-        {#if isFeed || isYouTubeFeed}
+        {#if isFeed}
+          <section class="animate-slide-up stagger-2 space-y-5">
+            <CommentInfoTab
+              metadata={feedMetadata
+                ? {
+                    title: feedMetadata.title,
+                    subtitle: null,
+                    thumbnailUrl: feedMetadata.imageUrl || null,
+                    description: feedMetadata.description || null
+                  }
+                : null}
+              metadataLoading={!feedMetadata}
+              openUrl={provider.openUrl(contentId)}
+            />
+            <p data-testid="feed-comment-hint" class="py-4 text-center text-sm text-text-muted">
+              {t('comment.feed.select_episode')}
+            </p>
+          </section>
+        {:else if isYouTubeFeed}
           <section class="animate-slide-up stagger-2 space-y-5">
             <div class="flex items-center gap-3">
               <h2 class="font-display text-lg font-semibold text-text-primary">
@@ -147,7 +175,7 @@
               <div class="h-px flex-1 bg-border-subtle"></div>
             </div>
             <p data-testid="feed-comment-hint" class="py-8 text-center text-sm text-text-muted">
-              {isFeed ? t('comment.feed.select_episode') : t('youtube.feed.select_video')}
+              {t('youtube.feed.select_video')}
             </p>
           </section>
         {:else}
@@ -157,22 +185,6 @@
                 {t('comment.heading')}
               </h2>
               <div class="h-px flex-1 bg-border-subtle"></div>
-              <ShareButton {contentId} {provider} />
-              {#if auth.loggedIn}
-                <button
-                  type="button"
-                  onclick={vm.toggleBookmark}
-                  disabled={vm.bookmarkBusy}
-                  class="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 disabled:opacity-50
-                    {vm.bookmarked
-                    ? 'bg-accent/10 text-accent hover:bg-accent/20'
-                    : 'bg-surface-2 text-text-secondary hover:bg-surface-3 hover:text-text-primary'}"
-                  title={vm.bookmarked ? t('bookmark.remove') : t('bookmark.add')}
-                >
-                  {vm.bookmarked ? '\u2605' : '\u2606'}
-                  {vm.bookmarked ? t('bookmark.remove') : t('bookmark.add')}
-                </button>
-              {/if}
             </div>
             {#if isDev && player}
               <div
@@ -214,7 +226,6 @@
                 </div>
               </div>
             {/if}
-            <CommentForm bind:this={commentFormRef} {contentId} {provider} {threadPubkeys} />
             {#if vm.store}
               <CommentList
                 comments={vm.store.comments}
@@ -222,9 +233,16 @@
                 loading={vm.store.loading}
                 {contentId}
                 {provider}
+                {threadPubkeys}
                 getPlaceholders={() => vm.store!.placeholders}
                 fetchOrphanParent={vm.store.fetchOrphanParent}
-                onQuote={(comment) => commentFormRef?.insertQuote(comment.id, comment.pubkey)}
+                bookmarked={vm.bookmarked}
+                bookmarkBusy={vm.bookmarkBusy}
+                onToggleBookmark={vm.toggleBookmark}
+                openUrl={provider.openUrl(contentId)}
+                {highlightCommentId}
+                contentMetadata={vm.contentMetadata}
+                contentMetadataLoading={vm.contentMetadataLoading}
               />
             {/if}
           </section>

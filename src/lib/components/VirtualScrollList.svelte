@@ -27,50 +27,42 @@
   // --- Prefix sum (cumulative offset array) ---
   // offsets[i] = sum of heights for items[0..i)
   // offsets[items.length] = totalHeight
-  // Rebuilt when items change; partially updated when heights change.
   const heightCache = new Map<string, number>();
-  let offsets = $state<number[]>([0]);
   let offsetVersion = $state(0);
 
   // Adaptive estimate: running average of measured heights.
-  // Snapshotted at rebuild time so offsets stay stable between rebuilds.
   let measuredSum = 0;
   let measuredCount = 0;
-  let frozenEstimate = 0;
 
-  function heightOf(key: string): number {
-    return heightCache.get(key) ?? frozenEstimate;
+  function currentEstimate(): number {
+    return measuredCount > 0 ? Math.round(measuredSum / measuredCount) : estimateHeight;
   }
 
-  // Rebuild offsets from scratch (called when items array changes).
-  // Snapshots the adaptive estimate so partial updates stay consistent.
-  function rebuildOffsets() {
-    frozenEstimate = measuredCount > 0 ? Math.round(measuredSum / measuredCount) : estimateHeight;
+  function heightOf(key: string, estimate: number): number {
+    return heightCache.get(key) ?? estimate;
+  }
+
+  // Offsets as $derived — always in sync with items (no $effect lag).
+  let offsets = $derived.by(() => {
+    void offsetVersion; // re-derive when heights are measured
+    const estimate = currentEstimate();
     const arr = new Array(items.length + 1);
     arr[0] = 0;
     for (let i = 0; i < items.length; i++) {
-      arr[i + 1] = arr[i] + heightOf(keyFn(items[i]));
+      arr[i + 1] = arr[i] + heightOf(keyFn(items[i]), estimate);
     }
-    offsets = arr;
-    offsetVersion++;
-  }
+    return arr;
+  });
 
   // Partial update: recompute offsets from index k onward.
-  // Uses frozenEstimate (set at last rebuild) for unmeasured items.
-  function updateOffsetsFrom(k: number) {
-    const start = Math.max(k, 0);
-    if (start >= items.length) return;
-    const arr = offsets.slice();
-    for (let i = start; i < items.length; i++) {
-      arr[i + 1] = arr[i] + heightOf(keyFn(items[i]));
-    }
-    offsets = arr;
+  // Bumps offsetVersion to trigger offsets re-derivation.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for API compatibility
+  function updateOffsetsFrom(_k: number) {
     offsetVersion++;
   }
 
   // Binary search: find largest i where offsets[i] <= target
   function findIndexForOffset(target: number): number {
-    void offsetVersion;
     let lo = 0;
     let hi = items.length;
     while (lo < hi) {
@@ -84,14 +76,21 @@
   // --- Track previous items to detect insertions and adjust scroll ---
   let prevItemKeys: string[] = [];
 
+  // Track item keys for scroll compensation
+  let itemKeys = $derived(items.map(keyFn));
+
+  // Post-DOM effects: sync containerHeight/scrollTop, compensate scroll for insertions
   $effect(() => {
-    const newKeys = items.map(keyFn);
+    const newKeys = itemKeys;
     const oldKeys = prevItemKeys;
 
-    // Rebuild offsets for new items
-    untrack(() => rebuildOffsets());
     // Update containerHeight in case it was 0 at mount time (fixes 0→N transition #153)
-    if (container) containerHeight = container.clientHeight;
+    // Also sync scrollTop — browser clamps it when scrollHeight shrinks (e.g. item deletion),
+    // but our $state doesn't update without a scroll event.
+    if (container) {
+      containerHeight = container.clientHeight;
+      scrollTop = container.scrollTop;
+    }
 
     // Compensate scroll for items inserted above viewport
     if (container && oldKeys.length > 0) {
@@ -102,12 +101,11 @@
         const newIndex = newKeys.indexOf(oldTopKey);
         const oldIndex = oldKeys.indexOf(oldTopKey);
         if (newIndex >= 0 && oldIndex >= 0) {
-          // Use newly rebuilt offsets for new position
           const newOffset = untrack(() => offsets[newIndex]);
-          // Compute old offset manually
+          const est = currentEstimate();
           let oldOffset = 0;
           for (let i = 0; i < oldIndex; i++) {
-            oldOffset += heightOf(oldKeys[i]);
+            oldOffset += heightOf(oldKeys[i], est);
           }
           const delta = newOffset - oldOffset;
           if (Math.abs(delta) > 1) {
@@ -123,7 +121,6 @@
 
   // --- Visible range via binary search ---
   let visibleRange = $derived.by(() => {
-    void offsetVersion;
     if (items.length === 0) return { start: 0, end: -1 };
 
     const startIdx = findIndexForOffset(scrollTop);
@@ -145,15 +142,9 @@
   });
 
   // O(1) lookups via prefix sum
-  let totalHeight = $derived.by(() => {
-    void offsetVersion;
-    return offsets[items.length] ?? 0;
-  });
+  let totalHeight = $derived(offsets[items.length] ?? 0);
 
-  let offsetTop = $derived.by(() => {
-    void offsetVersion;
-    return offsets[visibleRange.start] ?? 0;
-  });
+  let offsetTop = $derived(offsets[visibleRange.start] ?? 0);
 
   let renderedItems = $derived(
     items.length === 0 || visibleRange.end < 0
@@ -183,6 +174,14 @@
   onMount(() => {
     if (container) {
       containerHeight = container.clientHeight;
+      // Re-measure after first paint in case initial clientHeight was 0
+      if (containerHeight === 0) {
+        requestAnimationFrame(() => {
+          if (container && containerHeight === 0) {
+            containerHeight = container.clientHeight;
+          }
+        });
+      }
     }
 
     // Batched resize handling: collect changes and apply in one rAF
@@ -199,6 +198,13 @@
       untrack(() => updateOffsetsFrom(pendingMinChanged));
       pendingScrollDelta = 0;
       pendingMinChanged = items.length;
+
+      // If scrollToEnd is pending, re-scroll after DOM reflects new totalHeight
+      if (pendingScrollToEnd && container) {
+        requestAnimationFrame(() => {
+          container?.scrollTo({ top: container.scrollHeight, behavior: 'instant' });
+        });
+      }
     }
 
     resizeObserver = new ResizeObserver((entries) => {
@@ -219,6 +225,7 @@
         const key = el.dataset.vlKey;
         if (!key) continue;
         const newH = el.getBoundingClientRect().height;
+        if (newH === 0) continue; // Skip zero-height measurements (element not yet laid out)
         const oldH = heightCache.get(key);
         if (oldH !== undefined && Math.abs(oldH - newH) < 0.5) continue;
 
@@ -232,7 +239,7 @@
 
         const itemIndex = keyToIndex.get(key) ?? -1;
         if (itemIndex >= 0 && itemIndex < firstVisible) {
-          pendingScrollDelta += newH - (oldH ?? frozenEstimate);
+          pendingScrollDelta += newH - (oldH ?? currentEstimate());
         }
         if (itemIndex >= 0 && itemIndex < pendingMinChanged) {
           pendingMinChanged = itemIndex;
@@ -279,7 +286,6 @@
     heightCache.clear();
     measuredSum = 0;
     measuredCount = 0;
-    frozenEstimate = 0;
     if (programmaticScrollTimer) clearTimeout(programmaticScrollTimer);
   });
 
@@ -296,6 +302,30 @@
     }, 500);
 
     container.scrollTo({ top: Math.max(0, centered), behavior: 'smooth' });
+  }
+
+  /** Get current scroll position. */
+  export function getScrollTop(): number {
+    return container?.scrollTop ?? 0;
+  }
+
+  /** Get the scroll container element for direct measurement. */
+  export function getContainer(): HTMLDivElement | undefined {
+    return container;
+  }
+
+  let pendingScrollToEnd = false;
+
+  export function scrollToEnd() {
+    if (!container) return;
+    isProgrammaticScroll = true;
+    pendingScrollToEnd = true;
+    if (programmaticScrollTimer) clearTimeout(programmaticScrollTimer);
+    programmaticScrollTimer = setTimeout(() => {
+      isProgrammaticScroll = false;
+      pendingScrollToEnd = false;
+    }, 500);
+    container.scrollTo({ top: container.scrollHeight, behavior: 'instant' });
   }
 
   export function scrollToOffset(offset: number) {

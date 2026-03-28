@@ -14,7 +14,9 @@ import { requestSeek, resetPlayer } from '$shared/browser/player.js';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import { fromBase64url } from '$shared/content/url-utils.js';
 
+import { fetchContentMetadata } from '../application/fetch-content-metadata.js';
 import { resolveAudioUrl, resolvePodcastEpisode } from '../application/resolve-content.js';
+import type { ContentMetadata } from '../domain/content-metadata.js';
 
 type CommentVM = ReturnType<typeof createCommentViewModel>;
 
@@ -47,6 +49,8 @@ export function createResolvedContentViewModel(
   let episodeDescription = $state<string | undefined>();
   let store = $state<CommentVM | undefined>();
   let bookmarkBusy = $state(false);
+  let contentMetadata = $state<ContentMetadata | null>(null);
+  let contentMetadataLoading = $state(false);
   let seekDispatched = false;
 
   // --- Player reset on navigation ---
@@ -156,6 +160,45 @@ export function createResolvedContentViewModel(
     };
   });
 
+  // --- Resolution: oEmbed metadata for embed platforms ---
+  $effect(() => {
+    const cid = getContentId();
+    contentMetadata = null;
+    contentMetadataLoading = true;
+    const signal = { cancelled: false };
+
+    fetchContentMetadata(cid)
+      .then((meta) => {
+        if (signal.cancelled) return;
+        contentMetadata = meta;
+      })
+      .catch(() => {
+        // Silently fail — metadata is non-critical
+      })
+      .finally(() => {
+        if (!signal.cancelled) contentMetadataLoading = false;
+      });
+
+    return () => {
+      signal.cancelled = true;
+    };
+  });
+
+  // --- Merged metadata (podcast/audio episode fields + oEmbed) ---
+  let mergedMetadata = $derived.by<ContentMetadata | null>(() => {
+    if (episodeTitle || episodeDescription) {
+      return {
+        title: episodeTitle ?? null,
+        subtitle: episodeFeedTitle ?? null,
+        thumbnailUrl: episodeImage ?? null,
+        description: episodeDescription ?? null
+      };
+    }
+    return contentMetadata;
+  });
+
+  let metadataLoading = $derived(contentMetadataLoading && mergedMetadata === null);
+
   // --- Bookmark ---
   async function toggleBookmark() {
     const provider = getProvider();
@@ -196,6 +239,12 @@ export function createResolvedContentViewModel(
     },
     get bookmarkBusy() {
       return bookmarkBusy;
+    },
+    get contentMetadata() {
+      return mergedMetadata;
+    },
+    get contentMetadataLoading() {
+      return metadataLoading;
     },
     toggleBookmark
   };

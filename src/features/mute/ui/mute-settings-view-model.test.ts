@@ -7,12 +7,14 @@ const {
   muteWordMock,
   unmuteUserMock,
   unmuteWordMock,
-  getProfileDisplayMock
+  getProfileDisplayMock,
+  authState
 } = vi.hoisted(() => {
   const muteListState = {
     mutedPubkeys: new Set<string>(['pubkey1', 'pubkey2']),
     mutedWords: ['spam', 'bad']
   };
+  const authState = { canWrite: true, loggedIn: true, pubkey: 'test' };
   return {
     getMuteListMock: vi.fn(() => muteListState),
     muteListState,
@@ -24,9 +26,14 @@ const {
       displayName: `User ${pubkey}`,
       profileHref: `/profile/${pubkey}`,
       formattedNip05: null
-    }))
+    })),
+    authState
   };
 });
+
+vi.mock('$shared/browser/auth.js', () => ({
+  getAuth: () => authState
+}));
 
 vi.mock('$shared/browser/mute.js', () => ({
   getMuteList: getMuteListMock,
@@ -55,6 +62,8 @@ describe('createMuteSettingsViewModel', () => {
     muteListState.mutedWords = ['spam', 'bad'];
     getMuteListMock.mockReturnValue(muteListState);
     hasNip44SupportMock.mockReturnValue(true);
+    authState.canWrite = true;
+    authState.loggedIn = true;
     muteWordMock.mockReset();
     unmuteUserMock.mockReset();
     unmuteWordMock.mockReset();
@@ -88,6 +97,27 @@ describe('createMuteSettingsViewModel', () => {
     it('muteList is exposed directly', () => {
       const vm = createMuteSettingsViewModel();
       expect(vm.muteList).toBe(muteListState);
+    });
+
+    it('canEdit is true when canWrite and nip44Supported', () => {
+      authState.canWrite = true;
+      hasNip44SupportMock.mockReturnValue(true);
+      const vm = createMuteSettingsViewModel();
+      expect(vm.canEdit).toBe(true);
+    });
+
+    it('canEdit is false when canWrite is false', () => {
+      authState.canWrite = false;
+      hasNip44SupportMock.mockReturnValue(true);
+      const vm = createMuteSettingsViewModel();
+      expect(vm.canEdit).toBe(false);
+    });
+
+    it('canEdit is false when nip44 not supported', () => {
+      authState.canWrite = true;
+      hasNip44SupportMock.mockReturnValue(false);
+      const vm = createMuteSettingsViewModel();
+      expect(vm.canEdit).toBe(false);
     });
   });
 

@@ -161,30 +161,42 @@ test.describe('Comment form — submit behavior', () => {
   });
 });
 
-test.describe('Comment form — Timed/General toggle', () => {
+test.describe('Comment form — tab-linked type selection', () => {
   test.beforeEach(async ({ page }) => {
     await setupMockPool(page);
     await setupFullLogin(page, user.pubkey, user.sign);
   });
 
-  test('should show General button as selected by default', async ({ page }) => {
+  test('should show Flow tab (timed) as default tab', async ({ page }) => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
-    const generalBtn = page.getByRole('button', { name: /General|全体/i }).first();
-    await expect(generalBtn).toBeVisible({ timeout: 10_000 });
-    // General should have active styling
-    await expect(generalBtn).toHaveClass(/text-accent/, { timeout: 5_000 });
+    // Flow tab (🎶) is the default active tab
+    const flowTab = page.locator('button').filter({ hasText: /🎶/ }).first();
+    await expect(flowTab).toBeVisible({ timeout: 10_000 });
+    await expect(flowTab).toHaveClass(/border-b-2/, { timeout: 5_000 });
   });
 
-  test('should show Timed button', async ({ page }) => {
+  test('should show Shout tab (general)', async ({ page }) => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
-    const timedBtn = page.getByRole('button', { name: /Timed|時間/i }).first();
-    await expect(timedBtn).toBeVisible({ timeout: 10_000 });
+    const shoutTab = page.locator('button').filter({ hasText: /📢/ }).first();
+    await expect(shoutTab).toBeVisible({ timeout: 10_000 });
+  });
+
+  test('should switch to Shout tab and show comment form', async ({ page }) => {
+    await page.goto(TEST_TRACK_URL);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    const shoutTab = page.locator('button').filter({ hasText: /📢/ }).first();
+    await shoutTab.click();
+
+    // Comment form should still be visible on Shout tab
+    await expect(page.locator('[data-testid="comment-form"]')).toBeVisible({ timeout: 10_000 });
   });
 });
 
@@ -263,6 +275,9 @@ test.describe('Comment form — hashtag and mention content', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    // Switch to Shout tab to post a general comment
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
     await textarea.fill('Great track! #NowPlaying #Music');
@@ -280,6 +295,9 @@ test.describe('Comment form — hashtag and mention content', () => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+
+    // Switch to Shout tab to post a general comment
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
@@ -344,6 +362,9 @@ test.describe('Comment form — receiving comments while editing', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    // Switch to Shout tab to see general comments
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
     await textarea.fill('My draft comment');
@@ -352,7 +373,7 @@ test.describe('Comment form — receiving comments while editing', () => {
     const incomingComment = buildComment(otherUser, 'Interrupting!', TEST_I_TAG, TEST_K_TAG);
     await broadcastEventsOnAllRelays(page, [incomingComment]);
 
-    // Verify the incoming comment appeared
+    // Verify the incoming comment appeared (in Shout tab)
     await expect(page.getByText('Interrupting!').first()).toBeVisible({ timeout: 15_000 });
 
     // Our draft should still be intact

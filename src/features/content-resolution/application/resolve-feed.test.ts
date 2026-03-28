@@ -25,7 +25,13 @@ describe('resolvePodcastFeed', () => {
   it('returns error result when resolveByApi returns error', async () => {
     resolveByApiMock.mockResolvedValue({ error: 'Feed not found' });
     const result = await resolvePodcastFeed(FEED_URL);
-    expect(result).toEqual({ title: '', imageUrl: '', episodes: [], error: 'Feed not found' });
+    expect(result).toEqual({
+      title: '',
+      imageUrl: '',
+      description: '',
+      episodes: [],
+      error: 'Feed not found'
+    });
   });
 
   it('returns feed data on success', async () => {

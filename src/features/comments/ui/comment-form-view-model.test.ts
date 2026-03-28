@@ -102,9 +102,9 @@ describe('createCommentFormViewModel', () => {
       expect(vm.positionLabel).toBeNull();
     });
 
-    it('should show timed placeholder when position is attached', () => {
+    it('should show flow placeholder when activeTab is flow (default)', () => {
       const vm = makeVm();
-      expect(vm.placeholder).toBe('comment.placeholder.timed');
+      expect(vm.placeholder).toBe('comment.placeholder.flow');
     });
 
     it('should show cwEnabled=false and cwReason="" initially', () => {
@@ -114,31 +114,53 @@ describe('createCommentFormViewModel', () => {
     });
   });
 
-  describe('selectTimedComment / selectGeneralComment', () => {
-    it('selectGeneralComment sets effectiveAttach to false', () => {
-      const vm = makeVm();
-      vm.selectGeneralComment();
-      expect(vm.effectiveAttach).toBe(false);
-    });
-
-    it('selectGeneralComment changes placeholder to general', () => {
-      const vm = makeVm();
-      vm.selectGeneralComment();
-      expect(vm.placeholder).toBe('comment.placeholder.general');
-    });
-
-    it('selectTimedComment restores effectiveAttach to true when position > 0', () => {
-      const vm = makeVm();
-      vm.selectGeneralComment();
-      vm.selectTimedComment();
+  describe('activeTab-linked effectiveAttach and placeholder', () => {
+    it('effectiveAttach is true when activeTab=flow and position > 0', () => {
+      playerState.position = 10_000;
+      const vm = createCommentFormViewModel({
+        getContentId: () => contentId,
+        getProvider: () => provider,
+        getActiveTab: () => 'flow'
+      });
       expect(vm.effectiveAttach).toBe(true);
     });
 
-    it('effectiveAttach stays false even after selectTimedComment when position=0', () => {
-      playerState.position = 0;
-      const vm = makeVm();
-      vm.selectTimedComment();
+    it('effectiveAttach is false when activeTab=shout even with position > 0', () => {
+      playerState.position = 10_000;
+      const vm = createCommentFormViewModel({
+        getContentId: () => contentId,
+        getProvider: () => provider,
+        getActiveTab: () => 'shout'
+      });
       expect(vm.effectiveAttach).toBe(false);
+    });
+
+    it('effectiveAttach is false when activeTab=flow but position=0', () => {
+      playerState.position = 0;
+      const vm = createCommentFormViewModel({
+        getContentId: () => contentId,
+        getProvider: () => provider,
+        getActiveTab: () => 'flow'
+      });
+      expect(vm.effectiveAttach).toBe(false);
+    });
+
+    it('placeholder is flow when activeTab=flow', () => {
+      const vm = createCommentFormViewModel({
+        getContentId: () => contentId,
+        getProvider: () => provider,
+        getActiveTab: () => 'flow'
+      });
+      expect(vm.placeholder).toBe('comment.placeholder.flow');
+    });
+
+    it('placeholder is shout when activeTab=shout', () => {
+      const vm = createCommentFormViewModel({
+        getContentId: () => contentId,
+        getProvider: () => provider,
+        getActiveTab: () => 'shout'
+      });
+      expect(vm.placeholder).toBe('comment.placeholder.shout');
     });
   });
 
@@ -205,9 +227,12 @@ describe('createCommentFormViewModel', () => {
       );
     });
 
-    it('calls sendComment with positionMs=undefined when effectiveAttach=false', async () => {
-      const vm = makeVm();
-      vm.selectGeneralComment();
+    it('calls sendComment with positionMs=undefined when activeTab=shout', async () => {
+      const vm = createCommentFormViewModel({
+        getContentId: () => contentId,
+        getProvider: () => provider,
+        getActiveTab: () => 'shout'
+      });
       vm.content = 'general comment';
 
       const submitPromise = vm.submit();

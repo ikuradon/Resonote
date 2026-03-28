@@ -75,7 +75,7 @@ describe('resolveNip19Navigation', () => {
 
     await expect(resolveNip19Navigation('note1example')).resolves.toEqual({
       kind: 'redirect',
-      path: '/spotify/track/abc123'
+      path: '/spotify/track/abc123#comment-event-id'
     });
   });
 

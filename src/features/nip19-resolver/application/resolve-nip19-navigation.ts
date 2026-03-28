@@ -66,7 +66,7 @@ export async function resolveNip19Navigation(value: string): Promise<ResolveNip1
         if (contentPath) {
           return {
             kind: 'redirect',
-            path: contentPath
+            path: `${contentPath}#comment-${decoded.eventId}`
           };
         }
 

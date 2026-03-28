@@ -44,7 +44,8 @@ test.describe('User journeys', () => {
     await page.locator('button[type="submit"]').click();
     await expect(textarea).toHaveValue('', { timeout: 10_000 });
 
-    // 5. Open share menu
+    // 5. Open share menu (share button is inside the Info tab)
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
     const shareButton = page.getByRole('button', { name: /Share|共有/i });
     await shareButton.click();
     await expect(page.getByText(/Copy link|リンクをコピー/).first()).toBeVisible({
@@ -60,6 +61,9 @@ test.describe('User journeys', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    // Switch to Shout tab to post general comment
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     // 1. Post comment
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
@@ -70,13 +74,16 @@ test.describe('User journeys', () => {
       timeout: 15_000
     });
 
-    // 2. Delete the comment
-    const deleteButton = page
+    // 2. Delete the comment via More actions menu
+    const commentEl = page
       .locator('article, div')
       .filter({ hasText: 'Lifecycle test comment' })
-      .first()
-      .getByRole('button', { name: /Delete|削除/i })
       .first();
+    await commentEl
+      .getByRole('button', { name: /More actions/i })
+      .first()
+      .click();
+    const deleteButton = page.getByRole('button', { name: /Delete|削除/i }).first();
     await deleteButton.click();
 
     const confirmButton = page.getByRole('button', { name: /^Delete$|^削除$/ }).last();
@@ -97,6 +104,9 @@ test.describe('User journeys', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     // Wait for comment to appear
     await expect(page.getByText('Social flow comment').first()).toBeVisible({ timeout: 15_000 });
@@ -186,6 +196,9 @@ test.describe('User journeys', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [cwComment]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     // 1. CW visible, content hidden
     await expect(page.getByText('mystery novel spoiler').first()).toBeVisible({ timeout: 15_000 });

@@ -150,8 +150,13 @@ jobs:
           retention-days: 7
 
   e2e:
-    name: E2E Test
+    name: E2E Test (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2, 3, 4]
+        shardTotal: [4]
     steps:
       - uses: actions/checkout@v6
 
@@ -181,14 +186,17 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
 
+      - name: Build E2E helpers
+        run: pnpm build:e2e-helpers
+
       - name: E2E tests
-        run: pnpm test:e2e
+        run: pnpm exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
       - name: Upload test results
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shardIndex }}
           path: playwright-report/
           retention-days: 7
 

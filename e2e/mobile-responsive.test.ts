@@ -105,10 +105,13 @@ test.describe('Mobile content page', () => {
     await expect(textarea).toHaveValue('', { timeout: 10_000 });
   });
 
-  test('should show share button on mobile', async ({ page }) => {
+  test('should show share button in Info tab on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
+
+    // Share button is inside the Info tab
+    await page.locator('button').filter({ hasText: /ℹ️/ }).first().click();
 
     await expect(page.getByRole('button', { name: /Share|共有/i })).toBeVisible({
       timeout: 10_000

@@ -35,6 +35,9 @@ test.describe('Comment filter — All', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [commentA, commentB]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Alice all-filter comment').first()).toBeVisible({
       timeout: 15_000
     });
@@ -42,9 +45,9 @@ test.describe('Comment filter — All', () => {
       timeout: 15_000
     });
 
-    // "All" filter should be active by default
-    const allButton = page.getByRole('button', { name: /^All$|^すべて$/ }).first();
-    await expect(allButton).toHaveClass(/shadow-sm/, { timeout: 5_000 });
+    // "All" filter should be selected by default in the dropdown
+    const filterSelect = page.locator('select').first();
+    await expect(filterSelect).toHaveValue('all', { timeout: 5_000 });
   });
 });
 
@@ -64,16 +67,18 @@ test.describe('Comment filter — Follows', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Alice no-follow comment').first()).toBeVisible({
       timeout: 15_000
     });
 
-    const followsButton = page.getByRole('button', { name: /^Follows$|^フォロー$/ }).first();
-    await followsButton.click();
+    const filterSelect = page.locator('select').first();
+    await filterSelect.selectOption('follows');
 
-    await expect(
-      page.getByText(/No comments from follows|フォロー中のユーザーのコメントはありません/).first()
-    ).toBeVisible({ timeout: 10_000 });
+    // After filtering by follows (with no follows), comment should not be visible
+    await expect(page.getByText('Alice no-follow comment')).toHaveCount(0, { timeout: 10_000 });
   });
 });
 
@@ -83,14 +88,14 @@ test.describe('Comment filter — WoT', () => {
     await setupFullLogin(page, user.pubkey, user.sign);
   });
 
-  test('should show WoT filter button', async ({ page }) => {
+  test('should show WoT filter option in dropdown', async ({ page }) => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
-    await expect(page.getByRole('button', { name: /^WoT$/ }).first()).toBeVisible({
-      timeout: 10_000
-    });
+    const filterSelect = page.locator('select').first();
+    await expect(filterSelect).toBeVisible({ timeout: 10_000 });
+    await expect(filterSelect.locator('option[value="wot"]')).toHaveCount(1);
   });
 
   test('should restore all comments when switching back to All filter', async ({ page }) => {
@@ -101,19 +106,20 @@ test.describe('Comment filter — WoT', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText('Switchback test comment').first()).toBeVisible({
       timeout: 15_000
     });
 
-    const followsButton = page.getByRole('button', { name: /^Follows$|^フォロー$/ }).first();
-    await followsButton.click();
+    const filterSelect = page.locator('select').first();
+    await filterSelect.selectOption('follows');
 
-    await expect(
-      page.getByText(/No comments from follows|フォロー中のユーザーのコメントはありません/).first()
-    ).toBeVisible({ timeout: 10_000 });
+    // After filtering by follows (with no follows), comment should not be visible
+    await expect(page.getByText('Switchback test comment')).toHaveCount(0, { timeout: 10_000 });
 
-    const allButton = page.getByRole('button', { name: /^All$|^すべて$/ }).first();
-    await allButton.click();
+    await filterSelect.selectOption('all');
 
     await expect(page.getByText('Switchback test comment').first()).toBeVisible({
       timeout: 10_000
@@ -122,13 +128,12 @@ test.describe('Comment filter — WoT', () => {
 });
 
 test.describe('Comment filter — not logged in', () => {
-  test('should hide filter bar when not logged in', async ({ page }) => {
+  test('should hide filter dropdown when not logged in', async ({ page }) => {
     await setupMockPool(page);
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
 
-    await expect(page.getByRole('button', { name: /^All$|^すべて$/ })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /^Follows$|^フォロー$/ })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /^WoT$/ })).toHaveCount(0);
+    // Filter is a <select> dropdown, only shown when logged in
+    await expect(page.locator('select')).toHaveCount(0);
   });
 });

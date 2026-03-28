@@ -91,9 +91,9 @@ test.describe('Content page (Podcast feed)', () => {
     await expect(page.locator('header a[href="/"]')).toBeVisible();
   });
 
-  test('should display Comments heading for podcast feed', async ({ page }) => {
+  test('should display episode selection hint for podcast feed', async ({ page }) => {
     await page.goto(feedUrl);
-    await expect(page.locator('h2:has-text("Comments")')).toBeVisible();
+    await expect(page.locator('[data-testid="feed-comment-hint"]')).toBeVisible();
   });
 
   test('should show episode selection hint instead of comment form', async ({ page }) => {

@@ -90,6 +90,43 @@ describe('PodcastProvider', () => {
     it('should return null for a URL with unrecognized extension', () => {
       expect(provider.parseUrl('https://example.com/page.html')).toBeNull();
     });
+
+    describe('Apple Podcasts URLs', () => {
+      it('should parse Apple Podcasts URL with country code', () => {
+        const url = 'https://podcasts.apple.com/us/podcast/some-podcast/id1234567890';
+        const result = provider.parseUrl(url);
+        expect(result).toEqual({ platform: 'podcast', type: 'feed', id: toBase64url(url) });
+      });
+
+      it('should parse Apple Podcasts URL with jp country code', () => {
+        const url = 'https://podcasts.apple.com/jp/podcast/my-show/id9876543210';
+        const result = provider.parseUrl(url);
+        expect(result).toEqual({ platform: 'podcast', type: 'feed', id: toBase64url(url) });
+      });
+
+      it('should parse Apple Podcasts URL without country code', () => {
+        const url = 'https://podcasts.apple.com/podcast/some-podcast/id1234567890';
+        const result = provider.parseUrl(url);
+        expect(result).toEqual({ platform: 'podcast', type: 'feed', id: toBase64url(url) });
+      });
+
+      it('should parse Apple Podcasts URL without podcast name slug', () => {
+        const url = 'https://podcasts.apple.com/us/podcast/id1234567890';
+        const result = provider.parseUrl(url);
+        expect(result).toEqual({ platform: 'podcast', type: 'feed', id: toBase64url(url) });
+      });
+
+      it('should parse Apple Podcasts URL with http scheme', () => {
+        const url = 'http://podcasts.apple.com/us/podcast/some-podcast/id1234567890';
+        const result = provider.parseUrl(url);
+        expect(result).toEqual({ platform: 'podcast', type: 'feed', id: toBase64url(url) });
+      });
+
+      it('should not match non-Apple Podcasts URL with similar path', () => {
+        const url = 'https://example.com/us/podcast/some-podcast/id1234567890';
+        expect(provider.parseUrl(url)).toBeNull();
+      });
+    });
   });
 
   describe('toNostrTag (feed type)', () => {

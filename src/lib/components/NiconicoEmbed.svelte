@@ -14,8 +14,10 @@
     onNiconicoMessage,
     seekNiconicoPlayer
   } from '$shared/browser/niconico-bridge.js';
+  import { onTogglePlayback } from '$shared/browser/playback-bridge.js';
   import { setContent, updatePlayback } from '$shared/browser/player.js';
   import { onSeek } from '$shared/browser/seek-bridge.js';
+  import { toastInfo } from '$shared/browser/toast.js';
   import type { ContentId } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
 
@@ -78,6 +80,9 @@
     if (!iframeEl) return;
 
     const cleanupSeek = onSeek(handleSeek);
+    const cleanupToggle = onTogglePlayback(() => {
+      toastInfo(t('playback.shortcut_unsupported'));
+    });
     const cleanupMessages = onNiconicoMessage(handleMessage);
 
     readyTimeout = createAsyncReadyTimeout({
@@ -92,6 +97,7 @@
       readyTimeout?.cancel();
       readyTimeout = undefined;
       cleanupSeek();
+      cleanupToggle();
       cleanupMessages();
       ready = false;
       error = false;

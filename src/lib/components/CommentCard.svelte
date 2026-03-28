@@ -6,6 +6,7 @@
   import { formatPosition } from '$shared/nostr/events.js';
   import { formatTimestamp } from '$shared/utils/format.js';
 
+  import CommentActionMenu from './CommentActionMenu.svelte';
   import CommentCard from './CommentCard.svelte';
   import EmojiPickerPopover from './EmojiPickerPopover.svelte';
   import NoteInput from './NoteInput.svelte';
@@ -19,6 +20,7 @@
     showPosition: boolean;
     compact?: boolean;
     nearCurrent?: boolean;
+    mode?: 'flow' | 'shout';
     stats: ReactionStats;
     myReaction: boolean;
     isOwn: boolean;
@@ -51,6 +53,8 @@
     onQuote?: (comment: Comment) => void;
     onReplyContentChange: (content: string) => void;
     onReplyEmojiTagsChange: (tags: string[][]) => void;
+    getIsOwn?: (pubkey: string) => boolean;
+    selected?: boolean;
   }
 
   let {
@@ -60,6 +64,7 @@
     showPosition,
     compact = false,
     nearCurrent = false,
+    mode = 'flow',
     stats,
     myReaction,
     isOwn,
@@ -90,7 +95,9 @@
     onMute,
     onQuote,
     onReplyContentChange,
-    onReplyEmojiTagsChange
+    onReplyEmojiTagsChange,
+    getIsOwn,
+    selected = false
   }: Props = $props();
 
   const segments = $derived(parseCommentContent(comment.content, comment.emojiTags));
@@ -112,17 +119,20 @@
 {/snippet}
 
 <div
+  data-comment-id={comment.id}
   class="{compact
     ? 'rounded-lg border border-border-subtle bg-surface-1/50 p-3'
     : 'animate-slide-up rounded-xl border p-4 transition-all duration-300'} {nearCurrent
     ? 'border-accent/50 bg-accent/5 shadow-[0_0_12px_rgba(var(--color-accent-rgb,29,185,84),0.1)]'
     : compact
       ? ''
-      : 'border-border-subtle bg-surface-1 hover:border-border'}"
+      : 'border-border-subtle bg-surface-1 hover:border-border'} {selected
+    ? 'ring-2 ring-accent/50'
+    : ''}"
   style={compact ? '' : `animation-delay: ${Math.min(index * 0.05, 0.5)}s`}
 >
   <div class="{compact ? 'mb-1.5' : 'mb-2'} flex items-center justify-between">
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-2 min-w-0 flex-1">
       <UserAvatar pubkey={comment.pubkey} picture={author.picture} size={compact ? 'xs' : 'sm'} />
       <a href={author.profileHref} class="text-xs font-medium text-accent hover:underline"
         >{author.displayName}</a
@@ -142,8 +152,53 @@
           {formatPosition(comment.positionMs)}
         </button>
       {/if}
+      <span class="text-xs text-text-muted flex-shrink-0">{formatTimestamp(comment.createdAt)}</span
+      >
     </div>
-    <span class="text-xs text-text-muted">{formatTimestamp(comment.createdAt)}</span>
+    {#if mode === 'flow'}
+      <div class="flex items-center gap-1 flex-shrink-0 ml-2">
+        {#if loggedIn}
+          <button
+            type="button"
+            onclick={() => onReply(comment)}
+            class="rounded p-1 text-text-muted transition-colors hover:text-text-secondary"
+            title={t('reply.title')}
+          >
+            <svg
+              aria-hidden="true"
+              class="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          </button>
+        {/if}
+        <button
+          type="button"
+          onclick={() => onReaction(comment)}
+          disabled={acting || myReaction}
+          class="flex items-center gap-1 rounded p-1 text-xs transition-colors
+            {myReaction ? 'text-accent' : 'text-text-muted hover:text-text-secondary'}"
+          title={myReaction ? t('liked.title') : t('like.title')}
+        >
+          {@render heartIcon(myReaction)}
+          {#if stats.likes > 0}<span class="text-xs font-mono">{stats.likes}</span>{/if}
+        </button>
+        <CommentActionMenu
+          eventId={comment.id}
+          authorPubkey={comment.pubkey}
+          {isOwn}
+          {canMute}
+          inlineActions={new Set(['reply', 'like'])}
+          onQuote={onQuote ? () => onQuote(comment) : undefined}
+          onMuteUser={() => onMute(comment.pubkey)}
+          onDelete={() => onDelete(comment)}
+        />
+      </div>
+    {/if}
   </div>
 
   <!-- CW / Content -->
@@ -212,75 +267,55 @@
     {/if}
   {/if}
 
-  <!-- Action buttons -->
-  <div class="{compact ? 'mt-1.5' : 'mt-2'} flex items-center gap-1">
-    {#if loggedIn}
-      <button
-        type="button"
-        disabled={acting || myReaction}
-        onclick={() => onReaction(comment)}
-        class="inline-flex items-center gap-1 min-h-11 rounded-lg p-1.5 transition-colors
-          {myReaction ? 'text-accent' : 'text-text-muted hover:text-accent'}"
-        title={myReaction ? t('liked.title') : t('like.title')}
-      >
-        {@render heartIcon(myReaction)}
-        {#if stats.likes > 0}
-          <span class="text-xs font-mono">{stats.likes}</span>
-        {/if}
-      </button>
-    {:else if stats.likes > 0}
-      <span class="inline-flex items-center gap-1 p-1.5 text-text-muted">
-        {@render heartIcon(false)}
-        <span class="text-xs font-mono">{stats.likes}</span>
-      </span>
+  {#if mode === 'shout'}
+    <!-- Emoji reaction pills -->
+    {#if stats.emojis.length > 0}
+      <div class="mt-1.5 flex flex-wrap gap-1 {compact ? '' : 'ml-9'}">
+        {#each stats.emojis as emoji (emoji.content)}
+          <span
+            class="rounded-full border border-border-subtle bg-surface-2 px-2 py-0.5 text-xs text-text-muted inline-flex items-center gap-1"
+          >
+            {#if emoji.url}<img
+                src={emoji.url}
+                alt={emoji.content}
+                class="h-3.5 w-3.5"
+                loading="lazy"
+              />{:else}{emoji.content}{/if}
+            {#if emoji.count > 1}<span class="font-mono">{emoji.count}</span>{/if}
+          </span>
+        {/each}
+      </div>
     {/if}
-    {#if loggedIn}
-      <EmojiPickerPopover
-        id={popoverId}
-        onSelect={(reaction, emojiUrl) => onReaction(comment, reaction, emojiUrl)}
-      />
-    {/if}
-    {#each stats.emojis as emoji (emoji.content)}
-      <span class="inline-flex items-center gap-1 text-xs text-text-muted">
-        {#if emoji.url}
-          <img src={emoji.url} alt={emoji.content} class="h-4 w-4" loading="lazy" />
-        {:else}
-          {emoji.content}
-        {/if}
-        {#if emoji.count > 1}
-          <span class="font-mono">{emoji.count}</span>
-        {/if}
-      </span>
-    {/each}
-    {#if loggedIn}
-      <button
-        type="button"
-        onclick={() => onReply(comment)}
-        class="inline-flex items-center min-h-11 rounded-lg p-1.5 text-text-muted transition-colors hover:text-accent"
-        title={t('reply.title')}
-      >
-        <svg
-          aria-hidden="true"
-          class="h-4 w-4"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <polyline points="9 17 4 12 9 7" />
-          <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
-        </svg>
-      </button>
-      {#if onQuote}
+    <!-- Action row -->
+    <div class="mt-1.5 flex flex-wrap gap-1 {compact ? '' : 'ml-9'}">
+      {#if loggedIn}
         <button
           type="button"
-          onclick={() => onQuote(comment)}
-          class="inline-flex items-center min-h-11 rounded-lg p-1.5 text-text-muted transition-colors hover:text-accent"
-          title={t('quote.title')}
+          onclick={() => onReply(comment)}
+          class="flex items-center gap-1 rounded-md border border-border-subtle px-2.5 py-1 text-xs text-text-muted transition-colors hover:text-text-secondary"
+          title={t('reply.title')}
         >
           <svg
             aria-hidden="true"
-            class="h-4 w-4"
+            class="h-3.5 w-3.5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="9 17 4 12 9 7" />
+            <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          disabled
+          aria-label="ReNote"
+          class="flex items-center gap-1 rounded-md border border-border-subtle px-2.5 py-1 text-xs text-text-muted opacity-50"
+        >
+          <svg
+            aria-hidden="true"
+            class="h-3.5 w-3.5"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -295,65 +330,37 @@
           </svg>
         </button>
       {/if}
-    {/if}
-    {#if loggedIn && !isOwn && canMute}
       <button
         type="button"
-        disabled={acting}
-        onclick={() => onMute(comment.pubkey)}
-        class="inline-flex items-center min-h-11 rounded-lg p-1.5 text-text-muted transition-colors hover:text-red-400"
-        title={t('mute.user')}
+        onclick={() => onReaction(comment)}
+        disabled={acting || myReaction}
+        class="flex items-center gap-1 rounded-md border border-border-subtle px-2.5 py-1 text-xs transition-colors
+          {myReaction
+          ? 'border-accent/30 text-accent'
+          : 'text-text-muted hover:text-text-secondary'}"
+        title={myReaction ? t('liked.title') : t('like.title')}
       >
-        <svg
-          aria-hidden="true"
-          class="h-4 w-4"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <circle cx="12" cy="12" r="10" />
-          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-        </svg>
+        {@render heartIcon(myReaction)}
+        {#if stats.likes > 0}{stats.likes}{/if}
       </button>
-    {/if}
-    {#if isOwn}
-      <button
-        type="button"
-        disabled={acting}
-        onclick={() => onDelete(comment)}
-        class="ml-auto inline-flex items-center min-h-11 rounded-lg p-1.5 text-text-muted transition-colors hover:text-red-400"
-        title={t('delete.title')}
-      >
-        {#if acting}
-          <svg
-            aria-hidden="true"
-            class="h-4 w-4 animate-spin"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-          </svg>
-        {:else}
-          <svg
-            aria-hidden="true"
-            class="h-4 w-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <polyline points="3 6 5 6 21 6" />
-            <path
-              d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-            />
-          </svg>
-        {/if}
-      </button>
-    {/if}
-  </div>
+      {#if loggedIn}
+        <EmojiPickerPopover
+          id={popoverId}
+          onSelect={(reaction, emojiUrl) => onReaction(comment, reaction, emojiUrl)}
+        />
+      {/if}
+      <CommentActionMenu
+        eventId={comment.id}
+        authorPubkey={comment.pubkey}
+        {isOwn}
+        {canMute}
+        inlineActions={new Set(['reply', 'like', 'renote', 'emoji'])}
+        onQuote={onQuote ? () => onQuote(comment) : undefined}
+        onMuteUser={() => onMute(comment.pubkey)}
+        onDelete={() => onDelete(comment)}
+      />
+    </div>
+  {/if}
 
   {#if !compact}
     <!-- Inline reply form -->
@@ -419,7 +426,7 @@
             compact={true}
             stats={getStats(reply.id)}
             myReaction={getMyReaction(reply.id)}
-            isOwn={loggedIn && reply.pubkey === comment.pubkey}
+            isOwn={getIsOwn?.(reply.pubkey) ?? false}
             acting={isActing(reply.id)}
             {loggedIn}
             revealedCW={isRevealed(reply.id)}

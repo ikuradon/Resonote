@@ -34,6 +34,9 @@ test.describe('Data volume — comments', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    // Switch to Shout tab to see general comment empty state
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     await expect(page.getByText(/No comments|コメントはまだ/).first()).toBeVisible({
       timeout: 15_000
     });
@@ -45,6 +48,9 @@ test.describe('Data volume — comments', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [comment]);
+
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     await expect(page.getByText('Solo comment').first()).toBeVisible({ timeout: 15_000 });
   });
@@ -73,12 +79,17 @@ test.describe('Data volume — comments', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, comments);
 
+    // General comments appear in Shout tab
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     // Latest comment should be visible (allow extra time in slow CI)
     await expect(page.getByText('Batch comment 49').first()).toBeVisible({ timeout: 30_000 });
 
-    // General section should show count 50 next to the heading
-    // The count badge renders as "50" (with quotes in DOM text)
-    await expect(page.locator('text="50"').first()).toBeVisible({ timeout: 5_000 });
+    // Shout tab button shows count as "(50)" next to the tab icon
+    // The tab button contains "(50)" or similar count indicator
+    await expect(
+      page.locator('button').filter({ hasText: /📢/ }).filter({ hasText: '50' }).first()
+    ).toBeVisible({ timeout: 5_000 });
   });
 
   test('should handle mixed timed and general comments', async ({ page }) => {
@@ -119,19 +130,18 @@ test.describe('Data volume — comments', () => {
     await simulateLogin(page);
     await broadcastEventsOnAllRelays(page, [...timed, ...general]);
 
-    // Both sections should appear
+    // Timed comments appear in Flow tab (default) — tab button shows count
     await expect(
-      page
-        .locator('span')
-        .filter({ hasText: /Time Comments|時間コメント/ })
-        .first()
+      page.locator('button').filter({ hasText: /🎶/ }).filter({ hasText: '10' }).first()
     ).toBeVisible({ timeout: 20_000 });
+
+    // Switch to Shout tab — general comments should appear there
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
+    // Shout tab shows count of general comments
     await expect(
-      page
-        .locator('span')
-        .filter({ hasText: /^General$|^全体$/ })
-        .first()
-    ).toBeVisible();
+      page.locator('button').filter({ hasText: /📢/ }).filter({ hasText: '10' }).first()
+    ).toBeVisible({ timeout: 10_000 });
   });
 });
 

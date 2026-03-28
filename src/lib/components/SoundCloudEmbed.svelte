@@ -2,9 +2,11 @@
   // eslint-disable-next-line no-restricted-imports -- orchestrates embed URL resolution; full refactor deferred
   import { resolveSoundCloudEmbed } from '$features/content-resolution/application/resolve-soundcloud-embed.js';
   import { createAsyncReadyTimeout } from '$shared/browser/async-ready-timeout.js';
+  import { onTogglePlayback } from '$shared/browser/playback-bridge.js';
   import { setContent, updatePlayback } from '$shared/browser/player.js';
   import { loadExternalScript } from '$shared/browser/script-loader.js';
   import { onSeek } from '$shared/browser/seek-bridge.js';
+  import { toastInfo } from '$shared/browser/toast.js';
   import type { ContentId } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
   import { createLogger } from '$shared/utils/logger.js';
@@ -71,6 +73,9 @@
     if (!iframeEl || !embedSrc) return;
 
     const cleanupSeek = onSeek(handleSeek);
+    const cleanupToggle = onTogglePlayback(() => {
+      toastInfo(t('playback.shortcut_unsupported'));
+    });
 
     let cancelled = false;
     let cachedDuration = 0;
@@ -124,6 +129,7 @@
       cancelled = true;
       readyTimeout.cancel();
       cleanupSeek();
+      cleanupToggle();
       if (widget) {
         try {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -18,6 +18,7 @@
 <script lang="ts">
   import { createAsyncReadyTimeout } from '$shared/browser/async-ready-timeout.js';
   import { type IntervalTaskHandle, startIntervalTask } from '$shared/browser/interval-task.js';
+  import { onTogglePlayback } from '$shared/browser/playback-bridge.js';
   import { updatePlayback } from '$shared/browser/player.js';
   import { onSeek } from '$shared/browser/seek-bridge.js';
   import type { ContentId } from '$shared/content/types.js';
@@ -101,11 +102,21 @@
     const videoId = contentId.id;
 
     const cleanupSeek = onSeek(handleSeek);
+    const cleanupToggle = onTogglePlayback(() => {
+      if (!player) return;
+      const state = player.getPlayerState();
+      if (state === 1) {
+        player.pauseVideo();
+      } else {
+        player.playVideo();
+      }
+    });
 
     if (player) {
       player.loadVideoById(videoId);
       return () => {
         cleanupSeek();
+        cleanupToggle();
       };
     }
 
@@ -137,6 +148,7 @@
       cancelled = true;
       readyTimeout.cancel();
       cleanupSeek();
+      cleanupToggle();
       stopPolling();
       player?.destroy();
       player = undefined;

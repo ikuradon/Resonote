@@ -23,6 +23,7 @@ export interface ParsedFeed {
   feedUrl: string;
   podcastGuid: string;
   imageUrl: string;
+  description: string;
   episodes: ParsedEpisode[];
 }
 
@@ -91,7 +92,7 @@ function signBookmarkEvent(
 
 export function extractTagContent(xml: string, tag: string): string {
   const patterns = [
-    new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]></${tag}>`, 'i'),
+    new RegExp(`<${tag}[^>]*>\\s*<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>\\s*</${tag}>`, 'i'),
     new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'i')
   ];
   for (const pattern of patterns) {
@@ -100,6 +101,39 @@ export function extractTagContent(xml: string, tag: string): string {
   }
   return '';
 }
+
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ');
+}
+
+/**
+ * Convert HTML to Markdown, preserving links, emphasis, and structure.
+ * Two-pass: decode entities first, then convert HTML elements to Markdown.
+ */
+export function htmlToMarkdown(html: string): string {
+  const decoded = decodeEntities(html);
+  return decoded
+    .replace(/<!\[CDATA\[/g, '')
+    .replace(/\]\]>/g, '')
+    .replace(/<a\s+[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, '[$2]($1)')
+    .replace(/<(?:strong|b)\b[^>]*>([\s\S]*?)<\/(?:strong|b)>/gi, '**$1**')
+    .replace(/<(?:em|i)\b[^>]*>([\s\S]*?)<\/(?:em|i)>/gi, '*$1*')
+    .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, '- $1\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(?:p|div|blockquote|h[1-6])>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+// Note: functions/ cannot import from src/shared/ (different build targets).
+// The same htmlToMarkdown logic is duplicated in src/shared/utils/html.ts for client use.
 
 export function extractAttr(xml: string, tag: string, attr: string): string {
   const pattern = new RegExp(`<${tag}[^>]+${attr}=["']([^"']+)["'][^>]*>`, 'i');
@@ -123,6 +157,12 @@ export async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed
   const imageUrl =
     extractAttr(channelXml, 'itunes:image', 'href') || extractTagContent(channelXml, 'url') || '';
 
+  const feedDescriptionRaw =
+    extractTagContent(channelXml, 'description') ||
+    extractTagContent(channelXml, 'itunes:summary') ||
+    '';
+  const feedDescription = htmlToMarkdown(feedDescriptionRaw);
+
   const items: ParsedEpisode[] = [];
   const itemPattern = /<item[^>]*>([\s\S]*?)<\/item>/gi;
   let itemMatch: RegExpExecArray | null;
@@ -138,10 +178,11 @@ export async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed
     const pubDate = extractTagContent(itemXml, 'pubDate');
     const durationRaw = extractTagContent(itemXml, 'itunes:duration');
     const duration = parseDurationToSeconds(durationRaw);
-    const description =
+    const descriptionRaw =
       extractTagContent(itemXml, 'description') ||
       extractTagContent(itemXml, 'itunes:summary') ||
       '';
+    const description = htmlToMarkdown(descriptionRaw);
 
     items.push({
       title: itemTitle,
@@ -158,6 +199,7 @@ export async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed
     feedUrl,
     podcastGuid,
     imageUrl,
+    description: feedDescription,
     episodes: items
   };
 }
@@ -210,7 +252,8 @@ async function handleFeedUrl(
     iTags: [[`podcast:guid:${feed.podcastGuid}`, feedUrl]],
     kTag: 'podcast:guid',
     rTags: [feedUrl, feedRoot],
-    title: feed.title
+    title: feed.title,
+    content: feed.description
   });
 
   // Sign bookmark events for all episodes
@@ -238,7 +281,8 @@ async function handleFeedUrl(
       title: feed.title,
       feedUrl: feed.feedUrl,
       podcastGuid: feed.podcastGuid,
-      imageUrl: feed.imageUrl
+      imageUrl: feed.imageUrl,
+      description: feed.description
     },
     episodes: feed.episodes,
     signedEvents
@@ -384,7 +428,13 @@ const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.ogg', '.wav', '.opus', '.flac', '.aa
 const FEED_EXTENSIONS = ['.rss', '.xml', '.atom', '.json'];
 const FEED_PATH_SEGMENTS = ['/feed', '/rss', '/atom'];
 
-export function detectInputType(url: URL): 'audio' | 'feed' | 'site' {
+const APPLE_PODCASTS_RE =
+  /^https?:\/\/podcasts\.apple\.com\/(?:[a-z]{2}\/)?podcast\/(?:[^/]+\/)?id(\d+)/i;
+
+export function detectInputType(url: URL): 'audio' | 'feed' | 'site' | 'apple-podcasts' {
+  if (APPLE_PODCASTS_RE.test(`${url.origin}${url.pathname}`)) {
+    return 'apple-podcasts';
+  }
   const pathname = url.pathname.toLowerCase();
 
   if (AUDIO_EXTENSIONS.some((ext) => pathname.endsWith(ext))) {
@@ -399,6 +449,32 @@ export function detectInputType(url: URL): 'audio' | 'feed' | 'site' {
   }
 
   return 'site';
+}
+
+async function handleApplePodcasts(
+  url: string,
+  privkey: Uint8Array,
+  allowPrivateIPs: boolean
+): Promise<Response> {
+  const match = url.match(APPLE_PODCASTS_RE);
+  if (!match) return jsonResponse({ error: 'invalid_url' }, 400);
+
+  const appleId = match[1];
+  const lookupUrl = `https://itunes.apple.com/lookup?id=${appleId}&entity=podcast`;
+
+  try {
+    const res = await safeFetch(lookupUrl, { allowPrivateIPs });
+    if (!res.ok) return jsonResponse({ error: 'apple_lookup_failed' }, 502);
+
+    const data = (await res.json()) as { resultCount: number; results: { feedUrl?: string }[] };
+    const feedUrl = data.results?.[0]?.feedUrl;
+    if (!feedUrl) return jsonResponse({ error: 'feed_not_found' }, 404);
+
+    // Redirect to existing feed handler
+    return await handleFeedUrl(feedUrl, privkey, allowPrivateIPs);
+  } catch {
+    return jsonResponse({ error: 'apple_lookup_failed' }, 502);
+  }
 }
 
 export const onRequestGet: PagesFunction<Env> = handleRequest;
@@ -444,7 +520,9 @@ async function handleRequest(context: EventContext<Env, string, unknown>): Promi
   const inputType = detectInputType(parsed);
 
   try {
-    if (inputType === 'audio') {
+    if (inputType === 'apple-podcasts') {
+      return await handleApplePodcasts(urlParam, privkey, allowPrivateIPs);
+    } else if (inputType === 'audio') {
       return await handleAudioUrl(urlParam, privkey, allowPrivateIPs);
     } else if (inputType === 'feed') {
       return await handleFeedUrl(urlParam, privkey, allowPrivateIPs);

@@ -1,5 +1,7 @@
 import { untrack } from 'svelte';
 
+export type CommentTab = 'flow' | 'shout' | 'info';
+
 import type {
   Comment,
   PlaceholderComment,
@@ -55,6 +57,8 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
   const muteList = getMuteList();
 
   let followFilter = $state<FollowFilter>('all');
+  let activeTab = $state<CommentTab>('flow');
+  let shoutAtBottom = $state(true);
   let userScrolledAway = $state(false);
   let acting = $state<string | null>(null);
   let deleteTarget = $state<Comment | null>(null);
@@ -86,6 +90,8 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
     general.sort((a, b) => b.createdAt - a.createdAt);
     return { timedComments: timed, generalComments: general };
   });
+
+  let shoutComments = $derived([...generalComments].sort((a, b) => a.createdAt - b.createdAt));
 
   let replyMap = $derived.by(() => {
     const map = new Map<string, Comment[]>();
@@ -148,6 +154,18 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
     followFilter = filter;
   }
 
+  function setActiveTab(tab: CommentTab): void {
+    activeTab = tab;
+  }
+
+  function setShoutAtBottom(atBottom: boolean): void {
+    shoutAtBottom = atBottom;
+  }
+
+  function jumpToLatest(): void {
+    shoutAtBottom = true;
+  }
+
   function findNearestTimedIndex(posMs: number): number {
     let lo = 0;
     let hi = timedComments.length - 1;
@@ -164,12 +182,16 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
     return result;
   }
 
+  /** 'up' = current position is above viewport (user scrolled to future), 'down' = below (user scrolled to past) */
+  let jumpDirection = $state<'up' | 'down'>('down');
+
   function handleTimedRangeChange(start: number, end: number): void {
     const timedList = options.getTimedList?.();
     if (timedList && !timedList.isAutoScrolling() && player.position > 0) {
       const target = findNearestTimedIndex(player.position);
       if (target < start || target > end) {
         userScrolledAway = true;
+        jumpDirection = target < start ? 'up' : 'down';
       }
     }
   }
@@ -344,6 +366,9 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
     get followFilter() {
       return followFilter;
     },
+    get activeTab() {
+      return activeTab;
+    },
     get filteredComments() {
       return filteredComments;
     },
@@ -353,14 +378,26 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
     get generalComments() {
       return generalComments;
     },
+    get shoutComments() {
+      return shoutComments;
+    },
+    get shoutAtBottom() {
+      return shoutAtBottom;
+    },
     get userScrolledAway() {
       return userScrolledAway;
+    },
+    get jumpDirection() {
+      return jumpDirection;
     },
     get loggedIn() {
       return auth.loggedIn;
     },
+    get canWrite() {
+      return auth.canWrite;
+    },
     get canMute() {
-      return hasNip44Support();
+      return auth.canWrite && hasNip44Support();
     },
     get replyMap() {
       return replyMap;
@@ -396,6 +433,9 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
       return orphanParents;
     },
     setFollowFilter,
+    setActiveTab,
+    setShoutAtBottom,
+    jumpToLatest,
     handleTimedRangeChange,
     jumpToNow,
     statsFor,
