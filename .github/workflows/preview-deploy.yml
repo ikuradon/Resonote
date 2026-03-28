@@ -60,6 +60,7 @@ jobs:
         with:
           name: preview-build-${{ github.event.pull_request.number }}
           path: .svelte-kit/
+          include-hidden-files: true
           retention-days: 1
 
   deploy-preview:
