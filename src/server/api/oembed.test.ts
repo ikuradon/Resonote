@@ -18,7 +18,7 @@ function requestResolve(
   app: Hono<{ Bindings: Bindings }>,
   params: Record<string, string>,
   env: Partial<Bindings> = {}
-): Promise<Response> {
+): Response | Promise<Response> {
   const url = new URL('http://localhost/oembed/resolve');
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);

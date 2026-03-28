@@ -18,7 +18,7 @@ function createApp(): Hono<{ Bindings: Bindings }> {
 function requestPubkey(
   app: Hono<{ Bindings: Bindings }>,
   env: Partial<Bindings> = {}
-): Promise<Response> {
+): Response | Promise<Response> {
   return app.request('/system/pubkey', undefined, env as Bindings);
 }
 
