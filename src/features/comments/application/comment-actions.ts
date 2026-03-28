@@ -41,7 +41,7 @@ export interface SendReplyParams {
   content: string;
   contentId: ContentId;
   provider: ContentProvider;
-  parentEvent: { id: string; pubkey: string };
+  parentEvent: { id: string; pubkey: string; relayHint?: string };
   positionMs?: number;
   emojiTags?: string[][];
 }
@@ -64,6 +64,7 @@ export interface SendReactionParams {
   provider: ContentProvider;
   reaction?: string;
   emojiUrl?: string;
+  relayHint?: string;
 }
 
 /** Send a reaction (like or custom emoji) to a comment. */
@@ -74,7 +75,8 @@ export async function sendReaction(params: SendReactionParams): Promise<void> {
     params.contentId,
     params.provider,
     params.reaction ?? '+',
-    params.emojiUrl
+    params.emojiUrl,
+    params.relayHint
   );
   await castSigned(eventParams);
   log.info('Reaction sent', { targetId: shortHex(params.comment.id) });

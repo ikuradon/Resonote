@@ -172,6 +172,7 @@ describe('sendReaction', () => {
       contentId,
       provider,
       '+',
+      undefined,
       undefined
     );
   });
@@ -184,6 +185,7 @@ describe('sendReaction', () => {
       contentId,
       provider,
       ':wave:',
+      undefined,
       undefined
     );
   });
@@ -202,7 +204,26 @@ describe('sendReaction', () => {
       contentId,
       provider,
       ':heart:',
-      'https://example.com/heart.png'
+      'https://example.com/heart.png',
+      undefined
+    );
+  });
+
+  it('passes relayHint to buildReaction when provided', async () => {
+    await sendReaction({
+      comment,
+      contentId,
+      provider,
+      relayHint: 'wss://relay.example.com'
+    });
+    expect(buildReactionMock).toHaveBeenCalledWith(
+      'comment-id',
+      'comment-pubkey',
+      contentId,
+      provider,
+      '+',
+      undefined,
+      'wss://relay.example.com'
     );
   });
 

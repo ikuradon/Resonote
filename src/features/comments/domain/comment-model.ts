@@ -15,6 +15,8 @@ export interface Comment {
   replyTo: string | null;
   /** Content warning reason (NIP-36). Empty string = CW without reason. null = no CW. */
   contentWarning: string | null;
+  /** Relay URL where this event was received from, used as relay hint in replies/reactions */
+  relayHint?: string;
 }
 
 export interface Reaction {

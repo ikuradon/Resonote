@@ -64,6 +64,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   let loadingTimeout: ReturnType<typeof setTimeout> | undefined;
 
   const eventPubkeys = new Map<string, string>();
+  const relayHints = new Map<string, string>();
 
   // Infra refs
   let subscriptionRefs: SubscriptionRefs | undefined;
@@ -150,7 +151,8 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     if (updatedPlaceholders) placeholders = updatedPlaceholders;
   }
 
-  function dispatchPacket(event: CachedEvent) {
+  function dispatchPacket(event: CachedEvent, relayHint?: string) {
+    if (relayHint) relayHints.set(event.id, relayHint);
     eventsDB?.put(event);
     switch (event.kind) {
       case COMMENT_KIND:
@@ -496,6 +498,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     get placeholders() {
       return placeholders;
     },
+    getRelayHint: (eventId: string) => relayHints.get(eventId),
     subscribe,
     addSubscription,
     fetchOrphanParent,

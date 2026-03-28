@@ -233,7 +233,31 @@ describe('startSubscription', () => {
       kind: 1111
     };
     observer.next({ event: fakeEvent });
-    expect(onPacket).toHaveBeenCalledWith(fakeEvent);
+    expect(onPacket).toHaveBeenCalledWith(fakeEvent, undefined);
+  });
+
+  it('passes relay hint (packet.from) to onPacket', () => {
+    const onPacket = vi.fn();
+
+    const backwardPipe = { subscribe: vi.fn() };
+    const backwardUse = { pipe: vi.fn(() => backwardPipe) };
+    refs.rxNostr.use = vi.fn(() => backwardUse as never);
+
+    startSubscription(refs, filters, null, onPacket, vi.fn());
+
+    const observer = backwardPipe.subscribe.mock.calls[0][0] as {
+      next: (p: unknown) => void;
+    };
+    const fakeEvent = {
+      id: 'e1',
+      pubkey: 'pk',
+      content: 'hi',
+      created_at: 1,
+      tags: [],
+      kind: 1111
+    };
+    observer.next({ event: fakeEvent, from: 'wss://relay.test' });
+    expect(onPacket).toHaveBeenCalledWith(fakeEvent, 'wss://relay.test');
   });
 
   it('calls onBackwardComplete when backward subscription completes', () => {
@@ -306,7 +330,20 @@ describe('startMergedSubscription', () => {
     ) => void;
     const fakeEvent = { id: 'e2', pubkey: 'pk2', content: '', created_at: 2, tags: [], kind: 7 };
     subscribeFn({ event: fakeEvent });
-    expect(onPacket).toHaveBeenCalledWith(fakeEvent);
+    expect(onPacket).toHaveBeenCalledWith(fakeEvent, undefined);
+  });
+
+  it('passes relay hint (rawPacket.from) to onPacket', () => {
+    const onPacket = vi.fn();
+    startMergedSubscription(refs, filters, onPacket);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const subscribeFn = (refs.mergedStream.subscribe.mock.calls[0] as any)[0] as (
+      p: unknown
+    ) => void;
+    const fakeEvent = { id: 'e3', pubkey: 'pk3', content: '', created_at: 3, tags: [], kind: 7 };
+    subscribeFn({ event: fakeEvent, from: 'wss://relay2.test' });
+    expect(onPacket).toHaveBeenCalledWith(fakeEvent, 'wss://relay2.test');
   });
 });
 

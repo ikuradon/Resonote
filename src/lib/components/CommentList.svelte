@@ -36,6 +36,7 @@
     loading?: boolean;
     getPlaceholders?: () => Map<string, PlaceholderComment>;
     fetchOrphanParent?: (parentId: string, positionMs: number | null) => void;
+    getRelayHint?: (eventId: string) => string | undefined;
     onQuote?: (comment: Comment) => void;
     threadPubkeys?: string[];
     bookmarked?: boolean;
@@ -55,6 +56,7 @@
     loading = false,
     getPlaceholders,
     fetchOrphanParent,
+    getRelayHint,
     onQuote,
     threadPubkeys = [],
     bookmarked = false,
@@ -102,7 +104,8 @@
     getProvider: () => provider,
     getTimedList: () => timedVirtualList,
     getPlaceholders: () => getPlaceholders?.() ?? new Map(),
-    fetchOrphanParent: (parentId, positionMs) => fetchOrphanParent?.(parentId, positionMs)
+    fetchOrphanParent: (parentId, positionMs) => fetchOrphanParent?.(parentId, positionMs),
+    getRelayHint: (eventId) => getRelayHint?.(eventId)
   });
 
   // --- Shout tab scroll position management ---
