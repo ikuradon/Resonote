@@ -59,7 +59,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: preview-build-${{ github.event.pull_request.number }}
-          path: .svelte-kit/cloudflare/
+          path: .svelte-kit/
           retention-days: 1
 
   deploy-preview:
@@ -78,7 +78,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: preview-build-${{ github.event.pull_request.number }}
-          path: .svelte-kit/cloudflare/
+          path: .svelte-kit/
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
