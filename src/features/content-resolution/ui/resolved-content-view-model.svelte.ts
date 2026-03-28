@@ -16,10 +16,10 @@ import { fromBase64url } from '$shared/content/url-utils.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 import { fetchContentMetadata } from '../application/fetch-content-metadata.js';
-
-const log = createLogger('resolved-content-vm');
 import { resolveAudioUrl, resolvePodcastEpisode } from '../application/resolve-content.js';
 import type { ContentMetadata } from '../domain/content-metadata.js';
+
+const log = createLogger('resolved-content-vm');
 
 type CommentVM = ReturnType<typeof createCommentViewModel>;
 
