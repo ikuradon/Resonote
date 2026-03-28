@@ -53,14 +53,17 @@ export function startSubscription(
   refs: SubscriptionRefs,
   filters: ReturnType<typeof buildContentFilters>,
   maxCreatedAt: number | null,
-  onPacket: (event: {
-    id: string;
-    pubkey: string;
-    content: string;
-    created_at: number;
-    tags: string[][];
-    kind: number;
-  }) => void,
+  onPacket: (
+    event: {
+      id: string;
+      pubkey: string;
+      content: string;
+      created_at: number;
+      tags: string[][];
+      kind: number;
+    },
+    relayHint?: string
+  ) => void,
   onBackwardComplete: () => void
 ): SubscriptionHandle[] {
   const { createRxBackwardReq, createRxForwardReq, uniq } = refs.rxNostrMod;
@@ -76,7 +79,7 @@ export function startSubscription(
     .pipe(uniq())
     .subscribe({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      next: (packet: any) => onPacket(packet.event),
+      next: (packet: any) => onPacket(packet.event, packet.from),
       complete: onBackwardComplete,
       error: (err: unknown) => {
         console.error('[comment-subscription] Backward fetch error:', err);
@@ -89,7 +92,7 @@ export function startSubscription(
     .pipe(uniq())
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .subscribe((packet: any) => {
-      onPacket(packet.event);
+      onPacket(packet.event, packet.from);
     });
 
   backward.emit(backwardFilters);
@@ -105,14 +108,17 @@ export function startSubscription(
 export function startMergedSubscription(
   refs: SubscriptionRefs,
   filters: ReturnType<typeof buildContentFilters>,
-  onPacket: (event: {
-    id: string;
-    pubkey: string;
-    content: string;
-    created_at: number;
-    tags: string[][];
-    kind: number;
-  }) => void
+  onPacket: (
+    event: {
+      id: string;
+      pubkey: string;
+      content: string;
+      created_at: number;
+      tags: string[][];
+      kind: number;
+    },
+    relayHint?: string
+  ) => void
 ): SubscriptionHandle {
   const { createRxBackwardReq, createRxForwardReq, uniq } = refs.rxNostrMod;
   const backward = createRxBackwardReq();
@@ -125,7 +131,7 @@ export function startMergedSubscription(
   );
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sub = merged.subscribe((rawPacket: any) => {
-    onPacket(rawPacket.event);
+    onPacket(rawPacket.event, rawPacket.from);
   });
 
   backward.emit(filters);

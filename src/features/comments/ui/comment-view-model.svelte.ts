@@ -96,11 +96,11 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     log.debug('Reaction received', { id: shortHex(reaction.id), target: shortHex(targetId) });
   }
 
-  function handleCommentPacket(event: CachedEvent) {
+  function handleCommentPacket(event: CachedEvent, relayHint?: string) {
     if (commentIds.has(event.id)) return;
     commentIds.add(event.id);
     eventPubkeys.set(event.id, event.pubkey);
-    commentsRaw = [...commentsRaw, commentFromEvent(event)];
+    commentsRaw = [...commentsRaw, commentFromEvent(event, relayHint)];
     log.debug('Comment received', { id: shortHex(event.id) });
   }
 
@@ -150,11 +150,11 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     if (updatedPlaceholders) placeholders = updatedPlaceholders;
   }
 
-  function dispatchPacket(event: CachedEvent) {
+  function dispatchPacket(event: CachedEvent, relayHint?: string) {
     eventsDB?.put(event);
     switch (event.kind) {
       case COMMENT_KIND:
-        handleCommentPacket(event);
+        handleCommentPacket(event, relayHint);
         break;
       case REACTION_KIND:
         handleReactionPacket(event);
@@ -496,6 +496,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     get placeholders() {
       return placeholders;
     },
+    getRelayHint: (eventId: string) => commentsRaw.find((c) => c.id === eventId)?.relayHint,
     subscribe,
     addSubscription,
     fetchOrphanParent,

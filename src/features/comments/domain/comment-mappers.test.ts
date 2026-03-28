@@ -19,6 +19,21 @@ describe('commentFromEvent', () => {
     expect(comment.replyTo).toBeNull();
     expect(comment.contentWarning).toBeNull();
     expect(comment.emojiTags).toEqual([]);
+    expect(comment.relayHint).toBeUndefined();
+  });
+
+  it('should include relayHint when provided', () => {
+    const comment = commentFromEvent(
+      {
+        id: 'ev1',
+        pubkey: 'pk1',
+        content: 'Hello',
+        created_at: 1700000000,
+        tags: []
+      },
+      'wss://relay.example.com'
+    );
+    expect(comment.relayHint).toBe('wss://relay.example.com');
   });
 
   it('should parse position tag', () => {

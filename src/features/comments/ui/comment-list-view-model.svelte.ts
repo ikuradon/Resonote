@@ -257,7 +257,8 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
         contentId: options.getContentId(),
         provider: options.getProvider(),
         reaction,
-        emojiUrl
+        emojiUrl,
+        relayHint: comment.relayHint
       });
       toastSuccess(t('toast.reaction_sent'));
     } catch (err) {
@@ -348,7 +349,11 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
         content: trimmed,
         contentId: options.getContentId(),
         provider: options.getProvider(),
-        parentEvent: { id: replyTarget.id, pubkey: replyTarget.pubkey },
+        parentEvent: {
+          id: replyTarget.id,
+          pubkey: replyTarget.pubkey,
+          relayHint: replyTarget.relayHint
+        },
         positionMs: replyTarget.positionMs ?? undefined,
         emojiTags: tags
       });

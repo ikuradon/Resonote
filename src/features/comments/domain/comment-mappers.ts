@@ -13,7 +13,8 @@ import type { Comment, NostrEvent, PlaceholderComment, Reaction } from './commen
 
 /** Convert a kind:1111 Nostr event into a Comment domain model. */
 export function commentFromEvent(
-  event: Pick<NostrEvent, 'id' | 'pubkey' | 'content' | 'created_at' | 'tags'>
+  event: Pick<NostrEvent, 'id' | 'pubkey' | 'content' | 'created_at' | 'tags'>,
+  relayHint?: string
 ): Comment {
   const pos = findTagValue(event.tags, 'position');
   const emojiTags = event.tags.filter((t) => isEmojiTag(t));
@@ -26,7 +27,8 @@ export function commentFromEvent(
     positionMs: pos ? parsePosition(pos) : null,
     emojiTags,
     replyTo: findTagValue(event.tags, 'e') ?? null,
-    contentWarning: cwTag ? (cwTag[1] ?? '') : null
+    contentWarning: cwTag ? (cwTag[1] ?? '') : null,
+    relayHint
   };
 }
 

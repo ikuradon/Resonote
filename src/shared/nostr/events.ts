@@ -86,7 +86,7 @@ function appendContentTags(tags: string[][], content: string, emojiTags?: string
 export interface CommentOptions {
   positionMs?: number;
   emojiTags?: string[][];
-  parentEvent?: { id: string; pubkey: string };
+  parentEvent?: { id: string; pubkey: string; relayHint?: string };
   contentWarning?: string;
 }
 
@@ -106,9 +106,11 @@ export function buildComment(
 
   if (parentEvent) {
     tags.push(
-      ['e', parentEvent.id, '', parentEvent.pubkey],
+      ['e', parentEvent.id, parentEvent.relayHint ?? '', parentEvent.pubkey],
       ['k', COMMENT_KIND_STR],
-      ['p', parentEvent.pubkey]
+      ...(parentEvent.relayHint
+        ? [['p', parentEvent.pubkey, parentEvent.relayHint]]
+        : [['p', parentEvent.pubkey]])
     );
   } else {
     tags.push(['i', value, hint], ['k', kind]);
@@ -181,12 +183,13 @@ export function buildReaction(
   contentId: ContentId,
   provider: ContentProvider,
   reaction = '+',
-  emojiUrl?: string
+  emojiUrl?: string,
+  relayHint?: string
 ): EventParameters {
   const [idValue, idHint] = provider.toNostrTag(contentId);
   const tags: string[][] = [
-    ['e', targetEventId],
-    ['p', targetPubkey],
+    relayHint ? ['e', targetEventId, relayHint] : ['e', targetEventId],
+    relayHint ? ['p', targetPubkey, relayHint] : ['p', targetPubkey],
     ['k', COMMENT_KIND_STR],
     ['I', idValue, idHint]
   ];

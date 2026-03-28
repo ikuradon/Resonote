@@ -237,6 +237,22 @@ describe('buildComment with parentEvent (replies)', () => {
     expect(iTags).toHaveLength(0);
   });
 
+  it('should include relay hint in e-tag when parentEvent has relayHint', () => {
+    const event = buildComment('reply', trackId, provider, {
+      parentEvent: { id: 'parent123', pubkey: 'pk456', relayHint: 'wss://relay.example.com' }
+    });
+    expect(event.tags).toContainEqual(['e', 'parent123', 'wss://relay.example.com', 'pk456']);
+    expect(event.tags).toContainEqual(['p', 'pk456', 'wss://relay.example.com']);
+  });
+
+  it('should use empty string for relay hint in e-tag when parentEvent has no relayHint', () => {
+    const event = buildComment('reply', trackId, provider, {
+      parentEvent: { id: 'parent123', pubkey: 'pk456' }
+    });
+    expect(event.tags).toContainEqual(['e', 'parent123', '', 'pk456']);
+    expect(event.tags).toContainEqual(['p', 'pk456']);
+  });
+
   it('should not include e or p tags without parentEvent', () => {
     const event = buildComment('top-level', trackId, provider);
     const eTag = event.tags!.find((t) => t[0] === 'e');
@@ -363,6 +379,26 @@ describe('buildReaction', () => {
     );
     const emojiTag = event.tags!.find((t) => t[0] === 'emoji');
     expect(emojiTag).toBeUndefined();
+  });
+
+  it('should include relay hint in e-tag and p-tag when provided', () => {
+    const event = buildReaction(
+      'evt123',
+      'pk456',
+      trackId,
+      provider,
+      '+',
+      undefined,
+      'wss://relay.example.com'
+    );
+    expect(event.tags).toContainEqual(['e', 'evt123', 'wss://relay.example.com']);
+    expect(event.tags).toContainEqual(['p', 'pk456', 'wss://relay.example.com']);
+  });
+
+  it('should omit relay hint from e-tag and p-tag when not provided', () => {
+    const event = buildReaction('evt123', 'pk456', trackId, provider);
+    expect(event.tags).toContainEqual(['e', 'evt123']);
+    expect(event.tags).toContainEqual(['p', 'pk456']);
   });
 });
 
