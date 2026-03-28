@@ -70,6 +70,9 @@ jobs:
       pull-requests: write
       deployments: write
       actions: read
+    environment:
+      name: preview-pr-${{ github.event.pull_request.number }}
+      url: https://pr-${{ github.event.pull_request.number }}.resonote-preview.pages.dev
     steps:
       - name: Download build artifact
         uses: actions/download-artifact@v8
@@ -77,42 +80,12 @@ jobs:
           name: preview-build-${{ github.event.pull_request.number }}
           path: build/
 
-      - name: Generate preview ID
-        id: preview-id
-        run: |
-          WORDS=(amber breeze cedar drift ember frost glow haze iris jade knoll lark mist nova oak pine quartz ridge stone tide umber vale wind yarn zen)
-          PREVIEW_ID=$(shuf -e "${WORDS[@]}" -n 5 | paste -sd '-')
-          echo "id=$PREVIEW_ID" >> "$GITHUB_OUTPUT"
-
-      - name: Restore existing preview ID
-        id: existing-id
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          REPO: ${{ github.repository }}
-        run: |
-          EXISTING=$(gh pr view "$PR_NUMBER" --json comments --repo "$REPO" \
-            --jq '[.comments[] | select((.author.login | startswith("github-actions")) and (.body | contains("<!-- preview-deploy -->"))) | .body | capture("\\*\\*Branch\\*\\* \\| `(?<id>[a-z-]+)`") | .id] | last // ""')
-          if [[ -n "$EXISTING" ]]; then
-            echo "id=$EXISTING" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Set preview branch
-        id: branch
-        env:
-          NEW_ID: ${{ steps.preview-id.outputs.id }}
-          EXISTING_ID: ${{ steps.existing-id.outputs.id }}
-        run: |
-          BRANCH="${EXISTING_ID:-$NEW_ID}"
-          echo "name=$BRANCH" >> "$GITHUB_OUTPUT"
-
       - name: Deploy to Cloudflare Pages
-        id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy build --project-name=resonote-preview --branch=${{ steps.branch.outputs.name }}
+          command: pages deploy build --project-name=resonote-preview --branch=pr-${{ github.event.pull_request.number }}
           wranglerVersion: '4'
 
       - name: Comment preview URL
@@ -120,11 +93,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
-          BRANCH: ${{ steps.branch.outputs.name }}
-          DEPLOY_URL: ${{ steps.deploy.outputs.deployment-alias-url || steps.deploy.outputs.deployment-url }}
           COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          PREVIEW_URL="${DEPLOY_URL:-https://${BRANCH}.resonote-preview.pages.dev}"
+          PREVIEW_URL="https://pr-${PR_NUMBER}.resonote-preview.pages.dev"
           SHORT_SHA="${COMMIT_SHA::7}"
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC')
           BODY="<!-- preview-deploy -->
@@ -133,13 +104,12 @@ jobs:
           | | |
           |---|---|
           | **URL** | ${PREVIEW_URL} |
-          | **Branch** | \`${BRANCH}\` |
           | **Commit** | \`${SHORT_SHA}\` |
           | **Updated** | ${TIMESTAMP} |"
 
           # Update existing comment or create new one
-          COMMENT_ID=$(gh pr view "$PR_NUMBER" --json comments --repo "$REPO" \
-            --jq '[.comments[] | select((.author.login | startswith("github-actions")) and (.body | contains("<!-- preview-deploy -->"))) | .url | split("issuecomment-") | last] | last // ""')
+          COMMENT_ID=$(gh api "repos/$REPO/issues/${PR_NUMBER}/comments?per_page=100" \
+            --jq '[.[] | select((.user.login | startswith("github-actions")) and (.body | contains("<!-- preview-deploy -->"))) | .id] | last // ""')
 
           if [[ -n "$COMMENT_ID" ]]; then
             gh api "repos/$REPO/issues/comments/$COMMENT_ID" -X PATCH -f body="$BODY" --silent
