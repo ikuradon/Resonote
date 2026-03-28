@@ -23,6 +23,7 @@ export interface ParsedFeed {
   feedUrl: string;
   podcastGuid: string;
   imageUrl: string;
+  description: string;
   episodes: ParsedEpisode[];
 }
 
@@ -112,24 +113,27 @@ function decodeEntities(text: string): string {
 }
 
 /**
- * Strip HTML tags and decode entities to produce plain text.
- * Two-pass: decode entities first (handles XML-escaped markup like &lt;p&gt;),
- * then strip tags.
+ * Convert HTML to Markdown, preserving links, emphasis, and structure.
+ * Two-pass: decode entities first, then convert HTML elements to Markdown.
  */
-export function stripHtml(html: string): string {
+export function htmlToMarkdown(html: string): string {
   const decoded = decodeEntities(html);
   return decoded
     .replace(/<!\[CDATA\[/g, '')
     .replace(/\]\]>/g, '')
+    .replace(/<a\s+[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, '[$2]($1)')
+    .replace(/<(?:strong|b)\b[^>]*>([\s\S]*?)<\/(?:strong|b)>/gi, '**$1**')
+    .replace(/<(?:em|i)\b[^>]*>([\s\S]*?)<\/(?:em|i)>/gi, '*$1*')
+    .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, '- $1\n')
     .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/(?:p|div|blockquote|h[1-6])>/gi, '\n\n')
     .replace(/<[^>]+>/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
 
 // Note: functions/ cannot import from src/shared/ (different build targets).
-// The same stripHtml logic is duplicated in src/shared/utils/html.ts for client use.
+// The same htmlToMarkdown logic is duplicated in src/shared/utils/html.ts for client use.
 
 export function extractAttr(xml: string, tag: string, attr: string): string {
   const pattern = new RegExp(`<${tag}[^>]+${attr}=["']([^"']+)["'][^>]*>`, 'i');
@@ -153,6 +157,12 @@ export async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed
   const imageUrl =
     extractAttr(channelXml, 'itunes:image', 'href') || extractTagContent(channelXml, 'url') || '';
 
+  const feedDescriptionRaw =
+    extractTagContent(channelXml, 'description') ||
+    extractTagContent(channelXml, 'itunes:summary') ||
+    '';
+  const feedDescription = htmlToMarkdown(feedDescriptionRaw);
+
   const items: ParsedEpisode[] = [];
   const itemPattern = /<item[^>]*>([\s\S]*?)<\/item>/gi;
   let itemMatch: RegExpExecArray | null;
@@ -172,7 +182,7 @@ export async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed
       extractTagContent(itemXml, 'description') ||
       extractTagContent(itemXml, 'itunes:summary') ||
       '';
-    const description = stripHtml(descriptionRaw);
+    const description = htmlToMarkdown(descriptionRaw);
 
     items.push({
       title: itemTitle,
@@ -189,6 +199,7 @@ export async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed
     feedUrl,
     podcastGuid,
     imageUrl,
+    description: feedDescription,
     episodes: items
   };
 }
@@ -241,7 +252,8 @@ async function handleFeedUrl(
     iTags: [[`podcast:guid:${feed.podcastGuid}`, feedUrl]],
     kTag: 'podcast:guid',
     rTags: [feedUrl, feedRoot],
-    title: feed.title
+    title: feed.title,
+    content: feed.description
   });
 
   // Sign bookmark events for all episodes

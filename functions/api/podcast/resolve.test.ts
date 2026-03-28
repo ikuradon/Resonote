@@ -6,12 +6,11 @@ import {
   extractAttr,
   extractTagContent,
   findRssLink,
+  htmlToMarkdown,
   normalizeForDTag,
   onRequestGet,
   parseDurationToSeconds,
-  parseRss,
-  stripHtml
-} from './resolve.js';
+  parseRss} from './resolve.js';
 
 describe('normalizeForDTag', () => {
   it('should normalize basic URL', () => {
@@ -812,54 +811,70 @@ describe('handleRequest (onRequestGet)', () => {
   });
 });
 
-describe('stripHtml', () => {
-  it('removes HTML tags and returns plain text', () => {
-    expect(stripHtml('<p>Hello <b>world</b></p>')).toBe('Hello world');
+describe('htmlToMarkdown', () => {
+  it('converts bold to markdown', () => {
+    expect(htmlToMarkdown('<p>Hello <b>world</b></p>')).toBe('Hello **world**');
+  });
+
+  it('converts links to markdown', () => {
+    expect(htmlToMarkdown('<p>Visit <a href="https://example.com">here</a></p>')).toBe(
+      'Visit [here](https://example.com)'
+    );
+  });
+
+  it('converts italic to markdown', () => {
+    expect(htmlToMarkdown('<em>emphasis</em>')).toBe('*emphasis*');
   });
 
   it('converts <br> to newline', () => {
-    expect(stripHtml('Line 1<br>Line 2<br/>Line 3')).toBe('Line 1\nLine 2\nLine 3');
+    expect(htmlToMarkdown('Line 1<br>Line 2<br/>Line 3')).toBe('Line 1\nLine 2\nLine 3');
   });
 
   it('converts </p> to double newline', () => {
-    expect(stripHtml('<p>Para 1</p><p>Para 2</p>')).toBe('Para 1\n\nPara 2');
+    expect(htmlToMarkdown('<p>Para 1</p><p>Para 2</p>')).toBe('Para 1\n\nPara 2');
   });
 
   it('decodes HTML entities in plain text', () => {
-    expect(stripHtml('Tom &amp; Jerry')).toBe('Tom & Jerry');
+    expect(htmlToMarkdown('Tom &amp; Jerry')).toBe('Tom & Jerry');
   });
 
-  it('handles CDATA-extracted content with HTML', () => {
-    expect(stripHtml('<p>Episode about <a href="https://example.com">topic</a></p>')).toBe(
-      'Episode about topic'
+  it('preserves links in CDATA-extracted HTML', () => {
+    expect(htmlToMarkdown('<p>Episode about <a href="https://example.com">topic</a></p>')).toBe(
+      'Episode about [topic](https://example.com)'
     );
   });
 
   it('handles XML-escaped HTML (double-encoded)', () => {
-    expect(stripHtml('&lt;p&gt;Hello &lt;b&gt;world&lt;/b&gt;&lt;/p&gt;')).toBe('Hello world');
+    expect(htmlToMarkdown('&lt;p&gt;Hello &lt;b&gt;world&lt;/b&gt;&lt;/p&gt;')).toBe(
+      'Hello **world**'
+    );
   });
 
   it('handles mixed CDATA content and XML-escaped HTML', () => {
-    expect(stripHtml('<p>Normal</p>&lt;p&gt;escaped&lt;/p&gt;')).toBe('Normal\n\nescaped');
+    expect(htmlToMarkdown('<p>Normal</p>&lt;p&gt;escaped&lt;/p&gt;')).toBe('Normal\n\nescaped');
   });
 
   it('collapses excessive newlines', () => {
-    expect(stripHtml('<p>A</p><p></p><p>B</p>')).toBe('A\n\nB');
+    expect(htmlToMarkdown('<p>A</p><p></p><p>B</p>')).toBe('A\n\nB');
   });
 
   it('returns empty string for empty input', () => {
-    expect(stripHtml('')).toBe('');
+    expect(htmlToMarkdown('')).toBe('');
   });
 
   it('returns plain text unchanged', () => {
-    expect(stripHtml('Just plain text')).toBe('Just plain text');
+    expect(htmlToMarkdown('Just plain text')).toBe('Just plain text');
   });
 
   it('strips residual CDATA markers', () => {
-    expect(stripHtml('<![CDATA[<p>content</p>]]>')).toBe('content');
+    expect(htmlToMarkdown('<![CDATA[<p>content</p>]]>')).toBe('content');
   });
 
   it('strips ]]> without matching <![CDATA[', () => {
-    expect(stripHtml('text]]> more')).toBe('text more');
+    expect(htmlToMarkdown('text]]> more')).toBe('text more');
+  });
+
+  it('converts list items', () => {
+    expect(htmlToMarkdown('<ul><li>One</li><li>Two</li></ul>')).toBe('- One\n- Two');
   });
 });

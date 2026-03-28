@@ -3,7 +3,7 @@ import type { EventParameters } from 'nostr-typedef';
 
 import { normalizeUrl } from '$shared/content/url-utils.js';
 import { getEventsDB, getRxNostr } from '$shared/nostr/gateway.js';
-import { stripHtml } from '$shared/utils/html.js';
+import { htmlToMarkdown } from '$shared/utils/html.js';
 
 let pubkeyPromise: Promise<string> | undefined;
 
@@ -67,7 +67,12 @@ export function parseDTagEvent(event: {
 
   if (!guid || !feedUrl || !enclosureUrl) return null;
   const rawDesc = event.content || undefined;
-  return { guid, feedUrl, enclosureUrl, description: rawDesc ? stripHtml(rawDesc) : undefined };
+  return {
+    guid,
+    feedUrl,
+    enclosureUrl,
+    description: rawDesc ? htmlToMarkdown(rawDesc) : undefined
+  };
 }
 
 export async function resolveByDTag(

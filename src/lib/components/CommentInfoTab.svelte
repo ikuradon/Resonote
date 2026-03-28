@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ContentMetadata } from '$features/content-resolution/domain/content-metadata.js';
   import { t } from '$shared/i18n/t.js';
+  import { renderMarkdown } from '$shared/utils/html.js';
 
   interface Props {
     metadata: ContentMetadata | null;
@@ -14,6 +15,9 @@
   let expanded = $state(false);
 
   let isLong = $derived((metadata?.description?.length ?? 0) > 200);
+  let renderedDescription = $derived(
+    metadata?.description ? renderMarkdown(metadata.description) : ''
+  );
 </script>
 
 <div class="space-y-4 py-6">
@@ -53,12 +57,13 @@
           {/if}
         {/if}
         {#if metadata.description}
-          <p
-            class="mt-2 whitespace-pre-line text-xs leading-relaxed text-text-secondary
+          <div
+            class="mt-2 text-xs leading-relaxed text-text-secondary [&_a]:text-accent [&_a]:underline
               {!expanded && isLong ? 'line-clamp-3' : ''}"
           >
-            {metadata.description}
-          </p>
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -- renderMarkdown escapes all raw HTML before constructing safe elements -->
+            {@html renderedDescription}
+          </div>
           {#if isLong}
             <button
               type="button"
