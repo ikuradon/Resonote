@@ -4,6 +4,9 @@
  */
 
 import { COMMENT_KIND, DELETION_KIND, REACTION_KIND } from '$shared/nostr/events.js';
+import { createLogger } from '$shared/utils/logger.js';
+
+const log = createLogger('comment-subscription');
 /** Build the 3-filter array for unified subscription on a given tag value. */
 export function buildContentFilters(idValue: string) {
   return [
@@ -79,7 +82,7 @@ export function startSubscription(
       next: (packet: any) => onPacket(packet.event),
       complete: onBackwardComplete,
       error: (err: unknown) => {
-        console.error('[comment-subscription] Backward fetch error:', err);
+        log.error('Backward fetch error', err);
         onBackwardComplete();
       }
     });

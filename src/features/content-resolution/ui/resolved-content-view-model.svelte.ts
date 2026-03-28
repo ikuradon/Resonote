@@ -119,7 +119,7 @@ export function createResolvedContentViewModel(
         })
         .catch((err: unknown) => {
           if (signal.cancelled) return;
-          console.error('[resolved-content-vm] resolvePodcastEpisode failed:', err);
+          log.error('resolvePodcastEpisode failed', err);
           resolvedEnclosureUrl = '';
         });
     }
@@ -155,7 +155,7 @@ export function createResolvedContentViewModel(
       })
       .catch((err: unknown) => {
         if (signal.cancelled) return;
-        console.error('[resolved-content-vm] resolveAudioUrl failed:', err);
+        log.error('resolveAudioUrl failed', err);
       });
 
     return () => {
