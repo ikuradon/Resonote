@@ -49,6 +49,22 @@ describe('cacheMiddleware', () => {
     expect(res.headers.get('Cache-Control')).toBe('public, max-age=300');
   });
 
+  it('should skip caching and set Cache-Control when caches is undefined', async () => {
+    vi.unstubAllGlobals(); // remove caches global
+
+    const app = new Hono();
+    app.get('/test', cacheMiddleware({ ttl: 600 }), (c) => c.json({ dev: true }));
+
+    const res = await app.request('/test');
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toEqual({ dev: true });
+    expect(res.headers.get('Cache-Control')).toBe('public, max-age=600');
+
+    // Re-stub for remaining tests
+    vi.stubGlobal('caches', { default: mockCache });
+  });
+
   it('should not cache error responses', async () => {
     mockCache.match.mockResolvedValue(undefined);
 
