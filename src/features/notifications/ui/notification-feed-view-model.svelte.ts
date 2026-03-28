@@ -5,10 +5,10 @@ import { cachedFetchById } from '$shared/nostr/cached-query.js';
 import { truncateString } from '$shared/utils/format.js';
 import { createLogger } from '$shared/utils/logger.js';
 
-const log = createLogger('notif-feed-vm');
-
 import type { Notification, NotificationType } from '../domain/notification-model.js';
 import { getLastRead, markAllAsRead } from './notifications-view-model.svelte.js';
+
+const log = createLogger('notif-feed-vm');
 
 export type NotificationFeedFilter = 'all' | NotificationType;
 
