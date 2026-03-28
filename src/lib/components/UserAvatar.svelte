@@ -13,12 +13,9 @@
   let imgError = $state(false);
 
   // Reset error state when picture URL changes (e.g. async profile load)
-  let prevPicture = $state(picture);
   $effect(() => {
-    if (picture !== prevPicture) {
-      prevPicture = picture;
-      imgError = false;
-    }
+    void picture;
+    imgError = false;
   });
 
   const sizeClass = $derived(

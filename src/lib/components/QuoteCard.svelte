@@ -10,7 +10,7 @@
 
   let { eventId, href }: Props = $props();
 
-  const vm = createQuoteViewModel(eventId);
+  const vm = $derived(createQuoteViewModel(eventId));
 
   const MAX_PREVIEW_LENGTH = 120;
   let preview = $derived.by(() => {
