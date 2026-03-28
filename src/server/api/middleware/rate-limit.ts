@@ -22,6 +22,14 @@ export function rateLimitMiddleware(options?: RateLimitOptions): MiddlewareHandl
       'unknown';
 
     const now = Date.now();
+
+    // Evict expired entries to prevent unbounded memory growth
+    if (store.size > 1000) {
+      for (const [key, val] of store) {
+        if (now >= val.resetAt) store.delete(key);
+      }
+    }
+
     const entry = store.get(ip);
 
     if (entry && now < entry.resetAt) {
