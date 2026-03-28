@@ -3,6 +3,7 @@
  * Used by content-link segments in comment rendering.
  */
 
+import { apiClient } from '$shared/api/client.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 import type { ContentId } from './types.js';
@@ -16,7 +17,7 @@ export interface ContentMetadata {
   provider: string;
 }
 
-/** Must match PLATFORMS keys in functions/api/oembed/resolve.ts */
+/** Must match PLATFORMS keys in src/server/api/oembed.ts */
 const SUPPORTED_PLATFORMS = new Set(['spotify', 'youtube', 'soundcloud', 'vimeo']);
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -66,14 +67,14 @@ export async function fetchContentMetadata(contentId: ContentId): Promise<Conten
 }
 
 async function doFetch(contentId: ContentId, key: string): Promise<ContentMetadata | null> {
-  const params = new URLSearchParams({
-    platform: contentId.platform,
-    type: contentId.type,
-    id: contentId.id
-  });
-
   try {
-    const res = await fetch(`/api/oembed/resolve?${params}`);
+    const res = await apiClient.api.oembed.resolve.$get({
+      query: {
+        platform: contentId.platform,
+        type: contentId.type,
+        id: contentId.id
+      }
+    });
     if (!res.ok) {
       log.warn('oEmbed resolve failed', { status: res.status, key });
       // Cache null only for client errors (4xx) — transient server errors (5xx) should retry

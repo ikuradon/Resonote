@@ -25,7 +25,7 @@
     "test:watch": "vitest",
     "pretest:e2e": "pnpm build:e2e-helpers",
     "test:e2e": "playwright test",
-    "preview:e2e": "wrangler pages dev build --port 4173 --ip 127.0.0.1",
+    "preview:e2e": "wrangler pages dev .svelte-kit/cloudflare --port 4173 --ip 127.0.0.1",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",

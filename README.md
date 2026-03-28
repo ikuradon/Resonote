@@ -115,7 +115,7 @@ pnpm run dev:full
 - **テスト**: Vitest (単体) + Playwright (E2E)
 - **CI**: GitHub Actions (format → lint → check → test → E2E → build-extension)
 - **ホスティング**: Cloudflare Pages
-- **API**: Cloudflare Pages Functions (`functions/` dir)
+- **API**: Hono (`src/server/api/`, SvelteKit hooks.server.ts 経由)
 
 ## アーキテクチャ
 
@@ -127,7 +127,7 @@ pnpm run dev:full
 - `src/features/` — feature slice (domain / application / infra / ui) — comments, content-resolution, notifications, profiles, bookmarks, follows, relays, mute, sharing, auth, playback, extension-bridge, nip19-resolver
 - `src/web/` — SvelteKit エントリーポイント (routes, app.html, app.css)
 - `src/extension/` — ブラウザ拡張機能 (Chrome/Firefox Manifest V3)
-- `functions/` — Cloudflare Pages Functions (API エンドポイント)
+- `src/server/` — サーバーサイド API (Hono ルート、ミドルウェア、ユーティリティ)
 
 ### runtime ownership の基準
 

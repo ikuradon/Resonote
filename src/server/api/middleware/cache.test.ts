@@ -21,9 +21,11 @@ describe('cacheMiddleware', () => {
 
   it('should return cached response on hit', async () => {
     const cachedBody = JSON.stringify({ cached: true });
-    mockCache.match.mockResolvedValue(new Response(cachedBody, {
-      headers: { 'Content-Type': 'application/json' }
-    }));
+    mockCache.match.mockResolvedValue(
+      new Response(cachedBody, {
+        headers: { 'Content-Type': 'application/json' }
+      })
+    );
 
     const app = new Hono();
     app.get('/test', cacheMiddleware({ ttl: 60 }), (c) => c.json({ cached: false }));

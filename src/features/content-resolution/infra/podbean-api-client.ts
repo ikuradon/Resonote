@@ -3,13 +3,15 @@
  * Encapsulates the /api/podbean/resolve proxy call.
  */
 
+import { apiClient } from '$shared/api/client.js';
+
 export interface PodbeanResolveResult {
   embedSrc?: string;
   embedId?: string;
 }
 
 export async function resolvePodbeanEmbed(sourceUrl: string): Promise<string> {
-  const res = await fetch(`/api/podbean/resolve?url=${encodeURIComponent(sourceUrl)}`);
+  const res = await apiClient.api.podbean.resolve.$get({ query: { url: sourceUrl } });
   if (!res.ok) throw new Error(`resolve ${res.status}`);
   const data = (await res.json()) as PodbeanResolveResult;
   if (data.embedSrc) return data.embedSrc;

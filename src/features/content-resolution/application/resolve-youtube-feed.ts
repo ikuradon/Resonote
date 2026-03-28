@@ -1,3 +1,4 @@
+import { apiClient } from '$shared/api/client.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('resolve-yt-feed');
@@ -19,10 +20,8 @@ export async function resolveYouTubeFeed(
   type: 'playlist' | 'channel',
   id: string
 ): Promise<YouTubeFeedResult> {
-  const params = new URLSearchParams({ type, id });
-
   try {
-    const res = await fetch(`/api/youtube/feed?${params}`);
+    const res = await apiClient.api.youtube.feed.$get({ query: { type, id } });
     if (!res.ok) {
       log.warn('YouTube feed resolve failed', { status: res.status, type, id });
       return { title: '', videos: [], error: 'fetch_failed' };

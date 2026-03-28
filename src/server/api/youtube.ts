@@ -4,11 +4,8 @@ import { z } from 'zod';
 
 import { safeFetch, safeReadText } from '$server/lib/safe-fetch.js';
 
+import type { Bindings } from './bindings.js';
 import { cacheMiddleware } from './middleware/cache.js';
-
-interface Bindings {
-  UNSAFE_ALLOW_PRIVATE_IPS?: string;
-}
 
 export interface FeedVideo {
   videoId: string;
@@ -75,9 +72,7 @@ const querySchema = z.object({
   id: z.string()
 });
 
-export const youtubeRoute = new Hono<{ Bindings: Bindings }>();
-
-youtubeRoute.get(
+export const youtubeRoute = new Hono<{ Bindings: Bindings }>().get(
   '/feed',
   cacheMiddleware({ ttl: 900 }),
   zValidator('query', querySchema, (result, c) => {

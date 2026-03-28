@@ -2,13 +2,9 @@ import { Hono } from 'hono';
 import { getPublicKey } from 'nostr-tools/pure';
 import { hexToBytes } from 'nostr-tools/utils';
 
-interface Bindings {
-  SYSTEM_NOSTR_PRIVKEY: string;
-}
+import type { Bindings } from './bindings.js';
 
-export const systemRoute = new Hono<{ Bindings: Bindings }>();
-
-systemRoute.get('/pubkey', (c) => {
+export const systemRoute = new Hono<{ Bindings: Bindings }>().get('/pubkey', (c) => {
   const privkeyHex = c.env.SYSTEM_NOSTR_PRIVKEY;
   if (!privkeyHex) {
     return c.json({ error: 'not_configured' }, 503);

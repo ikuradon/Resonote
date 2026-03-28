@@ -4,12 +4,8 @@ import { z } from 'zod';
 
 import { safeFetch } from '$server/lib/safe-fetch.js';
 
+import type { Bindings } from './bindings.js';
 import { cacheMiddleware } from './middleware/cache.js';
-
-interface Bindings {
-  UNSAFE_ALLOW_PRIVATE_IPS?: string;
-  YOUTUBE_API_KEY?: string;
-}
 
 interface OEmbedResponse {
   title?: string;
@@ -205,9 +201,7 @@ const querySchema = z.object({
   id: z.string()
 });
 
-export const oembedRoute = new Hono<{ Bindings: Bindings }>();
-
-oembedRoute.get(
+export const oembedRoute = new Hono<{ Bindings: Bindings }>().get(
   '/resolve',
   cacheMiddleware({ ttl: 86400 }),
   zValidator('query', querySchema, (result, c) => {

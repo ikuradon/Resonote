@@ -4,19 +4,14 @@ import { z } from 'zod';
 
 import { assertSafeUrl, safeFetch } from '$server/lib/safe-fetch.js';
 
+import type { Bindings } from './bindings.js';
 import { cacheMiddleware } from './middleware/cache.js';
-
-interface Bindings {
-  UNSAFE_ALLOW_PRIVATE_IPS?: string;
-}
 
 const querySchema = z.object({
   url: z.url()
 });
 
-export const podbeanRoute = new Hono<{ Bindings: Bindings }>();
-
-podbeanRoute.get(
+export const podbeanRoute = new Hono<{ Bindings: Bindings }>().get(
   '/resolve',
   cacheMiddleware({ ttl: 86400 }),
   zValidator('query', querySchema, (result, c) => {

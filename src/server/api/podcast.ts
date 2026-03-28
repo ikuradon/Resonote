@@ -8,12 +8,8 @@ import { fetchAudioMetadata } from '$server/lib/audio-metadata.js';
 import { assertSafeUrl, safeFetch, safeReadText } from '$server/lib/safe-fetch.js';
 import { htmlToMarkdown } from '$shared/utils/html.js';
 
+import type { Bindings } from './bindings.js';
 import { cacheMiddleware } from './middleware/cache.js';
-
-interface Bindings {
-  SYSTEM_NOSTR_PRIVKEY?: string;
-  UNSAFE_ALLOW_PRIVATE_IPS?: string;
-}
 
 export interface ParsedEpisode {
   title: string;
@@ -459,9 +455,7 @@ const querySchema = z.object({
   url: z.url()
 });
 
-export const podcastRoute = new Hono<{ Bindings: Bindings }>();
-
-podcastRoute.get(
+export const podcastRoute = new Hono<{ Bindings: Bindings }>().get(
   '/resolve',
   cacheMiddleware({ ttl: 3600 }),
   zValidator('query', querySchema, (result, c) => {
