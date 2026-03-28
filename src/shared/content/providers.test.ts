@@ -239,13 +239,15 @@ describe('SoundCloudProvider', () => {
   });
 
   it('contentKind: returns "soundcloud:track"', () => {
-    expect(provider.contentKind()).toBe('soundcloud:track');
+    expect(
+      provider.contentKind({ platform: 'soundcloud', type: 'track', id: 'artist/trackname' })
+    ).toBe('soundcloud:track');
   });
 
   it('toNostrTag()[0] prefix matches contentKind()', () => {
     const contentId = { platform: 'soundcloud', type: 'track', id: 'artist/trackname' };
     const [tagValue] = provider.toNostrTag(contentId);
-    const kind = provider.contentKind();
+    const kind = provider.contentKind(contentId);
     expect(tagValue.startsWith(`${kind}:`)).toBe(true);
   });
 });

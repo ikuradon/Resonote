@@ -47,12 +47,12 @@
 
   // Resolve embed URL via oEmbed API
   $effect(() => {
-    const trackUrl = `https://soundcloud.com/${contentId.id}`;
+    const contentUrl = `https://soundcloud.com/${contentId.id}`;
     embedSrc = '';
     error = false;
 
     let cancelled = false;
-    resolveSoundCloudEmbed(trackUrl)
+    resolveSoundCloudEmbed(contentUrl)
       .then((src) => {
         if (!cancelled) embedSrc = src;
       })
@@ -160,7 +160,7 @@
       bind:this={iframeEl}
       src={embedSrc}
       width="100%"
-      height="166"
+      height={contentId.type === 'set' ? '450' : '166'}
       scrolling="no"
       frameborder="no"
       allow="autoplay"
@@ -182,7 +182,10 @@
       {/if}
     </div>
   {:else if !ready}
-    <EmbedLoading color="bg-orange-500" minHeight="min-h-[166px]">
+    <EmbedLoading
+      color="bg-orange-500"
+      minHeight={contentId.type === 'set' ? 'min-h-[450px]' : 'min-h-[166px]'}
+    >
       {#snippet icon()}
         <svg
           aria-hidden="true"

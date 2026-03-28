@@ -32,7 +32,45 @@ describe('SoundCloudProvider', () => {
       });
     });
 
-    it('should return null for a sets URL', () => {
+    it('should parse a sets URL', () => {
+      const result = provider.parseUrl('https://soundcloud.com/artist-name/sets/playlist-name');
+      expect(result).toEqual({
+        platform: 'soundcloud',
+        type: 'set',
+        id: 'artist-name/sets/playlist-name'
+      });
+    });
+
+    it('should parse a sets URL with www', () => {
+      const result = provider.parseUrl('https://www.soundcloud.com/artist-name/sets/playlist-name');
+      expect(result).toEqual({
+        platform: 'soundcloud',
+        type: 'set',
+        id: 'artist-name/sets/playlist-name'
+      });
+    });
+
+    it('should parse a sets URL with trailing slash', () => {
+      const result = provider.parseUrl('https://soundcloud.com/artist-name/sets/playlist-name/');
+      expect(result).toEqual({
+        platform: 'soundcloud',
+        type: 'set',
+        id: 'artist-name/sets/playlist-name'
+      });
+    });
+
+    it('should parse a sets URL with query params', () => {
+      const result = provider.parseUrl(
+        'https://soundcloud.com/artist-name/sets/playlist-name?si=abc'
+      );
+      expect(result).toEqual({
+        platform: 'soundcloud',
+        type: 'set',
+        id: 'artist-name/sets/playlist-name'
+      });
+    });
+
+    it('should return null for /sets/ without playlist name', () => {
       expect(provider.parseUrl('https://soundcloud.com/artist-name/sets')).toBeNull();
     });
 
@@ -64,6 +102,32 @@ describe('SoundCloudProvider', () => {
         'soundcloud:track:artist-name/track-name',
         'https://soundcloud.com/artist-name/track-name'
       ]);
+    });
+
+    it('should generate correct NIP-73 tag for sets', () => {
+      const tag = provider.toNostrTag({
+        platform: 'soundcloud',
+        type: 'set',
+        id: 'artist-name/sets/playlist-name'
+      });
+      expect(tag).toEqual([
+        'soundcloud:set:artist-name/sets/playlist-name',
+        'https://soundcloud.com/artist-name/sets/playlist-name'
+      ]);
+    });
+  });
+
+  describe('contentKind', () => {
+    it('should return correct contentKind for set', () => {
+      expect(provider.contentKind({ platform: 'soundcloud', type: 'set', id: 'a/sets/b' })).toBe(
+        'soundcloud:set'
+      );
+    });
+
+    it('should return correct contentKind for track', () => {
+      expect(provider.contentKind({ platform: 'soundcloud', type: 'track', id: 'a/b' })).toBe(
+        'soundcloud:track'
+      );
     });
   });
 

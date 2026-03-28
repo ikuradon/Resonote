@@ -6,7 +6,14 @@ interface CacheOptions {
 
 export function cacheMiddleware(options: CacheOptions): MiddlewareHandler {
   return async (c, next) => {
-    // Cloudflare Workers exposes caches.default (not in standard CacheStorage type)
+    // caches.default is only available in Cloudflare Workers runtime.
+    // In dev mode (Node.js/Vite), skip caching entirely.
+    if (typeof caches === 'undefined') {
+      await next();
+      c.res.headers.set('Cache-Control', `public, max-age=${options.ttl}`);
+      return;
+    }
+
     const cache = (caches as unknown as { default: Cache }).default;
     const cacheKey = new Request(c.req.url, { method: 'GET' });
 
@@ -23,7 +30,7 @@ export function cacheMiddleware(options: CacheOptions): MiddlewareHandler {
       try {
         c.executionCtx.waitUntil(cache.put(cacheKey, responseToCache));
       } catch {
-        // executionCtx unavailable outside Workers runtime; fire-and-forget
+        // executionCtx unavailable; fire-and-forget
         void cache.put(cacheKey, responseToCache);
       }
     }
