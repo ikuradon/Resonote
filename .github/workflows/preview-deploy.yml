@@ -27,14 +27,19 @@ jobs:
         run: |
           gh pr edit "$PR_NUMBER" --remove-label "ok-to-test" --repo "$REPO" 2>/dev/null || true
 
-  build:
-    name: Build Preview
+  deploy-preview:
+    name: Deploy Preview
     if: |
       (github.event.action != 'labeled' && github.event.pull_request.head.repo.full_name == github.repository) ||
       (github.event.action == 'labeled' && github.event.label.name == 'ok-to-test' && github.event.pull_request.head.repo.full_name != github.repository)
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: write
+      deployments: write
+    environment:
+      name: preview-pr-${{ github.event.pull_request.number }}
+      url: https://pr-${{ github.event.pull_request.number }}.resonote-preview.pages.dev
     steps:
       - name: Checkout PR head
         uses: actions/checkout@v6
@@ -54,32 +59,6 @@ jobs:
         run: pnpm build
         env:
           VITE_PR_NUMBER: ${{ github.event.pull_request.number }}
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: preview-build-${{ github.event.pull_request.number }}
-          path: .svelte-kit/
-          include-hidden-files: true
-          retention-days: 1
-
-  deploy-preview:
-    name: Deploy Preview
-    needs: [build]
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-      deployments: write
-      actions: read
-    environment:
-      name: preview-pr-${{ github.event.pull_request.number }}
-      url: https://pr-${{ github.event.pull_request.number }}.resonote-preview.pages.dev
-    steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: preview-build-${{ github.event.pull_request.number }}
-          path: .svelte-kit/
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
@@ -109,7 +88,7 @@ jobs:
           | **Updated** | ${TIMESTAMP} |"
 
           # Update existing comment or create new one
-          COMMENT_ID=$(gh api "repos/$REPO/issues/${PR_NUMBER}/comments" --paginate \
+          COMMENT_ID=$(gh api "repos/$REPO/issues/${PR_NUMBER}/comments?per_page=100" \
             --jq '[.[] | select((.user.login | startswith("github-actions")) and (.body | contains("<!-- preview-deploy -->"))) | .id] | last // ""')
 
           if [[ -n "$COMMENT_ID" ]]; then
