@@ -13,6 +13,7 @@ describe('rateLimitMiddleware', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
