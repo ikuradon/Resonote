@@ -10,7 +10,12 @@
 
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import { cachedFetchById, invalidateFetchByIdCache } from '$shared/nostr/cached-query.js';
-import { COMMENT_KIND, DELETION_KIND, REACTION_KIND } from '$shared/nostr/events.js';
+import {
+  COMMENT_KIND,
+  CONTENT_REACTION_KIND,
+  DELETION_KIND,
+  REACTION_KIND
+} from '$shared/nostr/events.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 
 import {
@@ -29,10 +34,16 @@ import {
 } from '../application/comment-subscription.js';
 import {
   commentFromEvent,
+  contentReactionFromEvent,
   placeholderFromOrphan,
   reactionFromEvent
 } from '../domain/comment-mappers.js';
-import type { Comment, PlaceholderComment, Reaction } from '../domain/comment-model.js';
+import type {
+  Comment,
+  ContentReaction,
+  PlaceholderComment,
+  Reaction
+} from '../domain/comment-model.js';
 import type { ReactionStats } from '../domain/comment-model.js';
 import { verifyDeletionTargets } from '../domain/deletion-rules.js';
 import {
@@ -58,6 +69,12 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   let loading = $state(true);
   let placeholders = $state<Map<string, PlaceholderComment>>(new Map());
   let fetchedParentIds = new Set<string>();
+
+  let contentReactionIds = new Set<string>();
+  let contentReactionsRaw = $state<ContentReaction[]>([]);
+  let visibleContentReactions = $derived(
+    contentReactionsRaw.filter((cr) => !deletedIds.has(cr.id))
+  );
 
   let prevDeletedSize = 0;
   let destroyed = false;
@@ -112,6 +129,13 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     }
   }
 
+  function handleContentReactionPacket(event: CachedEvent) {
+    if (contentReactionIds.has(event.id)) return;
+    contentReactionIds.add(event.id);
+    eventPubkeys.set(event.id, event.pubkey);
+    contentReactionsRaw = [...contentReactionsRaw, contentReactionFromEvent(event)];
+  }
+
   function handleDeletionPacket(event: { id: string; pubkey: string; tags: string[][] }) {
     const verified = verifyDeletionTargets(event, eventPubkeys);
     if (verified.length === 0) return;
@@ -159,6 +183,9 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
       case REACTION_KIND:
         handleReactionPacket(event);
         break;
+      case CONTENT_REACTION_KIND:
+        handleContentReactionPacket(event);
+        break;
       case DELETION_KIND:
         handleDeletionPacket(event);
         break;
@@ -170,6 +197,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     const cachedDeletions: CachedEvent[] = [];
     const cachedComments: CachedEvent[] = [];
     const cachedReactions: CachedEvent[] = [];
+    const cachedContentReactions: CachedEvent[] = [];
     let maxCreatedAt: number | null = null;
 
     for (const event of cachedEvents) {
@@ -185,6 +213,9 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
           break;
         case REACTION_KIND:
           cachedReactions.push(event);
+          break;
+        case CONTENT_REACTION_KIND:
+          cachedContentReactions.push(event);
           break;
       }
     }
@@ -203,6 +234,19 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     for (const event of cachedReactions) {
       const reaction = reactionFromEvent(event);
       if (reaction) addReaction(reaction);
+    }
+
+    // Restore content reactions
+    const newContentReactions: ContentReaction[] = [];
+    for (const event of cachedContentReactions) {
+      if (!contentReactionIds.has(event.id)) {
+        contentReactionIds.add(event.id);
+        eventPubkeys.set(event.id, event.pubkey);
+        newContentReactions.push(contentReactionFromEvent(event));
+      }
+    }
+    if (newContentReactions.length > 0) {
+      contentReactionsRaw = [...contentReactionsRaw, ...newContentReactions];
     }
 
     // Build pubkey map for NIP-09 verification
@@ -347,8 +391,9 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
       rebuildReactionIndex();
     }
 
-    // Restore comments and reactions
+    // Restore comments, reactions, and content reactions
     const newComments: Comment[] = [];
+    const newContentReactions: ContentReaction[] = [];
     for (const ev of cachedEvents) {
       if (ev.kind === COMMENT_KIND && !commentIds.has(ev.id) && !deletedIds.has(ev.id)) {
         commentIds.add(ev.id);
@@ -362,8 +407,19 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
           eventPubkeys.set(ev.id, ev.pubkey);
         }
       }
+      if (
+        ev.kind === CONTENT_REACTION_KIND &&
+        !contentReactionIds.has(ev.id) &&
+        !deletedIds.has(ev.id)
+      ) {
+        contentReactionIds.add(ev.id);
+        eventPubkeys.set(ev.id, ev.pubkey);
+        newContentReactions.push(contentReactionFromEvent(ev));
+      }
     }
     if (newComments.length > 0) commentsRaw = [...commentsRaw, ...newComments];
+    if (newContentReactions.length > 0)
+      contentReactionsRaw = [...contentReactionsRaw, ...newContentReactions];
 
     // Start merged subscription
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- destroyed may become true during preceding awaits
@@ -495,6 +551,9 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     },
     get placeholders() {
       return placeholders;
+    },
+    get contentReactions() {
+      return visibleContentReactions;
     },
     getRelayHint: (eventId: string) => commentsRaw.find((c) => c.id === eventId)?.relayHint,
     subscribe,

@@ -14,6 +14,7 @@ const {
   purgeDeletedFromCacheMock,
   commentFromEventMock,
   reactionFromEventMock,
+  contentReactionFromEventMock,
   placeholderFromOrphanMock,
   emptyStatsMock,
   applyReactionMock,
@@ -59,6 +60,14 @@ const {
       })
     ),
     reactionFromEventMock: vi.fn().mockReturnValue(null),
+    contentReactionFromEventMock: vi.fn(
+      (event: { id: string; pubkey: string; content: string; created_at: number }) => ({
+        id: event.id,
+        pubkey: event.pubkey,
+        content: event.content,
+        createdAt: event.created_at
+      })
+    ),
     placeholderFromOrphanMock: vi.fn((id: string, positionMs: number | null) => ({
       id,
       status: 'loading' as const,
@@ -94,6 +103,7 @@ vi.mock('../application/comment-subscription.js', () => ({
 vi.mock('../domain/comment-mappers.js', () => ({
   commentFromEvent: commentFromEventMock,
   reactionFromEvent: reactionFromEventMock,
+  contentReactionFromEvent: contentReactionFromEventMock,
   placeholderFromOrphan: placeholderFromOrphanMock
 }));
 
@@ -111,6 +121,7 @@ vi.mock('../domain/deletion-rules.js', () => ({
 vi.mock('$shared/nostr/events.js', () => ({
   COMMENT_KIND: 1111,
   REACTION_KIND: 7,
+  CONTENT_REACTION_KIND: 17,
   DELETION_KIND: 5,
   extractDeletionTargets: vi.fn().mockReturnValue([]),
   parsePosition: vi.fn().mockReturnValue(null)
