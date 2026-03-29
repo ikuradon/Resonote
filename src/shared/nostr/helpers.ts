@@ -67,6 +67,16 @@ export function decodeNip19(str: string): DecodedNip19 {
   }
 }
 
+/**
+ * Encode a ContentId + relay list into a bech32 `ncontent1...` string.
+ *
+ * **Resonote-specific extension** — not part of the NIP-19 standard.
+ * Other Nostr clients cannot decode this format.
+ *
+ * TLV structure:
+ * - Type 0: content identifier string (`platform:type:id`)
+ * - Type 1: relay URL (repeatable)
+ */
 export function encodeContentLink(contentId: ContentId, relays: string[]): string {
   const contentStr = `${contentId.platform}:${contentId.type}:${contentId.id}`;
   const data: number[] = [];
@@ -112,6 +122,12 @@ export function getContentPathFromTags(tags: string[][]): string | null {
   return iValue ? iTagToContentPath(iValue) : null;
 }
 
+/**
+ * Decode a bech32 `ncontent1...` string into a ContentId + relay list.
+ *
+ * **Resonote-specific extension** — not part of the NIP-19 standard.
+ * Returns null if the input is invalid or uses a different prefix.
+ */
 export function decodeContentLink(str: string): { contentId: ContentId; relays: string[] } | null {
   try {
     if (!str.includes('1')) return null;

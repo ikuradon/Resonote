@@ -60,7 +60,7 @@ function appendContentTags(tags: string[][], content: string, emojiTags?: string
     tags.push(...emojiTags);
   }
 
-  const { pTags, eTags, tTags } = extractContentTags(content);
+  const { pTags, qTags, tTags } = extractContentTags(content);
 
   const existingP = new Set(tags.filter((tag) => tag[0] === 'p').map((tag) => tag[1]));
   for (const pubkey of pTags) {
@@ -69,10 +69,10 @@ function appendContentTags(tags: string[][], content: string, emojiTags?: string
     }
   }
 
-  const existingE = new Set(tags.filter((tag) => tag[0] === 'e').map((tag) => tag[1]));
-  for (const eventId of eTags) {
-    if (!existingE.has(eventId)) {
-      tags.push(['e', eventId]);
+  const existingQ = new Set(tags.filter((tag) => tag[0] === 'q').map((tag) => tag[1]));
+  for (const eventId of qTags) {
+    if (!existingQ.has(eventId)) {
+      tags.push(['q', eventId]);
     }
   }
 

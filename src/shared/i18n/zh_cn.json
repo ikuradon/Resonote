@@ -197,6 +197,8 @@
   "confirm.mute_word_add.detail": "屏蔽词数：{before} → {after}",
   "confirm.mute_word_remove": "移除屏蔽词？",
   "confirm.mute_word_remove.detail": "屏蔽词数：{before} → {after}",
+  "confirm.encryption_scheme": "Convert to NIP-44?",
+  "confirm.encryption_scheme.detail": "This mute list uses NIP-04 encryption. Converting to NIP-44 makes it unreadable by NIP-04-only clients. Cancel to keep NIP-04.",
   "confirm.ok": "确认",
   "confirm.cancel": "取消",
   "resolve.loading": "正在解析URL...",

@@ -197,6 +197,8 @@
   "confirm.mute_word_add.detail": "뮤트 단어: {before} → {after}",
   "confirm.mute_word_remove": "뮤트 단어를 삭제하시겠습니까?",
   "confirm.mute_word_remove.detail": "뮤트 단어: {before} → {after}",
+  "confirm.encryption_scheme": "Convert to NIP-44?",
+  "confirm.encryption_scheme.detail": "This mute list uses NIP-04 encryption. Converting to NIP-44 makes it unreadable by NIP-04-only clients. Cancel to keep NIP-04.",
   "confirm.ok": "확인",
   "confirm.cancel": "취소",
   "resolve.loading": "URL 해석 중...",

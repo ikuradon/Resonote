@@ -54,6 +54,27 @@ describe('parseBookmarkTags', () => {
     expect(result[2].type).toBe('content');
   });
 
+  it('should parse r-tags as url bookmarks', () => {
+    const tags = [['r', 'https://example.com/article']];
+    const result = parseBookmarkTags(tags);
+    expect(result).toEqual([
+      { type: 'url', value: 'https://example.com/article', hint: undefined }
+    ]);
+  });
+
+  it('should parse mixed i, e, and r tags', () => {
+    const tags = [
+      ['i', 'spotify:track:abc', 'https://open.spotify.com/track/abc'],
+      ['e', 'deadbeef'.repeat(8), 'wss://relay.example.com'],
+      ['r', 'https://example.com/article']
+    ];
+    const entries = parseBookmarkTags(tags);
+    expect(entries).toHaveLength(3);
+    expect(entries[0].type).toBe('content');
+    expect(entries[1].type).toBe('event');
+    expect(entries[2].type).toBe('url');
+  });
+
   it('should handle empty tag arrays', () => {
     expect(parseBookmarkTags([])).toEqual([]);
   });

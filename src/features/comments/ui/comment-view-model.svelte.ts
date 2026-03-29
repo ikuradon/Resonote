@@ -14,6 +14,7 @@ import {
   COMMENT_KIND,
   CONTENT_REACTION_KIND,
   DELETION_KIND,
+  extractDeletionTargets,
   REACTION_KIND
 } from '$shared/nostr/events.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
@@ -81,6 +82,8 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   let loadingTimeout: ReturnType<typeof setTimeout> | undefined;
 
   const eventPubkeys = new Map<string, string>();
+  /** Pending deletions for unobserved events — Map<targetEventId, deletionEvent> */
+  const pendingDeletions = new Map<string, { pubkey: string; tags: string[][] }>();
 
   // Infra refs
   let subscriptionRefs: SubscriptionRefs | undefined;
@@ -92,6 +95,22 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   // --- Domain operations ---
   function rebuildReactionIndex() {
     reactionIndex = buildReactionIndex(reactionsRaw, deletedIds);
+  }
+
+  function applyPendingDeletion(eventId: string, eventPubkey: string): void {
+    const pending = pendingDeletions.get(eventId);
+    if (!pending) return;
+    pendingDeletions.delete(eventId);
+    if (pending.pubkey === eventPubkey) {
+      const next = new Set(deletedIds);
+      next.add(eventId);
+      deletedIds = next;
+      if (deletedIds.size !== prevDeletedSize) {
+        prevDeletedSize = deletedIds.size;
+        rebuildReactionIndex();
+      }
+      log.debug('Pending deletion applied', { id: shortHex(eventId) });
+    }
   }
 
   function addReaction(reaction: Reaction) {
@@ -117,6 +136,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     if (commentIds.has(event.id)) return;
     commentIds.add(event.id);
     eventPubkeys.set(event.id, event.pubkey);
+    applyPendingDeletion(event.id, event.pubkey);
     commentsRaw = [...commentsRaw, commentFromEvent(event, relayHint)];
     log.debug('Comment received', { id: shortHex(event.id) });
   }
@@ -126,6 +146,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     if (reaction) {
       addReaction(reaction);
       eventPubkeys.set(event.id, event.pubkey);
+      applyPendingDeletion(event.id, event.pubkey);
     }
   }
 
@@ -133,11 +154,21 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     if (contentReactionIds.has(event.id)) return;
     contentReactionIds.add(event.id);
     eventPubkeys.set(event.id, event.pubkey);
+    applyPendingDeletion(event.id, event.pubkey);
     contentReactionsRaw = [...contentReactionsRaw, contentReactionFromEvent(event)];
   }
 
   function handleDeletionPacket(event: { id: string; pubkey: string; tags: string[][] }) {
     const verified = verifyDeletionTargets(event, eventPubkeys);
+
+    // Store unverified targets as pending (original event not yet observed)
+    const allTargets = extractDeletionTargets(event);
+    for (const id of allTargets) {
+      if (!eventPubkeys.has(id) && !pendingDeletions.has(id)) {
+        pendingDeletions.set(id, { pubkey: event.pubkey, tags: event.tags });
+      }
+    }
+
     if (verified.length === 0) return;
     const next = new Set(deletedIds);
     for (const id of verified) next.add(id);
@@ -299,13 +330,13 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
       // Purge deleted from cache
       if (deletedIds.size > 0) {
         const idsToPurge = [...deletedIds].filter(
-          (id) => commentIds.has(id) || reactionIds.has(id)
+          (id) => commentIds.has(id) || reactionIds.has(id) || contentReactionIds.has(id)
         );
         void purgeDeletedFromCache(db, idsToPurge);
       }
 
       // Offline deletion reconcile
-      const cachedIds = [...commentIds, ...reactionIds];
+      const cachedIds = [...commentIds, ...reactionIds, ...contentReactionIds];
       if (cachedIds.length > 0) {
         const newDeletions = new Set<string>();
         const reconcile = startDeletionReconcile(
@@ -328,7 +359,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
             rebuildReactionIndex();
             log.info('Offline deletions reconciled', { newDeletions: newDeletions.size });
             const idsToPurge = [...newDeletions].filter(
-              (id) => commentIds.has(id) || reactionIds.has(id)
+              (id) => commentIds.has(id) || reactionIds.has(id) || contentReactionIds.has(id)
             );
             void purgeDeletedFromCache(db, idsToPurge);
           }

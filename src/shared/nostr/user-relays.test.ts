@@ -60,6 +60,7 @@ describe('user-relays', () => {
     subscribeFn = (observer) => {
       observer.next?.({
         event: {
+          created_at: 1000,
           tags: [
             ['r', 'wss://user-relay1.example.com'],
             ['r', 'wss://user-relay2.example.com']

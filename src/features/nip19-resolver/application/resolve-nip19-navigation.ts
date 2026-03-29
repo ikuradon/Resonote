@@ -3,7 +3,11 @@ import { decodeNip19 } from '$shared/nostr/nip19-decode.js';
 
 import { fetchNostrEvent } from './fetch-event.js';
 
-const VALID_PREFIXES = ['npub1', 'nprofile1', 'nevent1', 'note1', 'ncontent1'];
+/** Standard NIP-19 bech32 prefixes */
+const STANDARD_NIP19_PREFIXES = ['npub1', 'nprofile1', 'nevent1', 'note1'];
+/** Resonote-specific bech32 prefixes (not part of NIP-19 standard) */
+const CUSTOM_PREFIXES = ['ncontent1'];
+const VALID_PREFIXES = [...STANDARD_NIP19_PREFIXES, ...CUSTOM_PREFIXES];
 
 export type Nip19NavigationErrorKey = 'nip19.invalid' | 'nip19.not_found' | 'nip19.not_comment';
 

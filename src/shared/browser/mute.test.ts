@@ -408,7 +408,7 @@ describe('loadMuteList — NIP-44 encrypted content', () => {
     expect(m.loading).toBe(false);
   });
 
-  it('contentがあるがNIP-44非対応の場合は暗号化タグをスキップする', async () => {
+  it('contentがあるがNIP-44/NIP-04ともに非対応の場合は暗号化タグをスキップする', async () => {
     Object.defineProperty(globalThis, 'window', {
       configurable: true,
       writable: true,
@@ -422,9 +422,7 @@ describe('loadMuteList — NIP-44 encrypted content', () => {
     const m = getMuteList();
     expect(m.mutedPubkeys.has(USER_A)).toBe(true);
     expect(m.mutedPubkeys.size).toBe(1);
-    expect(logWarnMock).toHaveBeenCalledWith(
-      'NIP-44 not available, skipping encrypted mute entries'
-    );
+    // No NIP-44 or NIP-04 available — encrypted tags are silently skipped
   });
 });
 

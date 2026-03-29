@@ -222,6 +222,28 @@ describe('nip05', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['127.1', 'shorthand loopback'],
+    ['127.0.0.1', 'standard loopback'],
+    ['0x7f000001', 'hex loopback'],
+    ['0177.0.0.1', 'octal loopback'],
+    ['10.0.0.1', 'private 10.x'],
+    ['172.16.0.1', 'private 172.16.x'],
+    ['192.168.1.1', 'private 192.168.x'],
+    ['169.254.1.1', 'link-local'],
+    ['0.0.0.0', 'all-zeros'],
+    ['sub.localhost', '.localhost TLD'],
+    ['[::1]', 'IPv6 loopback']
+  ])('should reject alternative loopback/private domain: %s (%s)', async (domain) => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const { verifyNip05 } = await import('./nip05.js');
+    const result = await verifyNip05(`alice@${domain}`, 'deadbeef'.repeat(8));
+
+    expect(result.valid).toBe(false);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it('clearNip05Cache should allow re-fetching after clearing', async () => {
     const pubkey = 'deadbeef'.repeat(8);
     const fetchSpy = vi

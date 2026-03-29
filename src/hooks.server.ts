@@ -8,7 +8,15 @@ const COMMON_HEADERS: Record<string, string> = {
   'X-Content-Type-Options': 'nosniff'
 };
 
-/** Headers applied only to page responses (not API) */
+/**
+ * Headers applied only to page responses (not API).
+ *
+ * Content-Security-Policy rationale:
+ * - 'unsafe-eval' in script-src: Required by @konemono/nostr-login which uses
+ *   dynamic code evaluation internally. Remove when the library eliminates this usage.
+ * - 'unsafe-inline' in script-src: Required for Svelte event handlers and inline scripts.
+ * - 'unsafe-inline' in style-src: Required for Svelte scoped styles and Tailwind CSS v4.
+ */
 const PAGE_HEADERS: Record<string, string> = {
   'Content-Security-Policy': [
     "default-src 'self'",

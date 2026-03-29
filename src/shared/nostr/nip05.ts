@@ -39,9 +39,47 @@ async function withConcurrencyLimit<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 function isUnsafeDomain(domain: string): boolean {
-  if (!domain || domain.toLowerCase() === 'localhost') return true;
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(domain)) return true;
-  if (domain.startsWith('[') || domain.includes(':')) return true;
+  if (!domain) return true;
+
+  // Normalize hostname via URL parser to catch alternative representations
+  // (e.g. 127.1, 0x7f000001, 0177.0.0.1)
+  let hostname: string;
+  try {
+    hostname = new URL(`https://${domain}`).hostname;
+  } catch {
+    return true;
+  }
+
+  const lower = hostname.toLowerCase();
+
+  // Localhost variants (localhost, .localhost TLD)
+  if (lower === 'localhost' || lower.endsWith('.localhost')) return true;
+
+  // IPv6 loopback / any address
+  if (lower === '[::1]' || lower === '[::0]' || lower === '[::]') return true;
+
+  // IPv4 — after URL normalization, octal/hex/shorthand forms become dotted-decimal
+  const ipv4Match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(hostname);
+  if (ipv4Match) {
+    const [, a, b, c, d] = ipv4Match.map(Number);
+    // Loopback 127.0.0.0/8
+    if (a === 127) return true;
+    // Private 10.0.0.0/8
+    if (a === 10) return true;
+    // Private 172.16.0.0/12
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    // Private 192.168.0.0/16
+    if (a === 192 && b === 168) return true;
+    // Link-local 169.254.0.0/16
+    if (a === 169 && b === 254) return true;
+    // 0.0.0.0
+    if (a === 0 && b === 0 && c === 0 && d === 0) return true;
+    return false;
+  }
+
+  // Bracket-wrapped or colon-containing (IPv6)
+  if (hostname.startsWith('[') || hostname.includes(':')) return true;
+
   return false;
 }
 

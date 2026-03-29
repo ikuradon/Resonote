@@ -12,7 +12,8 @@ const {
 } = vi.hoisted(() => {
   const muteListState = {
     mutedPubkeys: new Set<string>(['pubkey1', 'pubkey2']),
-    mutedWords: ['spam', 'bad']
+    mutedWords: ['spam', 'bad'],
+    encryptionScheme: 'nip44' as const
   };
   const authState = { canWrite: true, loggedIn: true, pubkey: 'test' };
   return {
@@ -38,6 +39,7 @@ vi.mock('$shared/browser/auth.js', () => ({
 vi.mock('$shared/browser/mute.js', () => ({
   getMuteList: getMuteListMock,
   hasNip44Support: hasNip44SupportMock,
+  hasEncryptionSupport: hasNip44SupportMock,
   muteWord: muteWordMock,
   unmuteUser: unmuteUserMock,
   unmuteWord: unmuteWordMock
@@ -194,7 +196,7 @@ describe('createMuteSettingsViewModel', () => {
       vm.newMuteWord = 'testword';
       vm.requestAddMuteWord();
       await vm.confirmCurrentAction();
-      expect(muteWordMock).toHaveBeenCalledWith('testword');
+      expect(muteWordMock).toHaveBeenCalledWith('testword', undefined);
       expect(vm.newMuteWord).toBe('');
     });
 
@@ -202,14 +204,14 @@ describe('createMuteSettingsViewModel', () => {
       const vm = createMuteSettingsViewModel();
       vm.requestUnmuteUser('pubkey1');
       await vm.confirmCurrentAction();
-      expect(unmuteUserMock).toHaveBeenCalledWith('pubkey1');
+      expect(unmuteUserMock).toHaveBeenCalledWith('pubkey1', undefined);
     });
 
     it('calls unmuteWord on confirm', async () => {
       const vm = createMuteSettingsViewModel();
       vm.requestUnmuteWord('spam');
       await vm.confirmCurrentAction();
-      expect(unmuteWordMock).toHaveBeenCalledWith('spam');
+      expect(unmuteWordMock).toHaveBeenCalledWith('spam', undefined);
     });
 
     it('closes dialog even when no action pending', async () => {

@@ -197,6 +197,8 @@
   "confirm.mute_word_add.detail": "Palabras silenciadas: {before} → {after}",
   "confirm.mute_word_remove": "¿Eliminar palabra silenciada?",
   "confirm.mute_word_remove.detail": "Palabras silenciadas: {before} → {after}",
+  "confirm.encryption_scheme": "Convert to NIP-44?",
+  "confirm.encryption_scheme.detail": "This mute list uses NIP-04 encryption. Converting to NIP-44 makes it unreadable by NIP-04-only clients. Cancel to keep NIP-04.",
   "confirm.ok": "Confirmar",
   "confirm.cancel": "Cancelar",
   "resolve.loading": "Resolviendo URL...",
