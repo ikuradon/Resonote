@@ -6,7 +6,13 @@ const SAFE_MESSAGES: Partial<Record<number, string>> = {
   401: 'Unauthorized',
   403: 'Forbidden',
   404: 'Not Found',
-  429: 'Too Many Requests'
+  405: 'Method Not Allowed',
+  409: 'Conflict',
+  413: 'Payload Too Large',
+  422: 'Unprocessable Entity',
+  429: 'Too Many Requests',
+  502: 'Bad Gateway',
+  503: 'Service Unavailable'
 };
 
 export function errorHandler(err: Error, c: Context): Response {

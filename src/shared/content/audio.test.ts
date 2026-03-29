@@ -111,6 +111,10 @@ describe('AudioProvider', () => {
       const contentId = { platform: 'audio', type: 'track', id: 'dummy' };
       expect(provider.contentKind(contentId)).toBe('audio:track');
     });
+
+    it('should fallback to "audio:track" when called without contentId', () => {
+      expect(provider.contentKind()).toBe('audio:track');
+    });
   });
 
   describe('embedUrl', () => {
