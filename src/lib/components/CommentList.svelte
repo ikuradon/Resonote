@@ -182,7 +182,7 @@
     // Wait for tab content to render, then scroll to the comment
     void tick().then(() => {
       requestAnimationFrame(() => {
-        const el = document.querySelector(`[data-comment-id="${highlightCommentId}"]`);
+        const el = document.querySelector(`[data-comment-id="${CSS.escape(highlightCommentId)}"]`);
         el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
         // Brief highlight effect
