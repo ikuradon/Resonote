@@ -446,7 +446,7 @@ describe('audio-metadata', () => {
         vi.stubGlobal('fetch', mockFetch(data));
 
         const result = await fetchAudioMetadata('https://example.com/test.mp3');
-        expect(result.image).toMatch(new RegExp(`^data:${allowedMime.replace('/', '/')};base64,`));
+        expect(result.image).toMatch(new RegExp(`^data:${allowedMime};base64,`));
       }
     });
 

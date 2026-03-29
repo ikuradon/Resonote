@@ -39,7 +39,7 @@ async function withConcurrencyLimit<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 function isUnsafeDomain(domain: string): boolean {
-  if (!domain || domain === 'localhost') return true;
+  if (!domain || domain.toLowerCase() === 'localhost') return true;
   if (/^\d{1,3}(\.\d{1,3}){3}$/.test(domain)) return true;
   if (domain.startsWith('[') || domain.includes(':')) return true;
   return false;
