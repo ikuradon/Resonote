@@ -134,6 +134,7 @@ export async function loadMuteList(pubkey: string): Promise<void> {
         }
       } else {
         encryptionScheme = 'new';
+        preservedPrivateTags = [];
       }
     }
 
