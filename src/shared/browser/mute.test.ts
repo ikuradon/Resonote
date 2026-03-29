@@ -408,6 +408,81 @@ describe('loadMuteList — NIP-44 encrypted content', () => {
     expect(m.loading).toBe(false);
   });
 
+  it('NIP-44失敗→NIP-04フォールバックでプライベートタグを復号する', async () => {
+    const privateTags = [
+      ['p', USER_B],
+      ['word', 'fallback-secret']
+    ];
+
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      writable: true,
+      value: {
+        nostr: {
+          nip44: {
+            encrypt: vi.fn(),
+            decrypt: vi.fn().mockRejectedValue(new Error('NIP-44 failed'))
+          },
+          nip04: {
+            encrypt: vi.fn(),
+            decrypt: vi.fn().mockResolvedValue(JSON.stringify(privateTags))
+          }
+        }
+      }
+    });
+
+    fetchLatestEventMock.mockResolvedValue(
+      makeKind10000Event([USER_A], [], 'nip04-encrypted-content')
+    );
+
+    await loadMuteList(MY_PUBKEY);
+
+    const m = getMuteList();
+    expect(m.mutedPubkeys.has(USER_B)).toBe(true);
+    expect(m.mutedWords).toContain('fallback-secret');
+    expect(m.encryptionScheme).toBe('nip04');
+  });
+
+  it('両復号失敗時はencryptionSchemeをundecryptableに設定する', async () => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      writable: true,
+      value: {
+        nostr: {
+          nip44: {
+            encrypt: vi.fn(),
+            decrypt: vi.fn().mockRejectedValue(new Error('NIP-44 failed'))
+          },
+          nip04: {
+            encrypt: vi.fn(),
+            decrypt: vi.fn().mockRejectedValue(new Error('NIP-04 failed'))
+          }
+        }
+      }
+    });
+
+    fetchLatestEventMock.mockResolvedValue(
+      makeKind10000Event([USER_A], [], 'undecryptable-content')
+    );
+
+    await loadMuteList(MY_PUBKEY);
+
+    const m = getMuteList();
+    expect(m.encryptionScheme).toBe('undecryptable');
+    expect(m.mutedPubkeys.has(USER_A)).toBe(true);
+    expect(m.mutedPubkeys.size).toBe(1);
+  });
+
+  it('contentなしの場合はpreservedPrivateTagsをリセットする', async () => {
+    fetchLatestEventMock.mockResolvedValue(makeKind10000Event([USER_A], ['word1']));
+
+    await loadMuteList(MY_PUBKEY);
+
+    const m = getMuteList();
+    expect(m.encryptionScheme).toBe('new');
+    expect(m.mutedPubkeys.has(USER_A)).toBe(true);
+  });
+
   it('contentがあるがNIP-44/NIP-04ともに非対応の場合は暗号化タグをスキップする', async () => {
     Object.defineProperty(globalThis, 'window', {
       configurable: true,
