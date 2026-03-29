@@ -177,7 +177,9 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
       prevDeletedSize = deletedIds.size;
       rebuildReactionIndex();
     }
-    const toPurge = verified.filter((id) => commentIds.has(id) || reactionIds.has(id));
+    const toPurge = verified.filter(
+      (id) => commentIds.has(id) || reactionIds.has(id) || contentReactionIds.has(id)
+    );
     if (toPurge.length > 0 && eventsDB) void purgeDeletedFromCache(eventsDB, toPurge);
     log.debug('Deletion event received', { deletedIds: verified.map(shortHex) });
 

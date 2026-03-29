@@ -297,16 +297,17 @@ describe('extractContentTags', () => {
     expect(pTags[0]).toBe(PUBKEY_HEX);
   });
 
-  it('extracts eventId from nostr:nevent1... to qTags', () => {
+  it('extracts eventId from nostr:nevent1... to qTags with relay hint', () => {
     const { qTags } = extractContentTags(`nostr:${VALID_NEVENT}`);
     expect(qTags).toHaveLength(1);
-    expect(qTags[0]).toBe(EVENT_HEX);
+    expect(qTags[0].eventId).toBe(EVENT_HEX);
   });
 
-  it('extracts eventId from nostr:note1... to qTags', () => {
+  it('extracts eventId from nostr:note1... to qTags without relay hint', () => {
     const { qTags } = extractContentTags(`nostr:${VALID_NOTE}`);
     expect(qTags).toHaveLength(1);
-    expect(qTags[0]).toBe(EVENT_HEX);
+    expect(qTags[0].eventId).toBe(EVENT_HEX);
+    expect(qTags[0].relayHint).toBeUndefined();
   });
 
   it('extracts lowercase hashtag to tTags', () => {

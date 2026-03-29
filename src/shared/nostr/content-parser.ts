@@ -188,13 +188,18 @@ export function parseCommentContent(content: string, emojiTags: string[][]): Con
  * - nostr:nevent1.../nostr:note1... -> qTags (event IDs)
  * - #hashtag -> tTags
  */
+export interface QTagEntry {
+  eventId: string;
+  relayHint?: string;
+}
+
 export function extractContentTags(content: string): {
   pTags: string[];
-  qTags: string[];
+  qTags: QTagEntry[];
   tTags: string[];
 } {
   const pSet = new Set<string>();
-  const qSet = new Set<string>();
+  const qMap = new Map<string, QTagEntry>();
   const tSet = new Set<string>();
 
   // Match nostr: URIs
@@ -213,10 +218,17 @@ export function extractContentTags(content: string): {
         pSet.add(decoded.pubkey);
         break;
       case 'nevent':
-        qSet.add(decoded.eventId);
+        if (!qMap.has(decoded.eventId)) {
+          qMap.set(decoded.eventId, {
+            eventId: decoded.eventId,
+            relayHint: decoded.relays[0]
+          });
+        }
         break;
       case 'note':
-        qSet.add(decoded.eventId);
+        if (!qMap.has(decoded.eventId)) {
+          qMap.set(decoded.eventId, { eventId: decoded.eventId });
+        }
         break;
     }
   }
@@ -232,7 +244,7 @@ export function extractContentTags(content: string): {
 
   return {
     pTags: [...pSet],
-    qTags: [...qSet],
+    qTags: [...qMap.values()],
     tTags: [...tSet]
   };
 }

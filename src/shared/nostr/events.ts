@@ -70,9 +70,10 @@ function appendContentTags(tags: string[][], content: string, emojiTags?: string
   }
 
   const existingQ = new Set(tags.filter((tag) => tag[0] === 'q').map((tag) => tag[1]));
-  for (const eventId of qTags) {
-    if (!existingQ.has(eventId)) {
-      tags.push(['q', eventId]);
+  for (const q of qTags) {
+    if (!existingQ.has(q.eventId)) {
+      const qTag = q.relayHint ? ['q', q.eventId, q.relayHint] : ['q', q.eventId];
+      tags.push(qTag);
     }
   }
 
