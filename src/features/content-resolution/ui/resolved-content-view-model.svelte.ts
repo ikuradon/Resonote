@@ -7,9 +7,8 @@
 import { untrack } from 'svelte';
 
 import { replaceState } from '$app/navigation';
-// eslint-disable-next-line no-restricted-imports -- TODO: extract comment VM creation to a shared interface
-import { createCommentViewModel } from '$features/comments/ui/comment-view-model.svelte.js';
 import { addBookmark, isBookmarked, removeBookmark } from '$shared/browser/bookmarks.js';
+import { createCommentViewModel } from '$shared/browser/comments.js';
 import { requestSeek, resetPlayer } from '$shared/browser/player.js';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import { fromBase64url } from '$shared/content/url-utils.js';

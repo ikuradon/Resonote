@@ -1,14 +1,13 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  // eslint-disable-next-line no-restricted-imports -- orchestrates feed resolution; full refactor deferred
-  import { resolvePodcastFeed } from '$features/content-resolution/application/resolve-feed.js';
+  import WaveformLoader from '$lib/components/WaveformLoader.svelte';
   import { buildEpisodeContentId } from '$shared/content/resolution.js';
   import type { ContentId } from '$shared/content/types.js';
   import { fromBase64url } from '$shared/content/url-utils.js';
   import { t } from '$shared/i18n/t.js';
   import { formatCompactDuration, formatDateOnly } from '$shared/utils/format.js';
 
-  import WaveformLoader from './WaveformLoader.svelte';
+  import { resolvePodcastFeed } from '../application/resolve-feed.js';
 
   interface Props {
     contentId: ContentId;

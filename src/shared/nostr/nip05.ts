@@ -45,6 +45,11 @@ function isUnsafeDomain(domain: string): boolean {
   return false;
 }
 
+/**
+ * Fetch and verify a NIP-05 identifier against a pubkey.
+ * @remarks Browser-only — uses browser fetch directly with `isUnsafeDomain` guard.
+ * Do not call from server-side code; use `safeFetch` for server contexts.
+ */
 async function fetchNip05(nip05: string, pubkey: string): Promise<Nip05Result> {
   const atIndex = nip05.indexOf('@');
   if (atIndex === -1 || atIndex === 0 || atIndex === nip05.length - 1) {

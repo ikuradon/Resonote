@@ -470,8 +470,7 @@ describe('PodbeanProvider', () => {
 
 // ---------------------------------------------------------------------------
 // AudioProvider
-// Note: toNostrTag value format is `audio:<rawUrl>` (not `audio:track:<id>`),
-// so the prefix consistency check uses the "audio" platform prefix only.
+// toNostrTag value format: `audio:track:<rawUrl>` (NIP-73 platform:type:id)
 // ---------------------------------------------------------------------------
 describe('AudioProvider', () => {
   const provider = new AudioProvider();
@@ -494,20 +493,21 @@ describe('AudioProvider', () => {
     expect(provider.parseUrl('')).toBeNull();
   });
 
-  it('toNostrTag: returns [audio:<url>, <url>]', () => {
+  it('toNostrTag: returns [audio:track:<url>, <url>]', () => {
     const contentId = { platform: 'audio', type: 'track', id: audioId };
-    expect(provider.toNostrTag(contentId)).toEqual([`audio:${audioUrl}`, audioUrl]);
+    expect(provider.toNostrTag(contentId)).toEqual([`audio:track:${audioUrl}`, audioUrl]);
   });
 
   it('contentKind: returns "audio:track"', () => {
-    expect(provider.contentKind()).toBe('audio:track');
+    const contentId = { platform: 'audio', type: 'track', id: audioId };
+    expect(provider.contentKind(contentId)).toBe('audio:track');
   });
 
-  it('toNostrTag()[0] starts with "audio:" platform prefix', () => {
+  it('toNostrTag()[0] prefix matches contentKind()', () => {
     const contentId = { platform: 'audio', type: 'track', id: audioId };
     const [tagValue] = provider.toNostrTag(contentId);
-    // audio tag embeds the raw URL, so prefix is `audio:` (not `audio:track:`)
-    expect(tagValue.startsWith('audio:')).toBe(true);
+    const kind = provider.contentKind(contentId);
+    expect(tagValue.startsWith(`${kind}:`)).toBe(true);
   });
 });
 

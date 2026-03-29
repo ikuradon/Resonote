@@ -98,16 +98,21 @@ describe('AudioProvider', () => {
   });
 
   describe('toNostrTag', () => {
-    it('should return [audio:<url>, <url>] format', () => {
+    it('should return [audio:track:<url>, <url>] format', () => {
       const url = 'https://example.com/episode.mp3';
       const contentId = { platform: 'audio', type: 'track', id: toBase64url(url) };
       const tag = provider.toNostrTag(contentId);
-      expect(tag).toEqual([`audio:${url}`, url]);
+      expect(tag).toEqual([`audio:track:${url}`, url]);
     });
   });
 
   describe('contentKind', () => {
-    it('should return "audio:track"', () => {
+    it('should return "audio:track" using contentId.type', () => {
+      const contentId = { platform: 'audio', type: 'track', id: 'dummy' };
+      expect(provider.contentKind(contentId)).toBe('audio:track');
+    });
+
+    it('should fallback to "audio:track" when called without contentId', () => {
       expect(provider.contentKind()).toBe('audio:track');
     });
   });

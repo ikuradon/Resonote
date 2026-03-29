@@ -8,6 +8,10 @@ export interface SoundCloudOEmbedResult {
 }
 
 export async function resolveSoundCloudEmbed(trackUrl: string): Promise<string> {
+  if (!trackUrl.startsWith('https://soundcloud.com/')) {
+    throw new Error('Invalid SoundCloud URL');
+  }
+
   const res = await fetch(
     `https://soundcloud.com/oembed?format=json&url=${encodeURIComponent(trackUrl)}`
   );
