@@ -5,7 +5,14 @@
  */
 
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
-import { buildComment, buildDeletion, buildReaction, COMMENT_KIND } from '$shared/nostr/events.js';
+import {
+  buildComment,
+  buildContentReaction,
+  buildDeletion,
+  buildReaction,
+  COMMENT_KIND,
+  CONTENT_REACTION_KIND
+} from '$shared/nostr/events.js';
 import { castSigned } from '$shared/nostr/gateway.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 
@@ -86,6 +93,36 @@ export interface DeleteCommentParams {
   commentIds: string[];
   contentId: ContentId;
   provider: ContentProvider;
+}
+
+export interface SendContentReactionParams {
+  contentId: ContentId;
+  provider: ContentProvider;
+}
+
+/** Send a reaction (like) to content itself. */
+export async function sendContentReaction(params: SendContentReactionParams): Promise<void> {
+  const eventParams = buildContentReaction(params.contentId, params.provider);
+  await castSigned(eventParams);
+  log.info('Content reaction sent');
+}
+
+export interface DeleteContentReactionParams {
+  reactionId: string;
+  contentId: ContentId;
+  provider: ContentProvider;
+}
+
+/** Send a deletion event for a content reaction. */
+export async function deleteContentReaction(params: DeleteContentReactionParams): Promise<void> {
+  const eventParams = buildDeletion(
+    [params.reactionId],
+    params.contentId,
+    params.provider,
+    CONTENT_REACTION_KIND
+  );
+  await castSigned(eventParams);
+  log.info('Content reaction deleted', { reactionId: shortHex(params.reactionId) });
 }
 
 /** Send a deletion event for one or more comments. */
