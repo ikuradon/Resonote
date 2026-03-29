@@ -286,9 +286,14 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
 
       const [idValue] = provider.toNostrTag(contentId);
       const tagQuery = `I:${idValue}`;
+      const tagQueryLower = `i:${idValue}`;
 
-      // Restore from cache
-      const cachedEvents = await restoreFromCache(db, tagQuery);
+      // Restore from cache (uppercase I for kind:1111/7/5, lowercase i for kind:17)
+      const [cachedUpper, cachedLower] = await Promise.all([
+        restoreFromCache(db, tagQuery),
+        restoreFromCache(db, tagQueryLower)
+      ]);
+      const cachedEvents = [...cachedUpper, ...cachedLower];
       const maxCreatedAt = restoreCachedEvents(cachedEvents);
 
       // Purge deleted from cache
@@ -370,9 +375,14 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   async function addSubscription(idValue: string): Promise<void> {
     if (!subscriptionRefs || !eventsDB) return;
 
-    // DB cache restore
+    // DB cache restore (uppercase I for kind:1111/7/5, lowercase i for kind:17)
     const tagQuery = `I:${idValue}`;
-    const cachedEvents = await restoreFromCache(eventsDB, tagQuery);
+    const tagQueryLower = `i:${idValue}`;
+    const [cachedUpper, cachedLower] = await Promise.all([
+      restoreFromCache(eventsDB, tagQuery),
+      restoreFromCache(eventsDB, tagQueryLower)
+    ]);
+    const cachedEvents = [...cachedUpper, ...cachedLower];
     if (destroyed) return;
 
     // Process deletions first
