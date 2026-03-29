@@ -25,7 +25,7 @@ async function decryptTagsNip04(pubkey: string, ciphertext: string): Promise<str
   return JSON.parse(plaintext);
 }
 
-export type EncryptionScheme = 'nip44' | 'nip04' | 'new';
+export type EncryptionScheme = 'nip44' | 'nip04' | 'new' | 'undecryptable';
 
 let mutedPubkeys = $state<Set<string>>(new Set());
 let mutedWords = $state<string[]>([]);
@@ -116,6 +116,11 @@ export async function loadMuteList(pubkey: string): Promise<void> {
           } catch {
             log.warn('Both NIP-44 and NIP-04 decrypt failed');
           }
+        }
+
+        if (!decryptedTags && latest.content) {
+          // Cannot decrypt — block editing to prevent private tag loss
+          encryptionScheme = 'undecryptable';
         }
 
         if (decryptedTags) {

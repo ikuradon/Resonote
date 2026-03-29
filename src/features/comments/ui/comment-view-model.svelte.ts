@@ -83,7 +83,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
 
   const eventPubkeys = new Map<string, string>();
   /** Pending deletions for unobserved events — all candidates per target for pubkey matching */
-  const pendingDeletions = new Map<string, Array<{ pubkey: string; tags: string[][] }>>();
+  const pendingDeletions = new Map<string, Array<{ pubkey: string }>>();
 
   // Infra refs
   let subscriptionRefs: SubscriptionRefs | undefined;
@@ -170,7 +170,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     for (const id of allTargets) {
       if (!eventPubkeys.has(id)) {
         const existing = pendingDeletions.get(id) ?? [];
-        existing.push({ pubkey: event.pubkey, tags: event.tags });
+        existing.push({ pubkey: event.pubkey });
         pendingDeletions.set(id, existing);
       }
     }

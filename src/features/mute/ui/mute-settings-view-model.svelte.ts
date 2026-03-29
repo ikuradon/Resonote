@@ -49,7 +49,9 @@ export function createMuteSettingsViewModel() {
 
   let nip44Supported = $derived(hasNip44Support());
   let encryptionAvailable = $derived(hasEncryptionSupport());
-  let canEdit = $derived(auth.canWrite && encryptionAvailable);
+  let canEdit = $derived(
+    auth.canWrite && encryptionAvailable && muteList.encryptionScheme !== 'undecryptable'
+  );
   let confirmDialog = $derived.by<ConfirmDialogBinding>(() => ({
     open: confirmAction !== null,
     title: confirmAction?.title ?? '',
