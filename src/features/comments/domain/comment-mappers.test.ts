@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { commentFromEvent, placeholderFromOrphan, reactionFromEvent } from './comment-mappers.js';
+import {
+  commentFromEvent,
+  contentReactionFromEvent,
+  placeholderFromOrphan,
+  reactionFromEvent
+} from './comment-mappers.js';
 
 describe('commentFromEvent', () => {
   it('should map basic event fields', () => {
@@ -215,6 +220,29 @@ describe('commentFromEvent — malformed events', () => {
       tags: [['position', '']]
     });
     expect(comment.positionMs).toBeNull();
+  });
+});
+
+describe('contentReactionFromEvent', () => {
+  it('should convert a kind:17 event into a ContentReaction', () => {
+    const event = {
+      id: 'cr1',
+      pubkey: 'pk1',
+      content: '+',
+      created_at: 1700000000,
+      tags: [
+        ['i', 'spotify:track:abc', 'https://open.spotify.com/track/abc'],
+        ['k', 'spotify:track'],
+        ['r', 'https://open.spotify.com/track/abc']
+      ],
+      kind: 17
+    };
+    const result = contentReactionFromEvent(event);
+    expect(result).toEqual({
+      id: 'cr1',
+      pubkey: 'pk1',
+      createdAt: 1700000000
+    });
   });
 });
 
