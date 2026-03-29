@@ -54,9 +54,3 @@ export interface ContentReaction {
   pubkey: string;
   createdAt: number;
 }
-
-export interface ContentReactionStats {
-  likes: number;
-  reactors: Set<string>;
-  myReactionId: string | null;
-}
