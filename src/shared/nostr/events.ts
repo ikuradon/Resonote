@@ -14,6 +14,7 @@ export const FOLLOW_KIND = 3;
 export const MUTE_KIND = 10000;
 export const RELAY_LIST_KIND = 10002;
 export const BOOKMARK_KIND = 10003;
+export const CONTENT_REACTION_KIND = 17;
 const COMMENT_KIND_STR = String(COMMENT_KIND);
 
 function resolveContentInfo(provider: ContentProvider, contentId: ContentId) {
@@ -174,6 +175,22 @@ export function buildShare(
     kind: SHORT_TEXT_KIND,
     content,
     tags
+  };
+}
+
+export function buildContentReaction(
+  contentId: ContentId,
+  provider: ContentProvider
+): EventParameters {
+  const { value, hint, kind } = resolveContentInfo(provider, contentId);
+  return {
+    kind: CONTENT_REACTION_KIND,
+    content: '+',
+    tags: [
+      ['i', value, hint],
+      ['k', kind],
+      ['r', hint]
+    ]
   };
 }
 

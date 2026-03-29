@@ -5,10 +5,12 @@ import type { ContentId, ContentProvider } from '$shared/content/types.js';
 
 import {
   buildComment,
+  buildContentReaction,
   buildDeletion,
   buildReaction,
   buildShare,
   COMMENT_KIND,
+  CONTENT_REACTION_KIND,
   extractDeletionTargets,
   extractHashtags,
   formatPosition,
@@ -663,5 +665,38 @@ describe('formatPosition edge cases', () => {
 
   it('handles zero', () => {
     expect(formatPosition(0)).toBe('0:00');
+  });
+});
+
+describe('buildContentReaction', () => {
+  it('should build a kind:17 event with i, k, and r tags', () => {
+    const event = buildContentReaction(trackId, provider);
+    expect(event.kind).toBe(17);
+    expect(event.content).toBe('+');
+    expect(event.tags).toEqual([
+      ['i', 'spotify:track:abc123', 'https://open.spotify.com/track/abc123'],
+      ['k', 'spotify:track'],
+      ['r', 'https://open.spotify.com/track/abc123']
+    ]);
+  });
+
+  it('should not include e or p tags', () => {
+    const event = buildContentReaction(trackId, provider);
+    const eTags = event.tags!.filter((t) => t[0] === 'e');
+    const pTags = event.tags!.filter((t) => t[0] === 'p');
+    expect(eTags).toHaveLength(0);
+    expect(pTags).toHaveLength(0);
+  });
+
+  it('should work with episode content', () => {
+    const event = buildContentReaction(episodeId, provider);
+    expect(event.kind).toBe(17);
+    expect(event.tags).toContainEqual([
+      'i',
+      'spotify:episode:ep456',
+      'https://open.spotify.com/episode/ep456'
+    ]);
+    expect(event.tags).toContainEqual(['k', 'spotify:episode']);
+    expect(event.tags).toContainEqual(['r', 'https://open.spotify.com/episode/ep456']);
   });
 });
