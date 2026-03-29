@@ -38,6 +38,13 @@ async function withConcurrencyLimit<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
+function isUnsafeDomain(domain: string): boolean {
+  if (!domain || domain === 'localhost') return true;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(domain)) return true;
+  if (domain.startsWith('[') || domain.includes(':')) return true;
+  return false;
+}
+
 async function fetchNip05(nip05: string, pubkey: string): Promise<Nip05Result> {
   const atIndex = nip05.indexOf('@');
   if (atIndex === -1 || atIndex === 0 || atIndex === nip05.length - 1) {
@@ -47,6 +54,11 @@ async function fetchNip05(nip05: string, pubkey: string): Promise<Nip05Result> {
 
   const local = nip05.slice(0, atIndex);
   const domain = nip05.slice(atIndex + 1);
+
+  if (isUnsafeDomain(domain)) {
+    log.warn('NIP-05 unsafe domain rejected', { domain, nip05 });
+    return { valid: false, nip05, checkedAt: Date.now() };
+  }
   const url = `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(local)}`;
 
   const controller = new AbortController();
