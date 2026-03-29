@@ -61,10 +61,9 @@ const {
     ),
     reactionFromEventMock: vi.fn().mockReturnValue(null),
     contentReactionFromEventMock: vi.fn(
-      (event: { id: string; pubkey: string; content: string; created_at: number }) => ({
+      (event: { id: string; pubkey: string; created_at: number }) => ({
         id: event.id,
         pubkey: event.pubkey,
-        content: event.content,
         createdAt: event.created_at
       })
     ),
