@@ -436,6 +436,41 @@ describe('audio-metadata', () => {
       const result = await fetchAudioMetadata('https://example.com/test.mp3');
       expect(result.image).toBeUndefined();
     });
+
+    it('should pass through allowed MIME types (image/png, image/gif, image/webp)', async () => {
+      for (const allowedMime of ['image/png', 'image/gif', 'image/webp']) {
+        const fakeImage = new Array(20).fill(0xab);
+        const apicPayload = buildApicFrame(allowedMime, fakeImage, 0);
+        const frames = buildId3v2Frame('APIC', apicPayload);
+        const data = buildId3v2Tag(frames);
+        vi.stubGlobal('fetch', mockFetch(data));
+
+        const result = await fetchAudioMetadata('https://example.com/test.mp3');
+        expect(result.image).toMatch(new RegExp(`^data:${allowedMime};base64,`));
+      }
+    });
+
+    it('should fall back to image/jpeg for disallowed MIME types (image/svg+xml)', async () => {
+      const fakeImage = new Array(20).fill(0xab);
+      const apicPayload = buildApicFrame('image/svg+xml', fakeImage, 0);
+      const frames = buildId3v2Frame('APIC', apicPayload);
+      const data = buildId3v2Tag(frames);
+      vi.stubGlobal('fetch', mockFetch(data));
+
+      const result = await fetchAudioMetadata('https://example.com/test.mp3');
+      expect(result.image).toMatch(/^data:image\/jpeg;base64,/);
+    });
+
+    it('should fall back to image/jpeg for disallowed MIME types (text/html)', async () => {
+      const fakeImage = new Array(20).fill(0xab);
+      const apicPayload = buildApicFrame('text/html', fakeImage, 0);
+      const frames = buildId3v2Frame('APIC', apicPayload);
+      const data = buildId3v2Tag(frames);
+      vi.stubGlobal('fetch', mockFetch(data));
+
+      const result = await fetchAudioMetadata('https://example.com/test.mp3');
+      expect(result.image).toMatch(/^data:image\/jpeg;base64,/);
+    });
   });
 
   describe('Vorbis comment parsing (OGG)', () => {
@@ -820,6 +855,21 @@ describe('audio-metadata', () => {
 
       const result = await fetchAudioMetadata('https://example.com/test.flac');
       expect(result.image).toBeUndefined();
+    });
+
+    it('should fall back to image/jpeg for disallowed MIME in FLAC PICTURE', async () => {
+      const comments = buildVorbisCommentBlock(['TITLE=Bad MIME']);
+      const commentBlock = buildFlacMetadataBlock(4, comments, false);
+
+      const fakeImage = new Array(20).fill(0xab);
+      const pictureData = buildFlacPictureData('image/svg+xml', '', fakeImage);
+      const pictureBlock = buildFlacMetadataBlock(6, pictureData, true);
+
+      const data = new Uint8Array([...strToBytes('fLaC'), ...commentBlock, ...pictureBlock]);
+      vi.stubGlobal('fetch', mockFetch(data));
+
+      const result = await fetchAudioMetadata('https://example.com/test.flac');
+      expect(result.image).toMatch(/^data:image\/jpeg;base64,/);
     });
   });
 

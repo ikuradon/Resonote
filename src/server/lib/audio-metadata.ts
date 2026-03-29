@@ -15,6 +15,7 @@ export interface AudioMetadata {
 }
 
 const RANGE_SIZE = 256 * 1024; // 256KB — enough for most ID3v2 + cover art
+const ALLOWED_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
 export async function fetchAudioMetadata(
   url: string,
@@ -204,7 +205,7 @@ function decodeApic(frame: Uint8Array): string | undefined {
   // Limit cover art to 100KB to keep response reasonable
   if (imageData.length > 100 * 1024) return undefined;
 
-  const mimeType = mime || 'image/jpeg';
+  const mimeType = mime && ALLOWED_IMAGE_MIMES.has(mime) ? mime : 'image/jpeg';
   const base64 = uint8ToBase64(imageData);
   return `data:${mimeType};base64,${base64}`;
 }
@@ -363,7 +364,8 @@ function parseFlacPicture(data: Uint8Array): string | undefined {
   if (offset + picLen > data.length || picLen > 100 * 1024) return undefined;
 
   const imageData = data.subarray(offset, offset + picLen);
-  return `data:${mime};base64,${uint8ToBase64(imageData)}`;
+  const mimeType = mime && ALLOWED_IMAGE_MIMES.has(mime) ? mime : 'image/jpeg';
+  return `data:${mimeType};base64,${uint8ToBase64(imageData)}`;
 }
 
 // --- Helpers ---

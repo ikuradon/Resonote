@@ -311,12 +311,12 @@ describe('buildReaction', () => {
   const targetEventId = 'event123abc';
   const targetPubkey = 'pubkey456def';
 
-  it('should build a kind:7 event with default + reaction', () => {
+  it('should build a kind:7 event with default + reaction and pubkey in e-tag', () => {
     const event = buildReaction(targetEventId, targetPubkey, trackId, provider);
     expect(event.kind).toBe(7);
     expect(event.content).toBe('+');
     expect(event.tags).toEqual([
-      ['e', 'event123abc'],
+      ['e', 'event123abc', '', 'pubkey456def'],
       ['p', 'pubkey456def'],
       ['k', '1111'],
       ['I', 'spotify:track:abc123', 'https://open.spotify.com/track/abc123']
@@ -333,9 +333,9 @@ describe('buildReaction', () => {
     expect(event.content).toBe('-');
   });
 
-  it('should include correct e, p, and k tags', () => {
+  it('should include correct e (4 elements), p, and k tags', () => {
     const event = buildReaction(targetEventId, targetPubkey, trackId, provider);
-    expect(event.tags![0]).toEqual(['e', targetEventId]);
+    expect(event.tags![0]).toEqual(['e', targetEventId, '', targetPubkey]);
     expect(event.tags![1]).toEqual(['p', targetPubkey]);
     expect(event.tags![2]).toEqual(['k', '1111']);
   });
@@ -381,7 +381,7 @@ describe('buildReaction', () => {
     expect(emojiTag).toBeUndefined();
   });
 
-  it('should include relay hint in e-tag and p-tag when provided', () => {
+  it('should include relay hint and pubkey hint in e-tag when provided', () => {
     const event = buildReaction(
       'evt123',
       'pk456',
@@ -391,13 +391,13 @@ describe('buildReaction', () => {
       undefined,
       'wss://relay.example.com'
     );
-    expect(event.tags).toContainEqual(['e', 'evt123', 'wss://relay.example.com']);
+    expect(event.tags).toContainEqual(['e', 'evt123', 'wss://relay.example.com', 'pk456']);
     expect(event.tags).toContainEqual(['p', 'pk456', 'wss://relay.example.com']);
   });
 
-  it('should omit relay hint from e-tag and p-tag when not provided', () => {
+  it('should use empty relay hint placeholder in e-tag when relayHint not provided', () => {
     const event = buildReaction('evt123', 'pk456', trackId, provider);
-    expect(event.tags).toContainEqual(['e', 'evt123']);
+    expect(event.tags).toContainEqual(['e', 'evt123', '', 'pk456']);
     expect(event.tags).toContainEqual(['p', 'pk456']);
   });
 });

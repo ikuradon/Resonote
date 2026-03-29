@@ -437,4 +437,46 @@ describe('createProfilePageViewModel', () => {
       expect(vm.confirmDialog.cancelLabel).toBe('confirm.cancel');
     });
   });
+
+  // Note: Lines inside $effect blocks (104-145, 147-150, 152-191) cannot be covered
+  // in vitest because Svelte 5 $effect does not execute outside component context.
+  // These paths are covered by E2E tests instead.
+
+  describe('requestMuteUser edge cases', () => {
+    it('uses current muteList size for before/after counts', () => {
+      muteListState.mutedPubkeys = new Set(['a', 'b']);
+      decodeNip19Mock.mockReturnValue(null);
+      const vm = createProfilePageViewModel(() => 'x');
+
+      vm.requestMuteUser('new-target');
+
+      expect(tMock).toHaveBeenCalledWith('confirm.mute.detail', { before: 2, after: 3 });
+      expect(vm.confirmDialog.variant).toBe('danger');
+    });
+  });
+
+  describe('multiple mute requests', () => {
+    it('replaces previous confirm action when new mute requested', () => {
+      decodeNip19Mock.mockReturnValue(null);
+      const vm = createProfilePageViewModel(() => 'x');
+
+      vm.requestMuteUser('first');
+      vm.requestMuteUser('second');
+
+      // Only second action should execute
+      expect(vm.confirmDialog.open).toBe(true);
+    });
+
+    it('executes the last requested mute action on confirm', async () => {
+      decodeNip19Mock.mockReturnValue(null);
+      const vm = createProfilePageViewModel(() => 'x');
+
+      vm.requestMuteUser('first');
+      vm.requestMuteUser('second');
+      await vm.confirmCurrentAction();
+
+      expect(muteUserMock).toHaveBeenCalledWith('second');
+      expect(muteUserMock).not.toHaveBeenCalledWith('first');
+    });
+  });
 });
