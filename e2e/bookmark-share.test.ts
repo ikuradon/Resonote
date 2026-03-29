@@ -74,8 +74,8 @@ test.describe('Bookmark flow', () => {
     const bookmarkButton = page.getByRole('button', { name: /Bookmark|ブックマーク/i });
     await expect(bookmarkButton).toBeVisible({ timeout: 10_000 });
 
-    // Should show empty star initially
-    await expect(bookmarkButton).toContainText('☆');
+    // Should show bookmark icon initially (SVG path element present)
+    await expect(bookmarkButton.locator('svg')).toBeVisible();
 
     await bookmarkButton.click();
 
@@ -84,8 +84,10 @@ test.describe('Bookmark flow', () => {
     await expect(confirmButton).toBeVisible({ timeout: 5_000 });
     await confirmButton.click();
 
-    // After bookmark, should show filled star (★)
-    await expect(bookmarkButton).toContainText('★', { timeout: 10_000 });
+    // After bookmark, SVG should have fill (bookmarked state uses fill="currentColor")
+    await expect(bookmarkButton.locator('svg[fill="currentColor"]')).toBeVisible({
+      timeout: 10_000
+    });
   });
 
   // MockPool responds instantly, so the disabled state is too brief to catch.
@@ -120,8 +122,10 @@ test.describe('Bookmark flow', () => {
     await expect(confirmButton).toBeVisible({ timeout: 5_000 });
     await confirmButton.click();
 
-    // Should show filled star (★) after adding
-    await expect(bookmarkButton).toContainText('★', { timeout: 10_000 });
+    // Should show filled bookmark SVG after adding
+    await expect(bookmarkButton.locator('svg[fill="currentColor"]')).toBeVisible({
+      timeout: 10_000
+    });
 
     // Remove bookmark
     await bookmarkButton.click();
@@ -131,8 +135,8 @@ test.describe('Bookmark flow', () => {
     await expect(confirmRemoveButton).toBeVisible({ timeout: 5_000 });
     await confirmRemoveButton.click();
 
-    // Should go back to empty star (☆)
-    await expect(bookmarkButton).toContainText('☆', { timeout: 10_000 });
+    // Should go back to unfilled bookmark SVG
+    await expect(bookmarkButton.locator('svg[fill="none"]')).toBeVisible({ timeout: 10_000 });
   });
 });
 
