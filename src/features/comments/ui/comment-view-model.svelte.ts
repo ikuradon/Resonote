@@ -82,8 +82,8 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   let loadingTimeout: ReturnType<typeof setTimeout> | undefined;
 
   const eventPubkeys = new Map<string, string>();
-  /** Pending deletions for unobserved events — Map<targetEventId, deletionEvent> */
-  const pendingDeletions = new Map<string, { pubkey: string; tags: string[][] }>();
+  /** Pending deletions for unobserved events — all candidates per target for pubkey matching */
+  const pendingDeletions = new Map<string, Array<{ pubkey: string; tags: string[][] }>>();
 
   // Infra refs
   let subscriptionRefs: SubscriptionRefs | undefined;
@@ -98,10 +98,11 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   }
 
   function applyPendingDeletion(eventId: string, eventPubkey: string): void {
-    const pending = pendingDeletions.get(eventId);
-    if (!pending) return;
+    const candidates = pendingDeletions.get(eventId);
+    if (!candidates) return;
     pendingDeletions.delete(eventId);
-    if (pending.pubkey === eventPubkey) {
+    const match = candidates.some((c) => c.pubkey === eventPubkey);
+    if (match) {
       const next = new Set(deletedIds);
       next.add(eventId);
       deletedIds = next;
@@ -162,11 +163,15 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   function handleDeletionPacket(event: { id: string; pubkey: string; tags: string[][] }) {
     const verified = verifyDeletionTargets(event, eventPubkeys);
 
-    // Store unverified targets as pending (original event not yet observed)
+    // Store unverified targets as pending (original event not yet observed).
+    // Later arrivals overwrite earlier ones — the correct author's deletion
+    // will be applied when the target event is finally observed.
     const allTargets = extractDeletionTargets(event);
     for (const id of allTargets) {
-      if (!eventPubkeys.has(id) && !pendingDeletions.has(id)) {
-        pendingDeletions.set(id, { pubkey: event.pubkey, tags: event.tags });
+      if (!eventPubkeys.has(id)) {
+        const existing = pendingDeletions.get(id) ?? [];
+        existing.push({ pubkey: event.pubkey, tags: event.tags });
+        pendingDeletions.set(id, existing);
       }
     }
 
