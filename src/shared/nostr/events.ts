@@ -188,7 +188,9 @@ export function buildReaction(
 ): EventParameters {
   const [idValue, idHint] = provider.toNostrTag(contentId);
   const tags: string[][] = [
-    relayHint ? ['e', targetEventId, relayHint] : ['e', targetEventId],
+    relayHint
+      ? ['e', targetEventId, relayHint, targetPubkey]
+      : ['e', targetEventId, '', targetPubkey],
     relayHint ? ['p', targetPubkey, relayHint] : ['p', targetPubkey],
     ['k', COMMENT_KIND_STR],
     ['I', idValue, idHint]
