@@ -48,3 +48,15 @@ export interface NostrEvent {
   tags: string[][];
   kind: number;
 }
+
+export interface ContentReaction {
+  id: string;
+  pubkey: string;
+  createdAt: number;
+}
+
+export interface ContentReactionStats {
+  likes: number;
+  reactors: Set<string>;
+  myReactionId: string | null;
+}
