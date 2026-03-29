@@ -11,19 +11,55 @@ describe('errorHandler', () => {
     return app;
   }
 
-  it('should return HTTPException status and message', async () => {
+  it('should return safe message for 400 HTTPException', async () => {
     const app = createApp();
     app.get('/test', () => {
-      throw new HTTPException(400, { message: 'bad request' });
+      throw new HTTPException(400, { message: 'internal detail leak' });
     });
 
     const res = await app.request('/test');
     expect(res.status).toBe(400);
     const data = await res.json();
-    expect(data).toEqual({ error: 'bad request' });
+    expect(data).toEqual({ error: 'Bad Request' });
   });
 
-  it('should return 500 for unknown errors', async () => {
+  it('should return safe message for 404 HTTPException', async () => {
+    const app = createApp();
+    app.get('/test', () => {
+      throw new HTTPException(404, { message: '/secret/internal/path' });
+    });
+
+    const res = await app.request('/test');
+    expect(res.status).toBe(404);
+    const data = await res.json();
+    expect(data).toEqual({ error: 'Not Found' });
+  });
+
+  it('should return safe message for 429 HTTPException', async () => {
+    const app = createApp();
+    app.get('/test', () => {
+      throw new HTTPException(429, { message: 'rate limited' });
+    });
+
+    const res = await app.request('/test');
+    expect(res.status).toBe(429);
+    const data = await res.json();
+    expect(data).toEqual({ error: 'Too Many Requests' });
+  });
+
+  it('should fallback to Internal Server Error for unknown status', async () => {
+    const app = createApp();
+    app.get('/test', () => {
+      throw new HTTPException(418, { message: 'teapot' });
+    });
+
+    const res = await app.request('/test');
+    expect(res.status).toBe(418);
+    const data = await res.json();
+    expect(data).toEqual({ error: 'Internal Server Error' });
+  });
+
+  it('should return 500 for non-HTTPException errors', async () => {
     const app = createApp();
     app.get('/test', () => {
       throw new Error('unexpected');
