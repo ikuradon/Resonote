@@ -85,11 +85,9 @@ export async function fetchRelayList(pubkey: string): Promise<RelayListResult> {
     const sub = rxNostr.use(req).subscribe({
       next: (packet) => {
         if (packet.event.created_at <= latestCreatedAt) return;
-        const entries = parseRelayTags(packet.event.tags);
         latestCreatedAt = packet.event.created_at;
-        if (entries.length > 0) {
-          found = entries;
-        }
+        const entries = parseRelayTags(packet.event.tags);
+        found = entries.length > 0 ? entries : null;
       },
       complete: () => {
         sub.unsubscribe();
@@ -130,9 +128,7 @@ export async function fetchRelayList(pubkey: string): Promise<RelayListResult> {
             write: flags.write ?? true
           }));
           latestCreatedAt = packet.event.created_at;
-          if (entries.length > 0) {
-            found = entries;
-          }
+          found = entries.length > 0 ? entries : null;
         } catch {
           // Ignore parse failures from malformed kind:3 content.
         }

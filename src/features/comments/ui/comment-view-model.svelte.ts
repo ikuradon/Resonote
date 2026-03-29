@@ -583,6 +583,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     fetchedParentIds = new Set();
     prevDeletedSize = 0;
     eventPubkeys.clear();
+    pendingDeletions.clear();
   }
 
   return {
