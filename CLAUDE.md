@@ -289,6 +289,7 @@ Svelte 5 `$state` runes are used in owner modules, not in a central store direct
 - CSP `script-src` にはワイルドカードサブドメイン (`*.spotify.com` 等) を使用。プロバイダーが CDN サブドメインにリダイレクトするため個別指定は漏れやすい
 - CSP `script-src` の `'unsafe-eval'` は `@konemono/nostr-login` が内部で動的コード評価を使用するため必要。ライブラリが改善したら除去し、`pnpm build && wrangler pages dev` + cloudflared tunnel で CSP 動作を確認する
 - CSP `style-src` の `'unsafe-inline'` は SvelteKit + Tailwind CSS v4 で実質必須
+- NIP-05 の `isUnsafeDomain()` は IPv6 アドレス (bracket-wrapped / colon-containing) を全拒否する。ブラウザ fetch で IPv6 ドメインの NIP-05 検証は実質不要なため意図的
 - SPA ナビゲーション時に iframe が先に DOM から消え、widget の cleanup (`destroy()`, `unbind()`) で `postMessage` が null に対して呼ばれる → `try-catch` で囲む
 - `_headers` (プロジェクトルート) は静的アセットにのみ適用される。Server API のレスポンスヘッダーは Hono ミドルウェアで制御
 - `/_app/immutable/` のチャンクはコンテンツハッシュ付き → immutable キャッシュ設定済み。Resonote 側コード変更でもハッシュが変わりうる
