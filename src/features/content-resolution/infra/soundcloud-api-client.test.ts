@@ -40,4 +40,16 @@ describe('resolveSoundCloudEmbed', () => {
       'No iframe src in oEmbed response'
     );
   });
+
+  it('should reject a non-SoundCloud URL', async () => {
+    await expect(resolveSoundCloudEmbed('https://evil.com/track')).rejects.toThrow(
+      'Invalid SoundCloud URL'
+    );
+  });
+
+  it('should reject a non-https URL', async () => {
+    await expect(resolveSoundCloudEmbed('http://soundcloud.com/artist/track')).rejects.toThrow(
+      'Invalid SoundCloud URL'
+    );
+  });
 });
