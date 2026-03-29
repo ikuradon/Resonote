@@ -167,6 +167,61 @@ describe('nip05', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('should return valid: false for localhost domain without calling fetch', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const { verifyNip05 } = await import('./nip05.js');
+    const result = await verifyNip05('alice@localhost', 'deadbeef'.repeat(8));
+
+    expect(result.valid).toBe(false);
+    expect(result.nip05).toBe('alice@localhost');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('should return valid: false for 127.0.0.1 domain without calling fetch', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const { verifyNip05 } = await import('./nip05.js');
+    const result = await verifyNip05('alice@127.0.0.1', 'deadbeef'.repeat(8));
+
+    expect(result.valid).toBe(false);
+    expect(result.nip05).toBe('alice@127.0.0.1');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('should return valid: false for 192.168.1.1 domain without calling fetch', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const { verifyNip05 } = await import('./nip05.js');
+    const result = await verifyNip05('alice@192.168.1.1', 'deadbeef'.repeat(8));
+
+    expect(result.valid).toBe(false);
+    expect(result.nip05).toBe('alice@192.168.1.1');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('should return valid: false for [::1] IPv6 domain without calling fetch', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const { verifyNip05 } = await import('./nip05.js');
+    const result = await verifyNip05('alice@[::1]', 'deadbeef'.repeat(8));
+
+    expect(result.valid).toBe(false);
+    expect(result.nip05).toBe('alice@[::1]');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('should return valid: false for localhost:3000 domain without calling fetch', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const { verifyNip05 } = await import('./nip05.js');
+    const result = await verifyNip05('alice@localhost:3000', 'deadbeef'.repeat(8));
+
+    expect(result.valid).toBe(false);
+    expect(result.nip05).toBe('alice@localhost:3000');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it('clearNip05Cache should allow re-fetching after clearing', async () => {
     const pubkey = 'deadbeef'.repeat(8);
     const fetchSpy = vi

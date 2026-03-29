@@ -1,5 +1,6 @@
 import { apiClient } from '$shared/api/client.js';
 import type { ContentId } from '$shared/content/types.js';
+import { sanitizeUrl } from '$shared/utils/url.js';
 
 import type { ContentMetadata } from '../domain/content-metadata.js';
 
@@ -38,7 +39,7 @@ export async function fetchContentMetadata(contentId: ContentId): Promise<Conten
     return {
       title: data.title,
       subtitle: data.subtitle,
-      thumbnailUrl: data.thumbnailUrl,
+      thumbnailUrl: sanitizeUrl(data.thumbnailUrl ?? undefined) ?? null,
       description: data.description ?? null
     };
   } catch {

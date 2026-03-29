@@ -55,6 +55,7 @@ export default defineConfig({
         'src/shared/browser/locale.ts',
         'src/shared/browser/media-query.ts',
         'src/shared/browser/mute.ts',
+        'src/shared/browser/notifications.ts',
         'src/shared/browser/player.ts',
         'src/shared/browser/profile.ts',
         'src/shared/browser/relays.ts',
