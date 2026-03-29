@@ -364,7 +364,8 @@ function parseFlacPicture(data: Uint8Array): string | undefined {
   if (offset + picLen > data.length || picLen > 100 * 1024) return undefined;
 
   const imageData = data.subarray(offset, offset + picLen);
-  return `data:${mime};base64,${uint8ToBase64(imageData)}`;
+  const mimeType = mime && ALLOWED_IMAGE_MIMES.has(mime) ? mime : 'image/jpeg';
+  return `data:${mimeType};base64,${uint8ToBase64(imageData)}`;
 }
 
 // --- Helpers ---

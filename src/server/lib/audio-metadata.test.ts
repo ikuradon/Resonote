@@ -856,6 +856,21 @@ describe('audio-metadata', () => {
       const result = await fetchAudioMetadata('https://example.com/test.flac');
       expect(result.image).toBeUndefined();
     });
+
+    it('should fall back to image/jpeg for disallowed MIME in FLAC PICTURE', async () => {
+      const comments = buildVorbisCommentBlock(['TITLE=Bad MIME']);
+      const commentBlock = buildFlacMetadataBlock(4, comments, false);
+
+      const fakeImage = new Array(20).fill(0xab);
+      const pictureData = buildFlacPictureData('image/svg+xml', '', fakeImage);
+      const pictureBlock = buildFlacMetadataBlock(6, pictureData, true);
+
+      const data = new Uint8Array([...strToBytes('fLaC'), ...commentBlock, ...pictureBlock]);
+      vi.stubGlobal('fetch', mockFetch(data));
+
+      const result = await fetchAudioMetadata('https://example.com/test.flac');
+      expect(result.image).toMatch(/^data:image\/jpeg;base64,/);
+    });
   });
 
   describe('fetchAudioMetadata', () => {
