@@ -1,15 +1,14 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  // eslint-disable-next-line no-restricted-imports -- orchestrates feed resolution; full refactor deferred
-  import {
-    resolveYouTubeFeed,
-    type YouTubeFeedVideo
-  } from '$features/content-resolution/application/resolve-youtube-feed.js';
+  import WaveformLoader from '$lib/components/WaveformLoader.svelte';
   import type { ContentId } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
   import { formatDateOnly } from '$shared/utils/format.js';
 
-  import WaveformLoader from './WaveformLoader.svelte';
+  import {
+    resolveYouTubeFeed,
+    type YouTubeFeedVideo
+  } from '../application/resolve-youtube-feed.js';
 
   interface Props {
     contentId: ContentId;

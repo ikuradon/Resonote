@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 
-const SAFE_MESSAGES: Record<number, string> = {
+const SAFE_MESSAGES: Partial<Record<number, string>> = {
   400: 'Bad Request',
   401: 'Unauthorized',
   403: 'Forbidden',

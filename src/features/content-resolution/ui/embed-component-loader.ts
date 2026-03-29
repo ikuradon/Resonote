@@ -10,7 +10,7 @@ export type EmbedComponentLoader = () => Promise<EmbedComponentModule>;
 const EMBED_COMPONENT_LOADERS: Record<string, EmbedComponentLoader> = {
   spotify: () => import('$lib/components/SpotifyEmbed.svelte'),
   youtube: () => import('$lib/components/YouTubeEmbed.svelte'),
-  soundcloud: () => import('$lib/components/SoundCloudEmbed.svelte'),
+  soundcloud: () => import('./SoundCloudEmbed.svelte'),
   vimeo: () => import('$lib/components/VimeoEmbed.svelte'),
   mixcloud: () => import('$lib/components/MixcloudEmbed.svelte'),
   spreaker: () => import('$lib/components/SpreakerEmbed.svelte'),

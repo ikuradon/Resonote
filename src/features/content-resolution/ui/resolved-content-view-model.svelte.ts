@@ -7,8 +7,8 @@
 import { untrack } from 'svelte';
 
 import { replaceState } from '$app/navigation';
-import { createCommentViewModel } from '$shared/browser/comments.js';
 import { addBookmark, isBookmarked, removeBookmark } from '$shared/browser/bookmarks.js';
+import { createCommentViewModel } from '$shared/browser/comments.js';
 import { requestSeek, resetPlayer } from '$shared/browser/player.js';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import { fromBase64url } from '$shared/content/url-utils.js';
