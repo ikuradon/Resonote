@@ -10,7 +10,6 @@ import {
   buildReaction,
   buildShare,
   COMMENT_KIND,
-  CONTENT_REACTION_KIND,
   extractDeletionTargets,
   extractHashtags,
   formatPosition,

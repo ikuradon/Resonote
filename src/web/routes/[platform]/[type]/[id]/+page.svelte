@@ -1,13 +1,19 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import {
+    deleteContentReaction,
+    sendContentReaction
+  } from '$features/comments/application/comment-actions.js';
   import { createPlayerColumnViewModel } from '$features/content-resolution/ui/player-column-view-model.svelte.js';
   import { createResolvedContentViewModel } from '$features/content-resolution/ui/resolved-content-view-model.svelte.js';
   import CommentInfoTab from '$lib/components/CommentInfoTab.svelte';
   import CommentList from '$lib/components/CommentList.svelte';
+  import { getAuth } from '$shared/browser/auth.js';
   import { getPlayer, requestSeek } from '$shared/browser/player.js';
   import { getProvider } from '$shared/content/registry.js';
   import type { ContentId } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
+  import { createLogger } from '$shared/utils/logger.js';
 
   import PlayerColumn from './PlayerColumn.svelte';
 
@@ -40,6 +46,10 @@
     () => initialTimeSec
   );
 
+  // --- Auth + logger ---
+  const auth = getAuth();
+  const log = createLogger('content-page');
+
   // --- UI-only state ---
   const isDev = import.meta.env.DEV;
   const player = isDev ? getPlayer() : undefined;
@@ -56,6 +66,30 @@
 
   function handleFeedLoaded(info: { title: string; imageUrl: string; description: string }) {
     feedMetadata = info;
+  }
+
+  // --- Content reaction state + handler ---
+  let contentReactionBusy = $state(false);
+
+  async function handleContentReactionClick() {
+    if (contentReactionBusy || !auth.loggedIn || !provider) return;
+    contentReactionBusy = true;
+    try {
+      const myReaction = vm.store?.contentReactions.find((cr) => cr.pubkey === auth.pubkey);
+      if (myReaction) {
+        await deleteContentReaction({
+          reactionId: myReaction.id,
+          contentId,
+          provider
+        });
+      } else {
+        await sendContentReaction({ contentId, provider });
+      }
+    } catch (err) {
+      log.error('Content reaction failed', err);
+    } finally {
+      contentReactionBusy = false;
+    }
   }
 
   const collectionVm = createPlayerColumnViewModel({
@@ -243,6 +277,9 @@
                 {highlightCommentId}
                 contentMetadata={vm.contentMetadata}
                 contentMetadataLoading={vm.contentMetadataLoading}
+                contentReactions={vm.store.contentReactions}
+                onContentReactionClick={handleContentReactionClick}
+                {contentReactionBusy}
               />
             {/if}
           </section>

@@ -17,6 +17,10 @@
     bookmarkBusy: boolean;
     onBookmarkClick: () => void;
     onShareClick: () => void;
+    contentReactionCount: number;
+    contentReactionMine: boolean;
+    contentReactionBusy: boolean;
+    onContentReactionClick: () => void;
   }
 
   const {
@@ -30,7 +34,11 @@
     bookmarked,
     bookmarkBusy,
     onBookmarkClick,
-    onShareClick
+    onShareClick,
+    contentReactionCount,
+    contentReactionMine,
+    contentReactionBusy,
+    onContentReactionClick
   }: Props = $props();
 </script>
 
@@ -82,6 +90,25 @@
 
   <!-- Spacer -->
   <div class="flex-1"></div>
+
+  <!-- Content reaction (like) button -->
+  {#if loggedIn}
+    <button
+      type="button"
+      onclick={onContentReactionClick}
+      disabled={contentReactionBusy}
+      class="flex items-center gap-1 rounded-lg px-2 py-1 text-sm transition-colors disabled:opacity-50
+        {contentReactionMine
+        ? 'text-accent hover:bg-accent/10'
+        : 'text-text-muted hover:bg-surface-1 hover:text-text-secondary'}"
+      aria-label={contentReactionMine ? t('reaction.content.unlike') : t('reaction.content.like')}
+    >
+      {contentReactionMine ? '\u2665' : '\u2661'}
+      {#if contentReactionCount > 0}
+        <span class="text-xs">{contentReactionCount}</span>
+      {/if}
+    </button>
+  {/if}
 
   <!-- Bookmark button -->
   {#if loggedIn}
