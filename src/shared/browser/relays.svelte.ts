@@ -128,8 +128,8 @@ export async function fetchRelayList(pubkey: string): Promise<RelayListResult> {
             read: flags.read ?? true,
             write: flags.write ?? true
           }));
+          latestCreatedAt = packet.event.created_at;
           if (entries.length > 0) {
-            latestCreatedAt = packet.event.created_at;
             found = entries;
           }
         } catch {

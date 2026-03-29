@@ -10,6 +10,9 @@ import {
 } from '$shared/browser/mute.js';
 import { getProfileDisplay } from '$shared/browser/profile.js';
 import { t } from '$shared/i18n/t.js';
+import { createLogger } from '$shared/utils/logger.js';
+
+const log = createLogger('mute-settings');
 
 type ConfirmVariant = 'danger' | 'default';
 
@@ -153,7 +156,8 @@ export function createMuteSettingsViewModel() {
     const pending = pendingNip04Action;
     pendingNip04Action = null;
     confirmAction = null;
-    if (pending) void pending('nip04');
+    if (pending)
+      pending('nip04').catch((err) => log.warn('Failed to save mute list after cancel', err));
   }
 
   return {
