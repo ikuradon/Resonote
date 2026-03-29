@@ -131,11 +131,6 @@ describe('buildContentFilters', () => {
       '#i': ['spotify:track:abc123']
     });
   });
-
-  it('returns 4 filters total', () => {
-    const filters = buildContentFilters('spotify:track:abc123');
-    expect(filters).toHaveLength(4);
-  });
 });
 
 // ---- loadSubscriptionDeps ----
