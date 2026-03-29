@@ -103,7 +103,7 @@
         : 'text-text-muted hover:bg-surface-1 hover:text-text-secondary'}"
       aria-label={contentReactionMine ? t('reaction.content.unlike') : t('reaction.content.like')}
     >
-      {contentReactionMine ? '\u2665' : '\u2661'}
+      {contentReactionMine ? '\u2605' : '\u2606'}
       {#if contentReactionCount > 0}
         <span class="text-xs">{contentReactionCount}</span>
       {/if}
@@ -122,7 +122,18 @@
         : 'text-text-muted hover:bg-surface-1 hover:text-text-secondary'}"
       aria-label={t('bookmark.button.label')}
     >
-      {bookmarked ? '\u2605' : '\u2606'}
+      <svg
+        class="h-4 w-4"
+        viewBox="0 0 24 24"
+        fill={bookmarked ? 'currentColor' : 'none'}
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+      </svg>
     </button>
   {/if}
 
