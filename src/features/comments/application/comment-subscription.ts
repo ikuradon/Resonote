@@ -3,16 +3,22 @@
  * Orchestrates rx-nostr backward/forward subscriptions + offline deletion reconcile.
  */
 
-import { COMMENT_KIND, DELETION_KIND, REACTION_KIND } from '$shared/nostr/events.js';
+import {
+  COMMENT_KIND,
+  CONTENT_REACTION_KIND,
+  DELETION_KIND,
+  REACTION_KIND
+} from '$shared/nostr/events.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('comment-subscription');
-/** Build the 3-filter array for unified subscription on a given tag value. */
+/** Build the 4-filter array for unified subscription on a given tag value. */
 export function buildContentFilters(idValue: string) {
   return [
     { kinds: [COMMENT_KIND], '#I': [idValue] },
     { kinds: [REACTION_KIND], '#I': [idValue] },
-    { kinds: [DELETION_KIND], '#I': [idValue] }
+    { kinds: [DELETION_KIND], '#I': [idValue] },
+    { kinds: [CONTENT_REACTION_KIND], '#i': [idValue] }
   ];
 }
 
