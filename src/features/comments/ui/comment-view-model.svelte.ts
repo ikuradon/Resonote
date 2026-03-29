@@ -109,6 +109,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
         prevDeletedSize = deletedIds.size;
         rebuildReactionIndex();
       }
+      if (eventsDB) void purgeDeletedFromCache(eventsDB, [eventId]);
       log.debug('Pending deletion applied', { id: shortHex(eventId) });
     }
   }

@@ -154,8 +154,11 @@ async function publishMuteList(useScheme?: EncryptionScheme): Promise<void> {
     ...preservedPrivateTags
   ];
 
+  // Resolve actual encryption method: 'new' falls back to best available
+  const resolvedScheme = scheme === 'new' ? (hasNip44Support() ? 'nip44' : 'nip04') : scheme;
+
   let encrypted: string;
-  if (scheme === 'nip04') {
+  if (resolvedScheme === 'nip04') {
     const nip04 = window.nostr?.nip04;
     if (!nip04) throw new Error('NIP-04 not available');
     encrypted = await nip04.encrypt(myPubkey, JSON.stringify(allTags));
@@ -168,7 +171,12 @@ async function publishMuteList(useScheme?: EncryptionScheme): Promise<void> {
   await publish(encrypted);
 
   if (useScheme) encryptionScheme = useScheme;
-  log.info('Mute list published', { scheme, pubkeys: mutedPubkeys.size, words: mutedWords.length });
+  else if (scheme === 'new') encryptionScheme = resolvedScheme;
+  log.info('Mute list published', {
+    scheme: resolvedScheme,
+    pubkeys: mutedPubkeys.size,
+    words: mutedWords.length
+  });
 }
 
 export async function muteUser(pubkey: string, useScheme?: EncryptionScheme): Promise<void> {

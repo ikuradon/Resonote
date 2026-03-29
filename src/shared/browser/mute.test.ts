@@ -323,14 +323,14 @@ describe('muteUser', () => {
     await expect(muteUser(USER_A)).rejects.toThrow('Not logged in');
   });
 
-  it('NIP-44がない場合は例外を投げる', async () => {
+  it('NIP-44/NIP-04ともにない場合は例外を投げる', async () => {
     Object.defineProperty(globalThis, 'window', {
       configurable: true,
       writable: true,
       value: { nostr: {} }
     });
 
-    await expect(muteUser(USER_A)).rejects.toThrow('NIP-44 not available');
+    await expect(muteUser(USER_A)).rejects.toThrow('NIP-04 not available');
   });
 });
 
