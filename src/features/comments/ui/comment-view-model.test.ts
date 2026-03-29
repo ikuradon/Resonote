@@ -14,6 +14,7 @@ const {
   purgeDeletedFromCacheMock,
   commentFromEventMock,
   reactionFromEventMock,
+  contentReactionFromEventMock,
   placeholderFromOrphanMock,
   emptyStatsMock,
   applyReactionMock,
@@ -59,6 +60,13 @@ const {
       })
     ),
     reactionFromEventMock: vi.fn().mockReturnValue(null),
+    contentReactionFromEventMock: vi.fn(
+      (event: { id: string; pubkey: string; created_at: number }) => ({
+        id: event.id,
+        pubkey: event.pubkey,
+        createdAt: event.created_at
+      })
+    ),
     placeholderFromOrphanMock: vi.fn((id: string, positionMs: number | null) => ({
       id,
       status: 'loading' as const,
@@ -94,6 +102,7 @@ vi.mock('../application/comment-subscription.js', () => ({
 vi.mock('../domain/comment-mappers.js', () => ({
   commentFromEvent: commentFromEventMock,
   reactionFromEvent: reactionFromEventMock,
+  contentReactionFromEvent: contentReactionFromEventMock,
   placeholderFromOrphan: placeholderFromOrphanMock
 }));
 
@@ -111,6 +120,7 @@ vi.mock('../domain/deletion-rules.js', () => ({
 vi.mock('$shared/nostr/events.js', () => ({
   COMMENT_KIND: 1111,
   REACTION_KIND: 7,
+  CONTENT_REACTION_KIND: 17,
   DELETION_KIND: 5,
   extractDeletionTargets: vi.fn().mockReturnValue([]),
   parsePosition: vi.fn().mockReturnValue(null)
@@ -1055,7 +1065,126 @@ describe('createCommentViewModel', () => {
   });
 
   // -------------------------------------------------------------------------
-  // 12. Comment event processing
+  // 12. Content reaction event processing (kind:17)
+  // -------------------------------------------------------------------------
+  describe('content reaction event processing (kind:17)', () => {
+    it('adds content reaction to contentReactions via dispatchPacket', async () => {
+      const { getOnPacket } = captureOnPacket();
+
+      contentReactionFromEventMock.mockReturnValue({
+        id: 'cr1',
+        pubkey: 'reactor',
+        createdAt: 1500
+      });
+
+      const vm = createCommentViewModel(contentId, provider);
+      await vm.subscribe();
+
+      getOnPacket()({
+        id: 'cr1',
+        pubkey: 'reactor',
+        content: '',
+        created_at: 1500,
+        tags: [],
+        kind: 17
+      });
+
+      expect(contentReactionFromEventMock).toHaveBeenCalled();
+      expect(vm.contentReactions).toHaveLength(1);
+      expect(vm.contentReactions[0].id).toBe('cr1');
+    });
+
+    it('deduplicates content reactions with same id', async () => {
+      const { getOnPacket } = captureOnPacket();
+
+      contentReactionFromEventMock.mockReturnValue({
+        id: 'cr-dup',
+        pubkey: 'reactor',
+        createdAt: 1500
+      });
+
+      const vm = createCommentViewModel(contentId, provider);
+      await vm.subscribe();
+
+      const event = {
+        id: 'cr-dup',
+        pubkey: 'reactor',
+        content: '',
+        created_at: 1500,
+        tags: [],
+        kind: 17
+      };
+      getOnPacket()(event);
+      getOnPacket()(event);
+
+      // Should only appear once due to dedup
+      expect(vm.contentReactions).toHaveLength(1);
+      expect(contentReactionFromEventMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not include content reaction that is in deletedIds', async () => {
+      const { getOnPacket } = captureOnPacket();
+
+      const vm = createCommentViewModel(contentId, provider);
+      await vm.subscribe();
+
+      // First, create a deletion for the content reaction id
+      verifyDeletionTargetsMock.mockReturnValue(['cr-del']);
+      getOnPacket()({
+        id: 'del-cr',
+        pubkey: 'reactor',
+        kind: 5,
+        tags: [['e', 'cr-del']],
+        content: '',
+        created_at: 2000
+      });
+
+      // Now the content reaction arrives
+      contentReactionFromEventMock.mockReturnValue({
+        id: 'cr-del',
+        pubkey: 'reactor',
+        createdAt: 1000
+      });
+      getOnPacket()({
+        id: 'cr-del',
+        pubkey: 'reactor',
+        content: '',
+        created_at: 1000,
+        tags: [],
+        kind: 17
+      });
+
+      // contentReactions should be empty because cr-del is in deletedIds
+      expect(vm.contentReactions).toHaveLength(0);
+    });
+
+    it('restores kind:17 content reactions from cache', async () => {
+      const contentReactionEvent = {
+        id: 'cached-cr',
+        pubkey: 'reactor',
+        content: '',
+        created_at: 1000,
+        tags: [],
+        kind: 17
+      };
+      contentReactionFromEventMock.mockReturnValue({
+        id: 'cached-cr',
+        pubkey: 'reactor',
+        createdAt: 1000
+      });
+      restoreFromCacheMock.mockResolvedValue([contentReactionEvent]);
+
+      const vm = createCommentViewModel(contentId, provider);
+      await vm.subscribe();
+
+      expect(contentReactionFromEventMock).toHaveBeenCalledWith(contentReactionEvent);
+      expect(vm.contentReactions).toHaveLength(1);
+      expect(vm.contentReactions[0].id).toBe('cached-cr');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // 14. Comment event processing
   // -------------------------------------------------------------------------
   describe('comment event processing', () => {
     it('adds new comment via live subscription', async () => {
@@ -1109,7 +1238,7 @@ describe('createCommentViewModel', () => {
   });
 
   // -------------------------------------------------------------------------
-  // 13. Cache restore edge cases
+  // 15. Cache restore edge cases
   // -------------------------------------------------------------------------
   describe('cache restore', () => {
     it('restores reactions from cache', async () => {
@@ -1208,7 +1337,7 @@ describe('createCommentViewModel', () => {
   });
 
   // -------------------------------------------------------------------------
-  // 14. Loading timeout
+  // 16. Loading timeout
   // -------------------------------------------------------------------------
   describe('loading timeout', () => {
     afterEach(() => {
@@ -1241,7 +1370,7 @@ describe('createCommentViewModel', () => {
   });
 
   // -------------------------------------------------------------------------
-  // 15. fetchOrphanParent — destroyed during fetch
+  // 17. fetchOrphanParent — destroyed during fetch
   // -------------------------------------------------------------------------
   describe('fetchOrphanParent: destroyed during fetch', () => {
     it('does not update state when destroyed while fetch is pending', async () => {
@@ -1266,7 +1395,7 @@ describe('createCommentViewModel', () => {
   });
 
   // -------------------------------------------------------------------------
-  // 16. subscribe error handling
+  // 18. subscribe error handling
   // -------------------------------------------------------------------------
   describe('subscribe error handling', () => {
     it('sets loading=false and logs error when startDeletionReconcile throws', async () => {

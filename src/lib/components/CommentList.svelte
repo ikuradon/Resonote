@@ -3,12 +3,14 @@
 
   import type {
     Comment,
+    ContentReaction,
     PlaceholderComment,
     ReactionStats
   } from '$features/comments/domain/comment-model.js';
   import { createCommentListViewModel } from '$features/comments/ui/comment-list-view-model.svelte.js';
   import { useCommentProfilePreload } from '$features/comments/ui/comment-profile-preload.svelte.js';
   import type { ContentMetadata } from '$features/content-resolution/domain/content-metadata.js';
+  import { getAuth } from '$shared/browser/auth.js';
   import { createKeyboardShortcuts } from '$shared/browser/keyboard-shortcuts.js';
   import { dispatchTogglePlayback } from '$shared/browser/playback-bridge.js';
   import { getPlayer } from '$shared/browser/player.js';
@@ -45,6 +47,9 @@
     highlightCommentId?: string;
     contentMetadata?: ContentMetadata | null;
     contentMetadataLoading?: boolean;
+    contentReactions?: ContentReaction[];
+    onContentReactionClick?: () => void;
+    contentReactionBusy?: boolean;
   }
 
   let {
@@ -63,8 +68,18 @@
     openUrl,
     highlightCommentId,
     contentMetadata = null,
-    contentMetadataLoading = false
+    contentMetadataLoading = false,
+    contentReactions = [],
+    onContentReactionClick,
+    contentReactionBusy = false
   }: Props = $props();
+
+  // --- Content reaction derived state ---
+  const auth = getAuth();
+  let contentReactionCount = $derived(contentReactions.length);
+  let contentReactionMine = $derived(
+    auth.pubkey ? contentReactions.some((cr: ContentReaction) => cr.pubkey === auth.pubkey) : false
+  );
 
   // --- Bookmark dialog + share ref ---
   let bookmarkDialogOpen = $state(false);
@@ -335,6 +350,10 @@
   {bookmarkBusy}
   onBookmarkClick={handleBookmarkClick}
   onShareClick={handleShareClick}
+  {contentReactionCount}
+  {contentReactionMine}
+  {contentReactionBusy}
+  onContentReactionClick={() => onContentReactionClick?.()}
 />
 
 <!-- Tab content -->

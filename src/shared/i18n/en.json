@@ -213,6 +213,8 @@
   "quote.loading": "Loading…",
   "quote.not_found": "Quoted event not found",
   "quote.title": "Quote",
+  "reaction.content.like": "Star this content",
+  "reaction.content.unlike": "Unstar this content",
   "nav.bookmarks": "Bookmarks",
   "nav.settings": "Settings",
   "nav.menu": "Menu",

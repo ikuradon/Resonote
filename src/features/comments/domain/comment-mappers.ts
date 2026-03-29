@@ -9,7 +9,13 @@ import { parsePosition } from '$shared/nostr/events.js';
 import { findTagValue } from '$shared/nostr/helpers.js';
 import { isEmojiTag } from '$shared/utils/emoji.js';
 
-import type { Comment, NostrEvent, PlaceholderComment, Reaction } from './comment-model.js';
+import type {
+  Comment,
+  ContentReaction,
+  NostrEvent,
+  PlaceholderComment,
+  Reaction
+} from './comment-model.js';
 
 /** Convert a kind:1111 Nostr event into a Comment domain model. */
 export function commentFromEvent(
@@ -38,6 +44,17 @@ export function placeholderFromOrphan(
   positionMs: number | null
 ): PlaceholderComment {
   return { id: parentId, status: 'loading', positionMs };
+}
+
+/** Convert a kind:17 Nostr event into a ContentReaction domain model. */
+export function contentReactionFromEvent(
+  event: Pick<NostrEvent, 'id' | 'pubkey' | 'created_at'>
+): ContentReaction {
+  return {
+    id: event.id,
+    pubkey: event.pubkey,
+    createdAt: event.created_at
+  };
 }
 
 /** Convert a kind:7 Nostr event into a Reaction domain model. Returns null if no e-tag. */

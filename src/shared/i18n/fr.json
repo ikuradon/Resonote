@@ -219,6 +219,8 @@
   "quote.loading": "Chargement…",
   "quote.not_found": "Événement cité introuvable",
   "quote.title": "Citation",
+  "reaction.content.like": "Mettre une étoile sur ce contenu",
+  "reaction.content.unlike": "Retirer l'étoile",
   "nav.bookmarks": "Marque-pages",
   "nav.settings": "Paramètres",
   "nav.menu": "Menu",

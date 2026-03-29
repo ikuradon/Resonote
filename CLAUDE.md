@@ -153,7 +153,7 @@ Web embed 対応: Spotify, YouTube, Vimeo, SoundCloud, Mixcloud, Spreaker, Nicon
 ### Nostr Layer
 
 - `src/shared/nostr/client.ts`: Singleton `getRxNostr()` with `@rx-nostr/crypto` verifier
-- `src/shared/nostr/events.ts`: Event builders for kind:1111 (comment) and kind:7 (reaction)
+- `src/shared/nostr/events.ts`: Event builders for kind:1111 (comment), kind:7 (reaction), and kind:17 (content reaction)
 - `buildComment` / `buildReaction` は `relayHint` パラメータを受け付け、e-tag / p-tag に relay hint を埋め込む (NIP-22/NIP-25 準拠)
 - `src/shared/nostr/events.ts` にないイベント: kind:3 (follows.svelte.ts), kind:10000 (mute.svelte.ts), kind:10002 (relays.svelte.ts), kind:10003 (bookmarks.svelte.ts), kind:39701 (src/server/api/podcast.ts)
 - `src/shared/nostr/event-db.ts`: IndexedDB-based event cache (`idb` wrapper)

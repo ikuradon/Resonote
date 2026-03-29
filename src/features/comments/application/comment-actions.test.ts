@@ -4,20 +4,29 @@ import type { ContentId, ContentProvider } from '$shared/content/types.js';
 
 import type { Comment } from '../domain/comment-model.js';
 
-const { buildCommentMock, buildReactionMock, buildDeletionMock, castSignedMock, logInfoMock } =
-  vi.hoisted(() => ({
-    buildCommentMock: vi.fn(() => ({ kind: 1111, content: '', tags: [] })),
-    buildReactionMock: vi.fn(() => ({ kind: 7, content: '+', tags: [] })),
-    buildDeletionMock: vi.fn(() => ({ kind: 5, content: '', tags: [] })),
-    castSignedMock: vi.fn(async () => {}),
-    logInfoMock: vi.fn()
-  }));
+const {
+  buildCommentMock,
+  buildReactionMock,
+  buildDeletionMock,
+  buildContentReactionMock,
+  castSignedMock,
+  logInfoMock
+} = vi.hoisted(() => ({
+  buildCommentMock: vi.fn(() => ({ kind: 1111, content: '', tags: [] })),
+  buildReactionMock: vi.fn(() => ({ kind: 7, content: '+', tags: [] })),
+  buildDeletionMock: vi.fn(() => ({ kind: 5, content: '', tags: [] })),
+  buildContentReactionMock: vi.fn(() => ({ kind: 17, content: '+', tags: [] })),
+  castSignedMock: vi.fn(async () => {}),
+  logInfoMock: vi.fn()
+}));
 
 vi.mock('$shared/nostr/events.js', () => ({
   COMMENT_KIND: 1111,
+  CONTENT_REACTION_KIND: 17,
   buildComment: buildCommentMock,
   buildReaction: buildReactionMock,
-  buildDeletion: buildDeletionMock
+  buildDeletion: buildDeletionMock,
+  buildContentReaction: buildContentReactionMock
 }));
 
 vi.mock('$shared/nostr/gateway.js', () => ({
@@ -29,7 +38,14 @@ vi.mock('$shared/utils/logger.js', () => ({
   shortHex: (hex: string) => hex.slice(0, 8)
 }));
 
-import { deleteComment, sendComment, sendReaction, sendReply } from './comment-actions.js';
+import {
+  deleteComment,
+  deleteContentReaction,
+  sendComment,
+  sendContentReaction,
+  sendReaction,
+  sendReply
+} from './comment-actions.js';
 
 const contentId: ContentId = { platform: 'spotify', type: 'track', id: 'track-1' };
 const provider: ContentProvider = {
@@ -289,5 +305,73 @@ describe('deleteComment', () => {
     await expect(deleteComment({ commentIds: ['id-1'], contentId, provider })).rejects.toThrow(
       'build deletion error'
     );
+  });
+});
+
+describe('sendContentReaction', () => {
+  const contentReactionEvent = { kind: 17, content: '+', tags: [] };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    buildContentReactionMock.mockReturnValue(contentReactionEvent);
+  });
+
+  it('passes contentId and provider to buildContentReaction', async () => {
+    await sendContentReaction({ contentId, provider });
+    expect(buildContentReactionMock).toHaveBeenCalledWith(contentId, provider);
+  });
+
+  it('calls castSigned with the built event', async () => {
+    await sendContentReaction({ contentId, provider });
+    expect(castSignedMock).toHaveBeenCalledWith(contentReactionEvent);
+  });
+
+  it('propagates errors from castSigned', async () => {
+    castSignedMock.mockRejectedValueOnce(new Error('reaction failed'));
+    await expect(sendContentReaction({ contentId, provider })).rejects.toThrow('reaction failed');
+  });
+
+  it('propagates errors from buildContentReaction', async () => {
+    buildContentReactionMock.mockImplementationOnce(() => {
+      throw new Error('build content reaction error');
+    });
+    await expect(sendContentReaction({ contentId, provider })).rejects.toThrow(
+      'build content reaction error'
+    );
+  });
+});
+
+describe('deleteContentReaction', () => {
+  const deletionEvent = { kind: 5, content: '', tags: [] };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    buildDeletionMock.mockReturnValue(deletionEvent);
+  });
+
+  it('passes reactionId, contentId, provider, CONTENT_REACTION_KIND to buildDeletion', async () => {
+    await deleteContentReaction({ reactionId: 'reaction-id-1', contentId, provider });
+    expect(buildDeletionMock).toHaveBeenCalledWith(['reaction-id-1'], contentId, provider, 17);
+  });
+
+  it('calls castSigned with the built event', async () => {
+    await deleteContentReaction({ reactionId: 'reaction-id-1', contentId, provider });
+    expect(castSignedMock).toHaveBeenCalledWith(deletionEvent);
+  });
+
+  it('propagates errors from castSigned', async () => {
+    castSignedMock.mockRejectedValueOnce(new Error('delete failed'));
+    await expect(
+      deleteContentReaction({ reactionId: 'reaction-id-1', contentId, provider })
+    ).rejects.toThrow('delete failed');
+  });
+
+  it('propagates errors from buildDeletion', async () => {
+    buildDeletionMock.mockImplementationOnce(() => {
+      throw new Error('build deletion error');
+    });
+    await expect(
+      deleteContentReaction({ reactionId: 'reaction-id-1', contentId, provider })
+    ).rejects.toThrow('build deletion error');
   });
 });

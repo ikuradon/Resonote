@@ -47,7 +47,8 @@ vi.mock('$shared/nostr/gateway.js', () => ({
 vi.mock('$shared/nostr/events.js', () => ({
   COMMENT_KIND: 1111,
   REACTION_KIND: 7,
-  DELETION_KIND: 5
+  DELETION_KIND: 5,
+  CONTENT_REACTION_KIND: 17
 }));
 
 vi.mock('rxjs', () => ({
@@ -94,9 +95,9 @@ function makeRefs() {
 // ---- buildContentFilters ----
 
 describe('buildContentFilters', () => {
-  it('returns an array of 3 filters', () => {
+  it('returns an array of 4 filters', () => {
     const filters = buildContentFilters('spotify:track:abc');
-    expect(filters).toHaveLength(3);
+    expect(filters).toHaveLength(4);
   });
 
   it('first filter uses COMMENT_KIND (1111) and the given idValue', () => {
@@ -118,8 +119,17 @@ describe('buildContentFilters', () => {
     const id = 'youtube:video:xyz';
     const filters = buildContentFilters(id);
     for (const f of filters) {
-      expect(f['#I']).toEqual([id]);
+      const tagValue = f['#I'] ?? f['#i'];
+      expect(tagValue).toEqual([id]);
     }
+  });
+
+  it('fourth filter uses CONTENT_REACTION_KIND (17) with lowercase #i tag', () => {
+    const filters = buildContentFilters('spotify:track:abc123');
+    expect(filters[3]).toEqual({
+      kinds: [17],
+      '#i': ['spotify:track:abc123']
+    });
   });
 });
 
