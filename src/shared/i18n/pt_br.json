@@ -219,6 +219,8 @@
   "quote.loading": "Carregando…",
   "quote.not_found": "Evento citado não encontrado",
   "quote.title": "Citação",
+  "reaction.content.like": "Like this content",
+  "reaction.content.unlike": "Unlike this content",
   "nav.bookmarks": "Favoritos",
   "nav.settings": "Configurações",
   "nav.menu": "Menu",

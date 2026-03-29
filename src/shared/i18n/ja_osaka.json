@@ -219,6 +219,8 @@
   "quote.loading": "読み込み中やで…",
   "quote.not_found": "引用元見つからへんわ",
   "quote.title": "引用",
+  "reaction.content.like": "このコンテンツにいいね",
+  "reaction.content.unlike": "いいねを取り消す",
   "nav.bookmarks": "ブックマーク",
   "nav.settings": "設定",
   "nav.menu": "メニュー",

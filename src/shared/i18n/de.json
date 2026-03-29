@@ -219,6 +219,8 @@
   "quote.loading": "Laden…",
   "quote.not_found": "Zitiertes Ereignis nicht gefunden",
   "quote.title": "Zitat",
+  "reaction.content.like": "Like this content",
+  "reaction.content.unlike": "Unlike this content",
   "nav.bookmarks": "Lesezeichen",
   "nav.settings": "Einstellungen",
   "nav.menu": "Menü",
