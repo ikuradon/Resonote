@@ -84,9 +84,10 @@ export async function fetchRelayList(pubkey: string): Promise<RelayListResult> {
 
     const sub = rxNostr.use(req).subscribe({
       next: (packet) => {
+        if (packet.event.created_at <= latestCreatedAt) return;
         const entries = parseRelayTags(packet.event.tags);
-        if (entries.length > 0 && packet.event.created_at > latestCreatedAt) {
-          latestCreatedAt = packet.event.created_at;
+        latestCreatedAt = packet.event.created_at;
+        if (entries.length > 0) {
           found = entries;
         }
       },
