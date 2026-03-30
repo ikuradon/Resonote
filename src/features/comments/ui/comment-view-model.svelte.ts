@@ -14,6 +14,7 @@ import {
   COMMENT_KIND,
   CONTENT_REACTION_KIND,
   DELETION_KIND,
+  extractDeletionTargets,
   REACTION_KIND
 } from '$shared/nostr/events.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
@@ -81,6 +82,8 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   let loadingTimeout: ReturnType<typeof setTimeout> | undefined;
 
   const eventPubkeys = new Map<string, string>();
+  /** Pending deletions for unobserved events — all candidates per target for pubkey matching */
+  const pendingDeletions = new Map<string, Array<{ pubkey: string }>>();
 
   // Infra refs
   let subscriptionRefs: SubscriptionRefs | undefined;
@@ -92,6 +95,24 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   // --- Domain operations ---
   function rebuildReactionIndex() {
     reactionIndex = buildReactionIndex(reactionsRaw, deletedIds);
+  }
+
+  function applyPendingDeletion(eventId: string, eventPubkey: string): void {
+    const candidates = pendingDeletions.get(eventId);
+    if (!candidates) return;
+    pendingDeletions.delete(eventId);
+    const match = candidates.some((c) => c.pubkey === eventPubkey);
+    if (match) {
+      const next = new Set(deletedIds);
+      next.add(eventId);
+      deletedIds = next;
+      if (deletedIds.size !== prevDeletedSize) {
+        prevDeletedSize = deletedIds.size;
+        rebuildReactionIndex();
+      }
+      if (eventsDB) void purgeDeletedFromCache(eventsDB, [eventId]);
+      log.debug('Pending deletion applied', { id: shortHex(eventId) });
+    }
   }
 
   function addReaction(reaction: Reaction) {
@@ -117,6 +138,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     if (commentIds.has(event.id)) return;
     commentIds.add(event.id);
     eventPubkeys.set(event.id, event.pubkey);
+    applyPendingDeletion(event.id, event.pubkey);
     commentsRaw = [...commentsRaw, commentFromEvent(event, relayHint)];
     log.debug('Comment received', { id: shortHex(event.id) });
   }
@@ -126,6 +148,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     if (reaction) {
       addReaction(reaction);
       eventPubkeys.set(event.id, event.pubkey);
+      applyPendingDeletion(event.id, event.pubkey);
     }
   }
 
@@ -133,11 +156,25 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     if (contentReactionIds.has(event.id)) return;
     contentReactionIds.add(event.id);
     eventPubkeys.set(event.id, event.pubkey);
+    applyPendingDeletion(event.id, event.pubkey);
     contentReactionsRaw = [...contentReactionsRaw, contentReactionFromEvent(event)];
   }
 
   function handleDeletionPacket(event: { id: string; pubkey: string; tags: string[][] }) {
     const verified = verifyDeletionTargets(event, eventPubkeys);
+
+    // Store unverified targets as pending (original event not yet observed).
+    // All candidates are kept per target so the correct author's deletion
+    // is applied when the target event is finally observed.
+    const allTargets = extractDeletionTargets(event);
+    for (const id of allTargets) {
+      if (!eventPubkeys.has(id)) {
+        const existing = pendingDeletions.get(id) ?? [];
+        existing.push({ pubkey: event.pubkey });
+        pendingDeletions.set(id, existing);
+      }
+    }
+
     if (verified.length === 0) return;
     const next = new Set(deletedIds);
     for (const id of verified) next.add(id);
@@ -146,7 +183,9 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
       prevDeletedSize = deletedIds.size;
       rebuildReactionIndex();
     }
-    const toPurge = verified.filter((id) => commentIds.has(id) || reactionIds.has(id));
+    const toPurge = verified.filter(
+      (id) => commentIds.has(id) || reactionIds.has(id) || contentReactionIds.has(id)
+    );
     if (toPurge.length > 0 && eventsDB) void purgeDeletedFromCache(eventsDB, toPurge);
     log.debug('Deletion event received', { deletedIds: verified.map(shortHex) });
 
@@ -299,13 +338,13 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
       // Purge deleted from cache
       if (deletedIds.size > 0) {
         const idsToPurge = [...deletedIds].filter(
-          (id) => commentIds.has(id) || reactionIds.has(id)
+          (id) => commentIds.has(id) || reactionIds.has(id) || contentReactionIds.has(id)
         );
         void purgeDeletedFromCache(db, idsToPurge);
       }
 
       // Offline deletion reconcile
-      const cachedIds = [...commentIds, ...reactionIds];
+      const cachedIds = [...commentIds, ...reactionIds, ...contentReactionIds];
       if (cachedIds.length > 0) {
         const newDeletions = new Set<string>();
         const reconcile = startDeletionReconcile(
@@ -328,7 +367,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
             rebuildReactionIndex();
             log.info('Offline deletions reconciled', { newDeletions: newDeletions.size });
             const idsToPurge = [...newDeletions].filter(
-              (id) => commentIds.has(id) || reactionIds.has(id)
+              (id) => commentIds.has(id) || reactionIds.has(id) || contentReactionIds.has(id)
             );
             void purgeDeletedFromCache(db, idsToPurge);
           }
@@ -544,6 +583,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     fetchedParentIds = new Set();
     prevDeletedSize = 0;
     eventPubkeys.clear();
+    pendingDeletions.clear();
   }
 
   return {

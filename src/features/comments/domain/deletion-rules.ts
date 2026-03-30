@@ -17,7 +17,7 @@ export function verifyDeletionTargets(
   const targets = extractDeletionTargets(event);
   return targets.filter((id) => {
     const originalPubkey = eventPubkeys.get(id);
-    // Accept if author matches or if original event is unknown
-    return !originalPubkey || originalPubkey === event.pubkey;
+    // Only accept if original event is known AND author matches
+    return originalPubkey !== undefined && originalPubkey === event.pubkey;
   });
 }

@@ -185,16 +185,21 @@ export function parseCommentContent(content: string, emojiTags: string[][]): Con
 /**
  * Extract p/e/t tags from comment content for Nostr event building.
  * - nostr:npub1.../nostr:nprofile1... -> pTags (hex pubkeys)
- * - nostr:nevent1.../nostr:note1... -> eTags (event IDs)
+ * - nostr:nevent1.../nostr:note1... -> qTags (event IDs)
  * - #hashtag -> tTags
  */
+export interface QTagEntry {
+  eventId: string;
+  relayHint?: string;
+}
+
 export function extractContentTags(content: string): {
   pTags: string[];
-  eTags: string[];
+  qTags: QTagEntry[];
   tTags: string[];
 } {
   const pSet = new Set<string>();
-  const eSet = new Set<string>();
+  const qMap = new Map<string, QTagEntry>();
   const tSet = new Set<string>();
 
   // Match nostr: URIs
@@ -213,10 +218,17 @@ export function extractContentTags(content: string): {
         pSet.add(decoded.pubkey);
         break;
       case 'nevent':
-        eSet.add(decoded.eventId);
+        if (!qMap.has(decoded.eventId)) {
+          qMap.set(decoded.eventId, {
+            eventId: decoded.eventId,
+            relayHint: decoded.relays[0]
+          });
+        }
         break;
       case 'note':
-        eSet.add(decoded.eventId);
+        if (!qMap.has(decoded.eventId)) {
+          qMap.set(decoded.eventId, { eventId: decoded.eventId });
+        }
         break;
     }
   }
@@ -232,7 +244,7 @@ export function extractContentTags(content: string): {
 
   return {
     pTags: [...pSet],
-    eTags: [...eSet],
+    qTags: [...qMap.values()],
     tTags: [...tSet]
   };
 }

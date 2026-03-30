@@ -12,7 +12,8 @@ const {
 } = vi.hoisted(() => {
   const muteListState = {
     mutedPubkeys: new Set<string>(['pubkey1', 'pubkey2']),
-    mutedWords: ['spam', 'bad']
+    mutedWords: ['spam', 'bad'],
+    encryptionScheme: 'nip44' as const
   };
   const authState = { canWrite: true, loggedIn: true, pubkey: 'test' };
   return {
@@ -38,6 +39,7 @@ vi.mock('$shared/browser/auth.js', () => ({
 vi.mock('$shared/browser/mute.js', () => ({
   getMuteList: getMuteListMock,
   hasNip44Support: hasNip44SupportMock,
+  hasEncryptionSupport: hasNip44SupportMock,
   muteWord: muteWordMock,
   unmuteUser: unmuteUserMock,
   unmuteWord: unmuteWordMock
@@ -194,7 +196,7 @@ describe('createMuteSettingsViewModel', () => {
       vm.newMuteWord = 'testword';
       vm.requestAddMuteWord();
       await vm.confirmCurrentAction();
-      expect(muteWordMock).toHaveBeenCalledWith('testword');
+      expect(muteWordMock).toHaveBeenCalledWith('testword', undefined);
       expect(vm.newMuteWord).toBe('');
     });
 
@@ -202,14 +204,14 @@ describe('createMuteSettingsViewModel', () => {
       const vm = createMuteSettingsViewModel();
       vm.requestUnmuteUser('pubkey1');
       await vm.confirmCurrentAction();
-      expect(unmuteUserMock).toHaveBeenCalledWith('pubkey1');
+      expect(unmuteUserMock).toHaveBeenCalledWith('pubkey1', undefined);
     });
 
     it('calls unmuteWord on confirm', async () => {
       const vm = createMuteSettingsViewModel();
       vm.requestUnmuteWord('spam');
       await vm.confirmCurrentAction();
-      expect(unmuteWordMock).toHaveBeenCalledWith('spam');
+      expect(unmuteWordMock).toHaveBeenCalledWith('spam', undefined);
     });
 
     it('closes dialog even when no action pending', async () => {
@@ -246,6 +248,74 @@ describe('createMuteSettingsViewModel', () => {
     it('cancelLabel is confirm.cancel', () => {
       const vm = createMuteSettingsViewModel();
       expect(vm.confirmDialog.cancelLabel).toBe('confirm.cancel');
+    });
+  });
+
+  describe('NIP-04 → NIP-44 encryption scheme dialog', () => {
+    it('shows scheme confirmation when encryptionScheme is nip04 and NIP-44 is available', async () => {
+      muteListState.encryptionScheme = 'nip04' as 'nip44';
+      hasNip44SupportMock.mockReturnValue(true);
+      const vm = createMuteSettingsViewModel();
+
+      vm.newMuteWord = 'testword';
+      vm.requestAddMuteWord();
+      // First dialog: operation confirmation
+      expect(vm.confirmDialog.open).toBe(true);
+      expect(vm.confirmDialog.title).toBe('confirm.mute_word_add');
+
+      // Confirm the operation → triggers scheme dialog
+      await vm.confirmCurrentAction();
+      expect(vm.confirmDialog.open).toBe(true);
+      expect(vm.confirmDialog.title).toBe('confirm.encryption_scheme');
+
+      // Confirm NIP-44 conversion
+      await vm.confirmCurrentAction();
+      expect(muteWordMock).toHaveBeenCalledWith('testword', 'nip44');
+
+      // Restore
+      muteListState.encryptionScheme = 'nip44' as const;
+    });
+
+    it('saves with NIP-04 when user cancels scheme dialog', async () => {
+      muteListState.encryptionScheme = 'nip04' as 'nip44';
+      hasNip44SupportMock.mockReturnValue(true);
+      const vm = createMuteSettingsViewModel();
+
+      vm.newMuteWord = 'testword';
+      vm.requestAddMuteWord();
+      // First dialog: operation confirmation
+      await vm.confirmCurrentAction();
+      // Second dialog: scheme confirmation
+      expect(vm.confirmDialog.title).toBe('confirm.encryption_scheme');
+
+      // Cancel → keep NIP-04
+      vm.cancelConfirmAction();
+      expect(muteWordMock).toHaveBeenCalledWith('testword', 'nip04');
+
+      // Restore
+      muteListState.encryptionScheme = 'nip44' as const;
+    });
+
+    it('skips scheme dialog when encryptionScheme is nip44', async () => {
+      muteListState.encryptionScheme = 'nip44' as const;
+      hasNip44SupportMock.mockReturnValue(true);
+      const vm = createMuteSettingsViewModel();
+
+      vm.newMuteWord = 'testword';
+      vm.requestAddMuteWord();
+      await vm.confirmCurrentAction();
+      // No scheme dialog — muteWord called directly
+      expect(muteWordMock).toHaveBeenCalledWith('testword', undefined);
+    });
+
+    it('canEdit is false when encryptionScheme is undecryptable', () => {
+      muteListState.encryptionScheme = 'undecryptable' as 'nip44';
+      hasNip44SupportMock.mockReturnValue(true);
+      const vm = createMuteSettingsViewModel();
+      expect(vm.canEdit).toBe(false);
+
+      // Restore
+      muteListState.encryptionScheme = 'nip44' as const;
     });
   });
 });

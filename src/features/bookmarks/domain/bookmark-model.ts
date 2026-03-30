@@ -3,7 +3,7 @@
  */
 
 export interface BookmarkEntry {
-  type: 'content' | 'event';
+  type: 'content' | 'event' | 'url';
   value: string;
   hint?: string;
 }
@@ -16,6 +16,8 @@ export function parseBookmarkTags(tags: string[][]): BookmarkEntry[] {
       entries.push({ type: 'content', value: tag[1], hint: tag[2] });
     } else if (tag[0] === 'e' && tag[1]) {
       entries.push({ type: 'event', value: tag[1], hint: tag[2] });
+    } else if (tag[0] === 'r' && tag[1]) {
+      entries.push({ type: 'url', value: tag[1], hint: tag[2] });
     }
   }
   return entries;

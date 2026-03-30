@@ -65,7 +65,7 @@ interface Observer {
 }
 
 function makeBackwardReqMock(
-  packets: Array<{ event: { tags: string[][] } }>,
+  packets: Array<{ event: { tags: string[][]; created_at?: number; content?: string } }>,
   errorToThrow?: unknown
 ) {
   const subscriptionMock = { unsubscribe: vi.fn() };
@@ -104,7 +104,9 @@ describe('fetchRelayList', () => {
   });
 
   it('returns kind10002 entries when kind:10002 has relay tags', async () => {
-    const rxNostr = makeBackwardReqMock([{ event: { tags: [['r', 'wss://relay.example.com']] } }]);
+    const rxNostr = makeBackwardReqMock([
+      { event: { created_at: 1000, tags: [['r', 'wss://relay.example.com']] } }
+    ]);
     getRxNostrMock.mockResolvedValue(rxNostr);
 
     const result = await fetchRelayList(PUBKEY);
@@ -131,12 +133,13 @@ describe('fetchRelayList', () => {
           void Promise.resolve().then(() => {
             if (currentCall === 1) {
               // kind:10002 - no relay tags
-              obs.next({ event: { tags: [] } });
+              obs.next({ event: { created_at: 1000, tags: [] } });
               obs.complete();
             } else {
               // kind:3 - has relay in content
               obs.next({
                 event: {
+                  created_at: 1000,
                   tags: [],
                   content: JSON.stringify({
                     'wss://fallback.relay.com': { read: true, write: true }

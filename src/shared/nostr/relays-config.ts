@@ -16,10 +16,14 @@ export async function applyUserRelays(pubkey: string): Promise<string[]> {
   return new Promise<string[]>((resolve) => {
     const req = createRxBackwardReq();
     let relayTags: string[][] = [];
+    let latestCreatedAt = 0;
 
     const sub = rxNostr.use(req).subscribe({
       next: (packet) => {
-        relayTags = packet.event.tags;
+        if (packet.event.created_at > latestCreatedAt) {
+          latestCreatedAt = packet.event.created_at;
+          relayTags = packet.event.tags;
+        }
       },
       complete: () => {
         sub.unsubscribe();

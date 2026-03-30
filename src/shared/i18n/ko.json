@@ -1,7 +1,7 @@
 {
   "app.tagline": "음악과 동영상에 재생 시간에 맞춰 댓글을 남기세요",
   "app.examples": "예제 해보기",
-  "track.go": "Go",
+  "track.go": "이동",
   "track.unsupported": "지원되지 않는 URL",
   "track.placeholder.youtube": "YouTube URL을 붙여넣기...",
   "track.placeholder.spotify": "Spotify URL을 붙여넣기...",
@@ -197,6 +197,8 @@
   "confirm.mute_word_add.detail": "뮤트 단어: {before} → {after}",
   "confirm.mute_word_remove": "뮤트 단어를 삭제하시겠습니까?",
   "confirm.mute_word_remove.detail": "뮤트 단어: {before} → {after}",
+  "confirm.encryption_scheme": "NIP-44로 변환하시겠습니까?",
+  "confirm.encryption_scheme.detail": "이 뮤트 리스트는 NIP-04 암호화를 사용합니다. NIP-44로 변환하면 NIP-04만 지원하는 클라이언트에서 읽을 수 없게 됩니다. 취소하면 NIP-04를 유지합니다.",
   "confirm.ok": "확인",
   "confirm.cancel": "취소",
   "resolve.loading": "URL 해석 중...",

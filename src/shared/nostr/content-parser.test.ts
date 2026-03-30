@@ -297,16 +297,17 @@ describe('extractContentTags', () => {
     expect(pTags[0]).toBe(PUBKEY_HEX);
   });
 
-  it('extracts eventId from nostr:nevent1... to eTags', () => {
-    const { eTags } = extractContentTags(`nostr:${VALID_NEVENT}`);
-    expect(eTags).toHaveLength(1);
-    expect(eTags[0]).toBe(EVENT_HEX);
+  it('extracts eventId from nostr:nevent1... to qTags with relay hint', () => {
+    const { qTags } = extractContentTags(`nostr:${VALID_NEVENT}`);
+    expect(qTags).toHaveLength(1);
+    expect(qTags[0].eventId).toBe(EVENT_HEX);
   });
 
-  it('extracts eventId from nostr:note1... to eTags', () => {
-    const { eTags } = extractContentTags(`nostr:${VALID_NOTE}`);
-    expect(eTags).toHaveLength(1);
-    expect(eTags[0]).toBe(EVENT_HEX);
+  it('extracts eventId from nostr:note1... to qTags without relay hint', () => {
+    const { qTags } = extractContentTags(`nostr:${VALID_NOTE}`);
+    expect(qTags).toHaveLength(1);
+    expect(qTags[0].eventId).toBe(EVENT_HEX);
+    expect(qTags[0].relayHint).toBeUndefined();
   });
 
   it('extracts lowercase hashtag to tTags', () => {
@@ -325,23 +326,23 @@ describe('extractContentTags', () => {
   });
 
   it('returns empty arrays for plain text', () => {
-    const { pTags, eTags, tTags } = extractContentTags('no links here');
+    const { pTags, qTags, tTags } = extractContentTags('no links here');
     expect(pTags).toHaveLength(0);
-    expect(eTags).toHaveLength(0);
+    expect(qTags).toHaveLength(0);
     expect(tTags).toHaveLength(0);
   });
 
   it('does not generate tags from nostr:ncontent1...', () => {
-    const { pTags, eTags } = extractContentTags(`nostr:${VALID_NCONTENT}`);
+    const { pTags, qTags } = extractContentTags(`nostr:${VALID_NCONTENT}`);
     expect(pTags).toHaveLength(0);
-    expect(eTags).toHaveLength(0);
+    expect(qTags).toHaveLength(0);
   });
 
   it('does not generate tags from nostr:nsec1...', () => {
     const nsecLike = `nsec1${'a'.repeat(58)}`;
-    const { pTags, eTags } = extractContentTags(nsecLike);
+    const { pTags, qTags } = extractContentTags(nsecLike);
     expect(pTags).toHaveLength(0);
-    expect(eTags).toHaveLength(0);
+    expect(qTags).toHaveLength(0);
   });
 
   it('does not treat #<64 hex chars> as hashtag', () => {

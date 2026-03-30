@@ -1,7 +1,7 @@
 {
   "app.tagline": "为音乐和视频添加评论，与播放时间同步",
   "app.examples": "试试示例",
-  "track.go": "Go",
+  "track.go": "前往",
   "track.unsupported": "不支持的URL",
   "track.placeholder.youtube": "粘贴YouTube链接...",
   "track.placeholder.spotify": "粘贴Spotify链接...",
@@ -197,6 +197,8 @@
   "confirm.mute_word_add.detail": "屏蔽词数：{before} → {after}",
   "confirm.mute_word_remove": "移除屏蔽词？",
   "confirm.mute_word_remove.detail": "屏蔽词数：{before} → {after}",
+  "confirm.encryption_scheme": "转换为 NIP-44？",
+  "confirm.encryption_scheme.detail": "此屏蔽列表使用 NIP-04 加密。转换为 NIP-44 后，仅支持 NIP-04 的客户端将无法读取。取消以保持 NIP-04。",
   "confirm.ok": "确认",
   "confirm.cancel": "取消",
   "resolve.loading": "正在解析URL...",

@@ -1,6 +1,8 @@
 import { getAuth } from '$shared/browser/auth.js';
 import {
+  type EncryptionScheme,
   getMuteList,
+  hasEncryptionSupport,
   hasNip44Support,
   muteWord,
   unmuteUser,
@@ -8,6 +10,9 @@ import {
 } from '$shared/browser/mute.js';
 import { getProfileDisplay } from '$shared/browser/profile.js';
 import { t } from '$shared/i18n/t.js';
+import { createLogger } from '$shared/utils/logger.js';
+
+const log = createLogger('mute-settings');
 
 type ConfirmVariant = 'danger' | 'default';
 
@@ -43,7 +48,10 @@ export function createMuteSettingsViewModel() {
   let confirmAction = $state<ConfirmAction | null>(null);
 
   let nip44Supported = $derived(hasNip44Support());
-  let canEdit = $derived(auth.canWrite && nip44Supported);
+  let encryptionAvailable = $derived(hasEncryptionSupport());
+  let canEdit = $derived(
+    auth.canWrite && encryptionAvailable && muteList.encryptionScheme !== 'undecryptable'
+  );
   let confirmDialog = $derived.by<ConfirmDialogBinding>(() => ({
     open: confirmAction !== null,
     title: confirmAction?.title ?? '',
@@ -65,6 +73,8 @@ export function createMuteSettingsViewModel() {
     })
   );
 
+  let pendingNip04Action: ((scheme?: EncryptionScheme) => Promise<void>) | null = null;
+
   function requestAddMuteWord(): void {
     const word = newMuteWord.trim();
     if (!word) return;
@@ -75,8 +85,10 @@ export function createMuteSettingsViewModel() {
       message: t('confirm.mute_word_add.detail', { before, after: before + 1 }),
       variant: 'default',
       action: async () => {
-        await muteWord(word);
-        newMuteWord = '';
+        await resolveSchemeAndExecute(async (scheme) => {
+          await muteWord(word, scheme);
+          newMuteWord = '';
+        });
       }
     };
   }
@@ -88,7 +100,9 @@ export function createMuteSettingsViewModel() {
       message: t('confirm.unmute.detail', { before, after: before - 1 }),
       variant: 'default',
       action: async () => {
-        await unmuteUser(pubkey);
+        await resolveSchemeAndExecute(async (scheme) => {
+          await unmuteUser(pubkey, scheme);
+        });
       }
     };
   }
@@ -100,9 +114,32 @@ export function createMuteSettingsViewModel() {
       message: t('confirm.mute_word_remove.detail', { before, after: before - 1 }),
       variant: 'default',
       action: async () => {
-        await unmuteWord(word);
+        await resolveSchemeAndExecute(async (scheme) => {
+          await unmuteWord(word, scheme);
+        });
       }
     };
+  }
+
+  async function resolveSchemeAndExecute(
+    action: (scheme?: EncryptionScheme) => Promise<void>
+  ): Promise<void> {
+    const list = getMuteList();
+    if (list.encryptionScheme === 'nip04' && hasNip44Support()) {
+      // Show scheme confirmation as a second dialog
+      pendingNip04Action = action;
+      confirmAction = {
+        title: t('confirm.encryption_scheme'),
+        message: t('confirm.encryption_scheme.detail'),
+        variant: 'default' as ConfirmVariant,
+        action: async () => {
+          pendingNip04Action = null;
+          await action('nip44');
+        }
+      };
+    } else {
+      await action();
+    }
   }
 
   function handleMuteWordKeydown(event: KeyboardEvent): void {
@@ -118,7 +155,11 @@ export function createMuteSettingsViewModel() {
   }
 
   function cancelConfirmAction(): void {
+    const pending = pendingNip04Action;
+    pendingNip04Action = null;
     confirmAction = null;
+    if (pending)
+      pending('nip04').catch((err) => log.warn('Failed to save mute list after cancel', err));
   }
 
   return {

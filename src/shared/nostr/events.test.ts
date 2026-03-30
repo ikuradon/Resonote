@@ -1,3 +1,4 @@
+import { nip19 } from 'nostr-tools';
 import { describe, expect, it } from 'vitest';
 
 import { SpotifyProvider } from '$shared/content/spotify.js';
@@ -697,5 +698,34 @@ describe('buildContentReaction', () => {
     ]);
     expect(event.tags).toContainEqual(['k', 'spotify:episode']);
     expect(event.tags).toContainEqual(['r', 'https://open.spotify.com/episode/ep456']);
+  });
+});
+
+describe('buildComment with content quotes (q-tag)', () => {
+  const EVENT_HEX = 'aaaa'.repeat(16);
+  const VALID_NOTE = nip19.noteEncode(EVENT_HEX);
+
+  it('adds q-tag (not e-tag) for nostr:note1 references in content', () => {
+    const content = `see nostr:${VALID_NOTE}`;
+    const result = buildComment(content, trackId, provider);
+    const tags = result.tags ?? [];
+    const qTags = tags.filter((t) => t[0] === 'q');
+    const contentETags = tags.filter((t) => t[0] === 'e');
+    expect(qTags).toHaveLength(1);
+    expect(qTags[0][1]).toBe(EVENT_HEX);
+    expect(contentETags).toHaveLength(0);
+  });
+
+  it('does not confuse q-tag with replyTo e-tag from parentEvent', () => {
+    const parentEvent = { id: 'parent123', pubkey: 'author456' };
+    const content = `replying, see also nostr:${VALID_NOTE}`;
+    const result = buildComment(content, trackId, provider, { parentEvent });
+    const tags = result.tags ?? [];
+    const eTags = tags.filter((t) => t[0] === 'e');
+    const qTags = tags.filter((t) => t[0] === 'q');
+    expect(eTags).toHaveLength(1);
+    expect(eTags[0][1]).toBe('parent123');
+    expect(qTags).toHaveLength(1);
+    expect(qTags[0][1]).toBe(EVENT_HEX);
   });
 });

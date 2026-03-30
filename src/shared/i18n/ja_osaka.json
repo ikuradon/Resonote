@@ -197,6 +197,8 @@
   "confirm.mute_word_add.detail": "ミュートワード数: {before} → {after}",
   "confirm.mute_word_remove": "ミュートワード削除するんか？",
   "confirm.mute_word_remove.detail": "ミュートワード数: {before} → {after}",
+  "confirm.encryption_scheme": "NIP-44に変換しますか？",
+  "confirm.encryption_scheme.detail": "この mute list は NIP-04 で暗号化されています。変換すると NIP-04 のみ対応のクライアントでは読めなくなります。キャンセルで NIP-04 のまま保存します。",
   "confirm.ok": "ええで",
   "confirm.cancel": "やめとく",
   "resolve.loading": "URL解析中やで...",

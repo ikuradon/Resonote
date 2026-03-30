@@ -15,10 +15,10 @@ describe('verifyDeletionTargets', () => {
     expect(verifyDeletionTargets(event, pubkeys)).toEqual([]);
   });
 
-  it('should accept deletion when original event is unknown', () => {
+  it('should reject deletion when original event is unknown', () => {
     const pubkeys = new Map<string, string>();
     const event = { pubkey: 'pk1', tags: [['e', 'ev1']] };
-    expect(verifyDeletionTargets(event, pubkeys)).toEqual(['ev1']);
+    expect(verifyDeletionTargets(event, pubkeys)).toEqual([]);
   });
 
   it('should handle multiple e-tags with mixed verification', () => {
@@ -37,7 +37,7 @@ describe('verifyDeletionTargets', () => {
     const result = verifyDeletionTargets(event, pubkeys);
     expect(result).toContain('ev1');
     expect(result).not.toContain('ev2');
-    expect(result).toContain('ev3');
+    expect(result).not.toContain('ev3'); // unknown -> reject
   });
 
   it('should return empty for event with no e-tags', () => {
@@ -46,11 +46,11 @@ describe('verifyDeletionTargets', () => {
     expect(verifyDeletionTargets(event, pubkeys)).toEqual([]);
   });
 
-  it('accepts deletion when original pubkey is unknown (not in eventPubkeys map)', () => {
-    // Event ID not present in map at all → originalPubkey is undefined → accept
+  it('rejects deletion when original pubkey is unknown (not in eventPubkeys map)', () => {
+    // Event ID not present in map at all → originalPubkey is undefined → reject
     const pubkeys = new Map([['other-event', 'someone-else']]);
     const event = { pubkey: 'pk-unknown', tags: [['e', 'ev-not-in-map']] };
-    expect(verifyDeletionTargets(event, pubkeys)).toEqual(['ev-not-in-map']);
+    expect(verifyDeletionTargets(event, pubkeys)).toEqual([]);
   });
 
   it('rejects deletion when pubkeys do not match', () => {

@@ -71,6 +71,7 @@ describe('relays-config: applyUserRelays', () => {
     subscribeFn = (observer) => {
       observer.next?.({
         event: {
+          created_at: 1000,
           tags: [
             ['r', 'wss://user-relay1.example.com'],
             ['r', 'wss://user-relay2.example.com']
@@ -99,6 +100,52 @@ describe('relays-config: applyUserRelays', () => {
     const { applyUserRelays } = await import('./relays-config.js');
     const result = await applyUserRelays('deadbeef'.repeat(8));
     expect(result).toEqual(['wss://relay1.example.com', 'wss://relay2.example.com']);
+  });
+  it('uses event with highest created_at when multiple packets arrive', async () => {
+    subscribeFn = (observer) => {
+      observer.next?.({
+        event: {
+          created_at: 1000,
+          tags: [['r', 'wss://old-relay.example.com']]
+        }
+      });
+      observer.next?.({
+        event: {
+          created_at: 2000,
+          tags: [['r', 'wss://new-relay.example.com']]
+        }
+      });
+      queueMicrotask(() => observer.complete?.());
+      return { unsubscribe: vi.fn() };
+    };
+
+    const { applyUserRelays } = await import('./relays-config.js');
+    const result = await applyUserRelays('deadbeef'.repeat(8));
+    expect(result).toEqual(['wss://new-relay.example.com']);
+    expect(mockSetDefaultRelays).toHaveBeenCalledWith(['wss://new-relay.example.com']);
+  });
+
+  it('ignores older event arriving after newer one', async () => {
+    subscribeFn = (observer) => {
+      observer.next?.({
+        event: {
+          created_at: 2000,
+          tags: [['r', 'wss://new-relay.example.com']]
+        }
+      });
+      observer.next?.({
+        event: {
+          created_at: 1000,
+          tags: [['r', 'wss://old-relay.example.com']]
+        }
+      });
+      queueMicrotask(() => observer.complete?.());
+      return { unsubscribe: vi.fn() };
+    };
+
+    const { applyUserRelays } = await import('./relays-config.js');
+    const result = await applyUserRelays('deadbeef'.repeat(8));
+    expect(result).toEqual(['wss://new-relay.example.com']);
   });
 });
 

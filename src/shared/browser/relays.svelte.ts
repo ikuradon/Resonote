@@ -80,11 +80,14 @@ export async function fetchRelayList(pubkey: string): Promise<RelayListResult> {
   const kind10002 = await new Promise<RelayEntry[] | null>((resolve) => {
     const req = createRxBackwardReq();
     let found: RelayEntry[] | null = null;
+    let latestCreatedAt = 0;
 
     const sub = rxNostr.use(req).subscribe({
       next: (packet) => {
+        if (packet.event.created_at <= latestCreatedAt) return;
+        latestCreatedAt = packet.event.created_at;
         const entries = parseRelayTags(packet.event.tags);
-        if (entries.length > 0) found = entries;
+        found = entries.length > 0 ? entries : null;
       },
       complete: () => {
         sub.unsubscribe();
@@ -109,10 +112,12 @@ export async function fetchRelayList(pubkey: string): Promise<RelayListResult> {
   const kind3 = await new Promise<RelayEntry[] | null>((resolve) => {
     const req = createRxBackwardReq();
     let found: RelayEntry[] | null = null;
+    let latestCreatedAt = 0;
 
     const sub = rxNostr.use(req).subscribe({
       next: (packet) => {
         try {
+          if (packet.event.created_at <= latestCreatedAt) return;
           const content = JSON.parse(packet.event.content) as Record<
             string,
             { read?: boolean; write?: boolean }
@@ -122,7 +127,8 @@ export async function fetchRelayList(pubkey: string): Promise<RelayListResult> {
             read: flags.read ?? true,
             write: flags.write ?? true
           }));
-          if (entries.length > 0) found = entries;
+          latestCreatedAt = packet.event.created_at;
+          found = entries.length > 0 ? entries : null;
         } catch {
           // Ignore parse failures from malformed kind:3 content.
         }
