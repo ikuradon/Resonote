@@ -164,8 +164,8 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     const verified = verifyDeletionTargets(event, eventPubkeys);
 
     // Store unverified targets as pending (original event not yet observed).
-    // Later arrivals overwrite earlier ones — the correct author's deletion
-    // will be applied when the target event is finally observed.
+    // All candidates are kept per target so the correct author's deletion
+    // is applied when the target event is finally observed.
     const allTargets = extractDeletionTargets(event);
     for (const id of allTargets) {
       if (!eventPubkeys.has(id)) {
