@@ -25,9 +25,13 @@ export async function loadDbStats(): Promise<DbStats> {
   }
 }
 
-export function clearIndexedDB(): void {
+export async function clearIndexedDB(): Promise<void> {
   // After auftakt migration, clearing IDB is done by deleting the database directly
-  indexedDB.deleteDatabase(EVENTS_DB_NAME);
+  return new Promise<void>((resolve, reject) => {
+    const req = indexedDB.deleteDatabase(EVENTS_DB_NAME);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
 }
 
 export function clearLocalStorage(key: string): void {

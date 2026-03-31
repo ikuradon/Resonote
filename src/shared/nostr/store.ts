@@ -11,6 +11,7 @@ import { createLogger } from '$shared/utils/logger.js';
 const log = createLogger('nostr:store');
 
 let store: EventStore | undefined;
+let disconnectStore: (() => void) | undefined;
 
 export function getStore(): EventStore {
   if (!store) throw new Error('Store not initialized. Call initStore() first.');
@@ -28,11 +29,13 @@ export async function initStore(): Promise<void> {
 
   store = createEventStore({ backend: indexedDBBackend('resonote-events') });
   const rxNostr = await getRxNostr();
-  connectStore(rxNostr, store, { reconcileDeletions: true });
+  disconnectStore = connectStore(rxNostr, store, { reconcileDeletions: true });
   log.info('Auftakt store initialized');
 }
 
 export function disposeStore(): void {
+  disconnectStore?.();
+  disconnectStore = undefined;
   store?.dispose();
   store = undefined;
   log.info('Auftakt store disposed');
@@ -58,7 +61,14 @@ export async function fetchLatest(
     import('@ikuradon/auftakt/sync'),
     import('./client.js')
   ]);
-  const { firstValueFrom, filter, timeout: rxTimeout, catchError, of } = await import('rxjs');
+  const {
+    firstValueFrom,
+    filter,
+    timeout: rxTimeout,
+    catchError,
+    of,
+    defaultIfEmpty
+  } = await import('rxjs');
   const rxNostr = await getRxNostr();
 
   const synced = createSyncedQuery(rxNostr, s, {
@@ -70,7 +80,8 @@ export async function fetchLatest(
       synced.events$.pipe(
         filter((events: unknown[]) => events.length > 0),
         rxTimeout(options?.timeout ?? 5000),
-        catchError(() => of(null))
+        catchError(() => of(null)),
+        defaultIfEmpty(null)
       )
     );
     if (result && Array.isArray(result) && result.length > 0) {

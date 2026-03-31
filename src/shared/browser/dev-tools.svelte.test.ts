@@ -103,10 +103,17 @@ describe('dev-tools.svelte', () => {
 
   describe('clearIndexedDB', () => {
     it('calls indexedDB.deleteDatabase', async () => {
-      const deleteDbMock = vi.fn().mockReturnValue({});
+      const deleteDbMock = vi.fn().mockImplementation(() => {
+        const req = {
+          onsuccess: null as (() => void) | null,
+          onerror: null as (() => void) | null
+        };
+        queueMicrotask(() => req.onsuccess?.());
+        return req;
+      });
       vi.stubGlobal('indexedDB', { deleteDatabase: deleteDbMock });
 
-      clearIndexedDB();
+      await clearIndexedDB();
 
       expect(deleteDbMock).toHaveBeenCalledWith('resonote-events');
       vi.unstubAllGlobals();
