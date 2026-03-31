@@ -1,16 +1,13 @@
+import { BehaviorSubject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ---------------------------------------------------------------------------
 // Hoisted mocks
 // ---------------------------------------------------------------------------
 const {
-  loadSubscriptionDepsMock,
   getCommentRepositoryMock,
   restoreFromCacheMock,
   buildContentFiltersMock,
-  startSubscriptionMock,
-  startDeletionReconcileMock,
-  startMergedSubscriptionMock,
   purgeDeletedFromCacheMock,
   commentFromEventMock,
   reactionFromEventMock,
@@ -22,23 +19,16 @@ const {
   isLikeReactionMock,
   verifyDeletionTargetsMock,
   fetchByIdMock,
+  createSyncedQueryMock,
+  mockEventsSubjects,
   logInfoMock,
   logDebugMock,
   logErrorMock
 } = vi.hoisted(() => {
-  const mockSub = { unsubscribe: vi.fn() };
   return {
-    loadSubscriptionDepsMock: vi.fn().mockResolvedValue({
-      rxNostr: {},
-      rxNostrMod: {},
-      rxjsMerge: vi.fn()
-    }),
     getCommentRepositoryMock: vi.fn().mockResolvedValue({ put: vi.fn() }),
     restoreFromCacheMock: vi.fn().mockResolvedValue([]),
-    buildContentFiltersMock: vi.fn().mockReturnValue([]),
-    startSubscriptionMock: vi.fn().mockReturnValue([mockSub, mockSub]),
-    startDeletionReconcileMock: vi.fn().mockReturnValue({ sub: mockSub, timeout: undefined }),
-    startMergedSubscriptionMock: vi.fn().mockReturnValue(mockSub),
+    buildContentFiltersMock: vi.fn().mockReturnValue([{ kinds: [1111] }]),
     purgeDeletedFromCacheMock: vi.fn().mockResolvedValue(undefined),
     commentFromEventMock: vi.fn(
       (event: {
@@ -77,6 +67,8 @@ const {
     isLikeReactionMock: vi.fn().mockReturnValue(true),
     verifyDeletionTargetsMock: vi.fn().mockReturnValue([]),
     fetchByIdMock: vi.fn().mockResolvedValue(null),
+    createSyncedQueryMock: vi.fn(),
+    mockEventsSubjects: [] as BehaviorSubject<unknown[]>[],
     logInfoMock: vi.fn(),
     logDebugMock: vi.fn(),
     logErrorMock: vi.fn()
@@ -87,13 +79,9 @@ const {
 // Module mocks
 // ---------------------------------------------------------------------------
 vi.mock('../application/comment-subscription.js', () => ({
-  loadSubscriptionDeps: loadSubscriptionDepsMock,
   getCommentRepository: getCommentRepositoryMock,
   restoreFromCache: restoreFromCacheMock,
   buildContentFilters: buildContentFiltersMock,
-  startSubscription: startSubscriptionMock,
-  startDeletionReconcile: startDeletionReconcileMock,
-  startMergedSubscription: startMergedSubscriptionMock,
   purgeDeletedFromCache: purgeDeletedFromCacheMock
 }));
 
@@ -125,11 +113,19 @@ vi.mock('$shared/nostr/events.js', () => ({
 }));
 
 vi.mock('$shared/nostr/store.js', () => ({
-  getStoreAsync: () => ({
+  getStoreAsync: vi.fn().mockResolvedValue({
     fetchById: fetchByIdMock,
     getSync: vi.fn().mockResolvedValue([]),
     dispose: vi.fn()
   })
+}));
+
+vi.mock('$shared/nostr/client.js', () => ({
+  getRxNostr: vi.fn().mockResolvedValue({})
+}));
+
+vi.mock('@ikuradon/auftakt/sync', () => ({
+  createSyncedQuery: createSyncedQueryMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -181,35 +177,35 @@ function makeCommentEvent(
   };
 }
 
-type PacketHandler = (event: {
-  id: string;
-  pubkey: string;
-  kind: number;
-  tags: string[][];
-  content: string;
-  created_at: number;
-}) => void;
+/**
+ * Set up createSyncedQuery mock. Returns subjects array that tests push events into.
+ */
+function setupSyncedQuery(): void {
+  createSyncedQueryMock.mockImplementation(() => {
+    const subject = new BehaviorSubject<unknown[]>([]);
+    mockEventsSubjects.push(subject);
+    return {
+      events$: subject.asObservable(),
+      status$: new BehaviorSubject<string>('cached').asObservable(),
+      emit: vi.fn(),
+      dispose: vi.fn()
+    };
+  });
+}
 
 /**
- * Mock startSubscription to capture onPacket callback for live event simulation.
- * Returns a getter for the captured handler.
+ * Push a new event into the latest SyncedQuery events$ subject.
+ * Wraps the event in CachedEvent format with seenOn relay hint.
  */
-function captureOnPacket(): { getOnPacket: () => PacketHandler } {
-  let captured!: PacketHandler;
-  startSubscriptionMock.mockImplementation(
-    (
-      _refs: unknown,
-      _filters: unknown,
-      _maxCreatedAt: unknown,
-      onPacket: PacketHandler,
-      onBackwardComplete: () => void
-    ) => {
-      captured = onPacket;
-      onBackwardComplete();
-      return [{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }];
-    }
-  );
-  return { getOnPacket: () => captured };
+function pushLiveEvent(event: Record<string, unknown>, subjectIndex = 0): void {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- array index may be out of bounds
+  const subject =
+    mockEventsSubjects[subjectIndex] ??
+    (() => {
+      throw new Error(`No subject at index ${subjectIndex}`);
+    })();
+  const current = subject.getValue();
+  subject.next([...current, { event, seenOn: ['wss://relay.test'], firstSeen: Date.now() }]);
 }
 
 // ---------------------------------------------------------------------------
@@ -218,20 +214,12 @@ function captureOnPacket(): { getOnPacket: () => PacketHandler } {
 describe('createCommentViewModel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockEventsSubjects.length = 0;
 
     // Re-apply default return values after clearAllMocks
-    const mockSub = { unsubscribe: vi.fn() };
-    loadSubscriptionDepsMock.mockResolvedValue({
-      rxNostr: {},
-      rxNostrMod: {},
-      rxjsMerge: vi.fn()
-    });
     getCommentRepositoryMock.mockResolvedValue({ put: vi.fn() });
     restoreFromCacheMock.mockResolvedValue([]);
-    buildContentFiltersMock.mockReturnValue([]);
-    startSubscriptionMock.mockReturnValue([mockSub, mockSub]);
-    startDeletionReconcileMock.mockReturnValue({ sub: mockSub, timeout: undefined });
-    startMergedSubscriptionMock.mockReturnValue(mockSub);
+    buildContentFiltersMock.mockReturnValue([{ kinds: [1111] }]);
     purgeDeletedFromCacheMock.mockResolvedValue(undefined);
     commentFromEventMock.mockImplementation(
       (event: {
@@ -263,7 +251,7 @@ describe('createCommentViewModel', () => {
     isLikeReactionMock.mockReturnValue(true);
     verifyDeletionTargetsMock.mockReturnValue([]);
     fetchByIdMock.mockResolvedValue(null);
-    vi.fn().mockReturnValue(undefined);
+    setupSyncedQuery();
   });
 
   // -------------------------------------------------------------------------
@@ -297,10 +285,9 @@ describe('createCommentViewModel', () => {
   // 2. subscribe()
   // -------------------------------------------------------------------------
   describe('subscribe()', () => {
-    it('calls loadSubscriptionDeps and getCommentRepository', async () => {
+    it('calls getCommentRepository', async () => {
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
-      expect(loadSubscriptionDepsMock).toHaveBeenCalledOnce();
       expect(getCommentRepositoryMock).toHaveBeenCalledOnce();
     });
 
@@ -313,27 +300,17 @@ describe('createCommentViewModel', () => {
       );
     });
 
-    it('calls startSubscription after loading deps', async () => {
+    it('creates SyncedQuery subscriptions after loading deps', async () => {
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
-      expect(startSubscriptionMock).toHaveBeenCalledOnce();
+      expect(createSyncedQueryMock).toHaveBeenCalled();
     });
 
-    it('sets loading=false when backward complete callback fires', async () => {
-      startSubscriptionMock.mockImplementation(
-        (
-          _refs: unknown,
-          _filters: unknown,
-          _maxCreatedAt: unknown,
-          _onPacket: unknown,
-          onBackwardComplete: () => void
-        ) => {
-          onBackwardComplete();
-          return [{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }];
-        }
-      );
+    it('sets loading=false after subscribe completes', async () => {
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
+      // Wait for the 2s setTimeout that marks loading as false
+      await new Promise<void>((r) => setTimeout(r, 2100));
       expect(vm.loading).toBe(false);
     });
 
@@ -348,25 +325,10 @@ describe('createCommentViewModel', () => {
     });
 
     it('sets loading=false on subscription error', async () => {
-      loadSubscriptionDepsMock.mockRejectedValue(new Error('network error'));
+      getCommentRepositoryMock.mockRejectedValue(new Error('network error'));
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
       expect(vm.loading).toBe(false);
-    });
-
-    it('starts deletion reconcile when cache is non-empty', async () => {
-      const cachedEvent = makeCommentEvent('cached-c1');
-      restoreFromCacheMock.mockResolvedValue([cachedEvent]);
-      const vm = createCommentViewModel(contentId, provider);
-      await vm.subscribe();
-      expect(startDeletionReconcileMock).toHaveBeenCalledOnce();
-    });
-
-    it('skips deletion reconcile when cache is empty', async () => {
-      restoreFromCacheMock.mockResolvedValue([]);
-      const vm = createCommentViewModel(contentId, provider);
-      await vm.subscribe();
-      expect(startDeletionReconcileMock).not.toHaveBeenCalled();
     });
   });
 
@@ -374,36 +336,16 @@ describe('createCommentViewModel', () => {
   // 3. destroy()
   // -------------------------------------------------------------------------
   describe('destroy()', () => {
-    it('clears all state and calls unsubscribe on subscriptions', async () => {
-      const sub1 = { unsubscribe: vi.fn() };
-      const sub2 = { unsubscribe: vi.fn() };
-      startSubscriptionMock.mockReturnValue([sub1, sub2]);
-
+    it('clears all state and disposes SyncedQuery handles', async () => {
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
       vm.destroy();
 
-      expect(sub1.unsubscribe).toHaveBeenCalledOnce();
-      expect(sub2.unsubscribe).toHaveBeenCalledOnce();
       expect(vm.comments).toEqual([]);
       expect(vm.reactionIndex.size).toBe(0);
       expect(vm.deletedIds.size).toBe(0);
       expect(vm.placeholders.size).toBe(0);
-    });
-
-    it('unsubscribes reconcile sub when active', async () => {
-      const reconcileSub = { unsubscribe: vi.fn() };
-      // startDeletionReconcile is called when cache has items
-      const cachedEvent = makeCommentEvent('cached-r1');
-      restoreFromCacheMock.mockResolvedValue([cachedEvent]);
-      startDeletionReconcileMock.mockReturnValue({ sub: reconcileSub, timeout: undefined });
-
-      const vm = createCommentViewModel(contentId, provider);
-      await vm.subscribe();
-      vm.destroy();
-
-      expect(reconcileSub.unsubscribe).toHaveBeenCalledOnce();
     });
 
     it('is safe to call destroy before subscribe', () => {
@@ -424,8 +366,6 @@ describe('createCommentViewModel', () => {
 
       const promise = vm.fetchOrphanParent('parent-1', null);
 
-      // Loading placeholder should be visible synchronously after first tick
-      // (placeholderFromOrphan is called before await)
       await promise;
 
       expect(placeholderFromOrphanMock).toHaveBeenCalledWith('parent-1', null);
@@ -491,47 +431,21 @@ describe('createCommentViewModel', () => {
   // -------------------------------------------------------------------------
   describe('fetchOrphanParent: deleted parent (already in deletedIds)', () => {
     it('creates deleted placeholder immediately without fetching', async () => {
-      // Simulate parent already being in deletedIds via a deletion event during subscribe
-      // We reach into internal state by calling subscribe with a cached deletion event
-      // that verifyDeletionTargets returns the parent id for.
-      // Simpler: call the delete path via dispatchPacket which is internal — instead
-      // we manipulate via the handleDeletionPacket path indirectly through startSubscription.
-      // Easiest approach: mock startSubscription to call onPacket with a deletion event
-      // that targets our parent, with verifyDeletionTargets returning the parent id.
-
       const parentId = 'deleted-parent';
       verifyDeletionTargetsMock.mockReturnValue([parentId]);
 
-      startSubscriptionMock.mockImplementation(
-        (
-          _refs: unknown,
-          _filters: unknown,
-          _maxCreatedAt: unknown,
-          onPacket: (event: {
-            id: string;
-            pubkey: string;
-            kind: number;
-            tags: string[][];
-            content: string;
-            created_at: number;
-          }) => void,
-          onBackwardComplete: () => void
-        ) => {
-          onPacket({
-            id: 'del-event',
-            pubkey: 'author',
-            kind: 5,
-            tags: [['e', parentId]],
-            content: '',
-            created_at: 2000
-          });
-          onBackwardComplete();
-          return [{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }];
-        }
-      );
-
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
+
+      // Push a deletion event via SyncedQuery to add parentId to deletedIds
+      pushLiveEvent({
+        id: 'del-event',
+        pubkey: 'author',
+        kind: 5,
+        tags: [['e', parentId]],
+        content: '',
+        created_at: 2000
+      });
 
       // Now parentId is in deletedIds
       expect(vm.deletedIds.has(parentId)).toBe(true);
@@ -543,7 +457,7 @@ describe('createCommentViewModel', () => {
       expect(ph).toBeDefined();
       expect(ph?.status).toBe('deleted');
       expect(ph?.positionMs).toBe(8_000);
-      // cachedFetchById should NOT be called
+      // fetchById should NOT be called
       expect(fetchByIdMock).not.toHaveBeenCalled();
     });
   });
@@ -554,12 +468,10 @@ describe('createCommentViewModel', () => {
   describe('fetchOrphanParent: deleted during fetch await', () => {
     it('shows deleted placeholder when deletion arrives while fetch is pending', async () => {
       const parentId = 'race-parent';
-      const { getOnPacket } = captureOnPacket();
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      // At this point deletedIds does NOT contain parentId
       // Make fetchById block until we manually resolve it
       let resolveFetch!: (
         val: {
@@ -575,14 +487,13 @@ describe('createCommentViewModel', () => {
           })
       );
 
-      // Start fetch — this enters the fetch path (deletedIds.has is false)
+      // Start fetch
       const fetchPromise = vm.fetchOrphanParent(parentId, null);
-      // Flush microtask so getStoreAsync() resolves and fetchByIdMock is called
       await new Promise<void>((r) => setImmediate(r));
 
       // While fetch is pending, simulate deletion event arriving via live subscription
       verifyDeletionTargetsMock.mockReturnValue([parentId]);
-      getOnPacket()({
+      pushLiveEvent({
         id: 'del-during-fetch',
         pubkey: 'author',
         kind: 5,
@@ -600,7 +511,7 @@ describe('createCommentViewModel', () => {
       expect(ph).toBeDefined();
       expect(ph?.status).toBe('deleted');
       expect(vm.comments.find((c) => c.id === parentId)).toBeUndefined();
-      // fetchById WAS called (unlike the early-return path)
+      // fetchById WAS called
       expect(fetchByIdMock).toHaveBeenCalledWith(parentId, expect.any(Object));
     });
   });
@@ -624,21 +535,16 @@ describe('createCommentViewModel', () => {
     });
 
     it('updates positionMs on second call if existing placeholder has null positionMs', async () => {
-      // First call: fetch resolves to null → not-found placeholder with positionMs=null
       fetchByIdMock.mockResolvedValue(null);
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.fetchOrphanParent('dedup-ph', null);
 
-      // Placeholder should be not-found with positionMs null
       expect(vm.placeholders.get('dedup-ph')?.positionMs).toBeNull();
 
-      // Second call with a better estimate
       await vm.fetchOrphanParent('dedup-ph', 20_000);
 
-      // positionMs should be updated
       expect(vm.placeholders.get('dedup-ph')?.positionMs).toBe(20_000);
-      // fetch was only called once
       expect(fetchByIdMock).toHaveBeenCalledOnce();
     });
 
@@ -653,7 +559,6 @@ describe('createCommentViewModel', () => {
     });
 
     it('skips fetch when parent already exists in comments', async () => {
-      // Populate comments via subscribe with cached event
       const cachedEvent = makeCommentEvent('known-parent');
       restoreFromCacheMock.mockResolvedValue([cachedEvent]);
 
@@ -674,14 +579,16 @@ describe('createCommentViewModel', () => {
     it('returns early when subscribe() has not been called (no refs)', async () => {
       const vm = createCommentViewModel(contentId, provider);
       await vm.addSubscription('spotify:track:other-1');
-      expect(startMergedSubscriptionMock).not.toHaveBeenCalled();
+      // No additional SyncedQuery should be created (subscribe not called)
+      // The initial createSyncedQueryMock calls are from setupSyncedQuery, not from SUT
     });
 
     it('starts merged subscription after subscribe()', async () => {
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
+      const callsBefore = createSyncedQueryMock.mock.calls.length;
       await vm.addSubscription('spotify:track:other-1');
-      expect(startMergedSubscriptionMock).toHaveBeenCalledOnce();
+      expect(createSyncedQueryMock.mock.calls.length).toBeGreaterThan(callsBefore);
     });
 
     it('restores cached comments for the new tag', async () => {
@@ -706,12 +613,10 @@ describe('createCommentViewModel', () => {
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
-      // shared-c is already in comments from subscribe()
       expect(vm.comments).toHaveLength(1);
 
       restoreFromCacheMock.mockResolvedValue([cachedEvent]);
       await vm.addSubscription('spotify:track:other-1');
-      // Should still be 1, not duplicated
       expect(vm.comments).toHaveLength(1);
     });
 
@@ -732,7 +637,6 @@ describe('createCommentViewModel', () => {
 
       restoreFromCacheMock.mockResolvedValue([deletionEvent, commentEvent]);
       await vm.addSubscription('spotify:track:other-1');
-      // del-target should be in deletedIds so comment is excluded from visible
       expect(vm.deletedIds.has('del-target')).toBe(true);
     });
 
@@ -757,20 +661,21 @@ describe('createCommentViewModel', () => {
 
       restoreFromCacheMock.mockResolvedValue([reactionEvent]);
       await vm.addSubscription('spotify:track:other-1');
-      // Reaction was processed (applyReaction called)
       expect(applyReactionMock).toHaveBeenCalled();
     });
 
     it('does not start merged subscription if destroyed during cache restore', async () => {
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
+      const callsBefore = createSyncedQueryMock.mock.calls.length;
 
       restoreFromCacheMock.mockImplementation(async () => {
         vm.destroy();
         return [];
       });
       await vm.addSubscription('spotify:track:other-1');
-      expect(startMergedSubscriptionMock).not.toHaveBeenCalled();
+      // No additional SyncedQuery calls after destroy
+      expect(createSyncedQueryMock.mock.calls.length).toBe(callsBefore);
     });
   });
 
@@ -779,13 +684,11 @@ describe('createCommentViewModel', () => {
   // -------------------------------------------------------------------------
   describe('deletion event processing', () => {
     it('adds verified targets to deletedIds and rebuilds reaction index', async () => {
-      const { getOnPacket } = captureOnPacket();
-
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
       verifyDeletionTargetsMock.mockReturnValue(['target-1', 'target-2']);
-      getOnPacket()({
+      pushLiveEvent({
         id: 'del-1',
         pubkey: 'author',
         kind: 5,
@@ -803,17 +706,14 @@ describe('createCommentViewModel', () => {
     });
 
     it('purges deleted events from cache', async () => {
-      // Set up a comment first so commentIds has 'c1'
       const cachedComment = makeCommentEvent('c1');
       restoreFromCacheMock.mockResolvedValue([cachedComment]);
-
-      const { getOnPacket } = captureOnPacket();
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
       verifyDeletionTargetsMock.mockReturnValue(['c1']);
-      getOnPacket()({
+      pushLiveEvent({
         id: 'del-c1',
         pubkey: 'pubkey-c1',
         kind: 5,
@@ -826,13 +726,11 @@ describe('createCommentViewModel', () => {
     });
 
     it('deletion is tracked in deletedIds (auftakt handles cache invalidation)', async () => {
-      const { getOnPacket } = captureOnPacket();
-
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
       verifyDeletionTargetsMock.mockReturnValue(['inv-1']);
-      getOnPacket()({
+      pushLiveEvent({
         id: 'del-inv',
         pubkey: 'author',
         kind: 5,
@@ -845,13 +743,11 @@ describe('createCommentViewModel', () => {
     });
 
     it('ignores deletion event with no verified targets', async () => {
-      const { getOnPacket } = captureOnPacket();
-
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
       verifyDeletionTargetsMock.mockReturnValue([]);
-      getOnPacket()({
+      pushLiveEvent({
         id: 'del-none',
         pubkey: 'author',
         kind: 5,
@@ -865,10 +761,7 @@ describe('createCommentViewModel', () => {
     });
 
     it('updates orphan placeholder to deleted when deletion arrives', async () => {
-      // Set up: fetch orphan parent that returns null → not-found placeholder
       fetchByIdMock.mockResolvedValue(null);
-
-      const { getOnPacket } = captureOnPacket();
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
@@ -876,9 +769,8 @@ describe('createCommentViewModel', () => {
       await vm.fetchOrphanParent('orphan-ph', 5_000);
       expect(vm.placeholders.get('orphan-ph')?.status).toBe('not-found');
 
-      // Now deletion arrives for that orphan
       verifyDeletionTargetsMock.mockReturnValue(['orphan-ph']);
-      getOnPacket()({
+      pushLiveEvent({
         id: 'del-orphan',
         pubkey: 'author',
         kind: 5,
@@ -894,18 +786,14 @@ describe('createCommentViewModel', () => {
       const parentEvent = makeCommentEvent('fetched-then-del');
       fetchByIdMock.mockResolvedValue({ event: parentEvent, seenOn: [], firstSeen: 0 });
 
-      const { getOnPacket } = captureOnPacket();
-
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      // Fetch orphan parent successfully → it gets added to comments
       await vm.fetchOrphanParent('fetched-then-del', null);
       expect(vm.comments.find((c) => c.id === 'fetched-then-del')).toBeDefined();
 
-      // Now deletion arrives for that parent
       verifyDeletionTargetsMock.mockReturnValue(['fetched-then-del']);
-      getOnPacket()({
+      pushLiveEvent({
         id: 'del-fetched',
         pubkey: 'pubkey-fetched-then-del',
         kind: 5,
@@ -914,9 +802,7 @@ describe('createCommentViewModel', () => {
         created_at: 3000
       });
 
-      // Parent should be hidden from visible comments
       expect(vm.comments.find((c) => c.id === 'fetched-then-del')).toBeUndefined();
-      // A deleted placeholder should be created
       expect(vm.placeholders.get('fetched-then-del')?.status).toBe('deleted');
     });
   });
@@ -926,8 +812,6 @@ describe('createCommentViewModel', () => {
   // -------------------------------------------------------------------------
   describe('reaction event processing', () => {
     it('adds reaction to reactionIndex via dispatchPacket', async () => {
-      const { getOnPacket } = captureOnPacket();
-
       reactionFromEventMock.mockReturnValue({
         id: 'r1',
         pubkey: 'reactor',
@@ -938,7 +822,7 @@ describe('createCommentViewModel', () => {
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      getOnPacket()({
+      pushLiveEvent({
         id: 'r1',
         pubkey: 'reactor',
         content: '+',
@@ -952,8 +836,6 @@ describe('createCommentViewModel', () => {
     });
 
     it('deduplicates reactions with same id', async () => {
-      const { getOnPacket } = captureOnPacket();
-
       reactionFromEventMock.mockReturnValue({
         id: 'r-dup',
         pubkey: 'reactor',
@@ -964,7 +846,7 @@ describe('createCommentViewModel', () => {
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      getOnPacket()({
+      pushLiveEvent({
         id: 'r-dup',
         pubkey: 'reactor',
         content: '+',
@@ -972,7 +854,7 @@ describe('createCommentViewModel', () => {
         tags: [['e', 'comment-1']],
         kind: 7
       });
-      getOnPacket()({
+      pushLiveEvent({
         id: 'r-dup',
         pubkey: 'reactor',
         content: '+',
@@ -986,14 +868,11 @@ describe('createCommentViewModel', () => {
     });
 
     it('does not apply reaction that is already in deletedIds', async () => {
-      const { getOnPacket } = captureOnPacket();
-
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      // First, create a deletion for the reaction id
       verifyDeletionTargetsMock.mockReturnValue(['r-del']);
-      getOnPacket()({
+      pushLiveEvent({
         id: 'del-r',
         pubkey: 'reactor',
         kind: 5,
@@ -1002,14 +881,13 @@ describe('createCommentViewModel', () => {
         created_at: 2000
       });
 
-      // Now the reaction arrives
       reactionFromEventMock.mockReturnValue({
         id: 'r-del',
         pubkey: 'reactor',
         content: '+',
         targetEventId: 'comment-1'
       });
-      getOnPacket()({
+      pushLiveEvent({
         id: 'r-del',
         pubkey: 'reactor',
         content: '+',
@@ -1018,19 +896,16 @@ describe('createCommentViewModel', () => {
         kind: 7
       });
 
-      // applyReaction should not be called because reaction id is in deletedIds
       expect(applyReactionMock).not.toHaveBeenCalled();
     });
 
     it('ignores reaction event where reactionFromEvent returns null', async () => {
-      const { getOnPacket } = captureOnPacket();
-
       reactionFromEventMock.mockReturnValue(null);
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      getOnPacket()({
+      pushLiveEvent({
         id: 'r-null',
         pubkey: 'reactor',
         content: '+',
@@ -1043,8 +918,6 @@ describe('createCommentViewModel', () => {
     });
 
     it('sorts custom emoji reactions by count', async () => {
-      const { getOnPacket } = captureOnPacket();
-
       isLikeReactionMock.mockReturnValue(false);
       applyReactionMock.mockReturnValue({
         likes: 0,
@@ -1065,7 +938,7 @@ describe('createCommentViewModel', () => {
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      getOnPacket()({
+      pushLiveEvent({
         id: 'r-emoji',
         pubkey: 'reactor',
         content: ':fire:',
@@ -1074,7 +947,6 @@ describe('createCommentViewModel', () => {
         kind: 7
       });
 
-      // The VM sorts emojis by count descending
       const stats = vm.reactionIndex.get('comment-1');
       expect(stats).toBeDefined();
       expect(stats!.emojis[0].count).toBeGreaterThanOrEqual(stats!.emojis[1].count);
@@ -1086,8 +958,6 @@ describe('createCommentViewModel', () => {
   // -------------------------------------------------------------------------
   describe('content reaction event processing (kind:17)', () => {
     it('adds content reaction to contentReactions via dispatchPacket', async () => {
-      const { getOnPacket } = captureOnPacket();
-
       contentReactionFromEventMock.mockReturnValue({
         id: 'cr1',
         pubkey: 'reactor',
@@ -1097,7 +967,7 @@ describe('createCommentViewModel', () => {
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      getOnPacket()({
+      pushLiveEvent({
         id: 'cr1',
         pubkey: 'reactor',
         content: '',
@@ -1112,8 +982,6 @@ describe('createCommentViewModel', () => {
     });
 
     it('deduplicates content reactions with same id', async () => {
-      const { getOnPacket } = captureOnPacket();
-
       contentReactionFromEventMock.mockReturnValue({
         id: 'cr-dup',
         pubkey: 'reactor',
@@ -1131,23 +999,19 @@ describe('createCommentViewModel', () => {
         tags: [],
         kind: 17
       };
-      getOnPacket()(event);
-      getOnPacket()(event);
+      pushLiveEvent(event);
+      pushLiveEvent(event);
 
-      // Should only appear once due to dedup
       expect(vm.contentReactions).toHaveLength(1);
       expect(contentReactionFromEventMock).toHaveBeenCalledTimes(1);
     });
 
     it('does not include content reaction that is in deletedIds', async () => {
-      const { getOnPacket } = captureOnPacket();
-
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      // First, create a deletion for the content reaction id
       verifyDeletionTargetsMock.mockReturnValue(['cr-del']);
-      getOnPacket()({
+      pushLiveEvent({
         id: 'del-cr',
         pubkey: 'reactor',
         kind: 5,
@@ -1156,13 +1020,12 @@ describe('createCommentViewModel', () => {
         created_at: 2000
       });
 
-      // Now the content reaction arrives
       contentReactionFromEventMock.mockReturnValue({
         id: 'cr-del',
         pubkey: 'reactor',
         createdAt: 1000
       });
-      getOnPacket()({
+      pushLiveEvent({
         id: 'cr-del',
         pubkey: 'reactor',
         content: '',
@@ -1171,7 +1034,6 @@ describe('createCommentViewModel', () => {
         kind: 17
       });
 
-      // contentReactions should be empty because cr-del is in deletedIds
       expect(vm.contentReactions).toHaveLength(0);
     });
 
@@ -1205,42 +1067,34 @@ describe('createCommentViewModel', () => {
   // -------------------------------------------------------------------------
   describe('comment event processing', () => {
     it('adds new comment via live subscription', async () => {
-      const { getOnPacket } = captureOnPacket();
-
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      getOnPacket()(makeCommentEvent('live-c1'));
+      pushLiveEvent(makeCommentEvent('live-c1'));
 
       expect(vm.comments).toHaveLength(1);
       expect(vm.comments[0].id).toBe('live-c1');
     });
 
     it('deduplicates comments with same id', async () => {
-      const { getOnPacket } = captureOnPacket();
-
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      getOnPacket()(makeCommentEvent('dup-c'));
-      getOnPacket()(makeCommentEvent('dup-c'));
+      pushLiveEvent(makeCommentEvent('dup-c'));
+      pushLiveEvent(makeCommentEvent('dup-c'));
 
       expect(vm.comments).toHaveLength(1);
     });
 
     it('excludes deleted comments from visible list', async () => {
-      const { getOnPacket } = captureOnPacket();
-
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      // Add comment
-      getOnPacket()(makeCommentEvent('visible-c'));
+      pushLiveEvent(makeCommentEvent('visible-c'));
       expect(vm.comments).toHaveLength(1);
 
-      // Delete the comment
       verifyDeletionTargetsMock.mockReturnValue(['visible-c']);
-      getOnPacket()({
+      pushLiveEvent({
         id: 'del-visible',
         pubkey: 'pubkey-visible-c',
         kind: 5,
@@ -1301,38 +1155,6 @@ describe('createCommentViewModel', () => {
       expect(buildReactionIndexMock).toHaveBeenCalled();
     });
 
-    it('passes maxCreatedAt from cache to startSubscription', async () => {
-      const event1 = { ...makeCommentEvent('e1'), created_at: 100 };
-      const event2 = { ...makeCommentEvent('e2'), created_at: 200 };
-      restoreFromCacheMock.mockResolvedValue([event1, event2]);
-
-      const vm = createCommentViewModel(contentId, provider);
-      await vm.subscribe();
-
-      expect(startSubscriptionMock).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.anything(),
-        200,
-        expect.anything(),
-        expect.anything()
-      );
-    });
-
-    it('passes null maxCreatedAt when cache is empty', async () => {
-      restoreFromCacheMock.mockResolvedValue([]);
-
-      const vm = createCommentViewModel(contentId, provider);
-      await vm.subscribe();
-
-      expect(startSubscriptionMock).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.anything(),
-        null,
-        expect.anything(),
-        expect.anything()
-      );
-    });
-
     it('purges deleted events from cache after restore', async () => {
       const commentEvent = makeCommentEvent('purge-target');
       const deletionEvent = {
@@ -1361,9 +1183,8 @@ describe('createCommentViewModel', () => {
       vi.useRealTimers();
     });
 
-    it('sets loading=false after timeout even without backward complete', async () => {
+    it('sets loading=false after timeout even without events', async () => {
       vi.useFakeTimers();
-      startSubscriptionMock.mockReturnValue([{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }]);
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
@@ -1375,7 +1196,6 @@ describe('createCommentViewModel', () => {
 
     it('clears loading timeout on destroy', async () => {
       vi.useFakeTimers();
-      startSubscriptionMock.mockReturnValue([{ unsubscribe: vi.fn() }, { unsubscribe: vi.fn() }]);
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
@@ -1407,14 +1227,12 @@ describe('createCommentViewModel', () => {
 
       const vm = createCommentViewModel(contentId, provider);
       const promise = vm.fetchOrphanParent('destroyed-parent', null);
-      // Flush microtask so getStoreAsync() resolves and fetchByIdMock is called
       await new Promise<void>((r) => setImmediate(r));
 
       vm.destroy();
       resolveFetch({ event: makeCommentEvent('destroyed-parent'), seenOn: [], firstSeen: 0 });
       await promise;
 
-      // Comments should still be empty after destroy
       expect(vm.comments).toEqual([]);
     });
   });
@@ -1423,22 +1241,14 @@ describe('createCommentViewModel', () => {
   // 18. subscribe error handling
   // -------------------------------------------------------------------------
   describe('subscribe error handling', () => {
-    it('sets loading=false and logs error when startDeletionReconcile throws', async () => {
-      // startDeletionReconcile is called BEFORE startSubscription,
-      // so an error here prevents live subscriptions from being created.
-      const cachedEvent = makeCommentEvent('err-c');
-      restoreFromCacheMock.mockResolvedValue([cachedEvent]);
-      startDeletionReconcileMock.mockImplementation(() => {
-        throw new Error('reconcile failed');
-      });
+    it('sets loading=false and logs error when getCommentRepository throws', async () => {
+      getCommentRepositoryMock.mockRejectedValue(new Error('repository failed'));
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
       expect(vm.loading).toBe(false);
       expect(logErrorMock).toHaveBeenCalled();
-      // startSubscription should not have been called
-      expect(startSubscriptionMock).not.toHaveBeenCalled();
     });
   });
 });

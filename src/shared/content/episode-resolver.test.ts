@@ -1,3 +1,4 @@
+import { BehaviorSubject, Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { toBase64url } from '$shared/content/url-utils.js';
@@ -16,6 +17,8 @@ vi.mock('$shared/content/podcast-resolver.js', () => ({
 // Mock dynamic imports via the shared Nostr modules
 const mockGetSync = vi.fn();
 const mockGetRxNostr = vi.fn();
+const mockCreateSyncedQuery = vi.fn();
+
 vi.mock('$shared/nostr/store.js', () => ({
   getStoreAsync: () => ({
     getSync: (...args: unknown[]) => mockGetSync(...(args as [])),
@@ -28,32 +31,38 @@ vi.mock('$shared/nostr/client.js', () => ({
   getRxNostr: (...args: unknown[]) => mockGetRxNostr(...(args as []))
 }));
 
-const mockCreateRxBackwardReq = vi.fn();
-const mockUniq = vi.fn();
-vi.mock('rx-nostr', () => ({
-  createRxBackwardReq: (...args: unknown[]) => mockCreateRxBackwardReq(...(args as [])),
-  uniq: (...args: unknown[]) => mockUniq(...(args as []))
+vi.mock('@ikuradon/auftakt/sync', () => ({
+  createSyncedQuery: (...args: unknown[]) => mockCreateSyncedQuery(...(args as []))
 }));
 
 import { resolveEpisode } from '$shared/content/episode-resolver.js';
 
-/** Set up rx-nostr mock that emits a single event asynchronously, or completes immediately. */
+/** Set up createSyncedQuery mock that emits a single event, or completes empty. */
 function setupRelayMock(event: { tags: string[][]; content: string } | null) {
-  const mockReq = { emit: vi.fn(), over: vi.fn() };
-  mockCreateRxBackwardReq.mockReturnValue(mockReq);
-  mockUniq.mockReturnValue((source: unknown) => source);
+  mockGetRxNostr.mockResolvedValue({});
 
-  const mockSubscribe = vi.fn().mockImplementation(({ next, complete }) => {
-    if (event) {
-      void Promise.resolve().then(() => next({ event }));
-    } else {
-      complete();
-    }
-    return { unsubscribe: vi.fn() };
-  });
-  const mockPipe = vi.fn().mockReturnValue({ subscribe: mockSubscribe });
-  const mockUse = vi.fn().mockReturnValue({ pipe: mockPipe });
-  mockGetRxNostr.mockResolvedValue({ use: mockUse });
+  if (event) {
+    const eventsSubject = new BehaviorSubject<unknown[]>([
+      { event, seenOn: ['wss://relay.test'], firstSeen: Date.now() }
+    ]);
+    mockCreateSyncedQuery.mockReturnValue({
+      events$: eventsSubject.asObservable(),
+      status$: new BehaviorSubject<string>('cached').asObservable(),
+      emit: vi.fn(),
+      dispose: vi.fn()
+    });
+  } else {
+    const eventsSubject = new Subject<unknown[]>();
+    mockCreateSyncedQuery.mockReturnValue({
+      events$: eventsSubject.asObservable(),
+      status$: new BehaviorSubject<string>('cached').asObservable(),
+      emit: vi.fn(),
+      dispose: vi.fn()
+    });
+    queueMicrotask(() => {
+      eventsSubject.complete();
+    });
+  }
 }
 
 const FEED_URL = 'https://example.com/feed.xml';
@@ -624,6 +633,7 @@ describe('episode-resolver', () => {
       mockGetSystemPubkey.mockResolvedValue('');
       mockResolveByApi.mockResolvedValue({ type: 'episode' });
       mockGetSync.mockRejectedValue(new Error('DB not available'));
+      mockCreateSyncedQuery.mockReset();
     });
 
     it('should query relay when DB cache is empty and return result', async () => {

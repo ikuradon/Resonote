@@ -1,3 +1,4 @@
+import { BehaviorSubject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
@@ -8,16 +9,10 @@ const {
   logInfoMock,
   classifyMock,
   getRxNostrMock,
-  subscriberCallbacks,
-  backwardEmitCalls,
-  forwardEmitCalls,
-  unsubscribeMock
+  createSyncedQueryMock,
+  mockEventsSubjects,
+  mockDisposeFns
 } = vi.hoisted(() => {
-  const subscriberCallbacks: Array<(packet: unknown) => void> = [];
-  const backwardEmitCalls: unknown[] = [];
-  const forwardEmitCalls: unknown[] = [];
-  const unsubscribeMock = vi.fn();
-
   return {
     localStorageStore: new Map<string, string>(),
     isMutedMock: vi.fn(() => false),
@@ -26,10 +21,9 @@ const {
     logInfoMock: vi.fn(),
     classifyMock: vi.fn((): string | null => null),
     getRxNostrMock: vi.fn(),
-    subscriberCallbacks,
-    backwardEmitCalls,
-    forwardEmitCalls,
-    unsubscribeMock
+    createSyncedQueryMock: vi.fn(),
+    mockEventsSubjects: [] as BehaviorSubject<unknown[]>[],
+    mockDisposeFns: [] as Array<ReturnType<typeof vi.fn>>
   };
 });
 
@@ -52,6 +46,18 @@ vi.mock('$shared/nostr/client.js', () => ({
   getRxNostr: getRxNostrMock
 }));
 
+vi.mock('$shared/nostr/store.js', () => ({
+  getStoreAsync: vi.fn().mockResolvedValue({
+    getSync: vi.fn().mockResolvedValue([]),
+    fetchById: vi.fn().mockResolvedValue(null),
+    dispose: vi.fn()
+  })
+}));
+
+vi.mock('@ikuradon/auftakt/sync', () => ({
+  createSyncedQuery: createSyncedQueryMock
+}));
+
 vi.mock('$shared/browser/mute.js', () => ({
   isMuted: isMutedMock,
   isWordMuted: isWordMutedMock
@@ -63,27 +69,6 @@ vi.mock('$shared/browser/follows.js', () => ({
 
 vi.mock('../domain/notification-classifier.js', () => ({
   classifyNotificationEvent: classifyMock
-}));
-
-// Mock rxjs and rx-nostr for dynamic imports
-vi.mock('rxjs', () => ({
-  merge: vi.fn(() => ({
-    subscribe: vi.fn((observer: { next: (packet: unknown) => void }) => {
-      subscriberCallbacks.push(observer.next);
-      return { unsubscribe: unsubscribeMock };
-    })
-  }))
-}));
-
-vi.mock('rx-nostr', () => ({
-  createRxBackwardReq: vi.fn(() => ({
-    emit: vi.fn((filter: unknown) => backwardEmitCalls.push(filter)),
-    over: vi.fn()
-  })),
-  createRxForwardReq: vi.fn(() => ({
-    emit: vi.fn((filter: unknown) => forwardEmitCalls.push(filter))
-  })),
-  uniq: vi.fn(() => (x: unknown) => x)
 }));
 
 // localStorage mock
@@ -111,15 +96,40 @@ function testId(prefix: string): string {
 }
 
 function resetSubscriptionMocks() {
-  subscriberCallbacks.length = 0;
-  backwardEmitCalls.length = 0;
-  forwardEmitCalls.length = 0;
-  unsubscribeMock.mockClear();
+  mockEventsSubjects.length = 0;
+  mockDisposeFns.length = 0;
+  createSyncedQueryMock.mockClear();
 
-  const mockRxNostr = {
-    use: vi.fn().mockReturnValue({ pipe: vi.fn().mockReturnThis() })
-  };
-  getRxNostrMock.mockResolvedValue(mockRxNostr);
+  getRxNostrMock.mockResolvedValue({});
+
+  createSyncedQueryMock.mockImplementation(() => {
+    const subject = new BehaviorSubject<unknown[]>([]);
+    const disposeFn = vi.fn();
+    mockEventsSubjects.push(subject);
+    mockDisposeFns.push(disposeFn);
+    return {
+      events$: subject.asObservable(),
+      status$: new BehaviorSubject<string>('cached').asObservable(),
+      emit: vi.fn(),
+      dispose: disposeFn
+    };
+  });
+}
+
+/**
+ * Push an event into a specific SyncedQuery events$ subject.
+ * The production code iterates over ce.event for each CachedEvent in the array.
+ */
+function pushEvent(subjectIndex: number, event: Record<string, unknown>) {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- array index may be out of bounds
+  const subject =
+    mockEventsSubjects[subjectIndex] ??
+    (() => {
+      throw new Error(`No subject at index ${subjectIndex}`);
+    })();
+  // Get current events and append
+  const current = subject.getValue();
+  subject.next([...current, { event, seenOn: ['wss://relay.test'], firstSeen: Date.now() }]);
 }
 
 describe('notifications-view-model', () => {
@@ -223,21 +233,24 @@ describe('notifications-view-model', () => {
   });
 
   describe('subscribeNotifications', () => {
-    it('emits backward and forward requests for mentions', async () => {
+    it('creates a SyncedQuery for mentions', async () => {
       resetSubscriptionMocks();
       const myPubkey = testId('aabb');
 
       await subscribeNotifications(myPubkey, new Set());
 
-      expect(backwardEmitCalls.length).toBeGreaterThanOrEqual(1);
-      const mentionFilter = backwardEmitCalls[0] as Record<string, unknown>;
-      expect(mentionFilter).toMatchObject({
-        kinds: [1111, 7],
-        '#p': [myPubkey]
-      });
-      expect(mentionFilter.since).toBeDefined();
-
-      expect(forwardEmitCalls.length).toBeGreaterThanOrEqual(1);
+      expect(createSyncedQueryMock).toHaveBeenCalledTimes(1);
+      expect(createSyncedQueryMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.objectContaining({
+          filter: expect.objectContaining({
+            kinds: [1111, 7],
+            '#p': [myPubkey]
+          }),
+          strategy: 'dual'
+        })
+      );
     });
 
     it('skips follow subscription when follows.size === 0', async () => {
@@ -246,8 +259,8 @@ describe('notifications-view-model', () => {
 
       await subscribeNotifications(myPubkey, new Set());
 
-      // Only 1 subscriber callback (notif sub), no follow sub
-      expect(subscriberCallbacks).toHaveLength(1);
+      // Only 1 SyncedQuery (mention), no follow query
+      expect(createSyncedQueryMock).toHaveBeenCalledTimes(1);
     });
 
     it('creates follow subscription when follows is non-empty', async () => {
@@ -257,8 +270,8 @@ describe('notifications-view-model', () => {
 
       await subscribeNotifications(myPubkey, follows);
 
-      // 2 subscriber callbacks (notif + follow)
-      expect(subscriberCallbacks).toHaveLength(2);
+      // 2 SyncedQuery calls (mention + follow)
+      expect(createSyncedQueryMock).toHaveBeenCalledTimes(2);
       expect(logInfoMock).toHaveBeenCalledWith(
         'Subscribed to notifications',
         expect.objectContaining({ followCount: 1 })
@@ -274,32 +287,28 @@ describe('notifications-view-model', () => {
 
       await subscribeNotifications(myPubkey, follows);
 
-      // backward: 1 mention emit + 2 follow batch emits = 3
-      // forward: 1 mention emit + 2 follow batch emits = 3
-      expect(backwardEmitCalls).toHaveLength(3);
-      expect(forwardEmitCalls).toHaveLength(3);
+      // 1 mention query + 2 follow batch queries = 3
+      expect(createSyncedQueryMock).toHaveBeenCalledTimes(3);
     });
 
-    it('processes reply events via subscriber callback', async () => {
+    it('processes reply events via events$ subscription', async () => {
       resetSubscriptionMocks();
       const myPubkey = testId('aabb');
       classifyMock.mockReturnValue('reply');
 
       await subscribeNotifications(myPubkey, new Set());
 
-      const notifCb = subscriberCallbacks[0];
-      notifCb({
-        event: {
-          id: 'evt1'.padStart(64, '0'),
-          pubkey: testId('ccdd'),
-          kind: 1111,
-          content: 'hello',
-          created_at: 1700000000,
-          tags: [
-            ['p', myPubkey],
-            ['e', 'target123'.padStart(64, '0')]
-          ]
-        }
+      // Push event into the mention query's events$ subject (index 0)
+      pushEvent(0, {
+        id: 'evt1'.padStart(64, '0'),
+        pubkey: testId('ccdd'),
+        kind: 1111,
+        content: 'hello',
+        created_at: 1700000000,
+        tags: [
+          ['p', myPubkey],
+          ['e', 'target123'.padStart(64, '0')]
+        ]
       });
 
       const notifs = getNotifications();
@@ -315,15 +324,13 @@ describe('notifications-view-model', () => {
 
       await subscribeNotifications(myPubkey, new Set());
 
-      subscriberCallbacks[0]({
-        event: {
-          id: 'react1'.padStart(64, '0'),
-          pubkey: testId('ccdd'),
-          kind: 7,
-          content: '+',
-          created_at: 1700000001,
-          tags: [['p', myPubkey]]
-        }
+      pushEvent(0, {
+        id: 'react1'.padStart(64, '0'),
+        pubkey: testId('ccdd'),
+        kind: 7,
+        content: '+',
+        created_at: 1700000001,
+        tags: [['p', myPubkey]]
       });
 
       const notifs = getNotifications();
@@ -338,15 +345,13 @@ describe('notifications-view-model', () => {
 
       await subscribeNotifications(myPubkey, new Set());
 
-      subscriberCallbacks[0]({
-        event: {
-          id: 'fc1'.padStart(64, '0'),
-          pubkey: testId('ccdd'),
-          kind: 1111,
-          content: 'test',
-          created_at: 1700000000,
-          tags: []
-        }
+      pushEvent(0, {
+        id: 'fc1'.padStart(64, '0'),
+        pubkey: testId('ccdd'),
+        kind: 1111,
+        content: 'test',
+        created_at: 1700000000,
+        tags: []
       });
 
       expect(getNotifications().items).toHaveLength(0);
@@ -359,15 +364,13 @@ describe('notifications-view-model', () => {
 
       await subscribeNotifications(myPubkey, new Set());
 
-      subscriberCallbacks[0]({
-        event: {
-          id: 'null1'.padStart(64, '0'),
-          pubkey: testId('ccdd'),
-          kind: 999,
-          content: '',
-          created_at: 1700000000,
-          tags: []
-        }
+      pushEvent(0, {
+        id: 'null1'.padStart(64, '0'),
+        pubkey: testId('ccdd'),
+        kind: 999,
+        content: '',
+        created_at: 1700000000,
+        tags: []
       });
 
       expect(getNotifications().items).toHaveLength(0);
@@ -381,16 +384,14 @@ describe('notifications-view-model', () => {
 
       await subscribeNotifications(myPubkey, follows);
 
-      const followCb = subscriberCallbacks[1];
-      followCb({
-        event: {
-          id: 'fce1'.padStart(64, '0'),
-          pubkey: followPubkey,
-          kind: 1111,
-          content: 'follow comment',
-          created_at: 1700000000,
-          tags: []
-        }
+      // Follow subscription is at index 1
+      pushEvent(1, {
+        id: 'fce1'.padStart(64, '0'),
+        pubkey: followPubkey,
+        kind: 1111,
+        content: 'follow comment',
+        created_at: 1700000000,
+        tags: []
       });
 
       const notifs = getNotifications();
@@ -405,15 +406,13 @@ describe('notifications-view-model', () => {
 
       await subscribeNotifications(myPubkey, follows);
 
-      subscriberCallbacks[1]({
-        event: {
-          id: 'own1'.padStart(64, '0'),
-          pubkey: myPubkey,
-          kind: 1111,
-          content: 'my own',
-          created_at: 1700000000,
-          tags: []
-        }
+      pushEvent(1, {
+        id: 'own1'.padStart(64, '0'),
+        pubkey: myPubkey,
+        kind: 1111,
+        content: 'my own',
+        created_at: 1700000000,
+        tags: []
       });
 
       expect(getNotifications().items).toHaveLength(0);
@@ -427,15 +426,13 @@ describe('notifications-view-model', () => {
 
       await subscribeNotifications(myPubkey, follows);
 
-      subscriberCallbacks[1]({
-        event: {
-          id: 'nf1'.padStart(64, '0'),
-          pubkey: testId('eeff'),
-          kind: 1111,
-          content: 'stranger',
-          created_at: 1700000000,
-          tags: []
-        }
+      pushEvent(1, {
+        id: 'nf1'.padStart(64, '0'),
+        pubkey: testId('eeff'),
+        kind: 1111,
+        content: 'stranger',
+        created_at: 1700000000,
+        tags: []
       });
 
       expect(getNotifications().items).toHaveLength(0);
@@ -446,12 +443,13 @@ describe('notifications-view-model', () => {
       const myPubkey = testId('aabb');
 
       await subscribeNotifications(myPubkey, new Set());
+      const firstDispose = mockDisposeFns[0];
 
       resetSubscriptionMocks();
       await subscribeNotifications(myPubkey, new Set());
 
-      // Previous subscriptions should have been unsubscribed
-      expect(unsubscribeMock).toHaveBeenCalled();
+      // Previous subscriptions should have been disposed
+      expect(firstDispose).toHaveBeenCalled();
     });
   });
 
@@ -472,8 +470,13 @@ describe('notifications-view-model', () => {
         tags: [['p', myPubkey]]
       };
 
-      subscriberCallbacks[0]({ event });
-      subscriberCallbacks[0]({ event });
+      // Push same event twice — but since BehaviorSubject replays, we need
+      // to push both in a single next() to simulate them arriving together
+      const subject = mockEventsSubjects[0];
+      subject.next([
+        { event, seenOn: ['wss://relay.test'], firstSeen: Date.now() },
+        { event, seenOn: ['wss://relay.test'], firstSeen: Date.now() }
+      ]);
 
       expect(getNotifications().items).toHaveLength(1);
     });
@@ -488,15 +491,13 @@ describe('notifications-view-model', () => {
 
       await subscribeNotifications(myPubkey, new Set());
 
-      subscriberCallbacks[0]({
-        event: {
-          id: 'muted1'.padStart(64, '0'),
-          pubkey: testId('ccdd'),
-          kind: 1111,
-          content: 'from muted',
-          created_at: 1700000000,
-          tags: [['p', myPubkey]]
-        }
+      pushEvent(0, {
+        id: 'muted1'.padStart(64, '0'),
+        pubkey: testId('ccdd'),
+        kind: 1111,
+        content: 'from muted',
+        created_at: 1700000000,
+        tags: [['p', myPubkey]]
       });
 
       expect(getNotifications().items).toHaveLength(0);
@@ -513,15 +514,13 @@ describe('notifications-view-model', () => {
 
       await subscribeNotifications(myPubkey, new Set());
 
-      subscriberCallbacks[0]({
-        event: {
-          id: 'wm1'.padStart(64, '0'),
-          pubkey: testId('ccdd'),
-          kind: 1111,
-          content: 'bad word here',
-          created_at: 1700000000,
-          tags: [['p', myPubkey]]
-        }
+      pushEvent(0, {
+        id: 'wm1'.padStart(64, '0'),
+        pubkey: testId('ccdd'),
+        kind: 1111,
+        content: 'bad word here',
+        created_at: 1700000000,
+        tags: [['p', myPubkey]]
       });
 
       expect(getNotifications().items).toHaveLength(0);
@@ -538,19 +537,15 @@ describe('notifications-view-model', () => {
 
       await subscribeNotifications(myPubkey, follows);
 
-      const followCb = subscriberCallbacks[1];
-
       // Add 50 follow_comments
       for (let i = 0; i < 50; i++) {
-        followCb({
-          event: {
-            id: `fc${i}`.padStart(64, '0'),
-            pubkey: followPubkey,
-            kind: 1111,
-            content: `comment ${i}`,
-            created_at: 1700000000 + i,
-            tags: []
-          }
+        pushEvent(1, {
+          id: `fc${i}`.padStart(64, '0'),
+          pubkey: followPubkey,
+          kind: 1111,
+          content: `comment ${i}`,
+          created_at: 1700000000 + i,
+          tags: []
         });
       }
 
@@ -560,15 +555,13 @@ describe('notifications-view-model', () => {
       expect(beforeCount).toBe(50);
 
       // Add a newer follow_comment (should evict oldest)
-      followCb({
-        event: {
-          id: 'fc_new'.padStart(64, '0'),
-          pubkey: followPubkey,
-          kind: 1111,
-          content: 'newest comment',
-          created_at: 1700000100,
-          tags: []
-        }
+      pushEvent(1, {
+        id: 'fc_new'.padStart(64, '0'),
+        pubkey: followPubkey,
+        kind: 1111,
+        content: 'newest comment',
+        created_at: 1700000100,
+        tags: []
       });
 
       const afterItems = getNotifications().items.filter((n) => n.type === 'follow_comment');
@@ -591,31 +584,25 @@ describe('notifications-view-model', () => {
 
       await subscribeNotifications(myPubkey, follows);
 
-      const followCb = subscriberCallbacks[1];
-
       for (let i = 0; i < 50; i++) {
-        followCb({
-          event: {
-            id: `fc${i}`.padStart(64, '0'),
-            pubkey: followPubkey,
-            kind: 1111,
-            content: `comment ${i}`,
-            created_at: 1700000100 + i,
-            tags: []
-          }
+        pushEvent(1, {
+          id: `fc${i}`.padStart(64, '0'),
+          pubkey: followPubkey,
+          kind: 1111,
+          content: `comment ${i}`,
+          created_at: 1700000100 + i,
+          tags: []
         });
       }
 
       // Try adding an older event
-      followCb({
-        event: {
-          id: 'fc_old'.padStart(64, '0'),
-          pubkey: followPubkey,
-          kind: 1111,
-          content: 'old comment',
-          created_at: 1700000000,
-          tags: []
-        }
+      pushEvent(1, {
+        id: 'fc_old'.padStart(64, '0'),
+        pubkey: followPubkey,
+        kind: 1111,
+        content: 'old comment',
+        created_at: 1700000000,
+        tags: []
       });
 
       // Should still have 50
@@ -633,18 +620,14 @@ describe('notifications-view-model', () => {
 
       await subscribeNotifications(myPubkey, new Set());
 
-      const notifCb = subscriberCallbacks[0];
-
       for (let i = 0; i < 210; i++) {
-        notifCb({
-          event: {
-            id: `n${i}`.padStart(64, '0'),
-            pubkey: `pub${i}`.padStart(64, '0'),
-            kind: 1111,
-            content: `msg ${i}`,
-            created_at: 1700000000 + i,
-            tags: [['p', myPubkey]]
-          }
+        pushEvent(0, {
+          id: `n${i}`.padStart(64, '0'),
+          pubkey: `pub${i}`.padStart(64, '0'),
+          kind: 1111,
+          content: `msg ${i}`,
+          created_at: 1700000000 + i,
+          tags: [['p', myPubkey]]
         });
       }
 
@@ -662,15 +645,13 @@ describe('notifications-view-model', () => {
 
       await subscribeNotifications(myPubkey, new Set());
 
-      subscriberCallbacks[0]({
-        event: {
-          id: 'f1'.padStart(64, '0'),
-          pubkey: testId('ccdd'),
-          kind: 1111,
-          content: 'hello',
-          created_at: 1700000000,
-          tags: [['p', myPubkey]]
-        }
+      pushEvent(0, {
+        id: 'f1'.padStart(64, '0'),
+        pubkey: testId('ccdd'),
+        kind: 1111,
+        content: 'hello',
+        created_at: 1700000000,
+        tags: [['p', myPubkey]]
       });
 
       // With 'all' filter, item is visible
@@ -698,26 +679,22 @@ describe('notifications-view-model', () => {
       // Set lastRead to 1700000005
       localStorageStore.set('resonote-notif-last-read', '1700000005');
 
-      subscriberCallbacks[0]({
-        event: {
-          id: 'old1'.padStart(64, '0'),
-          pubkey: testId('ccdd'),
-          kind: 1111,
-          content: 'old',
-          created_at: 1700000001,
-          tags: [['p', myPubkey]]
-        }
+      pushEvent(0, {
+        id: 'old1'.padStart(64, '0'),
+        pubkey: testId('ccdd'),
+        kind: 1111,
+        content: 'old',
+        created_at: 1700000001,
+        tags: [['p', myPubkey]]
       });
 
-      subscriberCallbacks[0]({
-        event: {
-          id: 'new1'.padStart(64, '0'),
-          pubkey: testId('eeff'),
-          kind: 1111,
-          content: 'new',
-          created_at: 1700000010,
-          tags: [['p', myPubkey]]
-        }
+      pushEvent(0, {
+        id: 'new1'.padStart(64, '0'),
+        pubkey: testId('eeff'),
+        kind: 1111,
+        content: 'new',
+        created_at: 1700000010,
+        tags: [['p', myPubkey]]
       });
 
       const notifs = getNotifications();
@@ -734,26 +711,22 @@ describe('notifications-view-model', () => {
 
       await subscribeNotifications(myPubkey, new Set());
 
-      subscriberCallbacks[0]({
-        event: {
-          id: 'early'.padStart(64, '0'),
-          pubkey: testId('ccdd'),
-          kind: 1111,
-          content: 'first',
-          created_at: 1700000001,
-          tags: [['p', myPubkey]]
-        }
+      pushEvent(0, {
+        id: 'early'.padStart(64, '0'),
+        pubkey: testId('ccdd'),
+        kind: 1111,
+        content: 'first',
+        created_at: 1700000001,
+        tags: [['p', myPubkey]]
       });
 
-      subscriberCallbacks[0]({
-        event: {
-          id: 'later'.padStart(64, '0'),
-          pubkey: testId('eeff'),
-          kind: 1111,
-          content: 'second',
-          created_at: 1700000010,
-          tags: [['p', myPubkey]]
-        }
+      pushEvent(0, {
+        id: 'later'.padStart(64, '0'),
+        pubkey: testId('eeff'),
+        kind: 1111,
+        content: 'second',
+        created_at: 1700000010,
+        tags: [['p', myPubkey]]
       });
 
       const items = getNotifications().items;

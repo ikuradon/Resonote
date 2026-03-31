@@ -1,11 +1,13 @@
+import { BehaviorSubject, Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { parseDTagEvent } from '$shared/content/podcast-resolver.js';
 
-const { verifierMock, mockGetEventsDB, mockGetRxNostr } = vi.hoisted(() => ({
+const { verifierMock, mockGetEventsDB, mockGetRxNostr, mockCreateSyncedQuery } = vi.hoisted(() => ({
   verifierMock: vi.fn(),
   mockGetEventsDB: vi.fn(),
-  mockGetRxNostr: vi.fn()
+  mockGetRxNostr: vi.fn(),
+  mockCreateSyncedQuery: vi.fn()
 }));
 
 vi.mock('@rx-nostr/crypto', () => ({
@@ -24,11 +26,8 @@ vi.mock('$shared/nostr/client.js', () => ({
   getRxNostr: (...args: unknown[]) => mockGetRxNostr(...(args as []))
 }));
 
-const mockCreateRxBackwardReq = vi.fn();
-const mockUniq = vi.fn();
-vi.mock('rx-nostr', () => ({
-  createRxBackwardReq: (...args: unknown[]) => mockCreateRxBackwardReq(...(args as [])),
-  uniq: (...args: unknown[]) => mockUniq(...(args as []))
+vi.mock('@ikuradon/auftakt/sync', () => ({
+  createSyncedQuery: (...args: unknown[]) => mockCreateSyncedQuery(...(args as []))
 }));
 
 function stubPubkeyFetch(pubkey: string) {
@@ -45,23 +44,34 @@ function stubFailedPubkeyFetch() {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
 }
 
-/** Set up rx-nostr mock that emits a single event asynchronously, or completes immediately. */
+/** Set up createSyncedQuery mock that emits a single event, or completes empty. */
 function setupRelayMock(event: { tags: string[][]; content: string } | null) {
-  const mockReq = { emit: vi.fn(), over: vi.fn() };
-  mockCreateRxBackwardReq.mockReturnValue(mockReq);
-  mockUniq.mockReturnValue((source: unknown) => source);
+  mockGetRxNostr.mockResolvedValue({});
 
-  const mockSubscribe = vi.fn().mockImplementation(({ next, complete }) => {
-    if (event) {
-      void Promise.resolve().then(() => next({ event }));
-    } else {
-      complete();
-    }
-    return { unsubscribe: vi.fn() };
-  });
-  const mockPipe = vi.fn().mockReturnValue({ subscribe: mockSubscribe });
-  const mockUse = vi.fn().mockReturnValue({ pipe: mockPipe });
-  mockGetRxNostr.mockResolvedValue({ use: mockUse });
+  if (event) {
+    // Pre-load the event so it's available when subscribed
+    const eventsSubject = new BehaviorSubject<unknown[]>([
+      { event, seenOn: ['wss://relay.test'], firstSeen: Date.now() }
+    ]);
+    mockCreateSyncedQuery.mockReturnValue({
+      events$: eventsSubject.asObservable(),
+      status$: new BehaviorSubject<string>('cached').asObservable(),
+      emit: vi.fn(),
+      dispose: vi.fn()
+    });
+  } else {
+    // Empty case: use Subject that completes so defaultIfEmpty(null) fires
+    const eventsSubject = new Subject<unknown[]>();
+    mockCreateSyncedQuery.mockReturnValue({
+      events$: eventsSubject.asObservable(),
+      status$: new BehaviorSubject<string>('cached').asObservable(),
+      emit: vi.fn(),
+      dispose: vi.fn()
+    });
+    queueMicrotask(() => {
+      eventsSubject.complete();
+    });
+  }
 }
 
 describe('podcast-resolver', () => {
@@ -508,8 +518,7 @@ describe('podcast-resolver', () => {
       vi.restoreAllMocks();
       mockGetEventsDB.mockReset();
       mockGetRxNostr.mockReset();
-      mockCreateRxBackwardReq.mockReset();
-      mockUniq.mockReset();
+      mockCreateSyncedQuery.mockReset();
     });
 
     it('should return cached result from DB when available', async () => {

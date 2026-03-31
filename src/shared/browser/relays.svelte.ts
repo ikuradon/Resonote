@@ -71,86 +71,38 @@ export function destroyRelayStatus(): void {
  */
 export async function fetchRelayList(pubkey: string): Promise<RelayListResult> {
   log.info('Fetching relay list for user', { pubkey });
-  const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
-    import('rx-nostr'),
-    import('$shared/nostr/client.js')
-  ]);
-  const rxNostr = await getRxNostr();
+  const { fetchLatest } = await import('$shared/nostr/store.js');
 
-  const kind10002 = await new Promise<RelayEntry[] | null>((resolve) => {
-    const req = createRxBackwardReq();
-    let found: RelayEntry[] | null = null;
-    let latestCreatedAt = 0;
-
-    const sub = rxNostr.use(req).subscribe({
-      next: (packet) => {
-        if (packet.event.created_at <= latestCreatedAt) return;
-        latestCreatedAt = packet.event.created_at;
-        const entries = parseRelayTags(packet.event.tags);
-        found = entries.length > 0 ? entries : null;
-      },
-      complete: () => {
-        sub.unsubscribe();
-        resolve(found);
-      },
-      error: (err) => {
-        log.warn('Failed to fetch kind:10002', err);
-        sub.unsubscribe();
-        resolve(null);
-      }
-    });
-
-    req.emit({ kinds: [RELAY_LIST_KIND], authors: [pubkey], limit: 1 });
-    req.over();
-  });
-
-  if (kind10002 !== null) {
-    log.info('Found kind:10002 relay list', { count: kind10002.length });
-    return { entries: kind10002, source: 'kind10002' };
+  // Try kind:10002 first
+  const event10002 = await fetchLatest(pubkey, RELAY_LIST_KIND, { timeout: 5000 });
+  if (event10002) {
+    const entries = parseRelayTags(event10002.tags);
+    if (entries.length > 0) {
+      log.info('Found kind:10002 relay list', { count: entries.length });
+      return { entries, source: 'kind10002' };
+    }
   }
 
-  const kind3 = await new Promise<RelayEntry[] | null>((resolve) => {
-    const req = createRxBackwardReq();
-    let found: RelayEntry[] | null = null;
-    let latestCreatedAt = 0;
-
-    const sub = rxNostr.use(req).subscribe({
-      next: (packet) => {
-        try {
-          if (packet.event.created_at <= latestCreatedAt) return;
-          const content = JSON.parse(packet.event.content) as Record<
-            string,
-            { read?: boolean; write?: boolean }
-          >;
-          const entries: RelayEntry[] = Object.entries(content).map(([url, flags]) => ({
-            url,
-            read: flags.read ?? true,
-            write: flags.write ?? true
-          }));
-          latestCreatedAt = packet.event.created_at;
-          found = entries.length > 0 ? entries : null;
-        } catch {
-          // Ignore parse failures from malformed kind:3 content.
-        }
-      },
-      complete: () => {
-        sub.unsubscribe();
-        resolve(found);
-      },
-      error: (err) => {
-        log.warn('Failed to fetch kind:3', err);
-        sub.unsubscribe();
-        resolve(null);
+  // Fallback to kind:3 content JSON
+  const event3 = await fetchLatest(pubkey, FOLLOW_KIND, { timeout: 5000 });
+  if (event3) {
+    try {
+      const content = JSON.parse(event3.content) as Record<
+        string,
+        { read?: boolean; write?: boolean }
+      >;
+      const entries: RelayEntry[] = Object.entries(content).map(([url, flags]) => ({
+        url,
+        read: flags.read ?? true,
+        write: flags.write ?? true
+      }));
+      if (entries.length > 0) {
+        log.info('Found kind:3 relay list', { count: entries.length });
+        return { entries, source: 'kind3' };
       }
-    });
-
-    req.emit({ kinds: [FOLLOW_KIND], authors: [pubkey], limit: 1 });
-    req.over();
-  });
-
-  if (kind3 !== null) {
-    log.info('Found kind:3 relay list', { count: kind3.length });
-    return { entries: kind3, source: 'kind3' };
+    } catch {
+      // Ignore parse failures from malformed kind:3 content.
+    }
   }
 
   log.info('No relay list found');

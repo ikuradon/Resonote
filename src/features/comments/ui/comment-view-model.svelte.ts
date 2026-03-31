@@ -24,14 +24,8 @@ import {
   type CachedEvent,
   type EventsDB,
   getCommentRepository,
-  loadSubscriptionDeps,
   purgeDeletedFromCache,
-  restoreFromCache,
-  startDeletionReconcile,
-  startMergedSubscription,
-  startSubscription,
-  type SubscriptionHandle,
-  type SubscriptionRefs
+  restoreFromCache
 } from '../application/comment-subscription.js';
 import {
   commentFromEvent,
@@ -55,6 +49,10 @@ import {
 } from '../domain/reaction-rules.js';
 
 const log = createLogger('comment-vm');
+
+interface SyncedQueryHandle {
+  dispose: () => void;
+}
 
 export function createCommentViewModel(contentId: ContentId, provider: ContentProvider) {
   // --- State ---
@@ -86,11 +84,10 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   const pendingDeletions = new Map<string, Array<{ pubkey: string }>>();
 
   // Infra refs
-  let subscriptionRefs: SubscriptionRefs | undefined;
   let eventsDB: EventsDB | undefined;
-  let subscriptions: SubscriptionHandle[] = [];
-  let reconcileSub: SubscriptionHandle | undefined;
-  let reconcileTimeout: ReturnType<typeof setTimeout> | undefined;
+  let syncedQueries: SyncedQueryHandle[] = [];
+  /** Set of event IDs already processed from SyncedQuery events$ to avoid re-dispatch */
+  let processedEventIds = new Set<string>();
 
   // --- Domain operations ---
   function rebuildReactionIndex() {
@@ -315,11 +312,70 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     return maxCreatedAt;
   }
 
+  /**
+   * Process a snapshot of CachedEvent[] from SyncedQuery events$,
+   * dispatching only new (unprocessed) events.
+   */
+  function processEventsSnapshot(
+    cachedEvents: Array<{ event: CachedEvent; seenOn: string[] }>
+  ): void {
+    for (const ce of cachedEvents) {
+      if (processedEventIds.has(ce.event.id)) continue;
+      processedEventIds.add(ce.event.id);
+      const relayHint = ce.seenOn.length > 0 ? ce.seenOn[0] : undefined;
+      dispatchPacket(ce.event, relayHint);
+    }
+  }
+
+  /**
+   * Start a SyncedQuery (dual) for a set of content filters and subscribe to events$.
+   */
+  async function startSyncedSubscription(
+    filters: ReturnType<typeof buildContentFilters>,
+    options?: { since?: number }
+  ): Promise<SyncedQueryHandle[]> {
+    const [{ createSyncedQuery }, { getRxNostr }, { getStoreAsync: getStore }] = await Promise.all([
+      import('@ikuradon/auftakt/sync'),
+      import('$shared/nostr/client.js'),
+      import('$shared/nostr/store.js')
+    ]);
+    const [rxNostr, store] = await Promise.all([getRxNostr(), getStore()]);
+
+    const handles: SyncedQueryHandle[] = [];
+
+    for (const filter of filters) {
+      const queryFilter = options?.since ? { ...filter, since: options.since } : filter;
+      const synced = createSyncedQuery(rxNostr, store, {
+        filter: queryFilter,
+        strategy: 'dual'
+      });
+
+      const sub = synced.events$.subscribe({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        next: (events: any[]) => {
+          if (destroyed) return;
+          processEventsSnapshot(events);
+        },
+        error: (err: unknown) => {
+          log.error('SyncedQuery subscription error', err);
+        }
+      });
+
+      handles.push({
+        dispose: () => {
+          sub.unsubscribe();
+          synced.dispose();
+        }
+      });
+    }
+
+    return handles;
+  }
+
   // --- Subscribe ---
   async function subscribe() {
     try {
-      const [refs, db] = await Promise.all([loadSubscriptionDeps(), getCommentRepository()]);
-      subscriptionRefs = refs;
+      const db = await getCommentRepository();
       eventsDB = db;
 
       const [idValue] = provider.toNostrTag(contentId);
@@ -342,66 +398,40 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
         void purgeDeletedFromCache(db, idsToPurge);
       }
 
-      // Offline deletion reconcile
-      const cachedIds = [...commentIds, ...reactionIds, ...contentReactionIds];
-      if (cachedIds.length > 0) {
-        const newDeletions = new Set<string>();
-        const reconcile = startDeletionReconcile(
-          refs,
-          cachedIds,
-          (event) => {
-            eventsDB?.put(event);
-            for (const id of verifyDeletionTargets(event, eventPubkeys)) {
-              newDeletions.add(id);
-            }
-          },
-          () => {
-            reconcileSub = undefined;
-            reconcileTimeout = undefined;
-            if (destroyed || newDeletions.size === 0) return;
-            const next = new Set(deletedIds);
-            for (const id of newDeletions) next.add(id);
-            deletedIds = next;
-            prevDeletedSize = deletedIds.size;
-            rebuildReactionIndex();
-            log.info('Offline deletions reconciled', { newDeletions: newDeletions.size });
-            const idsToPurge = [...newDeletions].filter(
-              (id) => commentIds.has(id) || reactionIds.has(id) || contentReactionIds.has(id)
-            );
-            void purgeDeletedFromCache(db, idsToPurge);
-          }
-        );
-        reconcileSub = reconcile.sub;
-        reconcileTimeout = reconcile.timeout;
+      // Mark all restored events as processed to avoid re-dispatch from SyncedQuery
+      for (const ev of cachedEvents) {
+        processedEventIds.add(ev.id);
       }
 
-      // Start live subscriptions
+      // Deletion reconcile: handled by connectStore({ reconcileDeletions: true })
+
+      // Start live subscriptions via createSyncedQuery (dual)
       const filters = buildContentFilters(idValue);
       loadingTimeout = setTimeout(() => {
         loading = false;
       }, 10_000);
 
-      const subs = startSubscription(refs, filters, maxCreatedAt, dispatchPacket, () => {
-        clearTimeout(loadingTimeout);
-        loading = false;
-      });
-      subscriptions = subs;
+      const handles = await startSyncedSubscription(
+        filters,
+        maxCreatedAt ? { since: maxCreatedAt + 1 } : undefined
+      );
+      syncedQueries = handles;
+
+      // Mark loading as complete after a short delay to allow backward data to arrive
+      setTimeout(() => {
+        if (!destroyed) {
+          clearTimeout(loadingTimeout);
+          loading = false;
+        }
+      }, 2000);
 
       log.info('Subscribed to comments', {
         contentId: `${contentId.platform}:${contentId.type}:${contentId.id}`
       });
     } catch (err) {
       log.error('Failed to subscribe to comments', err);
-      for (const sub of subscriptions) sub.unsubscribe();
-      subscriptions = [];
-      if (reconcileSub) {
-        reconcileSub.unsubscribe();
-        reconcileSub = undefined;
-      }
-      if (reconcileTimeout) {
-        clearTimeout(reconcileTimeout);
-        reconcileTimeout = undefined;
-      }
+      for (const q of syncedQueries) q.dispose();
+      syncedQueries = [];
       if (loadingTimeout) {
         clearTimeout(loadingTimeout);
         loadingTimeout = undefined;
@@ -411,7 +441,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   }
 
   async function addSubscription(idValue: string): Promise<void> {
-    if (!subscriptionRefs || !eventsDB) return;
+    if (!eventsDB) return;
 
     // DB cache restore (uppercase I for kind:1111/7/5, lowercase i for kind:17)
     const tagQuery = `I:${idValue}`;
@@ -469,17 +499,22 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     if (newContentReactions.length > 0)
       contentReactionsRaw = [...contentReactionsRaw, ...newContentReactions];
 
-    // Start merged subscription
+    // Mark restored events as processed
+    for (const ev of cachedEvents) {
+      processedEventIds.add(ev.id);
+    }
+
+    // Start merged subscription via createSyncedQuery (dual)
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- destroyed may become true during preceding awaits
     if (destroyed) return;
     const filters = buildContentFilters(idValue);
-    const sub = startMergedSubscription(subscriptionRefs, filters, dispatchPacket);
+    const handles = await startSyncedSubscription(filters);
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- destroyed may become true during preceding awaits
     if (destroyed) {
-      sub.unsubscribe();
+      for (const h of handles) h.dispose();
       return;
     }
-    subscriptions.push(sub);
+    syncedQueries.push(...handles);
   }
 
   async function fetchOrphanParent(parentId: string, estimatedPositionMs: number | null) {
@@ -563,16 +598,8 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
       clearTimeout(loadingTimeout);
       loadingTimeout = undefined;
     }
-    for (const sub of subscriptions) sub.unsubscribe();
-    subscriptions = [];
-    if (reconcileSub) {
-      reconcileSub.unsubscribe();
-      reconcileSub = undefined;
-    }
-    if (reconcileTimeout) {
-      clearTimeout(reconcileTimeout);
-      reconcileTimeout = undefined;
-    }
+    for (const q of syncedQueries) q.dispose();
+    syncedQueries = [];
     commentsRaw = [];
     commentIds = new Set();
     reactionsRaw = [];
@@ -581,6 +608,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     deletedIds = new Set();
     placeholders = new Map();
     fetchedParentIds = new Set();
+    processedEventIds = new Set();
     prevDeletedSize = 0;
     eventPubkeys.clear();
     pendingDeletions.clear();

@@ -7,7 +7,6 @@
 
 import { type FollowFilter, matchesFilter } from '$shared/browser/follows.js';
 import { isMuted, isWordMuted } from '$shared/browser/mute.js';
-import { getRxNostr } from '$shared/nostr/client.js';
 import { COMMENT_KIND, REACTION_KIND } from '$shared/nostr/events.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 
@@ -30,7 +29,9 @@ let notifFilter = $state<FollowFilter>(readFilterFromStorage());
 let myPubkeyForFilter = $state<string | null>(null);
 
 let notifIds = new Set<string>();
-let subscriptions: { unsubscribe: () => void }[] = [];
+/** Set of event IDs already processed from SyncedQuery snapshots */
+let processedEventIds = new Set<string>();
+let syncedQueries: { dispose: () => void }[] = [];
 
 // --- Storage helpers ---
 function readFilterFromStorage(): FollowFilter {
@@ -131,8 +132,8 @@ function addNotification(notif: Notification, type: NotificationType): void {
 }
 
 function destroySubscriptions(): void {
-  for (const sub of subscriptions) sub.unsubscribe();
-  subscriptions = [];
+  for (const q of syncedQueries) q.dispose();
+  syncedQueries = [];
 }
 
 // --- Subscription ---
@@ -144,100 +145,116 @@ export async function subscribeNotifications(
   destroySubscriptions();
   loading = allItems.length === 0;
   myPubkeyForFilter = myPubkey;
+  processedEventIds = new Set();
 
-  const [{ merge }, rxNostrMod] = await Promise.all([import('rxjs'), import('rx-nostr')]);
-  const { createRxBackwardReq, createRxForwardReq, uniq } = rxNostrMod;
-  const rxNostr = await getRxNostr();
+  const [{ createSyncedQuery }, { getRxNostr }, { getStoreAsync }] = await Promise.all([
+    import('@ikuradon/auftakt/sync'),
+    import('$shared/nostr/client.js'),
+    import('$shared/nostr/store.js')
+  ]);
+  const [rxNostr, store] = await Promise.all([getRxNostr(), getStoreAsync()]);
 
   const loginTimestamp = Math.floor(Date.now() / 1000);
   const since = loginTimestamp - SEVEN_DAYS_SEC;
 
   // --- Replies + Reactions + Mentions ---
-  const notifBackward = createRxBackwardReq();
-  const notifForward = createRxForwardReq();
   const mentionFilter = { kinds: [COMMENT_KIND, REACTION_KIND], '#p': [myPubkey], since };
 
-  const notifSub = merge(
-    rxNostr.use(notifBackward).pipe(uniq()),
-    rxNostr.use(notifForward).pipe(uniq())
-  ).subscribe({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    next: (packet: any) => {
-      const event = packet.event;
-      const type = classifyNotificationEvent(event, myPubkey, follows);
-      if (!type || type === 'follow_comment') return;
+  const mentionSynced = createSyncedQuery(rxNostr, store, {
+    filter: mentionFilter,
+    strategy: 'dual'
+  });
 
-      const eTag = event.tags.find((t: string[]) => t[0] === 'e' && t[1]);
-      addNotification(
-        {
-          id: event.id,
-          type,
-          pubkey: event.pubkey,
-          content: event.content,
-          createdAt: event.created_at,
-          tags: event.tags,
-          targetEventId: eTag?.[1]
-        },
-        type
-      );
+  const mentionSub = mentionSynced.events$.subscribe({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    next: (events: any[]) => {
+      for (const ce of events) {
+        if (processedEventIds.has(ce.event.id)) continue;
+        processedEventIds.add(ce.event.id);
+
+        const event = ce.event;
+        const type = classifyNotificationEvent(event, myPubkey, follows);
+        if (!type || type === 'follow_comment') continue;
+
+        const eTag = event.tags.find((t: string[]) => t[0] === 'e' && t[1]);
+        addNotification(
+          {
+            id: event.id,
+            type,
+            pubkey: event.pubkey,
+            content: event.content,
+            createdAt: event.created_at,
+            tags: event.tags,
+            targetEventId: eTag?.[1]
+          },
+          type
+        );
+      }
     },
     error: (err: unknown) => {
       log.error('Notification subscription error', err);
     }
   });
 
-  notifBackward.emit(mentionFilter);
-  notifBackward.over();
-  notifForward.emit(mentionFilter);
-  subscriptions.push(notifSub);
+  syncedQueries.push({
+    dispose: () => {
+      mentionSub.unsubscribe();
+      mentionSynced.dispose();
+    }
+  });
   loading = false;
 
   // --- Follow comments ---
   if (follows.size === 0) return;
 
   const followArray = [...follows];
-  const followBackward = createRxBackwardReq();
-  const followForward = createRxForwardReq();
 
-  const followSub = merge(
-    rxNostr.use(followBackward).pipe(uniq()),
-    rxNostr.use(followForward).pipe(uniq())
-  ).subscribe({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    next: (packet: any) => {
-      const event = packet.event;
-      if (event.pubkey === myPubkey) return;
-      if (!follows.has(event.pubkey)) return;
-
-      addNotification(
-        {
-          id: event.id,
-          type: 'follow_comment',
-          pubkey: event.pubkey,
-          content: event.content,
-          createdAt: event.created_at,
-          tags: event.tags
-        },
-        'follow_comment'
-      );
-    },
-    error: (err: unknown) => {
-      log.error('Follow comments subscription error', err);
-    }
-  });
-
+  // Batch follows into chunks to avoid relay filter limits
   for (let i = 0; i < followArray.length; i += BATCH_SIZE) {
     const batch = followArray.slice(i, i + BATCH_SIZE);
-    followBackward.emit({ kinds: [COMMENT_KIND], authors: batch, since: loginTimestamp });
-  }
-  followBackward.over();
+    const followFilter = { kinds: [COMMENT_KIND], authors: batch, since: loginTimestamp };
 
-  for (let i = 0; i < followArray.length; i += BATCH_SIZE) {
-    const batch = followArray.slice(i, i + BATCH_SIZE);
-    followForward.emit({ kinds: [COMMENT_KIND], authors: batch, since: loginTimestamp });
-  }
+    const followSynced = createSyncedQuery(rxNostr, store, {
+      filter: followFilter,
+      strategy: 'dual'
+    });
 
-  subscriptions.push(followSub);
+    const followSub = followSynced.events$.subscribe({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      next: (events: any[]) => {
+        for (const ce of events) {
+          if (processedEventIds.has(ce.event.id)) continue;
+          processedEventIds.add(ce.event.id);
+
+          const event = ce.event;
+          if (event.pubkey === myPubkey) continue;
+          if (!follows.has(event.pubkey)) continue;
+
+          addNotification(
+            {
+              id: event.id,
+              type: 'follow_comment',
+              pubkey: event.pubkey,
+              content: event.content,
+              createdAt: event.created_at,
+              tags: event.tags
+            },
+            'follow_comment'
+          );
+        }
+      },
+      error: (err: unknown) => {
+        log.error('Follow comments subscription error', err);
+      }
+    });
+
+    syncedQueries.push({
+      dispose: () => {
+        followSub.unsubscribe();
+        followSynced.dispose();
+      }
+    });
+  }
 
   log.info('Subscribed to notifications', {
     myPubkey: shortHex(myPubkey),
@@ -251,6 +268,7 @@ export function destroyNotifications(): void {
   destroySubscriptions();
   allItems = [];
   notifIds = new Set();
+  processedEventIds = new Set();
   loading = false;
   myPubkeyForFilter = null;
 }

@@ -13,41 +13,19 @@ export async function fetchNostrEvent(
   eventId: string,
   relayHints: string[]
 ): Promise<FetchedEvent | null> {
-  const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
-    import('rx-nostr'),
-    import('$shared/nostr/client.js')
-  ]);
-  const rxNostr = await getRxNostr();
+  const { getStoreAsync } = await import('$shared/nostr/store.js');
+  const store = await getStoreAsync();
 
-  // Use rx-nostr temporary relays for relay hints (auto-connect, auto-disconnect)
-  const useOptions =
-    relayHints.length > 0 ? { on: { relays: relayHints, defaultReadRelays: true } } : undefined;
-
-  const fetchPromise = new Promise<FetchedEvent | null>((resolve) => {
-    const req = createRxBackwardReq();
-    let found: FetchedEvent | null = null;
-
-    const sub = rxNostr.use(req, useOptions).subscribe({
-      next: (packet) => {
-        found = packet.event;
-      },
-      complete: () => {
-        sub.unsubscribe();
-        resolve(found);
-      },
-      error: () => {
-        sub.unsubscribe();
-        resolve(found);
-      }
-    });
-
-    req.emit({ ids: [eventId] });
-    req.over();
+  const cached = await store.fetchById(eventId, {
+    relayHint: relayHints.length > 0 ? relayHints[0] : undefined,
+    timeout: 10_000
   });
 
-  const timeoutPromise = new Promise<null>((resolve) => {
-    setTimeout(() => resolve(null), 10_000);
-  });
+  if (!cached) return null;
 
-  return Promise.race([fetchPromise, timeoutPromise]);
+  return {
+    kind: cached.event.kind,
+    tags: cached.event.tags,
+    content: cached.event.content
+  };
 }

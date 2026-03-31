@@ -2,7 +2,6 @@
 import type { DTagResult } from '$shared/content/podcast-resolver.js';
 import { getSystemPubkey, parseDTagEvent, resolveByApi } from '$shared/content/podcast-resolver.js';
 import { fromBase64url } from '$shared/content/url-utils.js';
-import { getRxNostr } from '$shared/nostr/client.js';
 import { getStoreAsync } from '$shared/nostr/store.js';
 import { createLogger } from '$shared/utils/logger.js';
 
@@ -77,8 +76,9 @@ async function queryNostrForEpisode(guid: string): Promise<DTagResult | null> {
     const pubkey = await getSystemPubkey();
     if (!pubkey) return null;
 
+    const store = await getStoreAsync();
+
     try {
-      const store = await getStoreAsync();
       const cached = await store.getSync({
         kinds: [39701],
         authors: [pubkey],
@@ -93,55 +93,57 @@ async function queryNostrForEpisode(guid: string): Promise<DTagResult | null> {
         if (result) return result;
       }
     } catch {
-      // Store not available
+      // Cache query failed — continue to relay fetch
     }
 
-    const { createRxBackwardReq, uniq } = await import('rx-nostr');
+    const [{ createSyncedQuery }, { getRxNostr }] = await Promise.all([
+      import('@ikuradon/auftakt/sync'),
+      import('$shared/nostr/client.js')
+    ]);
+    const {
+      firstValueFrom,
+      filter: rxFilter,
+      timeout,
+      catchError,
+      of,
+      defaultIfEmpty
+    } = await import('rxjs');
+    const [rxNostr, auftaktStore] = await Promise.all([getRxNostr(), getStoreAsync()]);
 
-    const rxNostr = await getRxNostr();
-    const req = createRxBackwardReq();
-    const filter = {
+    const queryFilter = {
       kinds: [39701],
       authors: [pubkey],
       '#i': [`podcast:item:guid:${guid}`],
       limit: 1
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const packet = await new Promise<any>((resolve) => {
-      const timer = setTimeout(() => {
-        sub.unsubscribe();
-        resolve(null);
-      }, 5000);
-
-      const sub = rxNostr
-        .use(req)
-        .pipe(uniq())
-        .subscribe({
-          next: (p) => {
-            clearTimeout(timer);
-            sub.unsubscribe();
-            resolve(p);
-          },
-          complete: () => {
-            clearTimeout(timer);
-            resolve(null);
-          }
-        });
-
-      req.emit(filter);
-      req.over();
+    const synced = createSyncedQuery(rxNostr, auftaktStore, {
+      filter: queryFilter,
+      strategy: 'backward'
     });
 
-    if (!packet) return null;
+    try {
+      const result = await firstValueFrom(
+        synced.events$.pipe(
+          rxFilter((events: unknown[]) => events.length > 0),
+          timeout(5000),
+          catchError(() => of(null)),
+          defaultIfEmpty(null)
+        )
+      );
 
-    // connectStore() handles caching automatically
+      if (!result || !Array.isArray(result) || result.length === 0) return null;
 
-    return parseDTagEvent({
-      kind: 39701,
-      tags: packet.event.tags,
-      content: packet.event.content
-    });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const event = (result as any[])[0].event;
+      return parseDTagEvent({
+        kind: 39701,
+        tags: event.tags,
+        content: event.content
+      });
+    } finally {
+      synced.dispose();
+    }
   } catch {
     return null;
   }

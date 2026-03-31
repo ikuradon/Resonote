@@ -1,32 +1,20 @@
+import { BehaviorSubject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // --- hoisted mocks ---
-const {
-  mockGetSync,
-  getRxNostrMock,
-  createRxBackwardReqMock,
-  reqEmitMock,
-  reqOverMock,
-  logWarnMock,
-  logErrorMock
-} = vi.hoisted(() => {
-  const reqEmitMock = vi.fn();
-  const reqOverMock = vi.fn();
-  const mockGetSync = vi.fn();
-
-  return {
-    mockGetSync,
-    getRxNostrMock: vi.fn(),
-    createRxBackwardReqMock: vi.fn(),
-    reqEmitMock,
-    reqOverMock,
-    logWarnMock: vi.fn(),
-    logErrorMock: vi.fn()
-  };
-});
+const { mockGetSync, getRxNostrMock, createSyncedQueryMock, logWarnMock, logErrorMock } =
+  vi.hoisted(() => {
+    return {
+      mockGetSync: vi.fn(),
+      getRxNostrMock: vi.fn(),
+      createSyncedQueryMock: vi.fn(),
+      logWarnMock: vi.fn(),
+      logErrorMock: vi.fn()
+    };
+  });
 
 vi.mock('$shared/nostr/store.js', () => ({
-  getStoreAsync: () => ({
+  getStoreAsync: vi.fn().mockResolvedValue({
     getSync: mockGetSync,
     fetchById: vi.fn().mockResolvedValue(null),
     dispose: vi.fn()
@@ -37,8 +25,8 @@ vi.mock('$shared/nostr/client.js', () => ({
   getRxNostr: getRxNostrMock
 }));
 
-vi.mock('rx-nostr', () => ({
-  createRxBackwardReq: createRxBackwardReqMock
+vi.mock('@ikuradon/auftakt/sync', () => ({
+  createSyncedQuery: createSyncedQueryMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -73,13 +61,7 @@ function makeKind0Event(pubkey: string, content: Record<string, unknown>) {
   };
 }
 
-interface SubscribeObserver {
-  next: (p: unknown) => void;
-  complete: () => void;
-  error: (e: unknown) => void;
-}
-
-/** DB モック (空配列) と relay モックをまとめてセットアップする */
+/** DB mock + relay mock setup */
 function setupMocks(
   dbEvents: ReturnType<typeof makeKind0Event>[],
   relayPackets: { event: ReturnType<typeof makeKind0Event> }[],
@@ -90,21 +72,48 @@ function setupMocks(
   // DB mock — wrap events in CachedEvent format
   mockGetSync.mockResolvedValue(dbEvents.map((event) => ({ event, seenOn: [], firstSeen: 0 })));
 
-  // relay mock
-  const req = { emit: reqEmitMock, over: reqOverMock };
-  createRxBackwardReqMock.mockReturnValue(req);
-  const rxNostr = {
-    use: vi.fn().mockReturnValue({
-      subscribe: vi.fn().mockImplementation((observer: SubscribeObserver) => {
-        for (const p of relayPackets) observer.next(p);
-        if (error) observer.error(error);
-        else if (complete) observer.complete();
-        return { unsubscribe: vi.fn() };
-      })
-    })
-  };
-  getRxNostrMock.mockResolvedValue(rxNostr);
-  return { rxNostr, req };
+  // relay mock via createSyncedQuery
+  getRxNostrMock.mockResolvedValue({});
+
+  const eventsSubject = new BehaviorSubject<unknown[]>([]);
+  const statusSubject = new BehaviorSubject<string>('cached');
+  const disposeFn = vi.fn();
+
+  createSyncedQueryMock.mockReturnValue({
+    events$: eventsSubject.asObservable(),
+    status$: statusSubject.asObservable(),
+    emit: vi.fn(),
+    dispose: disposeFn
+  });
+
+  // Push relay events asynchronously.
+  // Use setTimeout with a small delay to ensure the production code has assigned
+  // statusSub before the 'complete' status triggers statusSub.unsubscribe().
+  // BehaviorSubject replays current value on subscribe — if 'complete' is set
+  // before subscribe, it fires synchronously during subscription causing TDZ error.
+  setTimeout(() => {
+    if (error) {
+      eventsSubject.error(error);
+    } else {
+      if (relayPackets.length > 0) {
+        eventsSubject.next(
+          relayPackets.map((p) => ({
+            event: p.event,
+            seenOn: ['wss://relay.test'],
+            firstSeen: Date.now()
+          }))
+        );
+      }
+      if (complete) {
+        // Extra setTimeout to ensure statusSub assignment is complete
+        setTimeout(() => {
+          statusSubject.next('complete');
+        }, 0);
+      }
+    }
+  }, 10);
+
+  return { eventsSubject, statusSubject, disposeFn };
 }
 
 // --- tests ---
@@ -204,19 +213,27 @@ describe('fetchProfile — DB キャッシュあり', () => {
       sig: 'sig'
     };
     mockGetSync.mockResolvedValue([{ event: badEvent, seenOn: [], firstSeen: 0 }]);
-    // DB キャッシュが失敗してもプロファイルは設定されないため relay fetch へ進む
-    const req = { emit: reqEmitMock, over: reqOverMock };
-    createRxBackwardReqMock.mockReturnValue(req);
-    getRxNostrMock.mockResolvedValue({
-      use: vi.fn().mockReturnValue({
-        subscribe: vi.fn().mockImplementation((observer: SubscribeObserver) => {
-          observer.complete();
-          return { unsubscribe: vi.fn() };
-        })
-      })
+
+    getRxNostrMock.mockResolvedValue({});
+
+    const eventsSubject = new BehaviorSubject<unknown[]>([]);
+    const statusSubject = new BehaviorSubject<string>('cached');
+    createSyncedQueryMock.mockReturnValue({
+      events$: eventsSubject.asObservable(),
+      status$: statusSubject.asObservable(),
+      emit: vi.fn(),
+      dispose: vi.fn()
     });
 
+    // Use nested setTimeout to ensure statusSub is assigned before 'complete' fires
+    setTimeout(() => {
+      setTimeout(() => {
+        statusSubject.next('complete');
+      }, 0);
+    }, 10);
+
     await fetchProfile(PUBKEY_A);
+    await new Promise<void>((r) => setTimeout(r, 50));
 
     expect(logWarnMock).toHaveBeenCalledWith('Malformed cached profile JSON', expect.any(Object));
   });
@@ -245,6 +262,8 @@ describe('fetchProfile — relay から取得', () => {
     setupMocks([], [{ event }]);
 
     await fetchProfile(PUBKEY_A);
+    // Wait for async subscription events
+    await new Promise<void>((r) => setTimeout(r, 50));
 
     const profile = getProfile(PUBKEY_A);
     expect(profile).toBeDefined();
@@ -256,6 +275,7 @@ describe('fetchProfile — relay から取得', () => {
     setupMocks([], []);
 
     await fetchProfile(PUBKEY_A);
+    await new Promise<void>((r) => setTimeout(r, 50));
 
     const profile = getProfile(PUBKEY_A);
     expect(profile).toBeDefined();
@@ -266,6 +286,7 @@ describe('fetchProfile — relay から取得', () => {
     setupMocks([], [], { error: new Error('relay error') });
 
     await fetchProfile(PUBKEY_A);
+    await new Promise<void>((r) => setTimeout(r, 50));
 
     expect(logWarnMock).toHaveBeenCalledWith(
       'Profile fetch subscription error',
@@ -286,6 +307,7 @@ describe('fetchProfile — relay から取得', () => {
     setupMocks([], [{ event: badEvent as ReturnType<typeof makeKind0Event> }]);
 
     await fetchProfile(PUBKEY_A);
+    await new Promise<void>((r) => setTimeout(r, 50));
 
     expect(logWarnMock).toHaveBeenCalledWith('Malformed profile JSON', expect.any(Object));
   });
@@ -295,6 +317,7 @@ describe('fetchProfile — relay から取得', () => {
     setupMocks([], [{ event }]);
 
     await fetchProfiles([PUBKEY_B]);
+    await new Promise<void>((r) => setTimeout(r, 50));
 
     // connectStore() handles caching automatically — no explicit put call
     expect(getProfile(PUBKEY_B)?.name).toBe('Bob');
@@ -306,6 +329,7 @@ describe('fetchProfile — relay から取得', () => {
     setupMocks([], [{ event: eventA }, { event: eventB }]);
 
     await fetchProfiles([PUBKEY_A, PUBKEY_B]);
+    await new Promise<void>((r) => setTimeout(r, 50));
 
     expect(getProfile(PUBKEY_A)?.name).toBe('Alice');
     expect(getProfile(PUBKEY_B)?.name).toBe('Bob');
