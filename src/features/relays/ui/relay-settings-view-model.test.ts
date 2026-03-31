@@ -1,16 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { useCachedLatestMock, cachedLatestResult, saveRelayListMock } = vi.hoisted(() => {
-  const cachedLatestResult = { event: null, settled: true, destroy: vi.fn() };
+const { fetchLatestMock, saveRelayListMock } = vi.hoisted(() => {
   return {
-    useCachedLatestMock: vi.fn(() => cachedLatestResult),
-    cachedLatestResult,
+    fetchLatestMock: vi.fn(async () => null as Record<string, unknown> | null),
     saveRelayListMock: vi.fn(async () => {})
   };
 });
 
-vi.mock('$shared/nostr/cached-query.js', () => ({
-  useCachedLatest: useCachedLatestMock
+vi.mock('$shared/nostr/store.js', () => ({
+  fetchLatest: fetchLatestMock
 }));
 
 vi.mock('$shared/nostr/events.js', () => ({
@@ -43,10 +41,8 @@ function makeVm(pubkey: string | null = 'pubkey1') {
 
 describe('createRelaySettingsViewModel', () => {
   beforeEach(() => {
-    cachedLatestResult.event = null;
-    cachedLatestResult.settled = true;
-    cachedLatestResult.destroy.mockClear();
-    useCachedLatestMock.mockReturnValue(cachedLatestResult);
+    fetchLatestMock.mockReset();
+    fetchLatestMock.mockResolvedValue(null);
     saveRelayListMock.mockReset();
   });
 

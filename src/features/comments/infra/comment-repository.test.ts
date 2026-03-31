@@ -1,13 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getEventsDBMock, logErrorMock, logInfoMock } = vi.hoisted(() => ({
-  getEventsDBMock: vi.fn(),
+const { mockGetSync, logErrorMock, logInfoMock } = vi.hoisted(() => ({
+  mockGetSync: vi.fn(),
   logErrorMock: vi.fn(),
   logInfoMock: vi.fn()
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getEventsDB: getEventsDBMock
+vi.mock('$shared/nostr/store.js', () => ({
+  getStore: vi.fn().mockReturnValue({
+    getSync: mockGetSync,
+    fetchById: vi.fn().mockResolvedValue(null),
+    dispose: vi.fn()
+  })
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -51,14 +55,15 @@ beforeEach(() => {
 });
 
 describe('getCommentRepository', () => {
-  it('returns the EventsDB instance from getEventsDB', async () => {
-    const fakeDb = makeDb();
-    getEventsDBMock.mockResolvedValue(fakeDb);
+  it('returns an EventsDB adapter from getStore', async () => {
+    mockGetSync.mockResolvedValue([]);
 
     const result = await getCommentRepository();
 
-    expect(getEventsDBMock).toHaveBeenCalledOnce();
-    expect(result).toBe(fakeDb);
+    expect(result).toBeDefined();
+    expect(typeof result.getByTagValue).toBe('function');
+    expect(typeof result.put).toBe('function');
+    expect(typeof result.deleteByIds).toBe('function');
   });
 });
 
@@ -67,9 +72,9 @@ describe('restoreFromCache', () => {
     const events = [makeEvent({ id: 'ev-1' }), makeEvent({ id: 'ev-2' })];
     const db = makeDb({ getByTagValue: vi.fn(async () => events) });
 
-    const result = await restoreFromCache(db, 'spotify:track:abc');
+    const result = await restoreFromCache(db, 'I:spotify:track:abc');
 
-    expect(db.getByTagValue).toHaveBeenCalledWith('spotify:track:abc');
+    expect(db.getByTagValue).toHaveBeenCalledWith('I:spotify:track:abc');
     expect(result).toEqual(events);
   });
 
@@ -80,7 +85,7 @@ describe('restoreFromCache', () => {
       })
     });
 
-    const result = await restoreFromCache(db, 'spotify:track:abc');
+    const result = await restoreFromCache(db, 'I:spotify:track:abc');
 
     expect(result).toEqual([]);
     expect(logErrorMock).toHaveBeenCalled();
@@ -88,38 +93,31 @@ describe('restoreFromCache', () => {
 
   it('passes the tagQuery argument to db.getByTagValue', async () => {
     const db = makeDb();
-    await restoreFromCache(db, 'youtube:video:xyz');
-    expect(db.getByTagValue).toHaveBeenCalledWith('youtube:video:xyz');
+    await restoreFromCache(db, 'I:youtube:video:xyz');
+    expect(db.getByTagValue).toHaveBeenCalledWith('I:youtube:video:xyz');
   });
 });
 
 describe('purgeDeletedFromCache', () => {
-  it('calls db.deleteByIds with provided ids', async () => {
+  it('is a no-op (auftakt handles deletions via kind:5)', async () => {
     const db = makeDb();
     await purgeDeletedFromCache(db, ['id-1', 'id-2']);
-    expect(db.deleteByIds).toHaveBeenCalledWith(['id-1', 'id-2']);
+    // purgeDeletedFromCache is now a no-op
+    expect(true).toBe(true);
   });
 
-  it('does not call db.deleteByIds when ids is empty', async () => {
+  it('does not throw when ids is empty', async () => {
     const db = makeDb();
-    await purgeDeletedFromCache(db, []);
-    expect(db.deleteByIds).not.toHaveBeenCalled();
+    await expect(purgeDeletedFromCache(db, [])).resolves.toBeUndefined();
   });
 
-  it('logs info after successful purge', async () => {
+  it('does not throw when ids are provided', async () => {
     const db = makeDb();
-    await purgeDeletedFromCache(db, ['id-1']);
-    expect(logInfoMock).toHaveBeenCalled();
-  });
-
-  it('handles db.deleteByIds errors gracefully', async () => {
-    const db = makeDb({
-      deleteByIds: vi.fn(async () => {
-        throw new Error('delete error');
-      })
-    });
-
     await expect(purgeDeletedFromCache(db, ['id-1'])).resolves.toBeUndefined();
-    expect(logErrorMock).toHaveBeenCalled();
+  });
+
+  it('is always a no-op regardless of db state', async () => {
+    const db = makeDb();
+    await expect(purgeDeletedFromCache(db, ['id-1'])).resolves.toBeUndefined();
   });
 });

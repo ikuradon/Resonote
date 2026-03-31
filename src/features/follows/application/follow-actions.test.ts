@@ -6,7 +6,7 @@ const { castSignedMock, fetchLatestEventMock, logInfoMock } = vi.hoisted(() => (
   logInfoMock: vi.fn()
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
+vi.mock('$shared/nostr/client.js', () => ({
   castSigned: castSignedMock,
   fetchLatestEvent: fetchLatestEventMock
 }));

@@ -12,7 +12,7 @@ vi.mock('$shared/nostr/events.js', () => ({
   buildShare: buildShareMock
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
+vi.mock('$shared/nostr/client.js', () => ({
   castSigned: castSignedMock,
   fetchLatestEvent: fetchLatestEventMock
 }));

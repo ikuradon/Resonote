@@ -1,14 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // --- hoisted mocks ---
-const { logInfoMock, logErrorMock, mockEventsDB, mockRxNostr } = vi.hoisted(() => ({
+const { logInfoMock, logErrorMock, mockGetSync, mockRxNostr } = vi.hoisted(() => ({
   logInfoMock: vi.fn(),
   logErrorMock: vi.fn(),
-  mockEventsDB: {
-    getByPubkeyAndKind: vi.fn(async (): Promise<Record<string, unknown> | null> => null),
-    getByReplaceKey: vi.fn(async (): Promise<Record<string, unknown> | null> => null),
-    put: vi.fn(async () => {})
-  },
+  mockGetSync: vi.fn(
+    async () => [] as Array<{ event: Record<string, unknown>; seenOn: string[]; firstSeen: number }>
+  ),
   mockRxNostr: {
     use: vi.fn()
   }
@@ -28,8 +26,15 @@ vi.mock('$shared/utils/emoji.js', () => ({
   isEmojiTag: (tag: string[]): boolean => tag[0] === 'emoji' && tag.length >= 3
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getEventsDB: async () => mockEventsDB,
+vi.mock('$shared/nostr/store.js', () => ({
+  getStore: () => ({
+    getSync: mockGetSync,
+    fetchById: vi.fn().mockResolvedValue(null),
+    dispose: vi.fn()
+  })
+}));
+
+vi.mock('$shared/nostr/client.js', () => ({
   getRxNostr: async () => mockRxNostr
 }));
 
@@ -149,9 +154,7 @@ describe('loadCustomEmojis', () => {
   beforeEach(() => {
     clearCustomEmojis();
     vi.clearAllMocks();
-    mockEventsDB.getByPubkeyAndKind.mockResolvedValue(null);
-    mockEventsDB.getByReplaceKey.mockResolvedValue(null);
-    mockEventsDB.put.mockResolvedValue(undefined);
+    mockGetSync.mockResolvedValue([]);
   });
 
   it('inline emoji タグからカテゴリを構築する', async () => {
@@ -214,9 +217,13 @@ describe('loadCustomEmojis', () => {
   });
 
   it('DB キャッシュから復元し、リレーが空でも最終的に空になる', async () => {
-    mockEventsDB.getByPubkeyAndKind.mockResolvedValue({
-      tags: [['emoji', 'heart', 'https://example.com/heart.png']]
-    });
+    mockGetSync.mockResolvedValueOnce([
+      {
+        event: { tags: [['emoji', 'heart', 'https://example.com/heart.png']] },
+        seenOn: [],
+        firstSeen: 0
+      }
+    ]);
 
     setupRxNostrSubscription([]);
 
@@ -228,9 +235,13 @@ describe('loadCustomEmojis', () => {
   });
 
   it('DB キャッシュ復元後にリレーフェッチで上書きされる', async () => {
-    mockEventsDB.getByPubkeyAndKind.mockResolvedValue({
-      tags: [['emoji', 'old', 'https://example.com/old.png']]
-    });
+    mockGetSync.mockResolvedValueOnce([
+      {
+        event: { tags: [['emoji', 'old', 'https://example.com/old.png']] },
+        seenOn: [],
+        firstSeen: 0
+      }
+    ]);
 
     setupRxNostrSubscription([
       {
@@ -252,17 +263,29 @@ describe('loadCustomEmojis', () => {
     const setAuthor = 'author123';
     const setRef = `30030:${setAuthor}:test-set`;
 
-    mockEventsDB.getByPubkeyAndKind.mockResolvedValue({
-      tags: [['a', setRef]]
-    });
+    // First getSync call: emoji list (kind:10030)
+    mockGetSync.mockResolvedValueOnce([
+      {
+        event: { tags: [['a', setRef]] },
+        seenOn: [],
+        firstSeen: 0
+      }
+    ]);
 
-    mockEventsDB.getByReplaceKey.mockResolvedValue({
-      id: 'cached-set-evt',
-      tags: [
-        ['d', 'test-set'],
-        ['emoji', 'star', 'https://example.com/star.png']
-      ]
-    });
+    // Second getSync call: emoji set (kind:30030)
+    mockGetSync.mockResolvedValueOnce([
+      {
+        event: {
+          id: 'cached-set-evt',
+          tags: [
+            ['d', 'test-set'],
+            ['emoji', 'star', 'https://example.com/star.png']
+          ]
+        },
+        seenOn: [],
+        firstSeen: 0
+      }
+    ]);
 
     setupRxNostrMultiCall([
       { packets: [{ event: { id: 'list-evt', tags: [['a', setRef]] } }] },
@@ -285,7 +308,13 @@ describe('loadCustomEmojis', () => {
 
     const e = getCustomEmojis();
     expect(e.categories.length).toBeGreaterThan(0);
-    expect(mockEventsDB.getByReplaceKey).toHaveBeenCalledWith(setAuthor, 30030, 'test-set');
+    expect(mockGetSync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kinds: [30030],
+        authors: [setAuthor],
+        '#d': ['test-set']
+      })
+    );
   });
 
   it('空の emoji リストでは空カテゴリを返す', async () => {
@@ -413,8 +442,8 @@ describe('loadCustomEmojis', () => {
   });
 
   it('catch ブロックがエラーをログに記録する', async () => {
-    // Make getEventsDB throw by temporarily overriding the mock
-    mockEventsDB.getByPubkeyAndKind.mockRejectedValueOnce(new Error('DB failed'));
+    // Make getSync throw to trigger catch block
+    mockGetSync.mockRejectedValueOnce(new Error('DB failed'));
 
     await loadCustomEmojis(PUBKEY);
 
@@ -422,7 +451,7 @@ describe('loadCustomEmojis', () => {
     expect(getCustomEmojis().loading).toBe(false);
   });
 
-  it('イベントを eventsDB にキャッシュする', async () => {
+  it('connectStore handles caching automatically (no explicit put)', async () => {
     const event = {
       id: 'cache-evt',
       tags: [['emoji', 'cached', 'https://example.com/cached.png']]
@@ -432,7 +461,10 @@ describe('loadCustomEmojis', () => {
 
     await loadCustomEmojis(PUBKEY);
 
-    expect(mockEventsDB.put).toHaveBeenCalledWith(event);
+    // connectStore() handles caching — no explicit put call
+    const e = getCustomEmojis();
+    expect(e.categories).toHaveLength(1);
+    expect(e.categories[0].emojis[0].id).toBe('cached');
   });
 
   it('inline と set の両方を含むカテゴリをマージする', async () => {
@@ -528,27 +560,37 @@ describe('loadCustomEmojis', () => {
   });
 
   it('DB キャッシュの不正な setRef (parts < 3) はスキップする', async () => {
-    mockEventsDB.getByPubkeyAndKind.mockResolvedValue({
-      tags: [
-        ['a', '30030:incomplete'], // Invalid
-        ['emoji', 'inline', 'https://example.com/inline.png']
-      ]
-    });
+    mockGetSync.mockResolvedValueOnce([
+      {
+        event: {
+          tags: [
+            ['a', '30030:incomplete'], // Invalid
+            ['emoji', 'inline', 'https://example.com/inline.png']
+          ]
+        },
+        seenOn: [],
+        firstSeen: 0
+      }
+    ]);
 
     setupRxNostrSubscription([]);
 
     await loadCustomEmojis(PUBKEY);
 
-    expect(mockEventsDB.getByReplaceKey).not.toHaveBeenCalled();
+    // getSync should not be called with kinds: [30030] for invalid setRef
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const kind30030Calls = (mockGetSync.mock.calls as any[][]).filter(
+      (call) => call[0]?.kinds?.[0] === 30030
+    );
+    expect(kind30030Calls).toHaveLength(0);
   });
 
-  it('eventsDB.put エラーはキャッチされ処理を中断しない', async () => {
-    mockEventsDB.put.mockRejectedValue(new Error('put failed'));
-
+  it('connectStore handles caching errors transparently', async () => {
+    // connectStore() handles caching — no explicit put call to fail
     setupRxNostrSubscription([
       {
         event: {
-          id: 'evt-put-err',
+          id: 'evt-ok',
           tags: [['emoji', 'ok', 'https://example.com/ok.png']]
         }
       }

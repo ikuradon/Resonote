@@ -13,11 +13,18 @@ vi.mock('$shared/content/podcast-resolver.js', () => ({
   parseDTagEvent: (...args: unknown[]) => mockParseDTagEvent(...(args as []))
 }));
 
-// Mock dynamic imports via the shared Nostr gateway
-const mockGetEventsDB = vi.fn();
+// Mock dynamic imports via the shared Nostr modules
+const mockGetSync = vi.fn();
 const mockGetRxNostr = vi.fn();
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getEventsDB: (...args: unknown[]) => mockGetEventsDB(...(args as [])),
+vi.mock('$shared/nostr/store.js', () => ({
+  getStore: () => ({
+    getSync: (...args: unknown[]) => mockGetSync(...(args as [])),
+    fetchById: vi.fn().mockResolvedValue(null),
+    dispose: vi.fn()
+  })
+}));
+
+vi.mock('$shared/nostr/client.js', () => ({
   getRxNostr: (...args: unknown[]) => mockGetRxNostr(...(args as []))
 }));
 
@@ -95,7 +102,7 @@ describe('episode-resolver', () => {
     // Default: API returns empty response
     mockResolveByApi.mockResolvedValue({ type: 'episode' });
     // Default: DB not available
-    mockGetEventsDB.mockRejectedValue(new Error('DB not available'));
+    mockGetSync.mockRejectedValue(new Error('DB not available'));
   });
 
   describe('resolveEpisode', () => {
@@ -103,18 +110,20 @@ describe('episode-resolver', () => {
       // Nostr: return cached result via IndexedDB
       const pubkey = 'abc123pubkey';
       mockGetSystemPubkey.mockResolvedValue(pubkey);
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([
-          {
+      mockGetSync.mockResolvedValue([
+        {
+          event: {
             pubkey,
             tags: [
               ['i', `podcast:item:guid:${GUID}`, 'https://example.com/ep1-nostr.mp3'],
               ['i', 'podcast:guid:feed-guid', FEED_URL]
             ],
             content: 'Nostr description'
-          }
-        ])
-      });
+          },
+          seenOn: [],
+          firstSeen: 0
+        }
+      ]);
       mockParseDTagEvent.mockReturnValue(makeNostrResult());
 
       // API: return episodes array with matching guid
@@ -134,18 +143,20 @@ describe('episode-resolver', () => {
     it('should return Nostr-only result when API returns no match', async () => {
       const pubkey = 'abc123pubkey';
       mockGetSystemPubkey.mockResolvedValue(pubkey);
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([
-          {
+      mockGetSync.mockResolvedValue([
+        {
+          event: {
             pubkey,
             tags: [
               ['i', `podcast:item:guid:${GUID}`, 'https://example.com/ep1-nostr.mp3'],
               ['i', 'podcast:guid:feed-guid', FEED_URL]
             ],
             content: 'Nostr description'
-          }
-        ])
-      });
+          },
+          seenOn: [],
+          firstSeen: 0
+        }
+      ]);
       mockParseDTagEvent.mockReturnValue(makeNostrResult());
 
       // API returns no episodes and no matching episode
@@ -190,18 +201,20 @@ describe('episode-resolver', () => {
     it('should prefer Nostr description over API description via ?? operator', async () => {
       const pubkey = 'abc123pubkey';
       mockGetSystemPubkey.mockResolvedValue(pubkey);
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([
-          {
+      mockGetSync.mockResolvedValue([
+        {
+          event: {
             pubkey,
             tags: [
               ['i', `podcast:item:guid:${GUID}`, 'https://example.com/ep1-nostr.mp3'],
               ['i', 'podcast:guid:feed-guid', FEED_URL]
             ],
             content: 'Nostr desc'
-          }
-        ])
-      });
+          },
+          seenOn: [],
+          firstSeen: 0
+        }
+      ]);
       mockParseDTagEvent.mockReturnValue(makeNostrResult({ description: 'Nostr desc' }));
 
       mockResolveByApi.mockResolvedValue(
@@ -227,18 +240,20 @@ describe('episode-resolver', () => {
     it('should fall back to API description when Nostr description is undefined', async () => {
       const pubkey = 'abc123pubkey';
       mockGetSystemPubkey.mockResolvedValue(pubkey);
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([
-          {
+      mockGetSync.mockResolvedValue([
+        {
+          event: {
             pubkey,
             tags: [
               ['i', `podcast:item:guid:${GUID}`, 'https://example.com/ep1-nostr.mp3'],
               ['i', 'podcast:guid:feed-guid', FEED_URL]
             ],
             content: ''
-          }
-        ])
-      });
+          },
+          seenOn: [],
+          firstSeen: 0
+        }
+      ]);
       mockParseDTagEvent.mockReturnValue(makeNostrResult({ description: undefined }));
 
       mockResolveByApi.mockResolvedValue(makeApiResponse());
@@ -419,18 +434,20 @@ describe('episode-resolver', () => {
       // the Nostr-only path does NOT include feedTitle/image
       const pubkey = 'abc123pubkey';
       mockGetSystemPubkey.mockResolvedValue(pubkey);
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([
-          {
+      mockGetSync.mockResolvedValue([
+        {
+          event: {
             pubkey,
             tags: [
               ['i', `podcast:item:guid:${GUID}`, 'https://example.com/ep1-nostr.mp3'],
               ['i', 'podcast:guid:feed-guid', FEED_URL]
             ],
             content: 'Nostr desc'
-          }
-        ])
-      });
+          },
+          seenOn: [],
+          firstSeen: 0
+        }
+      ]);
       mockParseDTagEvent.mockReturnValue(makeNostrResult({ description: 'Nostr desc' }));
 
       // API has feed info but no matching episode
@@ -466,18 +483,20 @@ describe('episode-resolver', () => {
     it('should return Nostr result when API throws', async () => {
       const pubkey = 'abc123pubkey';
       mockGetSystemPubkey.mockResolvedValue(pubkey);
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([
-          {
+      mockGetSync.mockResolvedValue([
+        {
+          event: {
             pubkey,
             tags: [
               ['i', `podcast:item:guid:${GUID}`, 'https://example.com/ep1-nostr.mp3'],
               ['i', 'podcast:guid:feed-guid', FEED_URL]
             ],
             content: 'Nostr description'
-          }
-        ])
-      });
+          },
+          seenOn: [],
+          firstSeen: 0
+        }
+      ]);
       mockParseDTagEvent.mockReturnValue(makeNostrResult());
 
       // API throws error
@@ -531,18 +550,20 @@ describe('episode-resolver', () => {
     it('should fall back to Nostr when API episodes array has no guid match', async () => {
       const pubkey = 'abc123pubkey';
       mockGetSystemPubkey.mockResolvedValue(pubkey);
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([
-          {
+      mockGetSync.mockResolvedValue([
+        {
+          event: {
             pubkey,
             tags: [
               ['i', `podcast:item:guid:${GUID}`, 'https://example.com/ep1-nostr.mp3'],
               ['i', 'podcast:guid:feed-guid', FEED_URL]
             ],
             content: 'Nostr desc'
-          }
-        ])
-      });
+          },
+          seenOn: [],
+          firstSeen: 0
+        }
+      ]);
       mockParseDTagEvent.mockReturnValue(makeNostrResult({ description: 'Nostr desc' }));
 
       // API has episodes but none match
@@ -602,7 +623,7 @@ describe('episode-resolver', () => {
       vi.clearAllMocks();
       mockGetSystemPubkey.mockResolvedValue('');
       mockResolveByApi.mockResolvedValue({ type: 'episode' });
-      mockGetEventsDB.mockRejectedValue(new Error('DB not available'));
+      mockGetSync.mockRejectedValue(new Error('DB not available'));
     });
 
     it('should query relay when DB cache is empty and return result', async () => {
@@ -610,10 +631,7 @@ describe('episode-resolver', () => {
       mockGetSystemPubkey.mockResolvedValue(pubkey);
 
       // DB returns empty array (no cached events)
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([]),
-        put: vi.fn()
-      });
+      mockGetSync.mockResolvedValue([]);
 
       const relayEvent = {
         tags: [
@@ -643,9 +661,7 @@ describe('episode-resolver', () => {
       const pubkey = 'relay-pubkey';
       mockGetSystemPubkey.mockResolvedValue(pubkey);
 
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([])
-      });
+      mockGetSync.mockResolvedValue([]);
 
       setupRelayMock(null);
 
@@ -658,19 +674,9 @@ describe('episode-resolver', () => {
       const pubkey = 'sys-pubkey';
       mockGetSystemPubkey.mockResolvedValue(pubkey);
 
-      // DB returns event with different pubkey
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([
-          {
-            pubkey: 'other-pubkey',
-            tags: [
-              ['i', `podcast:item:guid:${GUID}`, 'https://example.com/other.mp3'],
-              ['i', 'podcast:guid:feed-guid', FEED_URL]
-            ],
-            content: 'Other desc'
-          }
-        ])
-      });
+      // DB returns event — store.getSync filters by author already,
+      // but the production code calls parseDTagEvent which may return null for invalid events
+      mockGetSync.mockResolvedValue([]);
 
       setupRelayMock(null);
 
@@ -679,15 +685,11 @@ describe('episode-resolver', () => {
       expect(result).toBeNull();
     });
 
-    it('should cache relay result in DB after successful Nostr fetch', async () => {
+    it('should use relay result (connectStore handles caching automatically)', async () => {
       const pubkey = 'sys-pubkey';
       mockGetSystemPubkey.mockResolvedValue(pubkey);
 
-      const putMock = vi.fn();
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([]),
-        put: putMock
-      });
+      mockGetSync.mockResolvedValue([]);
 
       const relayEvent = {
         tags: [
@@ -706,27 +708,31 @@ describe('episode-resolver', () => {
         description: 'desc'
       });
 
-      await resolveEpisode(FEED_BASE64, GUID_BASE64);
+      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
 
-      expect(putMock).toHaveBeenCalledWith(relayEvent);
+      // connectStore() handles caching automatically — no explicit put call
+      expect(result).not.toBeNull();
+      expect(result!.enclosureUrl).toBe('https://example.com/relay-ep.mp3');
     });
 
     it('should merge API + Nostr: prefer API enclosureUrl and Nostr description', async () => {
       const pubkey = 'sys-pubkey';
       mockGetSystemPubkey.mockResolvedValue(pubkey);
 
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([
-          {
+      mockGetSync.mockResolvedValue([
+        {
+          event: {
             pubkey,
             tags: [
               ['i', `podcast:item:guid:${GUID}`, 'https://example.com/nostr.mp3'],
               ['i', 'podcast:guid:feed-guid', FEED_URL]
             ],
             content: 'Detailed Nostr description'
-          }
-        ])
-      });
+          },
+          seenOn: [],
+          firstSeen: 0
+        }
+      ]);
       mockParseDTagEvent.mockReturnValue(
         makeNostrResult({ description: 'Detailed Nostr description' })
       );

@@ -5,7 +5,8 @@ import type { Notification } from '../domain/notification-model.js';
 const { fetchProfilesMock, cachedFetchByIdMock, getLastReadMock, markAllAsReadMock } = vi.hoisted(
   () => ({
     fetchProfilesMock: vi.fn(),
-    cachedFetchByIdMock: vi.fn(async () => null),
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    cachedFetchByIdMock: vi.fn(async (_id?: string) => null as Record<string, unknown> | null),
     getLastReadMock: vi.fn(() => 0),
     markAllAsReadMock: vi.fn()
   })
@@ -15,8 +16,15 @@ vi.mock('$shared/browser/profile.js', () => ({
   fetchProfiles: fetchProfilesMock
 }));
 
-vi.mock('$shared/nostr/cached-query.js', () => ({
-  cachedFetchById: cachedFetchByIdMock
+vi.mock('$shared/nostr/store.js', () => ({
+  getStore: () => ({
+    fetchById: async (id: string) => {
+      const event = await cachedFetchByIdMock(id);
+      return event ? { event, seenOn: [], firstSeen: 0 } : null;
+    },
+    getSync: vi.fn().mockResolvedValue([]),
+    dispose: vi.fn()
+  })
 }));
 
 vi.mock('./notifications-view-model.svelte.js', () => ({

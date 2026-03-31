@@ -48,7 +48,7 @@ vi.mock('$shared/nostr/events.js', () => ({
   REACTION_KIND: 7
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
+vi.mock('$shared/nostr/client.js', () => ({
   getRxNostr: getRxNostrMock
 }));
 

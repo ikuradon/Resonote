@@ -14,7 +14,7 @@ vi.mock('rx-nostr', () => ({
   })
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
+vi.mock('$shared/nostr/client.js', () => ({
   getRxNostr: vi.fn().mockResolvedValue({
     use: () => ({
       subscribe: (observer: {

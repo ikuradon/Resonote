@@ -20,7 +20,7 @@ vi.mock('rx-nostr', () => ({
   createRxBackwardReq: createRxBackwardReqMock
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
+vi.mock('$shared/nostr/client.js', () => ({
   getRxNostr: getRxNostrMock
 }));
 

@@ -2,7 +2,8 @@
 import type { DTagResult } from '$shared/content/podcast-resolver.js';
 import { getSystemPubkey, parseDTagEvent, resolveByApi } from '$shared/content/podcast-resolver.js';
 import { fromBase64url } from '$shared/content/url-utils.js';
-import { getEventsDB, getRxNostr } from '$shared/nostr/gateway.js';
+import { getRxNostr } from '$shared/nostr/client.js';
+import { getStore } from '$shared/nostr/store.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('episode-resolver');
@@ -77,16 +78,22 @@ async function queryNostrForEpisode(guid: string): Promise<DTagResult | null> {
     if (!pubkey) return null;
 
     try {
-      const db = await getEventsDB();
-      const cached = await db.getByTagValue(`i:podcast:item:guid:${guid}`, 39701);
-      for (const ev of cached) {
-        if (ev.pubkey === pubkey) {
-          const result = parseDTagEvent({ kind: 39701, tags: ev.tags, content: ev.content });
-          if (result) return result;
-        }
+      const store = getStore();
+      const cached = await store.getSync({
+        kinds: [39701],
+        authors: [pubkey],
+        '#i': [`podcast:item:guid:${guid}`]
+      });
+      for (const ce of cached) {
+        const result = parseDTagEvent({
+          kind: 39701,
+          tags: ce.event.tags,
+          content: ce.event.content
+        });
+        if (result) return result;
       }
     } catch {
-      // DB not available
+      // Store not available
     }
 
     const { createRxBackwardReq, uniq } = await import('rx-nostr');
@@ -128,12 +135,7 @@ async function queryNostrForEpisode(guid: string): Promise<DTagResult | null> {
 
     if (!packet) return null;
 
-    try {
-      const db = await getEventsDB();
-      await db.put(packet.event);
-    } catch {
-      // DB not available
-    }
+    // connectStore() handles caching automatically
 
     return parseDTagEvent({
       kind: 39701,

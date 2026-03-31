@@ -18,7 +18,7 @@ const BOOKMARK_KIND = 10003;
 
 export async function loadBookmarks(pubkey: string): Promise<{ tags: string[][] } | null> {
   log.info('Loading bookmarks', { pubkey: shortHex(pubkey) });
-  const { fetchLatestEvent } = await import('$shared/nostr/gateway.js');
+  const { fetchLatestEvent } = await import('$shared/nostr/client.js');
   return fetchLatestEvent(pubkey, BOOKMARK_KIND);
 }
 
@@ -27,7 +27,7 @@ export async function publishAddBookmark(
   openUrl: string,
   myPubkey: string
 ): Promise<string[][]> {
-  const { castSigned, fetchLatestEvent } = await import('$shared/nostr/gateway.js');
+  const { castSigned, fetchLatestEvent } = await import('$shared/nostr/client.js');
   const value = contentIdToString(contentId);
 
   const latest = await fetchLatestEvent(myPubkey, BOOKMARK_KIND);
@@ -52,7 +52,7 @@ export async function publishRemoveBookmark(
   contentId: ContentId,
   myPubkey: string
 ): Promise<string[][]> {
-  const { castSigned, fetchLatestEvent } = await import('$shared/nostr/gateway.js');
+  const { castSigned, fetchLatestEvent } = await import('$shared/nostr/client.js');
   const value = contentIdToString(contentId);
 
   const latest = await fetchLatestEvent(myPubkey, BOOKMARK_KIND);

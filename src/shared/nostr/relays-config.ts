@@ -1,6 +1,6 @@
 import { parseRelayTags } from '$features/relays/domain/relay-model.js';
+import { getRxNostr } from '$shared/nostr/client.js';
 import { RELAY_LIST_KIND } from '$shared/nostr/events.js';
-import { getRxNostr } from '$shared/nostr/gateway.js';
 import { DEFAULT_RELAYS } from '$shared/nostr/relays.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 

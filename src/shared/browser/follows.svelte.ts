@@ -83,21 +83,23 @@ async function fetchWotInner(pubkey: string, gen: number): Promise<void> {
 export async function loadFollows(pubkey: string): Promise<void> {
   const gen = ++generation;
 
-  const { getEventsDB } = await import('$shared/nostr/gateway.js');
-  const eventsDB = await getEventsDB();
+  const { getStore } = await import('$shared/nostr/store.js');
+  const store = getStore();
 
-  const kind3 = await eventsDB.getByPubkeyAndKind(pubkey, FOLLOW_KIND);
+  const kind3Results = await store.getSync({ kinds: [FOLLOW_KIND], authors: [pubkey], limit: 1 });
   if (gen !== generation) return;
 
+  const kind3 = kind3Results.length > 0 ? kind3Results[0].event : null;
   if (kind3) {
     const follows = extractFollows(kind3);
     state.follows = follows;
 
-    const allKind3 = await eventsDB.getAllByKind(FOLLOW_KIND);
+    const allKind3Results = await store.getSync({ kinds: [FOLLOW_KIND] });
     if (gen !== generation) return;
 
     const allWot = new Set([...follows, pubkey]);
-    for (const event of allKind3) {
+    for (const cached of allKind3Results) {
+      const event = cached.event;
       if (!follows.has(event.pubkey)) continue;
       for (const tag of event.tags) {
         if (tag[0] === 'p' && tag[1]) allWot.add(tag[1]);

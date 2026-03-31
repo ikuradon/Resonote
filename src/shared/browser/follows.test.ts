@@ -3,18 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // --- hoisted mocks ---
 const {
   authState,
-  getEventsDBMock,
-  getByPubkeyAndKindMock,
-  getAllByKindMock,
+  mockGetSync,
   publishFollowMock,
   publishUnfollowMock,
   fetchWotMock,
   logInfoMock
 } = vi.hoisted(() => ({
   authState: { pubkey: null as string | null },
-  getEventsDBMock: vi.fn(),
-  getByPubkeyAndKindMock: vi.fn(),
-  getAllByKindMock: vi.fn(),
+  mockGetSync: vi.fn(),
   publishFollowMock: vi.fn(),
   publishUnfollowMock: vi.fn(),
   fetchWotMock: vi.fn(),
@@ -25,8 +21,12 @@ vi.mock('./auth.svelte.js', () => ({
   getAuth: () => authState
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getEventsDB: getEventsDBMock
+vi.mock('$shared/nostr/store.js', () => ({
+  getStore: () => ({
+    getSync: mockGetSync,
+    fetchById: vi.fn().mockResolvedValue(null),
+    dispose: vi.fn()
+  })
 }));
 
 vi.mock('$features/follows/application/follow-actions.js', () => ({
@@ -114,12 +114,10 @@ describe('matchesFilter', () => {
     vi.clearAllMocks();
     clearFollows();
     // loadFollows で follows/wot をセットする
-    getByPubkeyAndKindMock.mockResolvedValue(makeKind3Event(MY_PUBKEY, [FOLLOW_A]));
-    getAllByKindMock.mockResolvedValue([makeKind3Event(MY_PUBKEY, [FOLLOW_A])]);
-    getEventsDBMock.mockResolvedValue({
-      getByPubkeyAndKind: getByPubkeyAndKindMock,
-      getAllByKind: getAllByKindMock
-    });
+    const kind3 = makeKind3Event(MY_PUBKEY, [FOLLOW_A]);
+    mockGetSync
+      .mockResolvedValueOnce([{ event: kind3, seenOn: [], firstSeen: 0 }]) // getSync({ kinds: [3], authors: [pubkey], limit: 1 })
+      .mockResolvedValueOnce([{ event: kind3, seenOn: [], firstSeen: 0 }]); // getSync({ kinds: [3] })
     await loadFollows(MY_PUBKEY);
   });
 
@@ -166,12 +164,9 @@ describe('loadFollows — DBキャッシュあり', () => {
   it('kind:3 キャッシュから follows と wot を復元する', async () => {
     const kind3 = makeKind3Event(MY_PUBKEY, [FOLLOW_A, FOLLOW_B]);
     const allKind3 = [kind3, makeKind3Event(FOLLOW_A, [FOLLOW_B, STRANGER])];
-    getByPubkeyAndKindMock.mockResolvedValue(kind3);
-    getAllByKindMock.mockResolvedValue(allKind3);
-    getEventsDBMock.mockResolvedValue({
-      getByPubkeyAndKind: getByPubkeyAndKindMock,
-      getAllByKind: getAllByKindMock
-    });
+    mockGetSync
+      .mockResolvedValueOnce([{ event: kind3, seenOn: [], firstSeen: 0 }])
+      .mockResolvedValueOnce(allKind3.map((e) => ({ event: e, seenOn: [], firstSeen: 0 })));
 
     await loadFollows(MY_PUBKEY);
 
@@ -192,12 +187,9 @@ describe('loadFollows — DBキャッシュあり', () => {
     const kind3 = makeKind3Event(MY_PUBKEY, [FOLLOW_A]);
     // nonFollow は follows に含まれないので2ホップ対象外
     const allKind3 = [kind3, makeKind3Event(nonFollow, [STRANGER])];
-    getByPubkeyAndKindMock.mockResolvedValue(kind3);
-    getAllByKindMock.mockResolvedValue(allKind3);
-    getEventsDBMock.mockResolvedValue({
-      getByPubkeyAndKind: getByPubkeyAndKindMock,
-      getAllByKind: getAllByKindMock
-    });
+    mockGetSync
+      .mockResolvedValueOnce([{ event: kind3, seenOn: [], firstSeen: 0 }])
+      .mockResolvedValueOnce(allKind3.map((e) => ({ event: e, seenOn: [], firstSeen: 0 })));
 
     await loadFollows(MY_PUBKEY);
 
@@ -214,11 +206,7 @@ describe('loadFollows — DBキャッシュなし (WoT fetch)', () => {
   });
 
   it('DB に kind:3 がない場合は fetchWot を呼び出す', async () => {
-    getByPubkeyAndKindMock.mockResolvedValue(null);
-    getEventsDBMock.mockResolvedValue({
-      getByPubkeyAndKind: getByPubkeyAndKindMock,
-      getAllByKind: getAllByKindMock
-    });
+    mockGetSync.mockResolvedValueOnce([]);
     fetchWotMock.mockImplementation(
       async (
         pubkey: string,
@@ -243,11 +231,7 @@ describe('loadFollows — DBキャッシュなし (WoT fetch)', () => {
   });
 
   it('WoT fetch 完了後は loading=false になる', async () => {
-    getByPubkeyAndKindMock.mockResolvedValue(null);
-    getEventsDBMock.mockResolvedValue({
-      getByPubkeyAndKind: getByPubkeyAndKindMock,
-      getAllByKind: getAllByKindMock
-    });
+    mockGetSync.mockResolvedValueOnce([]);
     fetchWotMock.mockImplementation(
       async (
         _pubkey: string,
@@ -269,11 +253,7 @@ describe('loadFollows — DBキャッシュなし (WoT fetch)', () => {
   it('loading は fetchWot の呼び出し前に true にセットされる', async () => {
     let capturedLoading: boolean | null = null;
 
-    getByPubkeyAndKindMock.mockResolvedValue(null);
-    getEventsDBMock.mockResolvedValue({
-      getByPubkeyAndKind: getByPubkeyAndKindMock,
-      getAllByKind: getAllByKindMock
-    });
+    mockGetSync.mockResolvedValueOnce([]);
     fetchWotMock.mockImplementation(
       async (
         _pubkey: string,
@@ -294,11 +274,7 @@ describe('loadFollows — DBキャッシュなし (WoT fetch)', () => {
   });
 
   it('onDirectFollows コールバックで follows が更新される', async () => {
-    getByPubkeyAndKindMock.mockResolvedValue(null);
-    getEventsDBMock.mockResolvedValue({
-      getByPubkeyAndKind: getByPubkeyAndKindMock,
-      getAllByKind: getAllByKindMock
-    });
+    mockGetSync.mockResolvedValueOnce([]);
     fetchWotMock.mockImplementation(
       async (
         pubkey: string,
@@ -397,11 +373,6 @@ describe('refreshFollows', () => {
   });
 
   it('refreshFollows は fetchWot を呼びフォローを更新する', async () => {
-    getByPubkeyAndKindMock.mockResolvedValue(null);
-    getEventsDBMock.mockResolvedValue({
-      getByPubkeyAndKind: getByPubkeyAndKindMock,
-      getAllByKind: getAllByKindMock
-    });
     fetchWotMock.mockImplementation(
       async (
         pubkey: string,
@@ -468,11 +439,7 @@ describe('loadFollows — fetchWot エラーパス', () => {
   });
 
   it('fetchWot がエラーを投げても loading=false にリセットされる', async () => {
-    getByPubkeyAndKindMock.mockResolvedValue(null);
-    getEventsDBMock.mockResolvedValue({
-      getByPubkeyAndKind: getByPubkeyAndKindMock,
-      getAllByKind: getAllByKindMock
-    });
+    mockGetSync.mockResolvedValueOnce([]);
     fetchWotMock.mockRejectedValue(new Error('network error'));
 
     await expect(loadFollows(MY_PUBKEY)).rejects.toThrow('network error');
@@ -488,11 +455,7 @@ describe('loadFollows — generation キャンセル', () => {
   });
 
   it('clearFollows で generation が進むと fetchWot コールバックは state を更新しない', async () => {
-    getByPubkeyAndKindMock.mockResolvedValue(null);
-    getEventsDBMock.mockResolvedValue({
-      getByPubkeyAndKind: getByPubkeyAndKindMock,
-      getAllByKind: getAllByKindMock
-    });
+    mockGetSync.mockResolvedValueOnce([]);
 
     fetchWotMock.mockImplementation(
       async (

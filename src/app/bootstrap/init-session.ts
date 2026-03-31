@@ -21,12 +21,16 @@ export async function initSession(pubkey: string): Promise<void> {
   log.info('Initializing session stores');
 
   const [
+    { initStore },
     { applyUserRelays },
     { loadFollows, loadBookmarks, loadMuteList, loadCustomEmojis, refreshRelayList }
   ] = await Promise.all([
+    import('$shared/nostr/store.js'),
     import('$shared/nostr/user-relays.js'),
     import('$shared/browser/stores.js')
   ]);
+
+  await initStore();
 
   const relayUrls = await applyUserRelays(pubkey);
   void refreshRelayList(relayUrls);
@@ -52,12 +56,12 @@ export async function destroySession(): Promise<void> {
       clearMuteList,
       refreshRelayList
     },
-    { getEventsDB }
+    { disposeStore }
   ] = await Promise.all([
     import('$shared/nostr/user-relays.js'),
     import('$shared/nostr/relays.js'),
     import('$shared/browser/stores.js'),
-    import('$shared/nostr/gateway.js')
+    import('$shared/nostr/store.js')
   ]);
 
   await resetToDefaultRelays();
@@ -68,6 +72,5 @@ export async function destroySession(): Promise<void> {
   clearMuteList();
   void refreshRelayList(DEFAULT_RELAYS);
 
-  const db = await getEventsDB();
-  await db.clearAll();
+  disposeStore();
 }

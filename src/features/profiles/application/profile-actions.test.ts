@@ -5,7 +5,7 @@ const { fetchLatestEventMock, logErrorMock } = vi.hoisted(() => ({
   logErrorMock: vi.fn()
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
+vi.mock('$shared/nostr/client.js', () => ({
   fetchLatestEvent: fetchLatestEventMock
 }));
 

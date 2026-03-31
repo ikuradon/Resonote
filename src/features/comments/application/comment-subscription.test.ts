@@ -40,7 +40,7 @@ vi.mock('rx-nostr', () => ({
   uniq: uniqMock
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
+vi.mock('$shared/nostr/client.js', () => ({
   getRxNostr: getRxNostrMock
 }));
 

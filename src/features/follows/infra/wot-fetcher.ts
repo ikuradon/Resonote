@@ -22,12 +22,11 @@ export interface WotProgressCallback {
 }
 
 export async function fetchWot(pubkey: string, callbacks: WotProgressCallback): Promise<WotResult> {
-  const [{ createRxBackwardReq }, { getRxNostr, getEventsDB }] = await Promise.all([
+  const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
     import('rx-nostr'),
-    import('$shared/nostr/gateway.js')
+    import('$shared/nostr/client.js')
   ]);
   const rxNostr = await getRxNostr();
-  const eventsDB = await getEventsDB();
 
   // Step 1: Fetch direct follows
   const directFollows = await new Promise<Set<string>>((resolve) => {
@@ -37,7 +36,7 @@ export async function fetchWot(pubkey: string, callbacks: WotProgressCallback): 
     const sub = rxNostr.use(req).subscribe({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       next: (packet: any) => {
-        void eventsDB.put(packet.event);
+        // connectStore() handles caching automatically
         if (!latestEvent || packet.event.created_at > latestEvent.created_at) {
           latestEvent = packet.event;
         }
@@ -76,7 +75,7 @@ export async function fetchWot(pubkey: string, callbacks: WotProgressCallback): 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       next: (packet: any) => {
         if (callbacks.isCancelled()) return;
-        void eventsDB.put(packet.event);
+        // connectStore() handles caching automatically
         for (const tag of packet.event.tags) {
           if (tag[0] === 'p' && tag[1]) allWot.add(tag[1]);
         }

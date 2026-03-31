@@ -1,9 +1,9 @@
 import { untrack } from 'svelte';
 
 import { t } from '$shared/i18n/t.js';
-import { useCachedLatest, type UseCachedLatestResult } from '$shared/nostr/cached-query.js';
 import { RELAY_LIST_KIND } from '$shared/nostr/events.js';
 import { DEFAULT_RELAYS } from '$shared/nostr/relays.js';
+import { fetchLatest } from '$shared/nostr/store.js';
 
 import {
   type ConnectionState,
@@ -22,6 +22,11 @@ function defaultRelayEntries(): RelayEntry[] {
   return DEFAULT_RELAYS.map((url) => ({ url, read: true, write: true }));
 }
 
+interface RelayQueryState {
+  event: { tags: string[][]; content: string; created_at: number } | null;
+  settled: boolean;
+}
+
 export function createRelaySettingsViewModel(options: RelaySettingsViewModelOptions) {
   let entries = $state<RelayEntry[]>([]);
   let dirty = $state(false);
@@ -30,26 +35,32 @@ export function createRelaySettingsViewModel(options: RelaySettingsViewModelOpti
   let addUrl = $state('');
   let addError = $state('');
 
-  let relayQuery = $state<UseCachedLatestResult | undefined>(undefined);
+  let relayQueryState = $state<RelayQueryState>({ event: null, settled: false });
   let savedOkTimer: ReturnType<typeof setTimeout> | undefined;
 
   $effect(() => {
     const pubkey = options.getPubkey();
 
-    // Destroy previous query without tracking relayQuery as a dependency.
-    // Reading relayQuery here would create a circular dependency:
-    // effect writes relayQuery → relayQuery changes → effect re-runs → infinite loop
     untrack(() => {
-      relayQuery?.destroy();
-      relayQuery = undefined;
+      relayQueryState = { event: null, settled: false };
     });
 
     if (!pubkey) return;
 
-    relayQuery = useCachedLatest(pubkey, RELAY_LIST_KIND);
+    const abortFlag = { aborted: false };
+
+    void fetchLatest(pubkey, RELAY_LIST_KIND, { timeout: 10_000 })
+      .then((event) => {
+        if (abortFlag.aborted) return;
+        relayQueryState = { event, settled: true };
+      })
+      .catch(() => {
+        if (abortFlag.aborted) return;
+        relayQueryState = { event: null, settled: true };
+      });
+
     return () => {
-      relayQuery?.destroy();
-      relayQuery = undefined;
+      abortFlag.aborted = true;
     };
   });
 
@@ -60,8 +71,8 @@ export function createRelaySettingsViewModel(options: RelaySettingsViewModelOpti
   });
 
   let serverEntries = $derived.by(() => {
-    if (!relayQuery?.event) return [];
-    return parseRelayTags(relayQuery.event.tags);
+    if (!relayQueryState.event) return [];
+    return parseRelayTags(relayQueryState.event.tags);
   });
 
   $effect(() => {
@@ -70,9 +81,9 @@ export function createRelaySettingsViewModel(options: RelaySettingsViewModelOpti
     }
   });
 
-  let relayLoading = $derived(!relayQuery?.settled);
+  let relayLoading = $derived(!relayQueryState.settled);
   let noRelayList = $derived(
-    relayQuery?.settled === true && !relayQuery.event && entries.length === 0
+    relayQueryState.settled === true && !relayQueryState.event && entries.length === 0
   );
   let liveRelays = $derived(options.getLiveRelays());
 

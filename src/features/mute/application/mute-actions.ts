@@ -9,7 +9,7 @@ const log = createLogger('mute-actions');
 const MUTE_KIND = 10000;
 
 export async function publishMuteList(encryptedContent: string): Promise<void> {
-  const { castSigned } = await import('$shared/nostr/gateway.js');
+  const { castSigned } = await import('$shared/nostr/client.js');
   await castSigned({ kind: MUTE_KIND, tags: [], content: encryptedContent });
   log.info('Mute list published');
 }

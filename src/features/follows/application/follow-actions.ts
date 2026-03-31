@@ -11,7 +11,7 @@ const log = createLogger('follow-actions');
 const FOLLOW_KIND = 3;
 
 export async function publishFollow(pubkey: string, myPubkey: string): Promise<void> {
-  const { castSigned, fetchLatestEvent } = await import('$shared/nostr/gateway.js');
+  const { castSigned, fetchLatestEvent } = await import('$shared/nostr/client.js');
   const latest = await fetchLatestEvent(myPubkey, FOLLOW_KIND);
   const currentTags = latest?.tags ?? [];
 
@@ -26,7 +26,7 @@ export async function publishFollow(pubkey: string, myPubkey: string): Promise<v
 }
 
 export async function publishUnfollow(pubkey: string, myPubkey: string): Promise<void> {
-  const { castSigned, fetchLatestEvent } = await import('$shared/nostr/gateway.js');
+  const { castSigned, fetchLatestEvent } = await import('$shared/nostr/client.js');
   const latest = await fetchLatestEvent(myPubkey, FOLLOW_KIND);
   if (!latest) return;
 

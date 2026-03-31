@@ -7,7 +7,7 @@ const { getRxNostrMock, logInfoMock, logDebugMock } = vi.hoisted(() => ({
   logDebugMock: vi.fn()
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
+vi.mock('$shared/nostr/client.js', () => ({
   getRxNostr: getRxNostrMock
 }));
 

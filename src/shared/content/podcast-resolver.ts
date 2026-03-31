@@ -3,7 +3,8 @@ import type { EventParameters } from 'nostr-typedef';
 
 import { apiClient } from '$shared/api/client.js';
 import { normalizeUrl } from '$shared/content/url-utils.js';
-import { getEventsDB, getRxNostr } from '$shared/nostr/gateway.js';
+import { getRxNostr } from '$shared/nostr/client.js';
+import { getStore } from '$shared/nostr/store.js';
 import { htmlToMarkdown } from '$shared/utils/html.js';
 import { createLogger } from '$shared/utils/logger.js';
 
@@ -132,14 +133,20 @@ export async function searchBookmarkByUrl(url: string): Promise<DTagResult | nul
     const normalized = normalizeUrl(url);
 
     try {
-      const db = await getEventsDB();
-      const cached = await db.getByReplaceKey(pubkey, 39701, normalized);
-      if (cached) {
+      const store = getStore();
+      const cachedResults = await store.getSync({
+        kinds: [39701],
+        authors: [pubkey],
+        '#d': [normalized],
+        limit: 1
+      });
+      if (cachedResults.length > 0) {
+        const cached = cachedResults[0].event;
         const result = parseDTagEvent({ kind: 39701, tags: cached.tags, content: cached.content });
         if (result) return result;
       }
     } catch {
-      // DB not available
+      // Store not available
     }
 
     const { createRxBackwardReq, uniq } = await import('rx-nostr');
@@ -182,12 +189,7 @@ export async function searchBookmarkByUrl(url: string): Promise<DTagResult | nul
 
     if (!packet) return null;
 
-    try {
-      const db = await getEventsDB();
-      await db.put(packet.event);
-    } catch {
-      // DB not available
-    }
+    // connectStore() handles caching automatically
 
     return parseDTagEvent({
       kind: 39701,

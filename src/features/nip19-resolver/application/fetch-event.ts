@@ -15,7 +15,7 @@ export async function fetchNostrEvent(
 ): Promise<FetchedEvent | null> {
   const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
     import('rx-nostr'),
-    import('$shared/nostr/gateway.js')
+    import('$shared/nostr/client.js')
   ]);
   const rxNostr = await getRxNostr();
 

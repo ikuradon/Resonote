@@ -29,7 +29,7 @@ vi.mock('$shared/nostr/events.js', () => ({
   buildContentReaction: buildContentReactionMock
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
+vi.mock('$shared/nostr/client.js', () => ({
   castSigned: castSignedMock
 }));
 

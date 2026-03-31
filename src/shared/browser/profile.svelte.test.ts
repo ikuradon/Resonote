@@ -2,9 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // --- hoisted mocks ---
 const {
-  getEventsDBMock,
-  getManyByPubkeysAndKindMock,
-  putMock,
+  mockGetSync,
   getRxNostrMock,
   createRxBackwardReqMock,
   reqEmitMock,
@@ -14,14 +12,10 @@ const {
 } = vi.hoisted(() => {
   const reqEmitMock = vi.fn();
   const reqOverMock = vi.fn();
-  const getManyByPubkeysAndKindMock = vi.fn();
-  const putMock = vi.fn().mockResolvedValue(undefined);
-  const getEventsDBMock = vi.fn();
+  const mockGetSync = vi.fn();
 
   return {
-    getEventsDBMock,
-    getManyByPubkeysAndKindMock,
-    putMock,
+    mockGetSync,
     getRxNostrMock: vi.fn(),
     createRxBackwardReqMock: vi.fn(),
     reqEmitMock,
@@ -31,8 +25,15 @@ const {
   };
 });
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getEventsDB: getEventsDBMock,
+vi.mock('$shared/nostr/store.js', () => ({
+  getStore: () => ({
+    getSync: mockGetSync,
+    fetchById: vi.fn().mockResolvedValue(null),
+    dispose: vi.fn()
+  })
+}));
+
+vi.mock('$shared/nostr/client.js', () => ({
   getRxNostr: getRxNostrMock
 }));
 
@@ -86,12 +87,8 @@ function setupMocks(
 ) {
   const { complete = true, error } = opts;
 
-  // DB mock
-  getManyByPubkeysAndKindMock.mockResolvedValue(dbEvents);
-  getEventsDBMock.mockResolvedValue({
-    getManyByPubkeysAndKind: getManyByPubkeysAndKindMock,
-    put: putMock
-  });
+  // DB mock — wrap events in CachedEvent format
+  mockGetSync.mockResolvedValue(dbEvents.map((event) => ({ event, seenOn: [], firstSeen: 0 })));
 
   // relay mock
   const req = { emit: reqEmitMock, over: reqOverMock };
@@ -206,11 +203,7 @@ describe('fetchProfile — DB キャッシュあり', () => {
       tags: [],
       sig: 'sig'
     };
-    getManyByPubkeysAndKindMock.mockResolvedValue([badEvent]);
-    getEventsDBMock.mockResolvedValue({
-      getManyByPubkeysAndKind: getManyByPubkeysAndKindMock,
-      put: putMock
-    });
+    mockGetSync.mockResolvedValue([{ event: badEvent, seenOn: [], firstSeen: 0 }]);
     // DB キャッシュが失敗してもプロファイルは設定されないため relay fetch へ進む
     const req = { emit: reqEmitMock, over: reqOverMock };
     createRxBackwardReqMock.mockReturnValue(req);
@@ -233,11 +226,11 @@ describe('fetchProfile — DB キャッシュあり', () => {
     setupMocks([event], [], { complete: false });
 
     await fetchProfile(PUBKEY_A);
-    const callCount = getManyByPubkeysAndKindMock.mock.calls.length;
+    const callCount = mockGetSync.mock.calls.length;
 
     // 2回目の fetch は DB にアクセスしない
     await fetchProfile(PUBKEY_A);
-    expect(getManyByPubkeysAndKindMock.mock.calls.length).toBe(callCount);
+    expect(mockGetSync.mock.calls.length).toBe(callCount);
   });
 });
 
@@ -297,13 +290,14 @@ describe('fetchProfile — relay から取得', () => {
     expect(logWarnMock).toHaveBeenCalledWith('Malformed profile JSON', expect.any(Object));
   });
 
-  it('relay から取得したプロファイルは DB に保存される', async () => {
+  it('relay から取得したプロファイルは connectStore で自動キャッシュされる', async () => {
     const event = makeKind0Event(PUBKEY_B, { name: 'Bob' });
     setupMocks([], [{ event }]);
 
     await fetchProfiles([PUBKEY_B]);
 
-    expect(putMock).toHaveBeenCalledWith(event);
+    // connectStore() handles caching automatically — no explicit put call
+    expect(getProfile(PUBKEY_B)?.name).toBe('Bob');
   });
 
   it('複数 pubkey を同時に fetch できる', async () => {

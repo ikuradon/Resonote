@@ -15,7 +15,7 @@ import {
   searchBookmarkByUrl
 } from '$shared/content/resolution.js';
 import { fromBase64url, toBase64url } from '$shared/content/url-utils.js';
-import { publishSignedEvents } from '$shared/nostr/gateway.js';
+import { publishSignedEvents } from '$shared/nostr/publish-signed.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 import type { EpisodeMetadata, ResolutionResult } from '../domain/resolution-result.js';

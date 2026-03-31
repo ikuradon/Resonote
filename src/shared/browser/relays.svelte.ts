@@ -27,7 +27,7 @@ export function getRelays(): RelayState[] {
  */
 export async function refreshRelayList(urls: string[]): Promise<void> {
   log.info('Refreshing relay list', { count: urls.length, relays: urls });
-  const { getRxNostr } = await import('$shared/nostr/gateway.js');
+  const { getRxNostr } = await import('$shared/nostr/client.js');
   const rxNostr = await getRxNostr();
 
   relays = urls.map((url) => {
@@ -39,7 +39,7 @@ export async function refreshRelayList(urls: string[]): Promise<void> {
 export async function initRelayStatus(): Promise<void> {
   if (subscription) return;
 
-  const { getRxNostr } = await import('$shared/nostr/gateway.js');
+  const { getRxNostr } = await import('$shared/nostr/client.js');
   const rxNostr = await getRxNostr();
 
   relays = DEFAULT_RELAYS.map((url) => {
@@ -73,7 +73,7 @@ export async function fetchRelayList(pubkey: string): Promise<RelayListResult> {
   log.info('Fetching relay list for user', { pubkey });
   const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
     import('rx-nostr'),
-    import('$shared/nostr/gateway.js')
+    import('$shared/nostr/client.js')
   ]);
   const rxNostr = await getRxNostr();
 

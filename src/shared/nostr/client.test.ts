@@ -51,9 +51,7 @@ vi.mock('$shared/utils/logger.js', () => ({
   createLogger: () => ({ debug: vi.fn(), info: vi.fn(), error: vi.fn() })
 }));
 
-vi.mock('$shared/nostr/event-db.js', () => ({
-  getEventsDB: async () => ({ put: vi.fn() })
-}));
+// event-db.js mock removed — client.ts no longer depends on event-db (auftakt connectStore handles caching)
 
 beforeEach(() => {
   vi.resetModules();

@@ -9,7 +9,7 @@ vi.mock('./auth.svelte.js', () => ({
   getAuth: () => authState
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
+vi.mock('$shared/nostr/client.js', () => ({
   fetchLatestEvent: vi.fn(async () => null)
 }));
 

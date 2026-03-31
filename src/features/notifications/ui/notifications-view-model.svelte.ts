@@ -7,8 +7,8 @@
 
 import { type FollowFilter, matchesFilter } from '$shared/browser/follows.js';
 import { isMuted, isWordMuted } from '$shared/browser/mute.js';
+import { getRxNostr } from '$shared/nostr/client.js';
 import { COMMENT_KIND, REACTION_KIND } from '$shared/nostr/events.js';
-import { getRxNostr } from '$shared/nostr/gateway.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 
 import { classifyNotificationEvent } from '../domain/notification-classifier.js';

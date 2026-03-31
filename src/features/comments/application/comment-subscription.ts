@@ -45,7 +45,7 @@ export async function loadSubscriptionDeps(): Promise<SubscriptionRefs> {
   const [{ merge }, rxNostrMod, { getRxNostr }] = await Promise.all([
     import('rxjs'),
     import('rx-nostr'),
-    import('$shared/nostr/gateway.js')
+    import('$shared/nostr/client.js')
   ]);
   const rxNostr = await getRxNostr();
   return { rxNostr, rxNostrMod, rxjsMerge: merge };

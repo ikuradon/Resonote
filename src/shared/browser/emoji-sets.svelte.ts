@@ -90,12 +90,13 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
   log.info('Loading custom emojis', { pubkey: shortHex(pubkey) });
 
   try {
-    const { getEventsDB } = await import('$shared/nostr/gateway.js');
-    const eventsDB = await getEventsDB();
+    const { getStore } = await import('$shared/nostr/store.js');
+    const store = getStore();
 
-    const cachedList = await eventsDB.getByPubkeyAndKind(pubkey, 10030);
+    const cachedListResults = await store.getSync({ kinds: [10030], authors: [pubkey], limit: 1 });
     if (gen !== generation) return;
 
+    const cachedList = cachedListResults.length > 0 ? cachedListResults[0].event : null;
     if (cachedList) {
       const { inlineEmojis, setRefs } = extractFromEmojiList(cachedList);
 
@@ -104,7 +105,13 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
           setRefs.map(async (ref) => {
             const parts = ref.split(':');
             if (parts.length < 3 || !parts[1] || !parts[2]) return null;
-            const cached = await eventsDB.getByReplaceKey(parts[1], 30030, parts[2]);
+            const cachedResults = await store.getSync({
+              kinds: [30030],
+              authors: [parts[1]],
+              '#d': [parts[2]],
+              limit: 1
+            });
+            const cached = cachedResults.length > 0 ? cachedResults[0].event : null;
             return cached ? buildCategoryFromEvent(cached) : null;
           })
         )
@@ -123,7 +130,7 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
 
     const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
       import('rx-nostr'),
-      import('$shared/nostr/gateway.js')
+      import('$shared/nostr/client.js')
     ]);
     const rxNostr = await getRxNostr();
 
@@ -137,9 +144,7 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
 
       const sub = rxNostr.use(req).subscribe({
         next: (packet) => {
-          eventsDB
-            .put(packet.event)
-            .catch((err) => log.error('Failed to cache emoji list event', err));
+          // connectStore() handles caching automatically
           for (const tag of packet.event.tags) {
             if (isEmojiTag(tag)) {
               emojis.push({ shortcode: tag[1], url: tag[2] });
@@ -192,9 +197,7 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
 
             const sub = rxNostr.use(req).subscribe({
               next: (packet) => {
-                eventsDB
-                  .put(packet.event)
-                  .catch((err) => log.error('Failed to cache emoji set event', err));
+                // connectStore() handles caching automatically
                 const category = buildCategoryFromEvent(packet.event);
                 if (category) categories.push(category);
               },

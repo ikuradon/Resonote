@@ -3,8 +3,8 @@
  * Encapsulates infra access for profile page.
  */
 
+import { fetchLatestEvent } from '$shared/nostr/client.js';
 import { FOLLOW_KIND } from '$shared/nostr/events.js';
-import { fetchLatestEvent } from '$shared/nostr/gateway.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('profile-actions');

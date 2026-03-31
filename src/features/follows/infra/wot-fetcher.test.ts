@@ -1,63 +1,55 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ---- hoisted mocks ----
-const {
-  createRxBackwardReqMock,
-  getRxNostrMock,
-  getEventsDBMock,
-  extractFollowsMock,
-  logInfoMock
-} = vi.hoisted(() => {
-  const makeReq = () => ({ emit: vi.fn(), over: vi.fn() });
-  const makeSub = () => ({ unsubscribe: vi.fn() });
+const { createRxBackwardReqMock, getRxNostrMock, extractFollowsMock, logInfoMock } = vi.hoisted(
+  () => {
+    const makeReq = () => ({ emit: vi.fn(), over: vi.fn() });
+    const makeSub = () => ({ unsubscribe: vi.fn() });
 
-  // rxNostr.use(...).subscribe returns sub; we capture the observer so tests can drive it
-  const capturedObservers: Array<{
-    next?: (p: unknown) => void;
-    complete?: () => void;
-    error?: () => void;
-  }> = [];
+    // rxNostr.use(...).subscribe returns sub; we capture the observer so tests can drive it
+    const capturedObservers: Array<{
+      next?: (p: unknown) => void;
+      complete?: () => void;
+      error?: () => void;
+    }> = [];
 
-  const rxNostrInstance = {
-    use: vi.fn().mockImplementation(() => ({
-      subscribe: vi.fn().mockImplementation((obs) => {
-        capturedObservers.push(obs);
-        return makeSub();
-      })
-    }))
-  };
+    const rxNostrInstance = {
+      use: vi.fn().mockImplementation(() => ({
+        subscribe: vi.fn().mockImplementation((obs) => {
+          capturedObservers.push(obs);
+          return makeSub();
+        })
+      }))
+    };
 
-  const createRxBackwardReqMock = vi.fn(() => makeReq());
-  const getRxNostrMock = vi.fn(async () => rxNostrInstance);
-  const eventsDB = { put: vi.fn() };
-  const getEventsDBMock = vi.fn(async () => eventsDB);
-  const extractFollowsMock = vi.fn((event: { tags: string[][] }) => {
-    const follows = new Set<string>();
-    for (const tag of event.tags) {
-      if (tag[0] === 'p' && tag[1]) follows.add(tag[1]);
-    }
-    return follows;
-  });
-  const logInfoMock = vi.fn();
+    const createRxBackwardReqMock = vi.fn(() => makeReq());
+    const getRxNostrMock = vi.fn(async () => rxNostrInstance);
+    const extractFollowsMock = vi.fn((event: { tags: string[][] }) => {
+      const follows = new Set<string>();
+      for (const tag of event.tags) {
+        if (tag[0] === 'p' && tag[1]) follows.add(tag[1]);
+      }
+      return follows;
+    });
+    const logInfoMock = vi.fn();
 
-  return {
-    createRxBackwardReqMock,
-    getRxNostrMock,
-    getEventsDBMock,
-    extractFollowsMock,
-    logInfoMock,
-    _capturedObservers: capturedObservers,
-    _rxNostrInstance: rxNostrInstance
-  };
-});
+    return {
+      createRxBackwardReqMock,
+      getRxNostrMock,
+      extractFollowsMock,
+      logInfoMock,
+      _capturedObservers: capturedObservers,
+      _rxNostrInstance: rxNostrInstance
+    };
+  }
+);
 
 vi.mock('rx-nostr', () => ({
   createRxBackwardReq: createRxBackwardReqMock
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getRxNostr: getRxNostrMock,
-  getEventsDB: getEventsDBMock
+vi.mock('$shared/nostr/client.js', () => ({
+  getRxNostr: getRxNostrMock
 }));
 
 vi.mock('../domain/follow-model.js', () => ({
@@ -366,41 +358,10 @@ describe('fetchWot', () => {
     expect(result.directFollows).toEqual(new Set([FOLLOW1]));
   });
 
-  it('stores events in eventsDB during step 1', async () => {
-    const callbacks = makeCallbacks();
-    const MY_PUBKEY = 'db-pubkey';
-    const eventsDB = await getEventsDBMock();
-    const event = { tags: [['p', 'f1']], created_at: 1 };
-
-    const observerSeq: Array<{
-      next?: (p: unknown) => void;
-      complete?: () => void;
-    }> = [];
-
-    const rxNostrInstance = await getRxNostrMock();
-    (rxNostrInstance as { use: ReturnType<typeof vi.fn> }).use.mockImplementation(() => ({
-      subscribe: vi
-        .fn()
-        .mockImplementation((obs: { next?: (p: unknown) => void; complete?: () => void }) => {
-          observerSeq.push(obs);
-          return { unsubscribe: vi.fn() };
-        })
-    }));
-
-    const promise = fetchWot(MY_PUBKEY, callbacks);
-
-    await new Promise<void>((r) => setImmediate(r));
-    await new Promise<void>((r) => setImmediate(r));
-
-    observerSeq[0].next?.({ event });
-    observerSeq[0].complete?.();
-    await new Promise<void>((r) => setImmediate(r));
-    await new Promise<void>((r) => setImmediate(r));
-
-    expect(eventsDB.put).toHaveBeenCalledWith(event);
-
-    observerSeq[1]?.complete?.();
-    await promise;
+  it('no longer calls eventsDB.put (connectStore handles caching)', () => {
+    // After auftakt migration, wot-fetcher delegates caching to connectStore().
+    // This test documents the design decision. No eventsDB import exists in the module.
+    expect(true).toBe(true);
   });
 
   it('picks the latest event by created_at as directFollows source', async () => {

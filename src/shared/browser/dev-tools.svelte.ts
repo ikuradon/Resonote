@@ -8,12 +8,12 @@ const EVENTS_DB_NAME = 'resonote-events';
 
 export async function loadDbStats(): Promise<DbStats> {
   try {
-    const { getEventsDB } = await import('$shared/nostr/gateway.js');
-    const db = await getEventsDB();
+    const { getStore } = await import('$shared/nostr/store.js');
+    const store = getStore();
     const byKind: { kind: number; count: number }[] = [];
     let total = 0;
     for (const kind of TRACKED_KINDS) {
-      const events = await db.getAllByKind(kind);
+      const events = await store.getSync({ kinds: [kind] });
       if (events.length > 0) {
         byKind.push({ kind, count: events.length });
         total += events.length;
@@ -25,10 +25,9 @@ export async function loadDbStats(): Promise<DbStats> {
   }
 }
 
-export async function clearIndexedDB(): Promise<void> {
-  const { getEventsDB } = await import('$shared/nostr/gateway.js');
-  const db = await getEventsDB();
-  await db.clearAll();
+export function clearIndexedDB(): void {
+  // After auftakt migration, clearing IDB is done by deleting the database directly
+  indexedDB.deleteDatabase(EVENTS_DB_NAME);
 }
 
 export function clearLocalStorage(key: string): void {

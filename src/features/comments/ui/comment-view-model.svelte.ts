@@ -9,7 +9,6 @@
  */
 
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
-import { cachedFetchById, invalidateFetchByIdCache } from '$shared/nostr/cached-query.js';
 import {
   COMMENT_KIND,
   CONTENT_REACTION_KIND,
@@ -17,6 +16,7 @@ import {
   extractDeletionTargets,
   REACTION_KIND
 } from '$shared/nostr/events.js';
+import { getStore } from '$shared/nostr/store.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 
 import {
@@ -189,8 +189,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     if (toPurge.length > 0 && eventsDB) void purgeDeletedFromCache(eventsDB, toPurge);
     log.debug('Deletion event received', { deletedIds: verified.map(shortHex) });
 
-    // Invalidate fetch cache for deleted events so re-visits don't restore them
-    for (const id of verified) invalidateFetchByIdCache(id);
+    // auftakt store handles deletedIds internally — no explicit cache invalidation needed
 
     // Update orphan placeholders to 'deleted' when kind:5 arrives later
     let updatedPlaceholders: Map<string, PlaceholderComment> | null = null;
@@ -518,7 +517,8 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     next.set(parentId, placeholderFromOrphan(parentId, estimatedPositionMs));
     placeholders = next;
 
-    const result = await cachedFetchById(parentId);
+    const fetched = await getStore().fetchById(parentId, { negativeTTL: 30_000 });
+    const result = fetched?.event ?? null;
 
     if (destroyed) return;
 
@@ -528,7 +528,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
         if (!commentIds.has(result.id)) {
           commentIds.add(result.id);
           eventPubkeys.set(result.id, result.pubkey);
-          commentsRaw = [...commentsRaw, commentFromEvent(result)];
+          commentsRaw = [...commentsRaw, commentFromEvent(result as CachedEvent)];
         }
         const updated = new Map(placeholders);
         updated.delete(parentId);

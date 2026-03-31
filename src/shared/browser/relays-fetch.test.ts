@@ -13,7 +13,7 @@ const { getRxNostrMock, createRxBackwardReqMock, reqEmitMock, reqOverMock, publi
     };
   });
 
-vi.mock('$shared/nostr/gateway.js', () => ({
+vi.mock('$shared/nostr/client.js', () => ({
   getRxNostr: getRxNostrMock
 }));
 

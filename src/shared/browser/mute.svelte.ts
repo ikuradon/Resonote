@@ -80,7 +80,7 @@ export async function loadMuteList(pubkey: string): Promise<void> {
   log.info('Loading mute list', { pubkey: shortHex(pubkey) });
 
   try {
-    const { fetchLatestEvent } = await import('$shared/nostr/gateway.js');
+    const { fetchLatestEvent } = await import('$shared/nostr/client.js');
     const latest = await fetchLatestEvent(pubkey, MUTE_KIND);
     if (gen !== generation) return;
 

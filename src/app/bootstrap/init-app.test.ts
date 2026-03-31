@@ -21,7 +21,7 @@ vi.mock('$shared/browser/extension.js', () => ({
   initExtensionListener: initExtensionListenerMock
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
+vi.mock('$shared/nostr/publish-signed.js', () => ({
   retryPendingPublishes: retryPendingPublishesMock
 }));
 

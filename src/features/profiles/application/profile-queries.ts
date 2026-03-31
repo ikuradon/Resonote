@@ -27,7 +27,7 @@ export async function fetchProfileComments(
 ): Promise<ProfileCommentsResult> {
   const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
     import('rx-nostr'),
-    import('$shared/nostr/gateway.js')
+    import('$shared/nostr/client.js')
   ]);
   const rxNostr = await getRxNostr();
   const req = createRxBackwardReq();

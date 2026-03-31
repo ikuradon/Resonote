@@ -56,16 +56,16 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
   for (const pk of toFetch) pending.add(pk);
 
   try {
-    const { getEventsDB } = await import('$shared/nostr/gateway.js');
-    const eventsDB = await getEventsDB();
-    const cached = await eventsDB.getManyByPubkeysAndKind(toFetch, 0);
+    const { getStore } = await import('$shared/nostr/store.js');
+    const store = getStore();
+    const cached = await store.getSync({ kinds: [0], authors: toFetch });
 
-    for (const event of cached) {
+    for (const cachedEvent of cached) {
       try {
-        const profile = parseProfileContent(event.content);
-        profiles.set(event.pubkey, profile);
+        const profile = parseProfileContent(cachedEvent.event.content);
+        profiles.set(cachedEvent.event.pubkey, profile);
       } catch {
-        log.warn('Malformed cached profile JSON', { pubkey: shortHex(event.pubkey) });
+        log.warn('Malformed cached profile JSON', { pubkey: shortHex(cachedEvent.event.pubkey) });
       }
     }
 
@@ -78,7 +78,7 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
 
     const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
       import('rx-nostr'),
-      import('$shared/nostr/gateway.js')
+      import('$shared/nostr/client.js')
     ]);
     const rxNostr = await getRxNostr();
 
@@ -91,9 +91,7 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
           try {
             const profile = parseProfileContent(packet.event.content);
             profiles.set(packet.event.pubkey, profile);
-            eventsDB
-              .put(packet.event)
-              .catch((e) => log.error('Failed to persist profile event', e));
+            // connectStore() handles caching automatically
             const nip05 = profile.nip05;
             if (nip05) {
               void import('$shared/nostr/nip05.js').then(({ verifyNip05 }) =>
