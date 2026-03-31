@@ -11,26 +11,49 @@ import { createLogger } from '$shared/utils/logger.js';
 const log = createLogger('nostr:store');
 
 let store: EventStore | undefined;
+let initPromise: Promise<void> | undefined;
 let disconnectStore: (() => void) | undefined;
 
+/**
+ * Get the EventStore singleton. If initStore() hasn't completed yet,
+ * lazily triggers initialization and waits (same pattern as old getEventsDB).
+ */
+export async function getStoreAsync(): Promise<EventStore> {
+  if (store) return store;
+  await initStore();
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- initStore guarantees store is set
+  return store!;
+}
+
+/**
+ * Get the EventStore synchronously. Throws if not yet initialized.
+ * For code that must be synchronous; prefer getStoreAsync() otherwise.
+ */
 export function getStore(): EventStore {
   if (!store) throw new Error('Store not initialized. Call initStore() first.');
   return store;
 }
 
 export async function initStore(): Promise<void> {
-  const [{ createEventStore }, { indexedDBBackend }, { connectStore }, { getRxNostr }] =
-    await Promise.all([
-      import('@ikuradon/auftakt'),
-      import('@ikuradon/auftakt/backends/indexeddb'),
-      import('@ikuradon/auftakt/sync'),
-      import('./client.js')
-    ]);
+  if (store) return;
+  if (initPromise) return initPromise;
 
-  store = createEventStore({ backend: indexedDBBackend('resonote-events') });
-  const rxNostr = await getRxNostr();
-  disconnectStore = connectStore(rxNostr, store, { reconcileDeletions: true });
-  log.info('Auftakt store initialized');
+  initPromise = (async () => {
+    const [{ createEventStore }, { indexedDBBackend }, { connectStore }, { getRxNostr }] =
+      await Promise.all([
+        import('@ikuradon/auftakt'),
+        import('@ikuradon/auftakt/backends/indexeddb'),
+        import('@ikuradon/auftakt/sync'),
+        import('./client.js')
+      ]);
+
+    store = createEventStore({ backend: indexedDBBackend('resonote-events') });
+    const rxNostr = await getRxNostr();
+    disconnectStore = connectStore(rxNostr, store, { reconcileDeletions: true });
+    log.info('Auftakt store initialized');
+  })();
+
+  return initPromise;
 }
 
 export function disposeStore(): void {
@@ -38,6 +61,7 @@ export function disposeStore(): void {
   disconnectStore = undefined;
   store?.dispose();
   store = undefined;
+  initPromise = undefined;
   log.info('Auftakt store disposed');
 }
 
@@ -50,7 +74,7 @@ export async function fetchLatest(
   kind: number,
   options?: { timeout?: number }
 ): Promise<NostrEvent | null> {
-  const s = getStore();
+  const s = await getStoreAsync();
 
   // 1. Local cache
   const cached = await s.getSync({ kinds: [kind], authors: [pubkey], limit: 1 });

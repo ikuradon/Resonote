@@ -1,7 +1,7 @@
 import { untrack } from 'svelte';
 
 import { fetchProfiles } from '$shared/browser/profile.js';
-import { getStore } from '$shared/nostr/store.js';
+import { getStoreAsync } from '$shared/nostr/store.js';
 import { truncateString } from '$shared/utils/format.js';
 import { createLogger } from '$shared/utils/logger.js';
 
@@ -75,7 +75,7 @@ export function createNotificationFeedViewModel(
 
       void Promise.all(
         targetIds.map(async (id) => {
-          const result = await getStore().fetchById(id, { negativeTTL: 30_000 });
+          const result = await (await getStoreAsync()).fetchById(id, { negativeTTL: 30_000 });
           return { id, event: result?.event ?? null };
         })
       )

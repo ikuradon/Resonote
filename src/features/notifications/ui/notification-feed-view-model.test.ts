@@ -17,7 +17,7 @@ vi.mock('$shared/browser/profile.js', () => ({
 }));
 
 vi.mock('$shared/nostr/store.js', () => ({
-  getStore: () => ({
+  getStoreAsync: () => ({
     fetchById: async (id: string) => {
       const event = await cachedFetchByIdMock(id);
       return event ? { event, seenOn: [], firstSeen: 0 } : null;

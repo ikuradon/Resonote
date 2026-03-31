@@ -83,8 +83,8 @@ async function fetchWotInner(pubkey: string, gen: number): Promise<void> {
 export async function loadFollows(pubkey: string): Promise<void> {
   const gen = ++generation;
 
-  const { getStore } = await import('$shared/nostr/store.js');
-  const store = getStore();
+  const { getStoreAsync } = await import('$shared/nostr/store.js');
+  const store = await getStoreAsync();
 
   const kind3Results = await store.getSync({ kinds: [FOLLOW_KIND], authors: [pubkey], limit: 1 });
   if (gen !== generation) return;

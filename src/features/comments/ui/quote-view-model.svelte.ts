@@ -5,7 +5,7 @@
 
 import { fetchProfile, getDisplayName } from '$shared/browser/profile.js';
 import { COMMENT_KIND } from '$shared/nostr/events.js';
-import { getStore } from '$shared/nostr/store.js';
+import { getStoreAsync } from '$shared/nostr/store.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('quote-vm');
@@ -29,7 +29,7 @@ export function createQuoteViewModel(eventId: string) {
 
   async function load() {
     try {
-      const result = await getStore().fetchById(eventId, { negativeTTL: 30_000 });
+      const result = await (await getStoreAsync()).fetchById(eventId, { negativeTTL: 30_000 });
       if (!result) {
         status = 'not-found';
         return;

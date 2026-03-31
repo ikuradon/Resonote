@@ -8,8 +8,8 @@ const EVENTS_DB_NAME = 'resonote-events';
 
 export async function loadDbStats(): Promise<DbStats> {
   try {
-    const { getStore } = await import('$shared/nostr/store.js');
-    const store = getStore();
+    const { getStoreAsync } = await import('$shared/nostr/store.js');
+    const store = await getStoreAsync();
     const byKind: { kind: number; count: number }[] = [];
     let total = 0;
     for (const kind of TRACKED_KINDS) {

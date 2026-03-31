@@ -27,7 +27,7 @@ vi.mock('$shared/utils/emoji.js', () => ({
 }));
 
 vi.mock('$shared/nostr/store.js', () => ({
-  getStore: () => ({
+  getStoreAsync: () => ({
     getSync: mockGetSync,
     fetchById: vi.fn().mockResolvedValue(null),
     dispose: vi.fn()

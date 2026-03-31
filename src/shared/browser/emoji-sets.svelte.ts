@@ -90,8 +90,8 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
   log.info('Loading custom emojis', { pubkey: shortHex(pubkey) });
 
   try {
-    const { getStore } = await import('$shared/nostr/store.js');
-    const store = getStore();
+    const { getStoreAsync } = await import('$shared/nostr/store.js');
+    const store = await getStoreAsync();
 
     const cachedListResults = await store.getSync({ kinds: [10030], authors: [pubkey], limit: 1 });
     if (gen !== generation) return;

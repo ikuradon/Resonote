@@ -13,7 +13,7 @@ vi.mock('@rx-nostr/crypto', () => ({
 }));
 
 vi.mock('$shared/nostr/store.js', () => ({
-  getStore: () => ({
+  getStoreAsync: () => ({
     getSync: (...args: unknown[]) => mockGetEventsDB(...(args as [])),
     fetchById: vi.fn().mockResolvedValue(null),
     dispose: vi.fn()

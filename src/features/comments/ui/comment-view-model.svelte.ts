@@ -16,7 +16,7 @@ import {
   extractDeletionTargets,
   REACTION_KIND
 } from '$shared/nostr/events.js';
-import { getStore } from '$shared/nostr/store.js';
+import { getStoreAsync } from '$shared/nostr/store.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 
 import {
@@ -517,7 +517,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     next.set(parentId, placeholderFromOrphan(parentId, estimatedPositionMs));
     placeholders = next;
 
-    const fetched = await getStore().fetchById(parentId, { negativeTTL: 30_000 });
+    const fetched = await (await getStoreAsync()).fetchById(parentId, { negativeTTL: 30_000 });
     const result = fetched?.event ?? null;
 
     if (destroyed) return;

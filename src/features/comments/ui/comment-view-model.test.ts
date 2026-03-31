@@ -125,7 +125,7 @@ vi.mock('$shared/nostr/events.js', () => ({
 }));
 
 vi.mock('$shared/nostr/store.js', () => ({
-  getStore: () => ({
+  getStoreAsync: () => ({
     fetchById: fetchByIdMock,
     getSync: vi.fn().mockResolvedValue([]),
     dispose: vi.fn()
@@ -577,6 +577,8 @@ describe('createCommentViewModel', () => {
 
       // Start fetch — this enters the fetch path (deletedIds.has is false)
       const fetchPromise = vm.fetchOrphanParent(parentId, null);
+      // Flush microtask so getStoreAsync() resolves and fetchByIdMock is called
+      await new Promise<void>((r) => setImmediate(r));
 
       // While fetch is pending, simulate deletion event arriving via live subscription
       verifyDeletionTargetsMock.mockReturnValue([parentId]);
@@ -1405,6 +1407,8 @@ describe('createCommentViewModel', () => {
 
       const vm = createCommentViewModel(contentId, provider);
       const promise = vm.fetchOrphanParent('destroyed-parent', null);
+      // Flush microtask so getStoreAsync() resolves and fetchByIdMock is called
+      await new Promise<void>((r) => setImmediate(r));
 
       vm.destroy();
       resolveFetch({ event: makeCommentEvent('destroyed-parent'), seenOn: [], firstSeen: 0 });

@@ -17,7 +17,7 @@ vi.mock('$shared/content/podcast-resolver.js', () => ({
 const mockGetSync = vi.fn();
 const mockGetRxNostr = vi.fn();
 vi.mock('$shared/nostr/store.js', () => ({
-  getStore: () => ({
+  getStoreAsync: () => ({
     getSync: (...args: unknown[]) => mockGetSync(...(args as [])),
     fetchById: vi.fn().mockResolvedValue(null),
     dispose: vi.fn()

@@ -4,7 +4,7 @@ import type { EventParameters } from 'nostr-typedef';
 import { apiClient } from '$shared/api/client.js';
 import { normalizeUrl } from '$shared/content/url-utils.js';
 import { getRxNostr } from '$shared/nostr/client.js';
-import { getStore } from '$shared/nostr/store.js';
+import { getStoreAsync } from '$shared/nostr/store.js';
 import { htmlToMarkdown } from '$shared/utils/html.js';
 import { createLogger } from '$shared/utils/logger.js';
 
@@ -133,7 +133,7 @@ export async function searchBookmarkByUrl(url: string): Promise<DTagResult | nul
     const normalized = normalizeUrl(url);
 
     try {
-      const store = getStore();
+      const store = await getStoreAsync();
       const cachedResults = await store.getSync({
         kinds: [39701],
         authors: [pubkey],

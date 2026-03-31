@@ -7,7 +7,7 @@ const { mockGetSync, logErrorMock, logInfoMock } = vi.hoisted(() => ({
 }));
 
 vi.mock('$shared/nostr/store.js', () => ({
-  getStore: vi.fn().mockReturnValue({
+  getStoreAsync: vi.fn().mockReturnValue({
     getSync: mockGetSync,
     fetchById: vi.fn().mockResolvedValue(null),
     dispose: vi.fn()

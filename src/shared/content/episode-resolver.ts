@@ -3,7 +3,7 @@ import type { DTagResult } from '$shared/content/podcast-resolver.js';
 import { getSystemPubkey, parseDTagEvent, resolveByApi } from '$shared/content/podcast-resolver.js';
 import { fromBase64url } from '$shared/content/url-utils.js';
 import { getRxNostr } from '$shared/nostr/client.js';
-import { getStore } from '$shared/nostr/store.js';
+import { getStoreAsync } from '$shared/nostr/store.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('episode-resolver');
@@ -78,7 +78,7 @@ async function queryNostrForEpisode(guid: string): Promise<DTagResult | null> {
     if (!pubkey) return null;
 
     try {
-      const store = getStore();
+      const store = await getStoreAsync();
       const cached = await store.getSync({
         kinds: [39701],
         authors: [pubkey],

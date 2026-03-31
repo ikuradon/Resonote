@@ -8,7 +8,7 @@ const mockGetDisplayName = vi.fn();
 const mockFetchProfile = vi.fn();
 
 vi.mock('$shared/nostr/store.js', () => ({
-  getStore: () => ({
+  getStoreAsync: () => ({
     fetchById: async (...args: unknown[]) => {
       const event = await mockCachedFetchById(...args);
       return event ? { event, seenOn: [], firstSeen: 0 } : null;

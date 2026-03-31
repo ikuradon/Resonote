@@ -56,8 +56,8 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
   for (const pk of toFetch) pending.add(pk);
 
   try {
-    const { getStore } = await import('$shared/nostr/store.js');
-    const store = getStore();
+    const { getStoreAsync } = await import('$shared/nostr/store.js');
+    const store = await getStoreAsync();
     const cached = await store.getSync({ kinds: [0], authors: toFetch });
 
     for (const cachedEvent of cached) {

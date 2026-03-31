@@ -23,8 +23,8 @@ export interface CachedEvent {
 }
 
 export async function getCommentRepository(): Promise<EventsDB> {
-  const { getStore } = await import('$shared/nostr/store.js');
-  const store = getStore();
+  const { getStoreAsync } = await import('$shared/nostr/store.js');
+  const store = await getStoreAsync();
 
   return {
     async getByTagValue(tagQuery: string): Promise<CachedEvent[]> {
