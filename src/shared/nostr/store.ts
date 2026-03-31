@@ -72,7 +72,7 @@ export function disposeStore(): void {
 export async function fetchLatest(
   pubkey: string,
   kind: number,
-  options?: { timeout?: number }
+  options?: { timeout?: number; signal?: AbortSignal }
 ): Promise<NostrEvent | null> {
   const s = await getStoreAsync();
 
@@ -97,7 +97,8 @@ export async function fetchLatest(
 
   const synced = createSyncedQuery(rxNostr, s, {
     filter: { kinds: [kind], authors: [pubkey], limit: 1 },
-    strategy: 'backward'
+    strategy: 'backward',
+    signal: options?.signal
   });
   try {
     const result = await firstValueFrom(

@@ -13,10 +13,10 @@ export async function loadDbStats(): Promise<DbStats> {
     const byKind: { kind: number; count: number }[] = [];
     let total = 0;
     for (const kind of TRACKED_KINDS) {
-      const events = await store.getSync({ kinds: [kind] });
-      if (events.length > 0) {
-        byKind.push({ kind, count: events.length });
-        total += events.length;
+      const count = await store.count({ kinds: [kind] });
+      if (count > 0) {
+        byKind.push({ kind, count });
+        total += count;
       }
     }
     return { total, byKind };

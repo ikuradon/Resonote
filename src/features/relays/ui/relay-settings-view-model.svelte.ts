@@ -47,20 +47,20 @@ export function createRelaySettingsViewModel(options: RelaySettingsViewModelOpti
 
     if (!pubkey) return;
 
-    const abortFlag = { aborted: false };
+    const controller = new AbortController();
 
-    void fetchLatest(pubkey, RELAY_LIST_KIND, { timeout: 10_000 })
+    void fetchLatest(pubkey, RELAY_LIST_KIND, { timeout: 10_000, signal: controller.signal })
       .then((event) => {
-        if (abortFlag.aborted) return;
+        if (controller.signal.aborted) return;
         relayQueryState = { event, settled: true };
       })
       .catch(() => {
-        if (abortFlag.aborted) return;
+        if (controller.signal.aborted) return;
         relayQueryState = { event: null, settled: true };
       });
 
     return () => {
-      abortFlag.aborted = true;
+      controller.abort();
     };
   });
 
