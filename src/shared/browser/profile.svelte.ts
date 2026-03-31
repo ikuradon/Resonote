@@ -76,79 +76,68 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
       return;
     }
 
-    const [{ createSyncedQuery }, { getRxNostr }] = await Promise.all([
-      import('@ikuradon/auftakt/sync'),
+    const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
+      import('rx-nostr'),
       import('$shared/nostr/client.js')
     ]);
     const rxNostr = await getRxNostr();
 
     for (let i = 0; i < toFetch.length; i += PROFILE_BATCH_SIZE) {
       const chunk = toFetch.slice(i, i + PROFILE_BATCH_SIZE);
+      const req = createRxBackwardReq();
 
-      const synced = createSyncedQuery(rxNostr, store, {
-        filter: { kinds: [0], authors: chunk },
-        strategy: 'backward'
-      });
-
-      const sub = synced.events$.subscribe({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        next: (events: any[]) => {
-          for (const ce of events) {
-            const pk = ce.event.pubkey;
-            if (profiles.has(pk)) continue;
-            try {
-              const profile = parseProfileContent(ce.event.content);
-              profiles.set(pk, profile);
-              // connectStore() handles caching automatically
-              const nip05 = profile.nip05;
-              if (nip05) {
-                void import('$shared/nostr/nip05.js').then(({ verifyNip05 }) =>
-                  verifyNip05(nip05, pk).then((result) => {
-                    const existing = profiles.get(pk);
-                    if (existing && existing.nip05 === profile.nip05) {
-                      const updated = { ...existing, nip05valid: result.valid };
-                      profiles.set(pk, updated);
-                      profiles = new Map(profiles);
-                    }
-                  })
-                );
-              }
-            } catch {
-              log.warn('Malformed profile JSON', { pubkey: shortHex(pk) });
+      const sub = rxNostr.use(req).subscribe({
+        next: (packet: { event: { pubkey: string; content: string }; from: string }) => {
+          const pk = packet.event.pubkey;
+          if (profiles.has(pk)) return;
+          try {
+            const profile = parseProfileContent(packet.event.content);
+            profiles.set(pk, profile);
+            // connectStore() handles caching automatically
+            const nip05 = profile.nip05;
+            if (nip05) {
+              void import('$shared/nostr/nip05.js').then(({ verifyNip05 }) =>
+                verifyNip05(nip05, pk).then((result) => {
+                  const existing = profiles.get(pk);
+                  if (existing && existing.nip05 === profile.nip05) {
+                    const updated = { ...existing, nip05valid: result.valid };
+                    profiles.set(pk, updated);
+                    profiles = new Map(profiles);
+                  }
+                })
+              );
             }
+          } catch {
+            log.warn('Malformed profile JSON', { pubkey: shortHex(pk) });
           }
+          profiles = new Map(profiles);
+        },
+        complete: () => {
+          sub.unsubscribe();
+          for (const pk of chunk) {
+            if (!profiles.has(pk)) {
+              profiles.set(pk, {});
+            }
+            pending.delete(pk);
+          }
+
+          if (profiles.size > MAX_PROFILES) {
+            const keys = [...profiles.keys()];
+            const toRemove = keys.slice(0, profiles.size - MAX_PROFILES);
+            for (const key of toRemove) profiles.delete(key);
+          }
+
+          profiles = new Map(profiles);
         },
         error: (err: unknown) => {
           log.warn('Profile fetch subscription error', { error: err });
+          sub.unsubscribe();
           for (const pk of chunk) pending.delete(pk);
         }
       });
 
-      // Wait for backward to complete via status$
-      const statusSub = synced.status$.subscribe({
-        next: (status: string) => {
-          if (status === 'complete') {
-            statusSub.unsubscribe();
-            sub.unsubscribe();
-            synced.dispose();
-
-            for (const pk of chunk) {
-              if (!profiles.has(pk)) {
-                profiles.set(pk, {});
-              }
-              pending.delete(pk);
-            }
-
-            if (profiles.size > MAX_PROFILES) {
-              const keys = [...profiles.keys()];
-              const toRemove = keys.slice(0, profiles.size - MAX_PROFILES);
-              for (const key of toRemove) profiles.delete(key);
-            }
-
-            profiles = new Map(profiles);
-          }
-        }
-      });
+      req.emit({ kinds: [0], authors: chunk });
+      req.over();
     }
   } catch (err) {
     log.error('Profile fetch failed', { error: err });

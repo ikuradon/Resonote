@@ -1,13 +1,12 @@
-import { BehaviorSubject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // --- hoisted mocks ---
-const { mockGetSync, getRxNostrMock, createSyncedQueryMock, logWarnMock, logErrorMock } =
+const { mockGetSync, createRxBackwardReqMock, getRxNostrMock, logWarnMock, logErrorMock } =
   vi.hoisted(() => {
     return {
       mockGetSync: vi.fn(),
+      createRxBackwardReqMock: vi.fn(),
       getRxNostrMock: vi.fn(),
-      createSyncedQueryMock: vi.fn(),
       logWarnMock: vi.fn(),
       logErrorMock: vi.fn()
     };
@@ -21,12 +20,12 @@ vi.mock('$shared/nostr/store.js', () => ({
   })
 }));
 
-vi.mock('$shared/nostr/client.js', () => ({
-  getRxNostr: getRxNostrMock
+vi.mock('rx-nostr', () => ({
+  createRxBackwardReq: createRxBackwardReqMock
 }));
 
-vi.mock('@ikuradon/auftakt/sync', () => ({
-  createSyncedQuery: createSyncedQueryMock
+vi.mock('$shared/nostr/client.js', () => ({
+  getRxNostr: getRxNostrMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -72,48 +71,40 @@ function setupMocks(
   // DB mock — wrap events in CachedEvent format
   mockGetSync.mockResolvedValue(dbEvents.map((event) => ({ event, seenOn: [], firstSeen: 0 })));
 
-  // relay mock via createSyncedQuery
-  getRxNostrMock.mockResolvedValue({});
+  // relay mock via rx-nostr backward req
+  type Observer = {
+    next?: (packet: { event: Record<string, unknown>; from: string }) => void;
+    complete?: () => void;
+    error?: (err: Error) => void;
+  };
+  let capturedObserver: Observer | undefined;
 
-  const eventsSubject = new BehaviorSubject<unknown[]>([]);
-  const statusSubject = new BehaviorSubject<string>('cached');
-  const disposeFn = vi.fn();
+  const mockReq = { emit: vi.fn(), over: vi.fn() };
+  createRxBackwardReqMock.mockReturnValue(mockReq);
 
-  createSyncedQueryMock.mockReturnValue({
-    events$: eventsSubject.asObservable(),
-    status$: statusSubject.asObservable(),
-    emit: vi.fn(),
-    dispose: disposeFn
-  });
-
-  // Push relay events asynchronously.
-  // Use setTimeout with a small delay to ensure the production code has assigned
-  // statusSub before the 'complete' status triggers statusSub.unsubscribe().
-  // BehaviorSubject replays current value on subscribe — if 'complete' is set
-  // before subscribe, it fires synchronously during subscription causing TDZ error.
-  setTimeout(() => {
-    if (error) {
-      eventsSubject.error(error);
-    } else {
-      if (relayPackets.length > 0) {
-        eventsSubject.next(
-          relayPackets.map((p) => ({
-            event: p.event,
-            seenOn: ['wss://relay.test'],
-            firstSeen: Date.now()
-          }))
-        );
-      }
-      if (complete) {
-        // Extra setTimeout to ensure statusSub assignment is complete
+  const mockSub = { unsubscribe: vi.fn() };
+  const mockRxNostr = {
+    use: vi.fn().mockReturnValue({
+      subscribe: vi.fn((obs: Observer) => {
+        capturedObserver = obs;
+        // Deliver relay events asynchronously
         setTimeout(() => {
-          statusSubject.next('complete');
-        }, 0);
-      }
-    }
-  }, 10);
+          if (error) {
+            obs.error?.(error);
+          } else {
+            for (const p of relayPackets) {
+              obs.next?.({ event: p.event, from: 'wss://relay.test' });
+            }
+            if (complete) obs.complete?.();
+          }
+        }, 10);
+        return mockSub;
+      })
+    })
+  };
+  getRxNostrMock.mockResolvedValue(mockRxNostr);
 
-  return { eventsSubject, statusSubject, disposeFn };
+  return { mockRxNostr, mockReq, mockSub, capturedObserver };
 }
 
 // --- tests ---
@@ -214,23 +205,17 @@ describe('fetchProfile — DB キャッシュあり', () => {
     };
     mockGetSync.mockResolvedValue([{ event: badEvent, seenOn: [], firstSeen: 0 }]);
 
-    getRxNostrMock.mockResolvedValue({});
-
-    const eventsSubject = new BehaviorSubject<unknown[]>([]);
-    const statusSubject = new BehaviorSubject<string>('cached');
-    createSyncedQueryMock.mockReturnValue({
-      events$: eventsSubject.asObservable(),
-      status$: statusSubject.asObservable(),
-      emit: vi.fn(),
-      dispose: vi.fn()
+    // Relay mock — returns no events, just completes
+    const mockReq = { emit: vi.fn(), over: vi.fn() };
+    createRxBackwardReqMock.mockReturnValue(mockReq);
+    getRxNostrMock.mockResolvedValue({
+      use: vi.fn().mockReturnValue({
+        subscribe: vi.fn((obs: { complete?: () => void }) => {
+          setTimeout(() => obs.complete?.(), 10);
+          return { unsubscribe: vi.fn() };
+        })
+      })
     });
-
-    // Use nested setTimeout to ensure statusSub is assigned before 'complete' fires
-    setTimeout(() => {
-      setTimeout(() => {
-        statusSubject.next('complete');
-      }, 0);
-    }, 10);
 
     await fetchProfile(PUBKEY_A);
     await new Promise<void>((r) => setTimeout(r, 50));
