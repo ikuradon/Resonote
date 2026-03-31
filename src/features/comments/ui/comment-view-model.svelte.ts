@@ -343,7 +343,35 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
 
     const handles: SyncedQueryHandle[] = [];
 
+    // Merge filters by tag type to minimize REQ count:
+    // - #I filters (comment/reaction/deletion): combine into one SyncedQuery
+    // - #i filters (content reaction): separate SyncedQuery
+    const iUpperKinds: number[] = [];
+    const iLowerKinds: number[] = [];
+    let iUpperTag: string | undefined;
+    let iLowerTag: string | undefined;
+
     for (const filter of filters) {
+      const tagI = filter['#I'];
+      const tagi = filter['#i'];
+      if (tagI) {
+        iUpperKinds.push(...filter.kinds);
+        iUpperTag = tagI[0];
+      } else if (tagi) {
+        iLowerKinds.push(...filter.kinds);
+        iLowerTag = tagi[0];
+      }
+    }
+
+    const mergedFilters: Array<{ kinds: number[]; [key: `#${string}`]: string[] | undefined }> = [];
+    if (iUpperKinds.length > 0 && iUpperTag) {
+      mergedFilters.push({ kinds: iUpperKinds, '#I': [iUpperTag] });
+    }
+    if (iLowerKinds.length > 0 && iLowerTag) {
+      mergedFilters.push({ kinds: iLowerKinds, '#i': [iLowerTag] });
+    }
+
+    for (const filter of mergedFilters) {
       const queryFilter = options?.since ? { ...filter, since: options.since } : filter;
       const synced = createSyncedQuery(rxNostr, store, {
         filter: queryFilter,

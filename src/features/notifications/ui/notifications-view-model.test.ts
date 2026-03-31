@@ -121,12 +121,9 @@ function resetSubscriptionMocks() {
  * The production code iterates over ce.event for each CachedEvent in the array.
  */
 function pushEvent(subjectIndex: number, event: Record<string, unknown>) {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- array index may be out of bounds
-  const subject =
-    mockEventsSubjects[subjectIndex] ??
-    (() => {
-      throw new Error(`No subject at index ${subjectIndex}`);
-    })();
+  const subject = mockEventsSubjects[subjectIndex];
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  if (!subject) throw new Error(`No subject at index ${subjectIndex}`);
   // Get current events and append
   const current = subject.getValue();
   subject.next([...current, { event, seenOn: ['wss://relay.test'], firstSeen: Date.now() }]);

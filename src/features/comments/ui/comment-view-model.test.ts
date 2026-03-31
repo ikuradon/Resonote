@@ -198,12 +198,9 @@ function setupSyncedQuery(): void {
  * Wraps the event in CachedEvent format with seenOn relay hint.
  */
 function pushLiveEvent(event: Record<string, unknown>, subjectIndex = 0): void {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- array index may be out of bounds
-  const subject =
-    mockEventsSubjects[subjectIndex] ??
-    (() => {
-      throw new Error(`No subject at index ${subjectIndex}`);
-    })();
+  const subject = mockEventsSubjects[subjectIndex];
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  if (!subject) throw new Error(`No subject at index ${subjectIndex}`);
   const current = subject.getValue();
   subject.next([...current, { event, seenOn: ['wss://relay.test'], firstSeen: Date.now() }]);
 }
@@ -219,7 +216,12 @@ describe('createCommentViewModel', () => {
     // Re-apply default return values after clearAllMocks
     getCommentRepositoryMock.mockResolvedValue({ put: vi.fn() });
     restoreFromCacheMock.mockResolvedValue([]);
-    buildContentFiltersMock.mockReturnValue([{ kinds: [1111] }]);
+    buildContentFiltersMock.mockReturnValue([
+      { kinds: [1111], '#I': ['spotify:track:test-id'] },
+      { kinds: [7], '#I': ['spotify:track:test-id'] },
+      { kinds: [5], '#I': ['spotify:track:test-id'] },
+      { kinds: [17], '#i': ['spotify:track:test-id'] }
+    ]);
     purgeDeletedFromCacheMock.mockResolvedValue(undefined);
     commentFromEventMock.mockImplementation(
       (event: {
