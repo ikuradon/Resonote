@@ -16,8 +16,8 @@ importers:
         specifier: ^0.7.6
         version: 0.7.6(hono@4.12.9)(zod@4.3.6)
       '@ikuradon/auftakt':
-        specifier: ^0.0.2
-        version: 0.0.2(rx-nostr@3.6.2)(rxjs@7.8.2)
+        specifier: ^0.0.4
+        version: 0.0.4(rx-nostr@3.6.2)(rxjs@7.8.2)
       '@ikuradon/emoji-kitchen-mart':
         specifier: ^7.0.0
         version: 7.0.0
@@ -626,8 +626,8 @@ packages:
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
 
-  '@ikuradon/auftakt@0.0.2':
-    resolution: {integrity: sha512-FtPTx7TprHgwDKSPNldXkeZ1L5R63QsM9+L5BTPGiau855b9DyA7sY2uWYJlG/sri0EE0rPXG1YgHPAq6gsrog==}
+  '@ikuradon/auftakt@0.0.4':
+    resolution: {integrity: sha512-MBrzYi8fO6hLdvli4SLxNsEkk64S6DGypVMwuaqPHTUstbAqpOaRXEKLLE1scRQmvDkiGKYgVpWRtH8SWuR5MA==}
     engines: {node: '>=24'}
     peerDependencies:
       rx-nostr: ^3.0.0
@@ -2557,7 +2557,7 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
-  '@ikuradon/auftakt@0.0.2(rx-nostr@3.6.2)(rxjs@7.8.2)':
+  '@ikuradon/auftakt@0.0.4(rx-nostr@3.6.2)(rxjs@7.8.2)':
     dependencies:
       nostr-typedef: 0.13.0
       rx-nostr: 3.6.2
