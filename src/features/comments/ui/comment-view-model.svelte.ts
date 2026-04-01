@@ -443,6 +443,12 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
         filters,
         maxCreatedAt ? { since: maxCreatedAt + 1 } : undefined
       );
+      // destroyed may flip while awaiting dynamic imports / store init
+      if (destroyed) {
+        for (const h of handles) h.dispose();
+        loading = false;
+        return;
+      }
       syncedQueries = handles;
 
       // Mark loading as complete after a short delay to allow backward data to arrive

@@ -19,6 +19,7 @@ const {
   isLikeReactionMock,
   verifyDeletionTargetsMock,
   fetchByIdMock,
+  getStoreAsyncMock,
   createSyncedQueryMock,
   mockEventsSubjects,
   logInfoMock,
@@ -67,6 +68,11 @@ const {
     isLikeReactionMock: vi.fn().mockReturnValue(true),
     verifyDeletionTargetsMock: vi.fn().mockReturnValue([]),
     fetchByIdMock: vi.fn().mockResolvedValue(null),
+    getStoreAsyncMock: vi.fn().mockResolvedValue({
+      fetchById: vi.fn(),
+      getSync: vi.fn().mockResolvedValue([]),
+      dispose: vi.fn()
+    }),
     createSyncedQueryMock: vi.fn(),
     mockEventsSubjects: [] as BehaviorSubject<unknown[]>[],
     logInfoMock: vi.fn(),
@@ -113,11 +119,7 @@ vi.mock('$shared/nostr/events.js', () => ({
 }));
 
 vi.mock('$shared/nostr/store.js', () => ({
-  getStoreAsync: vi.fn().mockResolvedValue({
-    fetchById: fetchByIdMock,
-    getSync: vi.fn().mockResolvedValue([]),
-    dispose: vi.fn()
-  })
+  getStoreAsync: getStoreAsyncMock
 }));
 
 vi.mock('$shared/nostr/client.js', () => ({
@@ -253,6 +255,11 @@ describe('createCommentViewModel', () => {
     isLikeReactionMock.mockReturnValue(true);
     verifyDeletionTargetsMock.mockReturnValue([]);
     fetchByIdMock.mockResolvedValue(null);
+    getStoreAsyncMock.mockResolvedValue({
+      fetchById: fetchByIdMock,
+      getSync: vi.fn().mockResolvedValue([]),
+      dispose: vi.fn()
+    });
     setupSyncedQuery();
   });
 
@@ -356,6 +363,50 @@ describe('createCommentViewModel', () => {
       getCommentRepositoryMock.mockRejectedValue(new Error('network error'));
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
+      expect(vm.loading).toBe(false);
+    });
+
+    it('disposes handles if destroyed while startSyncedSubscription is awaiting', async () => {
+      let resolveStore!: (value: {
+        fetchById: typeof fetchByIdMock;
+        getSync: () => Promise<[]>;
+      }) => void;
+      getStoreAsyncMock.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveStore = resolve as typeof resolveStore;
+          })
+      );
+
+      const disposeA = vi.fn();
+      const disposeB = vi.fn();
+      createSyncedQueryMock
+        .mockImplementationOnce(() => ({
+          events$: new BehaviorSubject<unknown[]>([]).asObservable(),
+          status$: new BehaviorSubject<string>('cached').asObservable(),
+          emit: vi.fn(),
+          dispose: disposeA
+        }))
+        .mockImplementationOnce(() => ({
+          events$: new BehaviorSubject<unknown[]>([]).asObservable(),
+          status$: new BehaviorSubject<string>('cached').asObservable(),
+          emit: vi.fn(),
+          dispose: disposeB
+        }));
+
+      const vm = createCommentViewModel(contentId, provider);
+      const subscribePromise = vm.subscribe();
+      await new Promise<void>((r) => setImmediate(r));
+
+      vm.destroy();
+      resolveStore({
+        fetchById: fetchByIdMock,
+        getSync: vi.fn().mockResolvedValue([])
+      });
+      await subscribePromise;
+
+      expect(disposeA).toHaveBeenCalledOnce();
+      expect(disposeB).toHaveBeenCalledOnce();
       expect(vm.loading).toBe(false);
     });
   });
