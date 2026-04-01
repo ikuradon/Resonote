@@ -94,7 +94,7 @@ export async function fetchLatest(
   if (cached.length > 0) return cached[0].event;
 
   // 2. Relay fetch via SyncedQuery backward
-  const [{ createSyncedQuery }, { getRxNostr }] = await Promise.all([
+  const [{ createSyncedQuery }, { fetchLatestEvent, getRxNostr }] = await Promise.all([
     import('@ikuradon/auftakt/sync'),
     import('./client.js')
   ]);
@@ -138,7 +138,8 @@ export async function fetchLatest(
       | typeof completeSentinel;
     if (result === completeSentinel) {
       const refreshed = await s.getSync({ kinds: [kind], authors: [pubkey], limit: 1 });
-      return refreshed[0]?.event ?? null;
+      if (refreshed.length > 0) return refreshed[0].event;
+      return await fetchLatestEvent(pubkey, kind);
     }
     return result;
   } finally {

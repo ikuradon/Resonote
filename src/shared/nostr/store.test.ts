@@ -27,6 +27,7 @@ vi.mock('@ikuradon/auftakt/sync', () => ({
   createSyncedQuery: vi.fn()
 }));
 vi.mock('./client.js', () => ({
+  fetchLatestEvent: vi.fn().mockResolvedValue(null),
   getRxNostr: vi.fn().mockResolvedValue({ createAllEventObservable: vi.fn() })
 }));
 
@@ -52,6 +53,7 @@ describe('store.ts', () => {
         createSyncedQuery: vi.fn()
       }));
       vi.doMock('./client.js', () => ({
+        fetchLatestEvent: vi.fn().mockResolvedValue(null),
         getRxNostr: vi.fn().mockResolvedValue({ createAllEventObservable: vi.fn() })
       }));
 
@@ -150,6 +152,7 @@ describe('store.ts', () => {
         createSyncedQuery: vi.fn()
       }));
       vi.doMock('./client.js', () => ({
+        fetchLatestEvent: vi.fn().mockResolvedValue(null),
         getRxNostr: mockGetRxNostr
       }));
 
@@ -193,6 +196,7 @@ describe('store.ts', () => {
         createSyncedQuery: vi.fn()
       }));
       vi.doMock('./client.js', () => ({
+        fetchLatestEvent: vi.fn().mockResolvedValue(null),
         getRxNostr: vi.fn().mockResolvedValue({ createAllEventObservable: vi.fn() })
       }));
 
@@ -240,6 +244,7 @@ describe('store.ts', () => {
         createSyncedQuery: vi.fn()
       }));
       vi.doMock('./client.js', () => ({
+        fetchLatestEvent: vi.fn().mockResolvedValue(null),
         getRxNostr: vi.fn().mockResolvedValue({ createAllEventObservable: vi.fn() })
       }));
 
@@ -285,6 +290,7 @@ describe('store.ts', () => {
         })
       }));
       vi.doMock('./client.js', () => ({
+        fetchLatestEvent: vi.fn().mockResolvedValue(null),
         getRxNostr: vi.fn().mockResolvedValue({ createAllEventObservable: vi.fn() })
       }));
 
@@ -331,6 +337,7 @@ describe('store.ts', () => {
         })
       }));
       vi.doMock('./client.js', () => ({
+        fetchLatestEvent: vi.fn().mockResolvedValue(null),
         getRxNostr: vi.fn().mockResolvedValue({ createAllEventObservable: vi.fn() })
       }));
 
@@ -391,6 +398,7 @@ describe('store.ts', () => {
         })
       }));
       vi.doMock('./client.js', () => ({
+        fetchLatestEvent: vi.fn().mockResolvedValue(null),
         getRxNostr: vi.fn().mockResolvedValue({ createAllEventObservable: vi.fn() })
       }));
 
@@ -406,6 +414,67 @@ describe('store.ts', () => {
         authors: ['pk1'],
         limit: 1
       });
+      expect(mockDispose).toHaveBeenCalled();
+    });
+
+    it('falls back to direct relay fetch when backward completion still leaves store empty', async () => {
+      vi.resetModules();
+
+      const mockDispose = vi.fn();
+      const { BehaviorSubject } = await import('rxjs');
+      const eventsSubject = new BehaviorSubject<unknown[]>([]);
+      const statusSubject = new BehaviorSubject('cached');
+      const fallbackEvent = {
+        id: 'fallback',
+        kind: 10003,
+        pubkey: 'pk1',
+        created_at: 300,
+        tags: [['i', 'spotify:track:abc123']],
+        content: '',
+        sig: ''
+      };
+
+      const mockStore8 = {
+        add: vi.fn(),
+        query: vi.fn(),
+        fetchById: vi.fn(),
+        getSync: vi.fn().mockResolvedValue([]),
+        dispose: vi.fn(),
+        changes$: { subscribe: vi.fn() },
+        _setConnectFilter: vi.fn(),
+        _getConnectFilter: vi.fn()
+      };
+      const getRxNostrMock = vi.fn().mockResolvedValue({ createAllEventObservable: vi.fn() });
+      const fetchLatestEventMock = vi.fn().mockResolvedValue(fallbackEvent);
+
+      vi.doMock('@ikuradon/auftakt', () => ({
+        createEventStore: vi.fn().mockReturnValue(mockStore8)
+      }));
+      vi.doMock('@ikuradon/auftakt/backends/dexie', () => ({
+        dexieBackend: vi.fn().mockReturnValue({})
+      }));
+      vi.doMock('@ikuradon/auftakt/sync', () => ({
+        connectStore: vi.fn().mockReturnValue(() => {}),
+        createSyncedQuery: vi.fn().mockReturnValue({
+          events$: eventsSubject.asObservable(),
+          status$: statusSubject.asObservable(),
+          emit: vi.fn(),
+          dispose: mockDispose
+        })
+      }));
+      vi.doMock('./client.js', () => ({
+        fetchLatestEvent: fetchLatestEventMock,
+        getRxNostr: getRxNostrMock
+      }));
+
+      const { initStore, fetchLatest } = await import('./store.js');
+      await initStore();
+
+      const resultPromise = fetchLatest('pk1', 10003, { timeout: 10_000 });
+      statusSubject.next('complete');
+
+      await expect(resultPromise).resolves.toEqual(fallbackEvent);
+      expect(fetchLatestEventMock).toHaveBeenCalledWith('pk1', 10003);
       expect(mockDispose).toHaveBeenCalled();
     });
   });

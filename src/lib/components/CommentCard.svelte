@@ -118,7 +118,7 @@
   </svg>
 {/snippet}
 
-<div
+<article
   data-comment-id={comment.id}
   class="{compact
     ? 'rounded-lg border border-border-subtle bg-surface-1/50 p-3'
@@ -460,4 +460,4 @@
       </div>
     {/if}
   {/if}
-</div>
+</article>

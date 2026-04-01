@@ -1,4 +1,4 @@
-import type { EventParameters } from 'nostr-typedef';
+import type { Event as NostrEvent, EventParameters } from 'nostr-typedef';
 import type { RxNostr } from 'rx-nostr';
 
 import { DEFAULT_RELAYS } from '$shared/nostr/relays.js';
@@ -70,56 +70,51 @@ export async function castSigned(
   });
 }
 
-export async function fetchLatestEvent(
-  pubkey: string,
-  kind: number
-): Promise<{ tags: string[][]; content: string; created_at: number } | null> {
+export async function fetchLatestEvent(pubkey: string, kind: number): Promise<NostrEvent | null> {
   const { createRxBackwardReq } = await import('rx-nostr');
   const instance = await getRxNostr();
 
-  return new Promise<{ tags: string[][]; content: string; created_at: number } | null>(
-    (resolve) => {
-      const req = createRxBackwardReq();
-      let latest: { tags: string[][]; content: string; created_at: number } | null = null;
-      let resolved = false;
+  return new Promise<NostrEvent | null>((resolve) => {
+    const req = createRxBackwardReq();
+    let latest: NostrEvent | null = null;
+    let resolved = false;
 
-      const timeout = setTimeout(() => {
+    const timeout = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        sub.unsubscribe();
+        resolve(latest);
+      }
+    }, 10_000);
+
+    const sub = instance.use(req).subscribe({
+      next: (packet) => {
+        if (!latest || packet.event.created_at > latest.created_at) {
+          latest = packet.event;
+        }
+        // connectStore() handles caching to auftakt store automatically
+      },
+      complete: () => {
         if (!resolved) {
           resolved = true;
+          clearTimeout(timeout);
           sub.unsubscribe();
           resolve(latest);
         }
-      }, 10_000);
-
-      const sub = instance.use(req).subscribe({
-        next: (packet) => {
-          if (!latest || packet.event.created_at > latest.created_at) {
-            latest = packet.event;
-          }
-          // connectStore() handles caching to auftakt store automatically
-        },
-        complete: () => {
-          if (!resolved) {
-            resolved = true;
-            clearTimeout(timeout);
-            sub.unsubscribe();
-            resolve(latest);
-          }
-        },
-        error: () => {
-          if (!resolved) {
-            resolved = true;
-            clearTimeout(timeout);
-            sub.unsubscribe();
-            resolve(latest);
-          }
+      },
+      error: () => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          sub.unsubscribe();
+          resolve(latest);
         }
-      });
+      }
+    });
 
-      req.emit({ kinds: [kind], authors: [pubkey], limit: 1 });
-      req.over();
-    }
-  );
+    req.emit({ kinds: [kind], authors: [pubkey], limit: 1 });
+    req.over();
+  });
 }
 
 export function disposeRxNostr(): void {
