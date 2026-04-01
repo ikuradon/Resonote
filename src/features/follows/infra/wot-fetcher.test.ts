@@ -291,12 +291,6 @@ describe('fetchWot', () => {
     expect(createSyncedQueryMock).not.toHaveBeenCalled();
   });
 
-  it('no longer calls eventsDB.put (connectStore handles caching)', () => {
-    // After auftakt migration, wot-fetcher delegates caching to connectStore().
-    // This test documents the design decision. No eventsDB import exists in the module.
-    expect(true).toBe(true);
-  });
-
   it('picks the latest event by created_at as directFollows source', async () => {
     const callbacks = makeCallbacks();
     const MY_PUBKEY = 'latest-pubkey';

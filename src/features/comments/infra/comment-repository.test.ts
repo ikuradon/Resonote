@@ -99,11 +99,10 @@ describe('restoreFromCache', () => {
 });
 
 describe('purgeDeletedFromCache', () => {
-  it('is a no-op (auftakt handles deletions via kind:5)', async () => {
+  it('does not call db.deleteByIds (auftakt handles deletions via kind:5)', async () => {
     const db = makeDb();
     await purgeDeletedFromCache(db, ['id-1', 'id-2']);
-    // purgeDeletedFromCache is now a no-op
-    expect(true).toBe(true);
+    expect(db.deleteByIds).not.toHaveBeenCalled();
   });
 
   it('does not throw when ids is empty', async () => {
@@ -118,6 +117,7 @@ describe('purgeDeletedFromCache', () => {
 
   it('is always a no-op regardless of db state', async () => {
     const db = makeDb();
-    await expect(purgeDeletedFromCache(db, ['id-1'])).resolves.toBeUndefined();
+    await purgeDeletedFromCache(db, ['id-1']);
+    expect(db.deleteByIds).not.toHaveBeenCalled();
   });
 });

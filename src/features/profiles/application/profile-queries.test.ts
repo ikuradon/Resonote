@@ -39,7 +39,7 @@ import { fetchProfileComments } from './profile-queries.js';
 const PUBKEY = 'aabbccdd'.repeat(8);
 
 /**
- * Set up createSyncedQuery mock to emit CachedEvent[] then complete.
+ * Set up createSyncedQuery mock so the backward query completes with the desired snapshot.
  */
 function setupSyncedQuery(
   cachedEvents: Array<{
