@@ -1,6 +1,6 @@
 /**
  * Follow actions — follow/unfollow user.
- * Encapsulates infra (castSigned, fetchLatestEvent).
+ * Encapsulates infra (castSigned, fetchLatest).
  */
 
 import { createLogger, shortHex } from '$shared/utils/logger.js';
@@ -11,8 +11,9 @@ const log = createLogger('follow-actions');
 const FOLLOW_KIND = 3;
 
 export async function publishFollow(pubkey: string, myPubkey: string): Promise<void> {
-  const { castSigned, fetchLatestEvent } = await import('$shared/nostr/client.js');
-  const latest = await fetchLatestEvent(myPubkey, FOLLOW_KIND);
+  const { castSigned } = await import('$shared/nostr/client.js');
+  const { fetchLatest } = await import('$shared/nostr/store.js');
+  const latest = await fetchLatest(myPubkey, FOLLOW_KIND);
   const currentTags = latest?.tags ?? [];
 
   if (currentTags.some((t) => t[0] === 'p' && t[1] === pubkey)) {
@@ -26,8 +27,9 @@ export async function publishFollow(pubkey: string, myPubkey: string): Promise<v
 }
 
 export async function publishUnfollow(pubkey: string, myPubkey: string): Promise<void> {
-  const { castSigned, fetchLatestEvent } = await import('$shared/nostr/client.js');
-  const latest = await fetchLatestEvent(myPubkey, FOLLOW_KIND);
+  const { castSigned } = await import('$shared/nostr/client.js');
+  const { fetchLatest } = await import('$shared/nostr/store.js');
+  const latest = await fetchLatest(myPubkey, FOLLOW_KIND);
   if (!latest) return;
 
   const tags = latest.tags.filter((t) => !(t[0] === 'p' && t[1] === pubkey));

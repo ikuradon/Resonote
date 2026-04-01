@@ -36,6 +36,8 @@ export async function initSession(pubkey: string): Promise<void> {
   void refreshRelayList(relayUrls);
 
   // Fire-and-forget: load user data in parallel
+  const { fetchProfile } = await import('$shared/browser/profile.js');
+  void fetchProfile(pubkey).catch((err) => log.error('Failed to load profile', err));
   void loadFollows(pubkey).catch((err) => log.error('Failed to load follows', err));
   void loadCustomEmojis(pubkey).catch((err) => log.error('Failed to load custom emojis', err));
   void loadBookmarks(pubkey).catch((err) => log.error('Failed to load bookmarks', err));

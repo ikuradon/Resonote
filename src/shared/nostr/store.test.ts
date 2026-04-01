@@ -19,8 +19,8 @@ const mockConnectStore = vi.fn().mockReturnValue(() => {});
 vi.mock('@ikuradon/auftakt', () => ({
   createEventStore: mockCreateEventStore
 }));
-vi.mock('@ikuradon/auftakt/backends/indexeddb', () => ({
-  indexedDBBackend: mockIndexedDBBackend
+vi.mock('@ikuradon/auftakt/backends/dexie', () => ({
+  dexieBackend: mockIndexedDBBackend
 }));
 vi.mock('@ikuradon/auftakt/sync', () => ({
   connectStore: mockConnectStore,
@@ -44,8 +44,8 @@ describe('store.ts', () => {
       vi.doMock('@ikuradon/auftakt', () => ({
         createEventStore: mockCreateEventStore
       }));
-      vi.doMock('@ikuradon/auftakt/backends/indexeddb', () => ({
-        indexedDBBackend: mockIndexedDBBackend
+      vi.doMock('@ikuradon/auftakt/backends/dexie', () => ({
+        dexieBackend: mockIndexedDBBackend
       }));
       vi.doMock('@ikuradon/auftakt/sync', () => ({
         connectStore: mockConnectStore,
@@ -82,8 +82,8 @@ describe('store.ts', () => {
       vi.doMock('@ikuradon/auftakt', () => ({
         createEventStore: mockCreate2
       }));
-      vi.doMock('@ikuradon/auftakt/backends/indexeddb', () => ({
-        indexedDBBackend: mockBackend2
+      vi.doMock('@ikuradon/auftakt/backends/dexie', () => ({
+        dexieBackend: mockBackend2
       }));
       vi.doMock('@ikuradon/auftakt/sync', () => ({
         connectStore: mockConnect2,
@@ -96,7 +96,7 @@ describe('store.ts', () => {
       const { initStore, getStore } = await import('./store.js');
       await initStore();
 
-      expect(mockBackend2).toHaveBeenCalledWith('resonote-events');
+      expect(mockBackend2).toHaveBeenCalledWith({ dbName: 'resonote-events' });
       expect(mockCreate2).toHaveBeenCalled();
       expect(mockConnect2).toHaveBeenCalledWith(mockRxNostr, mockStore2, {
         reconcileDeletions: true
@@ -123,8 +123,8 @@ describe('store.ts', () => {
       vi.doMock('@ikuradon/auftakt', () => ({
         createEventStore: vi.fn().mockReturnValue(mockStore3)
       }));
-      vi.doMock('@ikuradon/auftakt/backends/indexeddb', () => ({
-        indexedDBBackend: vi.fn().mockReturnValue({})
+      vi.doMock('@ikuradon/auftakt/backends/dexie', () => ({
+        dexieBackend: vi.fn().mockReturnValue({})
       }));
       vi.doMock('@ikuradon/auftakt/sync', () => ({
         connectStore: vi.fn().mockReturnValue(() => {}),
@@ -170,8 +170,8 @@ describe('store.ts', () => {
       vi.doMock('@ikuradon/auftakt', () => ({
         createEventStore: vi.fn().mockReturnValue(mockStore4)
       }));
-      vi.doMock('@ikuradon/auftakt/backends/indexeddb', () => ({
-        indexedDBBackend: vi.fn().mockReturnValue({})
+      vi.doMock('@ikuradon/auftakt/backends/dexie', () => ({
+        dexieBackend: vi.fn().mockReturnValue({})
       }));
       vi.doMock('@ikuradon/auftakt/sync', () => ({
         connectStore: vi.fn().mockReturnValue(() => {}),
@@ -210,8 +210,8 @@ describe('store.ts', () => {
       vi.doMock('@ikuradon/auftakt', () => ({
         createEventStore: vi.fn().mockReturnValue(mockStore5)
       }));
-      vi.doMock('@ikuradon/auftakt/backends/indexeddb', () => ({
-        indexedDBBackend: vi.fn().mockReturnValue({})
+      vi.doMock('@ikuradon/auftakt/backends/dexie', () => ({
+        dexieBackend: vi.fn().mockReturnValue({})
       }));
       vi.doMock('@ikuradon/auftakt/sync', () => ({
         connectStore: vi.fn().mockReturnValue(() => {}),

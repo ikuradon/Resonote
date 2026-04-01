@@ -39,15 +39,15 @@ export async function initStore(): Promise<void> {
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
-    const [{ createEventStore }, { indexedDBBackend }, { connectStore }, { getRxNostr }] =
+    const [{ createEventStore }, { dexieBackend }, { connectStore }, { getRxNostr }] =
       await Promise.all([
         import('@ikuradon/auftakt'),
-        import('@ikuradon/auftakt/backends/indexeddb'),
+        import('@ikuradon/auftakt/backends/dexie'),
         import('@ikuradon/auftakt/sync'),
         import('./client.js')
       ]);
 
-    store = createEventStore({ backend: indexedDBBackend('resonote-events') });
+    store = createEventStore({ backend: dexieBackend({ dbName: 'resonote-events' }) });
     const rxNostr = await getRxNostr();
     disconnectStore = connectStore(rxNostr, store, { reconcileDeletions: true });
     log.info('Auftakt store initialized');

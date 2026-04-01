@@ -70,7 +70,7 @@
   },
   "dependencies": {
     "@hono/zod-validator": "^0.7.6",
-    "@ikuradon/auftakt": "^0.0.4",
+    "@ikuradon/auftakt": "^0.1.0",
     "@ikuradon/emoji-kitchen-mart": "^7.0.0",
     "@ikuradon/emoji-kitchen-mart-data": "^2.0.0",
     "@konemono/nostr-login": "^1.15.2",

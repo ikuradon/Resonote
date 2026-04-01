@@ -1,21 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // --- hoisted mocks ---
-const { authState, fetchLatestEventMock, publishMuteListMock, logInfoMock, logWarnMock } =
-  vi.hoisted(() => ({
+const { authState, fetchLatestMock, publishMuteListMock, logInfoMock, logWarnMock } = vi.hoisted(
+  () => ({
     authState: { pubkey: null as string | null },
-    fetchLatestEventMock: vi.fn(),
+    fetchLatestMock: vi.fn(),
     publishMuteListMock: vi.fn(),
     logInfoMock: vi.fn(),
     logWarnMock: vi.fn()
-  }));
+  })
+);
 
 vi.mock('./auth.svelte.js', () => ({
   getAuth: () => authState
 }));
 
-vi.mock('$shared/nostr/client.js', () => ({
-  fetchLatestEvent: fetchLatestEventMock
+vi.mock('$shared/nostr/store.js', () => ({
+  fetchLatest: fetchLatestMock
 }));
 
 vi.mock('$features/mute/application/mute-actions.js', () => ({
@@ -146,7 +147,7 @@ describe('isWordMuted', () => {
 
   it('ミュートワードを含む文字列はtrueを返す', async () => {
     // loadMuteList でワードをセットする
-    fetchLatestEventMock.mockResolvedValue(makeKind10000Event([], ['spam']));
+    fetchLatestMock.mockResolvedValue(makeKind10000Event([], ['spam']));
 
     await loadMuteList(MY_PUBKEY);
 
@@ -154,7 +155,7 @@ describe('isWordMuted', () => {
   });
 
   it('ミュートワードを含まない文字列はfalseを返す', async () => {
-    fetchLatestEventMock.mockResolvedValue(makeKind10000Event([], ['spam']));
+    fetchLatestMock.mockResolvedValue(makeKind10000Event([], ['spam']));
 
     await loadMuteList(MY_PUBKEY);
 
@@ -162,7 +163,7 @@ describe('isWordMuted', () => {
   });
 
   it('大文字小文字を無視してマッチする', async () => {
-    fetchLatestEventMock.mockResolvedValue(makeKind10000Event([], ['spam']));
+    fetchLatestMock.mockResolvedValue(makeKind10000Event([], ['spam']));
 
     await loadMuteList(MY_PUBKEY);
 
@@ -228,7 +229,7 @@ describe('loadMuteList', () => {
   });
 
   it('公開タグからpubkeyとwordをロードする', async () => {
-    fetchLatestEventMock.mockResolvedValue(makeKind10000Event([USER_A, USER_B], ['badword']));
+    fetchLatestMock.mockResolvedValue(makeKind10000Event([USER_A, USER_B], ['badword']));
 
     await loadMuteList(MY_PUBKEY);
 
@@ -240,7 +241,7 @@ describe('loadMuteList', () => {
   });
 
   it('イベントが存在しない場合は空のままにする', async () => {
-    fetchLatestEventMock.mockResolvedValue(null);
+    fetchLatestMock.mockResolvedValue(null);
 
     await loadMuteList(MY_PUBKEY);
 
@@ -251,7 +252,7 @@ describe('loadMuteList', () => {
   });
 
   it('wordは小文字に正規化される', async () => {
-    fetchLatestEventMock.mockResolvedValue(makeKind10000Event([], ['BadWord', 'UPPER']));
+    fetchLatestMock.mockResolvedValue(makeKind10000Event([], ['BadWord', 'UPPER']));
 
     await loadMuteList(MY_PUBKEY);
 
@@ -261,7 +262,7 @@ describe('loadMuteList', () => {
   });
 
   it('ロード完了後はloading=falseになる', async () => {
-    fetchLatestEventMock.mockResolvedValue(null);
+    fetchLatestMock.mockResolvedValue(null);
 
     await loadMuteList(MY_PUBKEY);
 
@@ -369,7 +370,7 @@ describe('loadMuteList — NIP-44 encrypted content', () => {
       }
     });
 
-    fetchLatestEventMock.mockResolvedValue(
+    fetchLatestMock.mockResolvedValue(
       makeKind10000Event([USER_A], ['publicword'], 'encrypted-content')
     );
 
@@ -396,7 +397,7 @@ describe('loadMuteList — NIP-44 encrypted content', () => {
       }
     });
 
-    fetchLatestEventMock.mockResolvedValue(
+    fetchLatestMock.mockResolvedValue(
       makeKind10000Event([USER_A], ['visible'], 'encrypted-content')
     );
 
@@ -431,9 +432,7 @@ describe('loadMuteList — NIP-44 encrypted content', () => {
       }
     });
 
-    fetchLatestEventMock.mockResolvedValue(
-      makeKind10000Event([USER_A], [], 'nip04-encrypted-content')
-    );
+    fetchLatestMock.mockResolvedValue(makeKind10000Event([USER_A], [], 'nip04-encrypted-content'));
 
     await loadMuteList(MY_PUBKEY);
 
@@ -461,9 +460,7 @@ describe('loadMuteList — NIP-44 encrypted content', () => {
       }
     });
 
-    fetchLatestEventMock.mockResolvedValue(
-      makeKind10000Event([USER_A], [], 'undecryptable-content')
-    );
+    fetchLatestMock.mockResolvedValue(makeKind10000Event([USER_A], [], 'undecryptable-content'));
 
     await loadMuteList(MY_PUBKEY);
 
@@ -474,7 +471,7 @@ describe('loadMuteList — NIP-44 encrypted content', () => {
   });
 
   it('contentなしの場合はpreservedPrivateTagsをリセットする', async () => {
-    fetchLatestEventMock.mockResolvedValue(makeKind10000Event([USER_A], ['word1']));
+    fetchLatestMock.mockResolvedValue(makeKind10000Event([USER_A], ['word1']));
 
     await loadMuteList(MY_PUBKEY);
 
@@ -490,7 +487,7 @@ describe('loadMuteList — NIP-44 encrypted content', () => {
       value: { nostr: {} }
     });
 
-    fetchLatestEventMock.mockResolvedValue(makeKind10000Event([USER_A], [], 'encrypted-content'));
+    fetchLatestMock.mockResolvedValue(makeKind10000Event([USER_A], [], 'encrypted-content'));
 
     await loadMuteList(MY_PUBKEY);
 

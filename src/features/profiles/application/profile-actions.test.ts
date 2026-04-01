@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { fetchLatestEventMock, logErrorMock } = vi.hoisted(() => ({
-  fetchLatestEventMock: vi.fn(),
+const { fetchLatestMock, logErrorMock } = vi.hoisted(() => ({
+  fetchLatestMock: vi.fn(),
   logErrorMock: vi.fn()
 }));
 
-vi.mock('$shared/nostr/client.js', () => ({
-  fetchLatestEvent: fetchLatestEventMock
+vi.mock('$shared/nostr/store.js', () => ({
+  fetchLatest: fetchLatestMock
 }));
 
 vi.mock('$shared/nostr/events.js', () => ({
@@ -32,7 +32,7 @@ describe('fetchFollowsCount', () => {
   });
 
   it('returns count and pubkeys from p tags', async () => {
-    fetchLatestEventMock.mockResolvedValue({
+    fetchLatestMock.mockResolvedValue({
       tags: [
         ['p', 'pk1'],
         ['p', 'pk2'],
@@ -47,14 +47,14 @@ describe('fetchFollowsCount', () => {
   });
 
   it('returns zero when no latest event found', async () => {
-    fetchLatestEventMock.mockResolvedValue(null);
+    fetchLatestMock.mockResolvedValue(null);
     const result = await fetchFollowsCount(PUBKEY);
     expect(result.count).toBe(0);
     expect(result.pubkeys).toEqual([]);
   });
 
   it('filters out p tags without a second element', async () => {
-    fetchLatestEventMock.mockResolvedValue({
+    fetchLatestMock.mockResolvedValue({
       tags: [['p', 'pk1'], ['p'], ['e', 'event-id'], ['p', 'pk2']],
       content: '',
       created_at: 1000
@@ -66,21 +66,21 @@ describe('fetchFollowsCount', () => {
 
   it('returns zero count on error and logs it', async () => {
     const err = new Error('relay down');
-    fetchLatestEventMock.mockRejectedValue(err);
+    fetchLatestMock.mockRejectedValue(err);
     const result = await fetchFollowsCount(PUBKEY);
     expect(result.count).toBe(0);
     expect(result.pubkeys).toEqual([]);
     expect(logErrorMock).toHaveBeenCalledWith('Failed to fetch follows count', err);
   });
 
-  it('calls fetchLatestEvent with pubkey and FOLLOW_KIND (3)', async () => {
-    fetchLatestEventMock.mockResolvedValue(null);
+  it('calls fetchLatest with pubkey and FOLLOW_KIND (3)', async () => {
+    fetchLatestMock.mockResolvedValue(null);
     await fetchFollowsCount(PUBKEY);
-    expect(fetchLatestEventMock).toHaveBeenCalledWith(PUBKEY, 3);
+    expect(fetchLatestMock).toHaveBeenCalledWith(PUBKEY, 3);
   });
 
   it('returns empty list when event has no tags', async () => {
-    fetchLatestEventMock.mockResolvedValue({ tags: [], content: '', created_at: 1000 });
+    fetchLatestMock.mockResolvedValue({ tags: [], content: '', created_at: 1000 });
     const result = await fetchFollowsCount(PUBKEY);
     expect(result.count).toBe(0);
     expect(result.pubkeys).toEqual([]);
