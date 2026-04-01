@@ -251,6 +251,38 @@ describe('fetchWot', () => {
     expect(result.wot.has('wot-second')).toBe(true);
   });
 
+  it('treats backward completion without events emissions as an empty batch', async () => {
+    const callbacks = makeCallbacks();
+    const MY_PUBKEY = 'my-pubkey-empty';
+    const FOLLOW1 = 'f-empty-1';
+
+    fetchLatestMock.mockResolvedValue({
+      tags: [['p', FOLLOW1]],
+      created_at: 1
+    });
+
+    const wotEventsSubject = new Subject<unknown[]>();
+    const statusSubject = new BehaviorSubject<string>('cached');
+    createSyncedQueryMock.mockReturnValue({
+      events$: wotEventsSubject.asObservable(),
+      status$: statusSubject.asObservable(),
+      emit: vi.fn(),
+      dispose: vi.fn()
+    });
+
+    const promise = fetchWot(MY_PUBKEY, callbacks);
+
+    await new Promise<void>((r) => setImmediate(r));
+    await new Promise<void>((r) => setImmediate(r));
+
+    statusSubject.next('complete');
+
+    const result = await promise;
+
+    expect(result.directFollows).toEqual(new Set([FOLLOW1]));
+    expect(result.wot).toEqual(new Set([FOLLOW1, MY_PUBKEY]));
+  });
+
   it('returns early when isCancelled returns true after step 1', async () => {
     let cancelOnNext = false;
     const callbacks = makeCallbacks({

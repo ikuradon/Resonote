@@ -17,10 +17,13 @@ export async function fetchNostrEvent(
   const store = await getStoreAsync();
   const attempts =
     relayHints.length > 0
-      ? relayHints.map((relayHint, index) => ({
-          relayHint,
-          timeout: index === 0 ? 10_000 : 5_000
-        }))
+      ? [
+          ...relayHints.map((relayHint, index) => ({
+            relayHint,
+            timeout: index === 0 ? 10_000 : 5_000
+          })),
+          { relayHint: undefined, timeout: 10_000 }
+        ]
       : [{ relayHint: undefined, timeout: 10_000 }];
 
   const cached = await new Promise<Awaited<ReturnType<typeof store.fetchById>>>((resolve) => {

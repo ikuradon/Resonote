@@ -80,7 +80,14 @@ describe('fetchNostrEvent', () => {
     ]);
 
     await vi.waitFor(() => {
-      expect(fetchByIdMock).toHaveBeenCalledTimes(2);
+      expect(fetchByIdMock).toHaveBeenCalledWith('event-id-parallel', {
+        relayHint: 'wss://relay.example.com',
+        timeout: 10_000
+      });
+      expect(fetchByIdMock).toHaveBeenCalledWith('event-id-parallel', {
+        relayHint: 'wss://relay2.example.com',
+        timeout: 5_000
+      });
     });
     await expect(resultPromise).resolves.toEqual({
       kind: 1111,
@@ -89,6 +96,40 @@ describe('fetchNostrEvent', () => {
     });
 
     resolveFirst?.(null);
+  });
+
+  it('falls back to default relays after all relay hints return null', async () => {
+    fetchByIdMock
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        event: { kind: 1111, tags: [['I', 'spotify:track:fallback']], content: 'from-default' },
+        seenOn: ['wss://default-relay.example.com'],
+        firstSeen: Date.now()
+      });
+
+    const result = await fetchNostrEvent('event-id-fallback', [
+      'wss://relay.example.com',
+      'wss://relay2.example.com'
+    ]);
+
+    expect(fetchByIdMock).toHaveBeenNthCalledWith(1, 'event-id-fallback', {
+      relayHint: 'wss://relay.example.com',
+      timeout: 10_000
+    });
+    expect(fetchByIdMock).toHaveBeenNthCalledWith(2, 'event-id-fallback', {
+      relayHint: 'wss://relay2.example.com',
+      timeout: 5_000
+    });
+    expect(fetchByIdMock).toHaveBeenNthCalledWith(3, 'event-id-fallback', {
+      relayHint: undefined,
+      timeout: 10_000
+    });
+    expect(result).toEqual({
+      kind: 1111,
+      tags: [['I', 'spotify:track:fallback']],
+      content: 'from-default'
+    });
   });
 
   it('passes no relayHint when relayHints is empty', async () => {

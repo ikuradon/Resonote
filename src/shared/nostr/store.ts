@@ -101,7 +101,7 @@ export async function fetchLatest(
     import('./client.js')
   ]);
   const { firstValueFrom, filter, race, timer, Observable, take } = await import('rxjs');
-  const { map, withLatestFrom } = await import('rxjs/operators');
+  const { map } = await import('rxjs/operators');
   const rxNostr = await getRxNostr();
   const completeSentinel = Symbol('fetchLatest.complete');
 
@@ -119,7 +119,6 @@ export async function fetchLatest(
     const complete$ = synced.status$.pipe(
       filter((status: unknown) => status === 'complete'),
       take(1),
-      withLatestFrom(synced.events$),
       map(() => completeSentinel)
     );
     const timeout$ = timer(timeoutMs).pipe(map(() => null));
