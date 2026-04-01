@@ -1,6 +1,7 @@
 import { followUser, getFollows, unfollowUser } from '$shared/browser/follows.js';
 import { getMuteList, muteUser } from '$shared/browser/mute.js';
 import { fetchProfile, getProfileDisplay } from '$shared/browser/profile.js';
+import { getAuth } from '$shared/browser/auth.js';
 import { t } from '$shared/i18n/t.js';
 import { decodeNip19 } from '$shared/nostr/nip19-decode.js';
 import { createLogger } from '$shared/utils/logger.js';
@@ -31,6 +32,7 @@ interface ConfirmDialogBinding {
 }
 
 export function createProfilePageViewModel(getProfileId: () => string) {
+  const auth = getAuth();
   const follows = getFollows();
   const muteList = getMuteList();
 
@@ -118,12 +120,14 @@ export function createProfilePageViewModel(getProfileId: () => string) {
   });
 
   $effect(() => {
+    void auth.pubkey;
     const currentPubkey = pubkey;
     if (!currentPubkey) return;
     void fetchProfile(currentPubkey);
   });
 
   $effect(() => {
+    void auth.pubkey;
     const currentPubkey = pubkey;
     if (!currentPubkey) return;
 

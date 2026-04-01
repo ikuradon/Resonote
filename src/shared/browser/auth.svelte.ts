@@ -12,9 +12,9 @@ let state = $state<AuthState>({ pubkey: null, initialized: false, readOnly: fals
 
 async function onLogin(pubkey: string) {
   log.info('Login', { pubkey: shortHex(pubkey) });
-  state.pubkey = pubkey;
   const { initSession } = await import('$appcore/bootstrap/init-session.js');
   await initSession(pubkey);
+  state.pubkey = pubkey;
 }
 
 let logoutInProgress = false;
