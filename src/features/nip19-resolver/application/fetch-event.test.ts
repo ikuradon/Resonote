@@ -58,6 +58,39 @@ describe('fetchNostrEvent', () => {
     });
   });
 
+  it('starts all relay hint fetches without waiting for the first hint to finish', async () => {
+    let resolveFirst: ((value: null) => void) | undefined;
+    fetchByIdMock.mockImplementation((_eventId: string, options?: { relayHint?: string }) => {
+      if (options?.relayHint === 'wss://relay.example.com') {
+        return new Promise((resolve: (value: null) => void) => {
+          resolveFirst = resolve;
+        });
+      }
+
+      return Promise.resolve({
+        event: { kind: 1111, tags: [['I', 'spotify:track:fast']], content: 'from-second-hint' },
+        seenOn: ['wss://relay2.example.com'],
+        firstSeen: Date.now()
+      });
+    });
+
+    const resultPromise = fetchNostrEvent('event-id-parallel', [
+      'wss://relay.example.com',
+      'wss://relay2.example.com'
+    ]);
+
+    await vi.waitFor(() => {
+      expect(fetchByIdMock).toHaveBeenCalledTimes(2);
+    });
+    await expect(resultPromise).resolves.toEqual({
+      kind: 1111,
+      tags: [['I', 'spotify:track:fast']],
+      content: 'from-second-hint'
+    });
+
+    resolveFirst?.(null);
+  });
+
   it('passes no relayHint when relayHints is empty', async () => {
     fetchByIdMock.mockResolvedValue(null);
 

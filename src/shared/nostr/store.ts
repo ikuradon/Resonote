@@ -87,6 +87,8 @@ export async function fetchLatest(
   kind: number,
   options?: { timeout?: number; signal?: AbortSignal }
 ): Promise<NostrEvent | null> {
+  const timeoutMs = options?.timeout ?? 5000;
+  const deadline = Date.now() + timeoutMs;
   const s = await getStoreAsync();
 
   // 1. Local cache
@@ -120,7 +122,7 @@ export async function fetchLatest(
       withLatestFrom(synced.events$),
       map(() => completeSentinel)
     );
-    const timeout$ = timer(options?.timeout ?? 5000).pipe(map(() => null));
+    const timeout$ = timer(timeoutMs).pipe(map(() => null));
     const racers = [eventFound$, complete$, timeout$];
 
     if (options?.signal) {
@@ -139,7 +141,9 @@ export async function fetchLatest(
     if (result === completeSentinel) {
       const refreshed = await s.getSync({ kinds: [kind], authors: [pubkey], limit: 1 });
       if (refreshed.length > 0) return refreshed[0].event;
-      return await fetchLatestEvent(pubkey, kind);
+      return await fetchLatestEvent(pubkey, kind, {
+        timeout: Math.max(1, deadline - Date.now())
+      });
     }
     return result;
   } finally {

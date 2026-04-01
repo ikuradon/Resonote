@@ -70,9 +70,14 @@ export async function castSigned(
   });
 }
 
-export async function fetchLatestEvent(pubkey: string, kind: number): Promise<NostrEvent | null> {
+export async function fetchLatestEvent(
+  pubkey: string,
+  kind: number,
+  options?: { timeout?: number }
+): Promise<NostrEvent | null> {
   const { createRxBackwardReq } = await import('rx-nostr');
   const instance = await getRxNostr();
+  const timeoutMs = options?.timeout ?? 10_000;
 
   return new Promise<NostrEvent | null>((resolve) => {
     const req = createRxBackwardReq();
@@ -85,7 +90,7 @@ export async function fetchLatestEvent(pubkey: string, kind: number): Promise<No
         sub.unsubscribe();
         resolve(latest);
       }
-    }, 10_000);
+    }, timeoutMs);
 
     const sub = instance.use(req).subscribe({
       next: (packet) => {
