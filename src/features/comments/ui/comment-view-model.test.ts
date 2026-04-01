@@ -308,19 +308,19 @@ describe('createCommentViewModel', () => {
       expect(createSyncedQueryMock).toHaveBeenCalled();
     });
 
-    it('starts backward and forward synced queries for immediate live updates', async () => {
+    it('starts dual synced queries for immediate live updates', async () => {
       const vm = createCommentViewModel(contentId, provider);
 
       await vm.subscribe();
 
-      expect(createSyncedQueryMock).toHaveBeenCalledTimes(4);
+      expect(createSyncedQueryMock).toHaveBeenCalledTimes(2);
       expect(createSyncedQueryMock).toHaveBeenNthCalledWith(
         1,
         expect.anything(),
         expect.anything(),
         expect.objectContaining({
           filter: { kinds: [1111, 7, 5], '#I': ['spotify:track:test-id'] },
-          strategy: 'backward'
+          strategy: 'dual'
         })
       );
       expect(createSyncedQueryMock).toHaveBeenNthCalledWith(
@@ -328,26 +328,8 @@ describe('createCommentViewModel', () => {
         expect.anything(),
         expect.anything(),
         expect.objectContaining({
-          filter: { kinds: [1111, 7, 5], '#I': ['spotify:track:test-id'] },
-          strategy: 'forward'
-        })
-      );
-      expect(createSyncedQueryMock).toHaveBeenNthCalledWith(
-        3,
-        expect.anything(),
-        expect.anything(),
-        expect.objectContaining({
           filter: { kinds: [17], '#i': ['spotify:track:test-id'] },
-          strategy: 'backward'
-        })
-      );
-      expect(createSyncedQueryMock).toHaveBeenNthCalledWith(
-        4,
-        expect.anything(),
-        expect.anything(),
-        expect.objectContaining({
-          filter: { kinds: [17], '#i': ['spotify:track:test-id'] },
-          strategy: 'forward'
+          strategy: 'dual'
         })
       );
     });
