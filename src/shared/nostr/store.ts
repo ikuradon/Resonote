@@ -101,11 +101,12 @@ export async function fetchLatest(
   const {
     firstValueFrom,
     filter,
-    timeout: rxTimeout,
-    catchError,
-    of,
-    defaultIfEmpty
+    race,
+    timer,
+    Observable,
+    take
   } = await import('rxjs');
+  const { map, withLatestFrom } = await import('rxjs/operators');
   const rxNostr = await getRxNostr();
 
   const synced = createSyncedQuery(rxNostr, s, {
@@ -114,18 +115,30 @@ export async function fetchLatest(
     signal: options?.signal
   });
   try {
-    const result = await firstValueFrom(
-      synced.events$.pipe(
-        filter((events: unknown[]) => events.length > 0),
-        rxTimeout(options?.timeout ?? 5000),
-        catchError(() => of(null)),
-        defaultIfEmpty(null)
-      )
+    const eventFound$ = synced.events$.pipe(
+      filter((events: unknown[]) => events.length > 0),
+      take(1),
+      map((events: unknown[]) => (events as Array<{ event: NostrEvent }>)[0]?.event ?? null)
     );
-    if (result && Array.isArray(result) && result.length > 0) {
-      return (result as Array<{ event: NostrEvent }>)[0].event;
+    const complete$ = synced.status$.pipe(
+      filter((status: unknown) => status === 'complete'),
+      take(1),
+      withLatestFrom(synced.events$),
+      map(([, events]) => (events as Array<{ event: NostrEvent }>)[0]?.event ?? null)
+    );
+    const timeout$ = timer(options?.timeout ?? 5000).pipe(map(() => null));
+    const racers = [eventFound$, complete$, timeout$];
+
+    if (options?.signal) {
+      const abort$ = new Observable<null>((subscriber) => {
+        const onAbort = () => subscriber.next(null);
+        options.signal?.addEventListener('abort', onAbort, { once: true });
+        return () => options.signal?.removeEventListener('abort', onAbort);
+      });
+      racers.push(abort$);
     }
-    return null;
+
+    return await firstValueFrom(race(racers));
   } finally {
     synced.dispose();
   }
