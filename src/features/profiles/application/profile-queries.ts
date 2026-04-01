@@ -30,7 +30,8 @@ export async function fetchProfileComments(
     import('$shared/nostr/client.js'),
     import('$shared/nostr/store.js')
   ]);
-  const { firstValueFrom, filter, timeout, catchError, of, defaultIfEmpty } = await import('rxjs');
+  const { firstValueFrom, filter, race, timer, of } = await import('rxjs');
+  const { catchError, defaultIfEmpty, map, take, withLatestFrom } = await import('rxjs/operators');
   const [rxNostr, store] = await Promise.all([getRxNostr(), getStoreAsync()]);
 
   const queryFilter = until
@@ -44,11 +45,17 @@ export async function fetchProfileComments(
 
   try {
     const result = await firstValueFrom(
-      synced.events$.pipe(
-        filter((events: unknown[]) => events.length > 0),
-        timeout(10_000),
-        catchError(() => of(null)),
-        defaultIfEmpty(null)
+      race([
+        synced.status$.pipe(
+          filter((status: unknown) => status === 'complete'),
+          take(1),
+          withLatestFrom(synced.events$),
+          map(([, events]) => events as unknown[])
+        ),
+        timer(10_000).pipe(map(() => null))
+      ]).pipe(
+        defaultIfEmpty(null),
+        catchError(() => of(null))
       )
     );
 

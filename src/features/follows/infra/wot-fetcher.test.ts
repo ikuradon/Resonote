@@ -99,9 +99,10 @@ describe('fetchWot', () => {
 
     // Step 2: createSyncedQuery for 2nd-hop
     const wotEventsSubject = new BehaviorSubject<unknown[]>([]);
+    const statusSubject = new BehaviorSubject<string>('cached');
     createSyncedQueryMock.mockReturnValue({
       events$: wotEventsSubject.asObservable(),
-      status$: new BehaviorSubject<string>('cached').asObservable(),
+      status$: statusSubject.asObservable(),
       emit: vi.fn(),
       dispose: vi.fn()
     });
@@ -120,6 +121,7 @@ describe('fetchWot', () => {
         firstSeen: Date.now()
       }
     ]);
+    statusSubject.next('complete');
 
     const result = await promise;
 
@@ -140,11 +142,12 @@ describe('fetchWot', () => {
       created_at: 1
     });
 
-    // 2nd-hop query: use Subject that completes so firstValueFrom resolves
+    // 2nd-hop query: use status completion to resolve
     const wotEventsSubject = new Subject<unknown[]>();
+    const statusSubject = new BehaviorSubject<string>('cached');
     createSyncedQueryMock.mockReturnValue({
       events$: wotEventsSubject.asObservable(),
-      status$: new BehaviorSubject<string>('cached').asObservable(),
+      status$: statusSubject.asObservable(),
       emit: vi.fn(),
       dispose: vi.fn()
     });
@@ -156,8 +159,7 @@ describe('fetchWot', () => {
 
     expect(callbacks.onDirectFollows).toHaveBeenCalledWith(new Set([FOLLOW1]));
 
-    // Complete the subject so firstValueFrom resolves via defaultIfEmpty(null)
-    wotEventsSubject.complete();
+    statusSubject.next('complete');
 
     await promise;
   });
@@ -173,9 +175,10 @@ describe('fetchWot', () => {
     });
 
     const wotEventsSubject = new BehaviorSubject<unknown[]>([]);
+    const statusSubject = new BehaviorSubject<string>('cached');
     createSyncedQueryMock.mockReturnValue({
       events$: wotEventsSubject.asObservable(),
-      status$: new BehaviorSubject<string>('cached').asObservable(),
+      status$: statusSubject.asObservable(),
       emit: vi.fn(),
       dispose: vi.fn()
     });
@@ -193,9 +196,59 @@ describe('fetchWot', () => {
         firstSeen: Date.now()
       }
     ]);
+    statusSubject.next('complete');
 
     await promise;
     expect(callbacks.onWotProgress).toHaveBeenCalled();
+  });
+
+  it('uses the final accumulated snapshot when backward query completes', async () => {
+    const callbacks = makeCallbacks();
+    const MY_PUBKEY = 'my-pubkey-final';
+    const FOLLOW1 = 'f-final-1';
+
+    fetchLatestMock.mockResolvedValue({
+      tags: [['p', FOLLOW1]],
+      created_at: 1
+    });
+
+    const wotEventsSubject = new BehaviorSubject<unknown[]>([]);
+    const statusSubject = new BehaviorSubject<string>('cached');
+    createSyncedQueryMock.mockReturnValue({
+      events$: wotEventsSubject.asObservable(),
+      status$: statusSubject.asObservable(),
+      emit: vi.fn(),
+      dispose: vi.fn()
+    });
+
+    const promise = fetchWot(MY_PUBKEY, callbacks);
+
+    await new Promise<void>((r) => setImmediate(r));
+    wotEventsSubject.next([
+      {
+        event: { tags: [['p', 'wot-first']], created_at: 2 },
+        seenOn: ['wss://relay.test'],
+        firstSeen: Date.now()
+      }
+    ]);
+    wotEventsSubject.next([
+      {
+        event: { tags: [['p', 'wot-first']], created_at: 2 },
+        seenOn: ['wss://relay.test'],
+        firstSeen: Date.now()
+      },
+      {
+        event: { tags: [['p', 'wot-second']], created_at: 3 },
+        seenOn: ['wss://relay.test'],
+        firstSeen: Date.now()
+      }
+    ]);
+    statusSubject.next('complete');
+
+    const result = await promise;
+
+    expect(result.wot.has('wot-first')).toBe(true);
+    expect(result.wot.has('wot-second')).toBe(true);
   });
 
   it('returns early when isCancelled returns true after step 1', async () => {
@@ -254,11 +307,12 @@ describe('fetchWot', () => {
       created_at: 200
     });
 
-    // 2nd-hop query: use Subject that completes so firstValueFrom resolves
+    // 2nd-hop query: use status completion to resolve
     const wotEventsSubject = new Subject<unknown[]>();
+    const statusSubject = new BehaviorSubject<string>('cached');
     createSyncedQueryMock.mockReturnValue({
       events$: wotEventsSubject.asObservable(),
-      status$: new BehaviorSubject<string>('cached').asObservable(),
+      status$: statusSubject.asObservable(),
       emit: vi.fn(),
       dispose: vi.fn()
     });
@@ -268,8 +322,7 @@ describe('fetchWot', () => {
     await new Promise<void>((r) => setImmediate(r));
     await new Promise<void>((r) => setImmediate(r));
 
-    // Complete the subject so firstValueFrom resolves via defaultIfEmpty(null)
-    wotEventsSubject.complete();
+    statusSubject.next('complete');
 
     const result = await promise;
 
@@ -288,16 +341,18 @@ describe('fetchWot', () => {
 
     const firstBatchEvents$ = new Subject<unknown[]>();
     const secondBatchEvents$ = new Subject<unknown[]>();
+    const firstBatchStatus$ = new BehaviorSubject<string>('cached');
+    const secondBatchStatus$ = new BehaviorSubject<string>('cached');
     createSyncedQueryMock
       .mockReturnValueOnce({
         events$: firstBatchEvents$.asObservable(),
-        status$: new BehaviorSubject<string>('cached').asObservable(),
+        status$: firstBatchStatus$.asObservable(),
         emit: vi.fn(),
         dispose: vi.fn()
       })
       .mockReturnValueOnce({
         events$: secondBatchEvents$.asObservable(),
-        status$: new BehaviorSubject<string>('cached').asObservable(),
+        status$: secondBatchStatus$.asObservable(),
         emit: vi.fn(),
         dispose: vi.fn()
       });
@@ -309,8 +364,8 @@ describe('fetchWot', () => {
 
     expect(createSyncedQueryMock).toHaveBeenCalledTimes(2);
 
-    firstBatchEvents$.complete();
-    secondBatchEvents$.complete();
+    firstBatchStatus$.next('complete');
+    secondBatchStatus$.next('complete');
 
     await promise;
   });

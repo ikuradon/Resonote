@@ -52,16 +52,17 @@ function setupSyncedQuery(
 
   if (errorToThrow !== undefined) {
     const eventsSubject = new Subject<unknown[]>();
+    const statusSubject = new Subject<string>();
     createSyncedQueryMock.mockReturnValue({
       events$: eventsSubject.asObservable(),
-      status$: new BehaviorSubject<string>('cached').asObservable(),
+      status$: statusSubject.asObservable(),
       emit: vi.fn(),
       dispose: disposeMock
     });
     queueMicrotask(() => {
       eventsSubject.error(errorToThrow);
     });
-    return { disposeMock, eventsSubject };
+    return { disposeMock, eventsSubject, statusSubject };
   } else if (cachedEvents.length > 0) {
     // Use BehaviorSubject with pre-loaded events so they're available when subscribed
     const mappedEvents = cachedEvents.map((ce) => ({
@@ -70,26 +71,31 @@ function setupSyncedQuery(
       firstSeen: Date.now()
     }));
     const eventsSubject = new BehaviorSubject<unknown[]>(mappedEvents);
+    const statusSubject = new BehaviorSubject<string>('cached');
     createSyncedQueryMock.mockReturnValue({
       events$: eventsSubject.asObservable(),
-      status$: new BehaviorSubject<string>('cached').asObservable(),
-      emit: vi.fn(),
-      dispose: disposeMock
-    });
-    return { disposeMock, eventsSubject };
-  } else {
-    // Empty case: use Subject that completes immediately so defaultIfEmpty(null) fires
-    const eventsSubject = new Subject<unknown[]>();
-    createSyncedQueryMock.mockReturnValue({
-      events$: eventsSubject.asObservable(),
-      status$: new BehaviorSubject<string>('cached').asObservable(),
+      status$: statusSubject.asObservable(),
       emit: vi.fn(),
       dispose: disposeMock
     });
     queueMicrotask(() => {
-      eventsSubject.complete();
+      statusSubject.next('complete');
     });
-    return { disposeMock, eventsSubject };
+    return { disposeMock, eventsSubject, statusSubject };
+  } else {
+    // Empty case: complete the backward query explicitly
+    const eventsSubject = new Subject<unknown[]>();
+    const statusSubject = new BehaviorSubject<string>('cached');
+    createSyncedQueryMock.mockReturnValue({
+      events$: eventsSubject.asObservable(),
+      status$: statusSubject.asObservable(),
+      emit: vi.fn(),
+      dispose: disposeMock
+    });
+    queueMicrotask(() => {
+      statusSubject.next('complete');
+    });
+    return { disposeMock, eventsSubject, statusSubject };
   }
 }
 
@@ -114,6 +120,47 @@ describe('fetchProfileComments', () => {
     const result = await fetchProfileComments(PUBKEY);
     expect(result.comments[0].id).toBe('b');
     expect(result.comments[1].id).toBe('a');
+  });
+
+  it('waits for backward completion and returns the final accumulated snapshot', async () => {
+    const disposeMock = vi.fn();
+    getRxNostrMock.mockResolvedValue({});
+    const eventsSubject = new BehaviorSubject<unknown[]>([]);
+    const statusSubject = new BehaviorSubject<string>('cached');
+
+    createSyncedQueryMock.mockReturnValue({
+      events$: eventsSubject.asObservable(),
+      status$: statusSubject.asObservable(),
+      emit: vi.fn(),
+      dispose: disposeMock
+    });
+
+    const resultPromise = fetchProfileComments(PUBKEY);
+
+    eventsSubject.next([
+      {
+        event: { id: 'a', content: 'first', created_at: 100, tags: [] },
+        seenOn: ['wss://relay.test'],
+        firstSeen: Date.now()
+      }
+    ]);
+    eventsSubject.next([
+      {
+        event: { id: 'a', content: 'first', created_at: 100, tags: [] },
+        seenOn: ['wss://relay.test'],
+        firstSeen: Date.now()
+      },
+      {
+        event: { id: 'b', content: 'second', created_at: 200, tags: [] },
+        seenOn: ['wss://relay.test'],
+        firstSeen: Date.now()
+      }
+    ]);
+    statusSubject.next('complete');
+
+    const result = await resultPromise;
+    expect(result.comments.map((comment) => comment.id)).toEqual(['b', 'a']);
+    expect(disposeMock).toHaveBeenCalled();
   });
 
   it('extracts iTag from I tag', async () => {
