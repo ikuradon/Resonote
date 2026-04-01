@@ -16,7 +16,7 @@
       lastLoadedPubkey = null;
       return;
     }
-    if (lastLoadedPubkey === pubkey && (bookmarks.loading || bookmarks.loaded)) return;
+    if (lastLoadedPubkey === pubkey) return;
     lastLoadedPubkey = pubkey;
     void loadBookmarks(pubkey);
   });
