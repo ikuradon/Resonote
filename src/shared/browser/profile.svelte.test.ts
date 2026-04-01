@@ -335,4 +335,22 @@ describe('fetchProfile — relay から取得', () => {
     expect(getProfile(PUBKEY_A)?.name).toBe('Late Alice');
     expect(mockGetSync).toHaveBeenNthCalledWith(2, { kinds: [0], authors: [PUBKEY_A] });
   });
+
+  it('cachedAfterFetch が部分一致でも relayResults の残りを取り込む', async () => {
+    const eventA = makeKind0Event(PUBKEY_A, { name: 'Alice Cached' });
+    const eventB = makeKind0Event(PUBKEY_B, { name: 'Bob Relay' });
+    mockGetSync
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ event: eventA, seenOn: ['wss://relay.test'], firstSeen: 0 }]);
+    fetchLatestBatchMock.mockResolvedValue([
+      { event: eventA, seenOn: ['wss://relay.test'], firstSeen: 0 },
+      { event: eventB, seenOn: ['wss://relay.test'], firstSeen: 0 }
+    ]);
+
+    await fetchProfiles([PUBKEY_A, PUBKEY_B]);
+    await new Promise<void>((r) => setTimeout(r, 50));
+
+    expect(getProfile(PUBKEY_A)?.name).toBe('Alice Cached');
+    expect(getProfile(PUBKEY_B)?.name).toBe('Bob Relay');
+  });
 });

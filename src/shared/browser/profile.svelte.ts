@@ -91,7 +91,14 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
     try {
       const relayResults = await fetchLatestBatch(rxNostr, store, toFetch, 0, { timeout: 10_000 });
       const cachedAfterFetch = await store.getSync({ kinds: [0], authors: toFetch });
-      const results = cachedAfterFetch.length > 0 ? cachedAfterFetch : relayResults;
+      const resultsByPubkey = new Map<string, (typeof relayResults)[number]>();
+      for (const ce of relayResults) {
+        resultsByPubkey.set(ce.event.pubkey, ce);
+      }
+      for (const ce of cachedAfterFetch) {
+        resultsByPubkey.set(ce.event.pubkey, ce);
+      }
+      const results = [...resultsByPubkey.values()];
       for (const ce of results) {
         const pk = ce.event.pubkey;
         if (hasLoadedProfile(pk)) continue;

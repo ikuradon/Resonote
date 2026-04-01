@@ -29,14 +29,18 @@ export async function fetchNostrEvent(
   const cached = await new Promise<Awaited<ReturnType<typeof store.fetchById>>>((resolve) => {
     let pending = attempts.length;
     let settled = false;
+    const controllers = attempts.map(() => new AbortController());
 
-    for (const attempt of attempts) {
+    for (const [index, attempt] of attempts.entries()) {
       void store
-        .fetchById(eventId, attempt)
+        .fetchById(eventId, { ...attempt, signal: controllers[index]?.signal })
         .then((result) => {
           if (settled) return;
           if (result) {
             settled = true;
+            for (const [controllerIndex, controller] of controllers.entries()) {
+              if (controllerIndex !== index) controller.abort();
+            }
             resolve(result);
             return;
           }

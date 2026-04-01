@@ -108,7 +108,7 @@ async function queryNostrForEpisode(guid: string): Promise<DTagResult | null> {
       of,
       defaultIfEmpty
     } = await import('rxjs');
-    const [rxNostr, auftaktStore] = await Promise.all([getRxNostr(), getStoreAsync()]);
+    const rxNostr = await getRxNostr();
 
     const queryFilter = {
       kinds: [39701],
@@ -117,7 +117,7 @@ async function queryNostrForEpisode(guid: string): Promise<DTagResult | null> {
       limit: 1
     };
 
-    const synced = createSyncedQuery(rxNostr, auftaktStore, {
+    const synced = createSyncedQuery(rxNostr, store, {
       filter: queryFilter,
       strategy: 'backward'
     });

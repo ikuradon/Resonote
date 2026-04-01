@@ -52,10 +52,13 @@ describe('fetchNostrEvent', () => {
     const hints = ['wss://relay.example.com', 'wss://relay2.example.com'];
     await fetchNostrEvent('event-id-4', hints);
 
-    expect(fetchByIdMock).toHaveBeenCalledWith('event-id-4', {
-      relayHint: 'wss://relay.example.com',
-      timeout: 10_000
-    });
+    expect(fetchByIdMock).toHaveBeenCalledWith(
+      'event-id-4',
+      expect.objectContaining({
+        relayHint: 'wss://relay.example.com',
+        timeout: 10_000
+      })
+    );
   });
 
   it('starts all relay hint fetches without waiting for the first hint to finish', async () => {
@@ -82,11 +85,13 @@ describe('fetchNostrEvent', () => {
     await vi.waitFor(() => {
       expect(fetchByIdMock).toHaveBeenCalledWith('event-id-parallel', {
         relayHint: 'wss://relay.example.com',
-        timeout: 10_000
+        timeout: 10_000,
+        signal: expect.any(AbortSignal)
       });
       expect(fetchByIdMock).toHaveBeenCalledWith('event-id-parallel', {
         relayHint: 'wss://relay2.example.com',
-        timeout: 5_000
+        timeout: 5_000,
+        signal: expect.any(AbortSignal)
       });
     });
     await expect(resultPromise).resolves.toEqual({
@@ -96,6 +101,44 @@ describe('fetchNostrEvent', () => {
     });
 
     resolveFirst?.(null);
+  });
+
+  it('aborts remaining relay hint fetches after the first success', async () => {
+    const abortStates: boolean[] = [];
+    fetchByIdMock.mockImplementation(
+      (_eventId: string, options?: { relayHint?: string; signal?: AbortSignal }) => {
+        if (options?.relayHint === 'wss://relay2.example.com') {
+          return Promise.resolve({
+            event: { kind: 1111, tags: [['I', 'spotify:track:fast']], content: 'from-second-hint' },
+            seenOn: ['wss://relay2.example.com'],
+            firstSeen: Date.now()
+          });
+        }
+
+        return new Promise((resolve) => {
+          options?.signal?.addEventListener(
+            'abort',
+            () => {
+              abortStates.push(true);
+              resolve(null);
+            },
+            { once: true }
+          );
+        });
+      }
+    );
+
+    const result = await fetchNostrEvent('event-id-abort', [
+      'wss://relay.example.com',
+      'wss://relay2.example.com'
+    ]);
+
+    expect(result).toEqual({
+      kind: 1111,
+      tags: [['I', 'spotify:track:fast']],
+      content: 'from-second-hint'
+    });
+    expect(abortStates.length).toBeGreaterThan(0);
   });
 
   it('falls back to default relays after all relay hints return null', async () => {
@@ -113,18 +156,30 @@ describe('fetchNostrEvent', () => {
       'wss://relay2.example.com'
     ]);
 
-    expect(fetchByIdMock).toHaveBeenNthCalledWith(1, 'event-id-fallback', {
-      relayHint: 'wss://relay.example.com',
-      timeout: 10_000
-    });
-    expect(fetchByIdMock).toHaveBeenNthCalledWith(2, 'event-id-fallback', {
-      relayHint: 'wss://relay2.example.com',
-      timeout: 5_000
-    });
-    expect(fetchByIdMock).toHaveBeenNthCalledWith(3, 'event-id-fallback', {
-      relayHint: undefined,
-      timeout: 10_000
-    });
+    expect(fetchByIdMock).toHaveBeenNthCalledWith(
+      1,
+      'event-id-fallback',
+      expect.objectContaining({
+        relayHint: 'wss://relay.example.com',
+        timeout: 10_000
+      })
+    );
+    expect(fetchByIdMock).toHaveBeenNthCalledWith(
+      2,
+      'event-id-fallback',
+      expect.objectContaining({
+        relayHint: 'wss://relay2.example.com',
+        timeout: 5_000
+      })
+    );
+    expect(fetchByIdMock).toHaveBeenNthCalledWith(
+      3,
+      'event-id-fallback',
+      expect.objectContaining({
+        relayHint: undefined,
+        timeout: 10_000
+      })
+    );
     expect(result).toEqual({
       kind: 1111,
       tags: [['I', 'spotify:track:fallback']],
@@ -137,10 +192,13 @@ describe('fetchNostrEvent', () => {
 
     await fetchNostrEvent('event-id-5', []);
 
-    expect(fetchByIdMock).toHaveBeenCalledWith('event-id-5', {
-      relayHint: undefined,
-      timeout: 10_000
-    });
+    expect(fetchByIdMock).toHaveBeenCalledWith(
+      'event-id-5',
+      expect.objectContaining({
+        relayHint: undefined,
+        timeout: 10_000
+      })
+    );
   });
 
   it('calls fetchById with the correct event id', async () => {
