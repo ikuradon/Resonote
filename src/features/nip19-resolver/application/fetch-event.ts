@@ -46,12 +46,18 @@ export async function fetchNostrEvent(
           }
 
           pending -= 1;
-          if (pending === 0) resolve(null);
+          if (pending === 0) {
+            settled = true;
+            resolve(null);
+          }
         })
         .catch(() => {
           if (settled) return;
           pending -= 1;
-          if (pending === 0) resolve(null);
+          if (pending === 0) {
+            settled = true;
+            resolve(null);
+          }
         });
     }
   });

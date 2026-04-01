@@ -81,6 +81,11 @@
       }, 2000);
     }
   }
+
+  async function handleClearAllConfirm() {
+    clearAllConfirm = false;
+    await clearAll();
+  }
 </script>
 
 <section class="rounded-2xl border border-border bg-surface-1 p-6 space-y-5">
@@ -182,9 +187,6 @@
   variant="danger"
   confirmLabel={t('confirm.ok')}
   cancelLabel={t('confirm.cancel')}
-  onConfirm={() => {
-    clearAllConfirm = false;
-    clearAll();
-  }}
+  onConfirm={handleClearAllConfirm}
   onCancel={() => (clearAllConfirm = false)}
 />
