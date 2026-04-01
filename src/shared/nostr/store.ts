@@ -98,14 +98,7 @@ export async function fetchLatest(
     import('@ikuradon/auftakt/sync'),
     import('./client.js')
   ]);
-  const {
-    firstValueFrom,
-    filter,
-    race,
-    timer,
-    Observable,
-    take
-  } = await import('rxjs');
+  const { firstValueFrom, filter, race, timer, Observable, take } = await import('rxjs');
   const { map, withLatestFrom } = await import('rxjs/operators');
   const rxNostr = await getRxNostr();
 
