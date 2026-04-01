@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockGetSync, mockCount } = vi.hoisted(() => ({
+const { mockGetSync, mockCount, disposeStoreMock } = vi.hoisted(() => ({
   mockGetSync: vi.fn(),
-  mockCount: vi.fn()
+  mockCount: vi.fn(),
+  disposeStoreMock: vi.fn()
 }));
 
 vi.mock('$shared/nostr/store.js', () => ({
+  disposeStore: disposeStoreMock,
   getStoreAsync: vi.fn().mockReturnValue({
     getSync: mockGetSync,
     count: mockCount,
@@ -27,6 +29,7 @@ import {
 
 describe('dev-tools.svelte', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     Object.defineProperty(globalThis, 'window', {
       value: {
         location: { href: 'https://resonote.pages.dev/' }
@@ -105,7 +108,8 @@ describe('dev-tools.svelte', () => {
       const deleteDbMock = vi.fn().mockImplementation(() => {
         const req = {
           onsuccess: null as (() => void) | null,
-          onerror: null as (() => void) | null
+          onerror: null as (() => void) | null,
+          onblocked: null as (() => void) | null
         };
         queueMicrotask(() => req.onsuccess?.());
         return req;
@@ -115,6 +119,25 @@ describe('dev-tools.svelte', () => {
       await clearIndexedDB();
 
       expect(deleteDbMock).toHaveBeenCalledWith('resonote-events');
+      expect(disposeStoreMock).toHaveBeenCalledOnce();
+      vi.unstubAllGlobals();
+    });
+
+    it('rejects when indexedDB.deleteDatabase is blocked', async () => {
+      const deleteDbMock = vi.fn().mockImplementation(() => {
+        const req = {
+          onsuccess: null as (() => void) | null,
+          onerror: null as (() => void) | null,
+          onblocked: null as (() => void) | null
+        };
+        queueMicrotask(() => req.onblocked?.());
+        return req;
+      });
+      vi.stubGlobal('indexedDB', { deleteDatabase: deleteDbMock });
+
+      await expect(clearIndexedDB()).rejects.toThrow('Failed to delete IndexedDB: blocked');
+
+      expect(disposeStoreMock).toHaveBeenCalledOnce();
       vi.unstubAllGlobals();
     });
   });
@@ -135,25 +158,43 @@ describe('dev-tools.svelte', () => {
       vi.unstubAllGlobals();
     });
 
-    it('calls localStorage.clear, indexedDB.deleteDatabase, and location.reload', () => {
+    it('calls localStorage.clear, indexedDB.deleteDatabase, and location.reload', async () => {
       const clearMock = vi.fn();
       const { deleteDbMock, reloadMock } = setupClearAllGlobals({ clear: clearMock });
+      deleteDbMock.mockImplementation(() => {
+        const req = {
+          onsuccess: null as (() => void) | null,
+          onerror: null as (() => void) | null,
+          onblocked: null as (() => void) | null
+        };
+        queueMicrotask(() => req.onsuccess?.());
+        return req;
+      });
 
-      clearAllData();
+      await clearAllData();
 
       expect(clearMock).toHaveBeenCalledOnce();
       expect(deleteDbMock).toHaveBeenCalledWith('resonote-events');
       expect(reloadMock).toHaveBeenCalledOnce();
     });
 
-    it('still deletes DB and reloads when localStorage.clear throws', () => {
+    it('still deletes DB and reloads when localStorage.clear throws', async () => {
       const { deleteDbMock, reloadMock } = setupClearAllGlobals({
         clear() {
           throw new Error('denied');
         }
       });
+      deleteDbMock.mockImplementation(() => {
+        const req = {
+          onsuccess: null as (() => void) | null,
+          onerror: null as (() => void) | null,
+          onblocked: null as (() => void) | null
+        };
+        queueMicrotask(() => req.onsuccess?.());
+        return req;
+      });
 
-      clearAllData();
+      await clearAllData();
 
       expect(deleteDbMock).toHaveBeenCalledWith('resonote-events');
       expect(reloadMock).toHaveBeenCalledOnce();
