@@ -76,7 +76,7 @@ describe('fetchFollowsCount', () => {
   it('calls fetchLatest with pubkey and FOLLOW_KIND (3)', async () => {
     fetchLatestMock.mockResolvedValue(null);
     await fetchFollowsCount(PUBKEY);
-    expect(fetchLatestMock).toHaveBeenCalledWith(PUBKEY, 3);
+    expect(fetchLatestMock).toHaveBeenCalledWith(PUBKEY, 3, { directFallback: true });
   });
 
   it('returns empty list when event has no tags', async () => {

@@ -50,7 +50,7 @@ export async function fetchWot(pubkey: string, callbacks: WotProgressCallback): 
     import('$shared/nostr/store.js')
   ]);
   const { firstValueFrom, filter, race, timer, of } = await import('rxjs');
-  const { catchError, defaultIfEmpty, map, take } = await import('rxjs/operators');
+  const { catchError, defaultIfEmpty, map, take, withLatestFrom } = await import('rxjs/operators');
   const [rxNostr, store] = await Promise.all([getRxNostr(), getStoreAsync()]);
 
   const batchPromises: Promise<void>[] = [];
@@ -66,10 +66,6 @@ export async function fetchWot(pubkey: string, callbacks: WotProgressCallback): 
           filter: { kinds: [FOLLOW_KIND], authors: batch },
           strategy: 'backward'
         });
-        let latestEvents: unknown[] = [];
-        const eventsSub = synced.events$.subscribe((events) => {
-          latestEvents = events as unknown[];
-        });
 
         try {
           const result = await firstValueFrom(
@@ -77,7 +73,8 @@ export async function fetchWot(pubkey: string, callbacks: WotProgressCallback): 
               synced.status$.pipe(
                 filter((status: unknown) => status === 'complete'),
                 take(1),
-                map(() => latestEvents)
+                withLatestFrom(synced.events$),
+                map(([, events]) => events as unknown[])
               ),
               timer(10_000).pipe(map(() => null))
             ]).pipe(
@@ -97,7 +94,6 @@ export async function fetchWot(pubkey: string, callbacks: WotProgressCallback): 
           }
           callbacks.onWotProgress(allWot.size);
         } finally {
-          eventsSub.unsubscribe();
           synced.dispose();
         }
       })()

@@ -37,7 +37,9 @@ describe('loadBookmarks', () => {
   it('calls fetchLatest with pubkey and kind 10003', async () => {
     fetchLatestMock.mockResolvedValueOnce(null);
     await loadBookmarks(MY_PUBKEY);
-    expect(fetchLatestMock).toHaveBeenCalledWith(MY_PUBKEY, BOOKMARK_KIND);
+    expect(fetchLatestMock).toHaveBeenCalledWith(MY_PUBKEY, BOOKMARK_KIND, {
+      directFallback: true
+    });
   });
 
   it('returns null when no event exists', async () => {
@@ -99,7 +101,9 @@ describe('publishAddBookmark', () => {
   it('fetches latest event with pubkey and kind 10003', async () => {
     fetchLatestMock.mockResolvedValueOnce(null);
     await publishAddBookmark(contentId, OPEN_URL, MY_PUBKEY);
-    expect(fetchLatestMock).toHaveBeenCalledWith(MY_PUBKEY, BOOKMARK_KIND);
+    expect(fetchLatestMock).toHaveBeenCalledWith(MY_PUBKEY, BOOKMARK_KIND, {
+      directFallback: true
+    });
   });
 
   it('propagates errors from castSigned', async () => {
@@ -150,7 +154,9 @@ describe('publishRemoveBookmark', () => {
   it('fetches latest event with pubkey and kind 10003', async () => {
     fetchLatestMock.mockResolvedValueOnce(null);
     await publishRemoveBookmark(contentId, MY_PUBKEY);
-    expect(fetchLatestMock).toHaveBeenCalledWith(MY_PUBKEY, BOOKMARK_KIND);
+    expect(fetchLatestMock).toHaveBeenCalledWith(MY_PUBKEY, BOOKMARK_KIND, {
+      directFallback: true
+    });
   });
 
   it('propagates errors from castSigned', async () => {

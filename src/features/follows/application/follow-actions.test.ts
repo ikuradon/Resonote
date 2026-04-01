@@ -33,7 +33,9 @@ describe('publishFollow', () => {
   it('fetches latest kind:3 event for myPubkey', async () => {
     fetchLatestMock.mockResolvedValueOnce(null);
     await publishFollow(TARGET_PUBKEY, MY_PUBKEY);
-    expect(fetchLatestMock).toHaveBeenCalledWith(MY_PUBKEY, FOLLOW_KIND);
+    expect(fetchLatestMock).toHaveBeenCalledWith(MY_PUBKEY, FOLLOW_KIND, {
+      directFallback: true
+    });
   });
 
   it('publishes event with p-tag added when no existing follow list', async () => {
@@ -102,7 +104,9 @@ describe('publishUnfollow', () => {
   it('fetches latest kind:3 event for myPubkey', async () => {
     fetchLatestMock.mockResolvedValueOnce(null);
     await publishUnfollow(TARGET_PUBKEY, MY_PUBKEY);
-    expect(fetchLatestMock).toHaveBeenCalledWith(MY_PUBKEY, FOLLOW_KIND);
+    expect(fetchLatestMock).toHaveBeenCalledWith(MY_PUBKEY, FOLLOW_KIND, {
+      directFallback: true
+    });
   });
 
   it('does nothing when no existing follow list', async () => {
