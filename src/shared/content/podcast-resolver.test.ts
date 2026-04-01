@@ -3,23 +3,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { parseDTagEvent } from '$shared/content/podcast-resolver.js';
 
-const { verifierMock, mockGetEventsDB, mockGetRxNostr, mockCreateSyncedQuery } = vi.hoisted(() => ({
-  verifierMock: vi.fn(),
-  mockGetEventsDB: vi.fn(),
-  mockGetRxNostr: vi.fn(),
-  mockCreateSyncedQuery: vi.fn()
-}));
+const { verifierMock, mockGetEventsDB, mockGetRxNostr, mockCreateSyncedQuery, getStoreAsyncMock } =
+  vi.hoisted(() => ({
+    verifierMock: vi.fn(),
+    mockGetEventsDB: vi.fn(),
+    mockGetRxNostr: vi.fn(),
+    mockCreateSyncedQuery: vi.fn(),
+    getStoreAsyncMock: vi.fn()
+  }));
 
 vi.mock('@rx-nostr/crypto', () => ({
   verifier: verifierMock
 }));
 
 vi.mock('$shared/nostr/store.js', () => ({
-  getStoreAsync: () => ({
-    getSync: (...args: unknown[]) => mockGetEventsDB(...(args as [])),
-    fetchById: vi.fn().mockResolvedValue(null),
-    dispose: vi.fn()
-  })
+  getStoreAsync: getStoreAsyncMock
 }));
 
 vi.mock('$shared/nostr/client.js', () => ({
@@ -519,6 +517,12 @@ describe('podcast-resolver', () => {
       mockGetEventsDB.mockReset();
       mockGetRxNostr.mockReset();
       mockCreateSyncedQuery.mockReset();
+      getStoreAsyncMock.mockReset();
+      getStoreAsyncMock.mockResolvedValue({
+        getSync: (...args: unknown[]) => mockGetEventsDB(...(args as [])),
+        fetchById: vi.fn().mockResolvedValue(null),
+        dispose: vi.fn()
+      });
     });
 
     it('should return cached result from DB when available', async () => {
@@ -563,6 +567,26 @@ describe('podcast-resolver', () => {
       expect(result).not.toBeNull();
       expect(result!.guid).toBe('ep-guid');
       expect(result!.description).toBe('Relay desc');
+    });
+
+    it('should reuse the same store instance for cache read and relay fetch', async () => {
+      stubPubkeyFetch('sys-pubkey');
+      mockGetEventsDB.mockResolvedValue([]);
+
+      const relayEvent = {
+        tags: [
+          ['i', 'podcast:guid:feed-guid', 'https://example.com/feed.xml'],
+          ['i', 'podcast:item:guid:ep-guid', 'https://example.com/ep.mp3']
+        ],
+        content: 'Relay desc'
+      };
+
+      setupRelayMock(relayEvent);
+
+      const { searchBookmarkByUrl } = await import('$shared/content/podcast-resolver.js');
+      await searchBookmarkByUrl('https://example.com/ep.mp3');
+
+      expect(getStoreAsyncMock).toHaveBeenCalledTimes(1);
     });
 
     it('should return null when system pubkey is empty', async () => {

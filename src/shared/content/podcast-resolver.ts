@@ -160,7 +160,7 @@ export async function searchBookmarkByUrl(url: string): Promise<DTagResult | nul
       of,
       defaultIfEmpty
     } = await import('rxjs');
-    const [rxNostr, auftaktStore] = await Promise.all([getRxNostr(), getStoreAsync()]);
+    const rxNostr = await getRxNostr();
 
     const queryFilter = {
       kinds: [39701],
@@ -169,7 +169,7 @@ export async function searchBookmarkByUrl(url: string): Promise<DTagResult | nul
       limit: 1
     };
 
-    const synced = createSyncedQuery(rxNostr, auftaktStore, {
+    const synced = createSyncedQuery(rxNostr, store, {
       filter: queryFilter,
       strategy: 'backward'
     });
