@@ -49,7 +49,11 @@ export function createRelaySettingsViewModel(options: RelaySettingsViewModelOpti
 
     const controller = new AbortController();
 
-    void fetchLatest(pubkey, RELAY_LIST_KIND, { timeout: 10_000, signal: controller.signal })
+    void fetchLatest(pubkey, RELAY_LIST_KIND, {
+      timeout: 10_000,
+      signal: controller.signal,
+      directFallback: true
+    })
       .then((event) => {
         if (controller.signal.aborted) return;
         relayQueryState = { event, settled: true };

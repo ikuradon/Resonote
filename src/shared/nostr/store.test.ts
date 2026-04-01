@@ -519,7 +519,10 @@ describe('store.ts', () => {
       const { initStore, fetchLatest } = await import('./store.js');
       await initStore();
 
-      const resultPromise = fetchLatest('pk1', 10003, { timeout: 10_000 });
+      const resultPromise = fetchLatest('pk1', 10003, {
+        timeout: 10_000,
+        directFallback: true
+      });
       statusSubject.next('complete');
 
       await expect(resultPromise).resolves.toEqual(fallbackEvent);
@@ -583,7 +586,10 @@ describe('store.ts', () => {
       const { initStore, fetchLatest } = await import('./store.js');
       await initStore();
 
-      const resultPromise = fetchLatest('pk1', 10003, { timeout: 5_000 });
+      const resultPromise = fetchLatest('pk1', 10003, {
+        timeout: 5_000,
+        directFallback: true
+      });
       await vi.advanceTimersByTimeAsync(0);
       statusSubject.next('complete');
 
@@ -637,12 +643,66 @@ describe('store.ts', () => {
       const { initStore, fetchLatest } = await import('./store.js');
       await initStore();
 
-      const resultPromise = fetchLatest('pk1', 10003, { timeout: 5_000 });
+      const resultPromise = fetchLatest('pk1', 10003, {
+        timeout: 5_000,
+        directFallback: true
+      });
       await vi.advanceTimersByTimeAsync(4_000);
       statusSubject.next('complete');
 
       await expect(resultPromise).resolves.toBeNull();
       expect(fetchLatestEventMock).toHaveBeenCalledWith('pk1', 10003, { timeout: 1_000 });
+      expect(mockDispose).toHaveBeenCalled();
+    });
+
+    it('does not issue a second relay query unless direct fallback is enabled', async () => {
+      vi.resetModules();
+
+      const mockDispose = vi.fn();
+      const { BehaviorSubject } = await import('rxjs');
+      const eventsSubject = new BehaviorSubject<unknown[]>([]);
+      const statusSubject = new BehaviorSubject('cached');
+
+      const mockStore9 = {
+        add: vi.fn(),
+        query: vi.fn(),
+        fetchById: vi.fn(),
+        getSync: vi.fn().mockResolvedValue([]),
+        dispose: vi.fn(),
+        changes$: { subscribe: vi.fn() },
+        _setConnectFilter: vi.fn(),
+        _getConnectFilter: vi.fn()
+      };
+      const fetchLatestEventMock = vi.fn().mockResolvedValue(null);
+
+      vi.doMock('@ikuradon/auftakt', () => ({
+        createEventStore: vi.fn().mockReturnValue(mockStore9)
+      }));
+      vi.doMock('@ikuradon/auftakt/backends/dexie', () => ({
+        dexieBackend: vi.fn().mockReturnValue({})
+      }));
+      vi.doMock('@ikuradon/auftakt/sync', () => ({
+        connectStore: vi.fn().mockReturnValue(() => {}),
+        createSyncedQuery: vi.fn().mockReturnValue({
+          events$: eventsSubject.asObservable(),
+          status$: statusSubject.asObservable(),
+          emit: vi.fn(),
+          dispose: mockDispose
+        })
+      }));
+      vi.doMock('./client.js', () => ({
+        fetchLatestEvent: fetchLatestEventMock,
+        getRxNostr: vi.fn().mockResolvedValue({ createAllEventObservable: vi.fn() })
+      }));
+
+      const { initStore, fetchLatest } = await import('./store.js');
+      await initStore();
+
+      const resultPromise = fetchLatest('pk1', 10003, { timeout: 10_000 });
+      statusSubject.next('complete');
+
+      await expect(resultPromise).resolves.toBeNull();
+      expect(fetchLatestEventMock).not.toHaveBeenCalled();
       expect(mockDispose).toHaveBeenCalled();
     });
   });

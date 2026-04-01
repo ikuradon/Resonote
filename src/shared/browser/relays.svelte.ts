@@ -74,7 +74,10 @@ export async function fetchRelayList(pubkey: string): Promise<RelayListResult> {
   const { fetchLatest } = await import('$shared/nostr/store.js');
 
   // Try kind:10002 first
-  const event10002 = await fetchLatest(pubkey, RELAY_LIST_KIND, { timeout: 5000 });
+  const event10002 = await fetchLatest(pubkey, RELAY_LIST_KIND, {
+    timeout: 5000,
+    directFallback: true
+  });
   if (event10002) {
     const entries = parseRelayTags(event10002.tags);
     if (entries.length > 0) {
@@ -84,7 +87,10 @@ export async function fetchRelayList(pubkey: string): Promise<RelayListResult> {
   }
 
   // Fallback to kind:3 content JSON
-  const event3 = await fetchLatest(pubkey, FOLLOW_KIND, { timeout: 5000 });
+  const event3 = await fetchLatest(pubkey, FOLLOW_KIND, {
+    timeout: 5000,
+    directFallback: true
+  });
   if (event3) {
     try {
       const content = JSON.parse(event3.content) as Record<

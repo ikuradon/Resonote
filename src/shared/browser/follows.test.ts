@@ -183,19 +183,34 @@ describe('loadFollows — DBキャッシュあり', () => {
   });
 
   it('WoT にはフォロイーのイベントのみ使用し、非フォロイーのイベントは無視する', async () => {
-    const nonFollow = '44444444'.repeat(8);
     const kind3 = makeKind3Event(MY_PUBKEY, [FOLLOW_A]);
-    // nonFollow は follows に含まれないので2ホップ対象外
-    const allKind3 = [kind3, makeKind3Event(nonFollow, [STRANGER])];
     mockGetSync
       .mockResolvedValueOnce([{ event: kind3, seenOn: [], firstSeen: 0 }])
-      .mockResolvedValueOnce(allKind3.map((e) => ({ event: e, seenOn: [], firstSeen: 0 })));
+      .mockResolvedValueOnce([]);
 
     await loadFollows(MY_PUBKEY);
 
     const f = getFollows();
     // nonFollow のフォロイーである STRANGER は WoT に含まれない
     expect(f.wot.has(STRANGER)).toBe(false);
+    expect(mockGetSync).toHaveBeenNthCalledWith(2, {
+      kinds: [3],
+      authors: [FOLLOW_A]
+    });
+  });
+
+  it('2-hop 復元時の kind:3 再読込は direct follows の authors に限定する', async () => {
+    const kind3 = makeKind3Event(MY_PUBKEY, [FOLLOW_A, FOLLOW_B]);
+    mockGetSync
+      .mockResolvedValueOnce([{ event: kind3, seenOn: [], firstSeen: 0 }])
+      .mockResolvedValueOnce([]);
+
+    await loadFollows(MY_PUBKEY);
+
+    expect(mockGetSync).toHaveBeenNthCalledWith(2, {
+      kinds: [3],
+      authors: [FOLLOW_A, FOLLOW_B]
+    });
   });
 });
 

@@ -19,7 +19,7 @@ const BOOKMARK_KIND = 10003;
 export async function loadBookmarks(pubkey: string): Promise<{ tags: string[][] } | null> {
   log.info('Loading bookmarks', { pubkey: shortHex(pubkey) });
   const { fetchLatest } = await import('$shared/nostr/store.js');
-  return fetchLatest(pubkey, BOOKMARK_KIND);
+  return fetchLatest(pubkey, BOOKMARK_KIND, { directFallback: true });
 }
 
 export async function publishAddBookmark(
@@ -31,7 +31,7 @@ export async function publishAddBookmark(
   const { fetchLatest } = await import('$shared/nostr/store.js');
   const value = contentIdToString(contentId);
 
-  const latest = await fetchLatest(myPubkey, BOOKMARK_KIND);
+  const latest = await fetchLatest(myPubkey, BOOKMARK_KIND, { directFallback: true });
   let tags: string[][];
 
   if (latest) {
@@ -57,7 +57,7 @@ export async function publishRemoveBookmark(
   const { fetchLatest } = await import('$shared/nostr/store.js');
   const value = contentIdToString(contentId);
 
-  const latest = await fetchLatest(myPubkey, BOOKMARK_KIND);
+  const latest = await fetchLatest(myPubkey, BOOKMARK_KIND, { directFallback: true });
   const tags = latest ? removeBookmarkTag(latest.tags, value) : [];
 
   await castSigned({ kind: BOOKMARK_KIND, tags, content: '' });

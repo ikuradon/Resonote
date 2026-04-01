@@ -130,7 +130,10 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
     }
 
     // Fetch latest from relay via fetchLatest (kind:10030)
-    const latestEvent = await fetchLatest(pubkey, 10030, { timeout: 5000 });
+    const latestEvent = await fetchLatest(pubkey, 10030, {
+      timeout: 5000,
+      directFallback: true
+    });
     if (gen !== generation) return;
 
     if (!latestEvent) {

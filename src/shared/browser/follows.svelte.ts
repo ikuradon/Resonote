@@ -94,15 +94,15 @@ export async function loadFollows(pubkey: string): Promise<void> {
     const follows = extractFollows(kind3);
     state.follows = follows;
 
-    const allKind3Results = await store.getSync({ kinds: [FOLLOW_KIND] });
-    if (gen !== generation) return;
-
     const allWot = new Set([...follows, pubkey]);
-    for (const cached of allKind3Results) {
-      const event = cached.event;
-      if (!follows.has(event.pubkey)) continue;
-      for (const tag of event.tags) {
-        if (tag[0] === 'p' && tag[1]) allWot.add(tag[1]);
+    if (follows.size > 0) {
+      const allKind3Results = await store.getSync({ kinds: [FOLLOW_KIND], authors: [...follows] });
+      if (gen !== generation) return;
+
+      for (const cached of allKind3Results) {
+        for (const tag of cached.event.tags) {
+          if (tag[0] === 'p' && tag[1]) allWot.add(tag[1]);
+        }
       }
     }
     state.wot = allWot;

@@ -25,7 +25,10 @@ export async function fetchWot(pubkey: string, callbacks: WotProgressCallback): 
   const { fetchLatest } = await import('$shared/nostr/store.js');
 
   // Step 1: Fetch direct follows via fetchLatest (cache → relay)
-  const latestEvent = await fetchLatest(pubkey, FOLLOW_KIND, { timeout: 10_000 });
+  const latestEvent = await fetchLatest(pubkey, FOLLOW_KIND, {
+    timeout: 10_000,
+    directFallback: true
+  });
   const directFollows = latestEvent ? extractFollows(latestEvent) : new Set<string>();
 
   if (callbacks.isCancelled()) return { directFollows, wot: directFollows };

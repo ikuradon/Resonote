@@ -85,7 +85,7 @@ export function disposeStore(): void {
 export async function fetchLatest(
   pubkey: string,
   kind: number,
-  options?: { timeout?: number; signal?: AbortSignal }
+  options?: { timeout?: number; signal?: AbortSignal; directFallback?: boolean }
 ): Promise<NostrEvent | null> {
   const timeoutMs = options?.timeout ?? 5000;
   const s = await getStoreAsync();
@@ -140,6 +140,7 @@ export async function fetchLatest(
     if (result === completeSentinel) {
       const refreshed = await s.getSync({ kinds: [kind], authors: [pubkey], limit: 1 });
       if (refreshed.length > 0) return refreshed[0].event;
+      if (!options?.directFallback) return null;
       return await fetchLatestEvent(pubkey, kind, {
         timeout: Math.max(1, deadline - Date.now())
       });

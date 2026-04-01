@@ -16,7 +16,7 @@ export interface FollowsCountResult {
 
 export async function fetchFollowsCount(pubkey: string): Promise<FollowsCountResult> {
   try {
-    const latestEvent = await fetchLatest(pubkey, FOLLOW_KIND);
+    const latestEvent = await fetchLatest(pubkey, FOLLOW_KIND, { directFallback: true });
     if (latestEvent) {
       const pks = latestEvent.tags.filter((tag) => tag[0] === 'p' && tag[1]).map((tag) => tag[1]);
       return { count: pks.length, pubkeys: pks };

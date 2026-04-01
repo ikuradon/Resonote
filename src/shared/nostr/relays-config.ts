@@ -13,7 +13,10 @@ export async function applyUserRelays(pubkey: string): Promise<string[]> {
 
   try {
     const { fetchLatest } = await import('$shared/nostr/store.js');
-    const event = await fetchLatest(pubkey, RELAY_LIST_KIND, { timeout: 10_000 });
+    const event = await fetchLatest(pubkey, RELAY_LIST_KIND, {
+      timeout: 10_000,
+      directFallback: true
+    });
 
     const rxNostr = await getRxNostr();
 

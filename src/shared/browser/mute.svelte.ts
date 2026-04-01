@@ -81,7 +81,7 @@ export async function loadMuteList(pubkey: string): Promise<void> {
 
   try {
     const { fetchLatest } = await import('$shared/nostr/store.js');
-    const latest = await fetchLatest(pubkey, MUTE_KIND);
+    const latest = await fetchLatest(pubkey, MUTE_KIND, { directFallback: true });
     if (gen !== generation) return;
 
     const newPubkeys = new Set<string>();
