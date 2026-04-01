@@ -13,19 +13,11 @@ const log = createLogger('profile');
 const MAX_PROFILES = 2000;
 
 const pending = new Set<string>();
+const loadedPubkeys = new Set<string>();
 let profiles = $state<Map<string, Profile>>(new Map());
 
 function hasLoadedProfile(pubkey: string): boolean {
-  const profile = profiles.get(pubkey);
-  if (!profile) return false;
-  return (
-    profile.name !== undefined ||
-    profile.displayName !== undefined ||
-    profile.picture !== undefined ||
-    profile.about !== undefined ||
-    profile.nip05 !== undefined ||
-    profile.nip05valid !== undefined
-  );
+  return loadedPubkeys.has(pubkey);
 }
 
 function parseProfileContent(content: string): Profile {
@@ -77,6 +69,7 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
       try {
         const profile = parseProfileContent(cachedEvent.event.content);
         profiles.set(cachedEvent.event.pubkey, profile);
+        loadedPubkeys.add(cachedEvent.event.pubkey);
       } catch {
         log.warn('Malformed cached profile JSON', { pubkey: shortHex(cachedEvent.event.pubkey) });
       }
@@ -105,6 +98,7 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
         try {
           const profile = parseProfileContent(ce.event.content);
           profiles.set(pk, profile);
+          loadedPubkeys.add(pk);
           const nip05 = profile.nip05;
           if (nip05) {
             void import('$shared/nostr/nip05.js').then(({ verifyNip05 }) =>
@@ -130,13 +124,17 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
     for (const pk of toFetch) {
       if (!profiles.has(pk)) {
         profiles.set(pk, {});
+        loadedPubkeys.add(pk);
       }
     }
 
     if (profiles.size > MAX_PROFILES) {
       const keys = [...profiles.keys()];
       const toRemove = keys.slice(0, profiles.size - MAX_PROFILES);
-      for (const key of toRemove) profiles.delete(key);
+      for (const key of toRemove) {
+        profiles.delete(key);
+        loadedPubkeys.delete(key);
+      }
     }
 
     profiles = new Map(profiles);
@@ -151,4 +149,5 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
 export function clearProfiles(): void {
   profiles = new Map();
   pending.clear();
+  loadedPubkeys.clear();
 }

@@ -16,6 +16,7 @@ const {
   clearMuteListMock,
   initStoreMock,
   disposeStoreMock,
+  clearIndexedDBMock,
   logInfoMock,
   logErrorMock
 } = vi.hoisted(() => ({
@@ -33,6 +34,7 @@ const {
   clearMuteListMock: vi.fn(),
   initStoreMock: vi.fn(),
   disposeStoreMock: vi.fn(),
+  clearIndexedDBMock: vi.fn(),
   logInfoMock: vi.fn(),
   logErrorMock: vi.fn()
 }));
@@ -62,6 +64,10 @@ vi.mock('$shared/nostr/relays.js', () => ({
 vi.mock('$shared/nostr/store.js', () => ({
   initStore: initStoreMock,
   disposeStore: disposeStoreMock
+}));
+
+vi.mock('$shared/browser/dev-tools.js', () => ({
+  clearIndexedDB: clearIndexedDBMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -221,6 +227,12 @@ describe('destroySession', () => {
     await destroySession();
 
     expect(disposeStoreMock).toHaveBeenCalledOnce();
+  });
+
+  it('IndexedDB をクリアする', async () => {
+    await destroySession();
+
+    expect(clearIndexedDBMock).toHaveBeenCalledOnce();
   });
 
   it('セッション破棄ログが出力される', async () => {
