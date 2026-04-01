@@ -532,6 +532,66 @@ describe('store.ts', () => {
       expect(mockDispose).toHaveBeenCalled();
     });
 
+    it('does not reduce fallback timeout because of cache-miss setup work', async () => {
+      vi.resetModules();
+      vi.useFakeTimers();
+
+      const mockDispose = vi.fn();
+      const { BehaviorSubject } = await import('rxjs');
+      const eventsSubject = new BehaviorSubject<unknown[]>([]);
+      const statusSubject = new BehaviorSubject('cached');
+
+      const mockStore8 = {
+        add: vi.fn(),
+        query: vi.fn(),
+        fetchById: vi.fn(),
+        getSync: vi
+          .fn()
+          .mockImplementationOnce(async () => {
+            await vi.advanceTimersByTimeAsync(2_000);
+            return [];
+          })
+          .mockResolvedValueOnce([]),
+        dispose: vi.fn(),
+        changes$: { subscribe: vi.fn() },
+        _setConnectFilter: vi.fn(),
+        _getConnectFilter: vi.fn()
+      };
+      const getRxNostrMock = vi.fn().mockResolvedValue({ createAllEventObservable: vi.fn() });
+      const fetchLatestEventMock = vi.fn().mockResolvedValue(null);
+
+      vi.doMock('@ikuradon/auftakt', () => ({
+        createEventStore: vi.fn().mockReturnValue(mockStore8)
+      }));
+      vi.doMock('@ikuradon/auftakt/backends/dexie', () => ({
+        dexieBackend: vi.fn().mockReturnValue({})
+      }));
+      vi.doMock('@ikuradon/auftakt/sync', () => ({
+        connectStore: vi.fn().mockReturnValue(() => {}),
+        createSyncedQuery: vi.fn().mockReturnValue({
+          events$: eventsSubject.asObservable(),
+          status$: statusSubject.asObservable(),
+          emit: vi.fn(),
+          dispose: mockDispose
+        })
+      }));
+      vi.doMock('./client.js', () => ({
+        fetchLatestEvent: fetchLatestEventMock,
+        getRxNostr: getRxNostrMock
+      }));
+
+      const { initStore, fetchLatest } = await import('./store.js');
+      await initStore();
+
+      const resultPromise = fetchLatest('pk1', 10003, { timeout: 5_000 });
+      await vi.advanceTimersByTimeAsync(0);
+      statusSubject.next('complete');
+
+      await expect(resultPromise).resolves.toBeNull();
+      expect(fetchLatestEventMock).toHaveBeenCalledWith('pk1', 10003, { timeout: 5_000 });
+      vi.useRealTimers();
+    });
+
     it('caps direct relay fallback to the remaining timeout budget', async () => {
       vi.resetModules();
       vi.useFakeTimers();

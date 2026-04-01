@@ -88,7 +88,6 @@ export async function fetchLatest(
   options?: { timeout?: number; signal?: AbortSignal }
 ): Promise<NostrEvent | null> {
   const timeoutMs = options?.timeout ?? 5000;
-  const deadline = Date.now() + timeoutMs;
   const s = await getStoreAsync();
 
   // 1. Local cache
@@ -103,6 +102,7 @@ export async function fetchLatest(
   const { firstValueFrom, filter, race, timer, Observable, take } = await import('rxjs');
   const { map } = await import('rxjs/operators');
   const rxNostr = await getRxNostr();
+  const deadline = Date.now() + timeoutMs;
   const completeSentinel = Symbol('fetchLatest.complete');
 
   const synced = createSyncedQuery(rxNostr, s, {

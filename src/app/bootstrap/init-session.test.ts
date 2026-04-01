@@ -223,10 +223,10 @@ describe('destroySession', () => {
     expect(refreshRelayListMock).toHaveBeenCalledWith(['wss://relay.example.com']);
   });
 
-  it('disposeStore を呼び出す', async () => {
+  it('destroySession からは disposeStore を直接呼ばない', async () => {
     await destroySession();
 
-    expect(disposeStoreMock).toHaveBeenCalledOnce();
+    expect(disposeStoreMock).not.toHaveBeenCalled();
   });
 
   it('IndexedDB をクリアする', async () => {

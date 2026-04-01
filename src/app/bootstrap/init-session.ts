@@ -58,13 +58,11 @@ export async function destroySession(): Promise<void> {
       clearMuteList,
       refreshRelayList
     },
-    { disposeStore },
     { clearIndexedDB }
   ] = await Promise.all([
     import('$shared/nostr/user-relays.js'),
     import('$shared/nostr/relays.js'),
     import('$shared/browser/stores.js'),
-    import('$shared/nostr/store.js'),
     import('$shared/browser/dev-tools.js')
   ]);
 
@@ -76,6 +74,5 @@ export async function destroySession(): Promise<void> {
   clearMuteList();
   void refreshRelayList(DEFAULT_RELAYS);
 
-  disposeStore();
   await clearIndexedDB();
 }
