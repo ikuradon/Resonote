@@ -15,6 +15,19 @@ const MAX_PROFILES = 2000;
 const pending = new Set<string>();
 let profiles = $state<Map<string, Profile>>(new Map());
 
+function hasLoadedProfile(pubkey: string): boolean {
+  const profile = profiles.get(pubkey);
+  if (!profile) return false;
+  return (
+    profile.name !== undefined ||
+    profile.displayName !== undefined ||
+    profile.picture !== undefined ||
+    profile.about !== undefined ||
+    profile.nip05 !== undefined ||
+    profile.nip05valid !== undefined
+  );
+}
+
 function parseProfileContent(content: string): Profile {
   const meta = JSON.parse(content) as Record<string, unknown>;
   return {
@@ -49,7 +62,7 @@ export async function fetchProfile(pubkey: string): Promise<void> {
  * Falls back to DB cache before making relay requests.
  */
 export async function fetchProfiles(pubkeys: string[]): Promise<void> {
-  const claimedPubkeys = pubkeys.filter((pk) => !profiles.has(pk) && !pending.has(pk));
+  const claimedPubkeys = pubkeys.filter((pk) => !hasLoadedProfile(pk) && !pending.has(pk));
   let toFetch = claimedPubkeys;
   if (toFetch.length === 0) return;
 
@@ -69,7 +82,7 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
       }
     }
 
-    toFetch = toFetch.filter((pk) => !profiles.has(pk));
+    toFetch = toFetch.filter((pk) => !hasLoadedProfile(pk));
     if (toFetch.length === 0) {
       profiles = new Map(profiles);
       return;
@@ -88,7 +101,7 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
       const results = cachedAfterFetch.length > 0 ? cachedAfterFetch : relayResults;
       for (const ce of results) {
         const pk = ce.event.pubkey;
-        if (profiles.has(pk)) continue;
+        if (hasLoadedProfile(pk)) continue;
         try {
           const profile = parseProfileContent(ce.event.content);
           profiles.set(pk, profile);

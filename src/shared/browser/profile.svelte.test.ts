@@ -231,6 +231,22 @@ describe('fetchProfile — relay から取得', () => {
     expect(profile).toEqual({});
   });
 
+  it('空オブジェクトのプレースホルダしかない場合は再 fetch を許可する', async () => {
+    setupMocks([], []);
+
+    await fetchProfile(PUBKEY_A);
+    await new Promise<void>((r) => setTimeout(r, 50));
+    expect(getProfile(PUBKEY_A)).toEqual({});
+
+    const event = makeKind0Event(PUBKEY_A, { name: 'Alice Retry' });
+    setupMocks([], [{ event }]);
+
+    await fetchProfile(PUBKEY_A);
+    await new Promise<void>((r) => setTimeout(r, 50));
+
+    expect(getProfile(PUBKEY_A)?.name).toBe('Alice Retry');
+  });
+
   it('relay fetch 中にエラーが発生しても warn を出す', async () => {
     setupMocks([], [], { error: new Error('relay error') });
 

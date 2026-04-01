@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getAuth } from '$shared/browser/auth.js';
-  import { getBookmarks, removeBookmark } from '$shared/browser/bookmarks.js';
+  import { getBookmarks, loadBookmarks, removeBookmark } from '$shared/browser/bookmarks.js';
   import { parseContentId } from '$shared/content/types.js';
   import { t } from '$shared/i18n/t.js';
   import { iTagToContentPath } from '$shared/nostr/helpers.js';
@@ -8,6 +8,18 @@
 
   const auth = getAuth();
   const bookmarks = getBookmarks();
+  let lastLoadedPubkey = $state<string | null>(null);
+
+  $effect(() => {
+    const pubkey = auth.pubkey;
+    if (!pubkey) {
+      lastLoadedPubkey = null;
+      return;
+    }
+    if (lastLoadedPubkey === pubkey && (bookmarks.loading || bookmarks.loaded)) return;
+    lastLoadedPubkey = pubkey;
+    void loadBookmarks(pubkey);
+  });
 
   async function handleRemove(value: string) {
     const contentId = parseContentId(value);
