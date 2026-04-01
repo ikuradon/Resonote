@@ -23,13 +23,16 @@ export async function initSession(pubkey: string): Promise<void> {
   const [
     { initStore },
     { applyUserRelays },
-    { loadFollows, loadBookmarks, loadMuteList, loadCustomEmojis, refreshRelayList }
+    { loadFollows, loadBookmarks, loadMuteList, loadCustomEmojis, refreshRelayList, clearProfiles }
   ] = await Promise.all([
     import('$shared/nostr/store.js'),
     import('$shared/nostr/user-relays.js'),
     import('$shared/browser/stores.js')
   ]);
 
+  // Relay/session context changes on login, so stale public-view placeholders
+  // must not block profile re-fetches after authenticated relays are applied.
+  clearProfiles();
   await initStore();
 
   const relayUrls = await applyUserRelays(pubkey);

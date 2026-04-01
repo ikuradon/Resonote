@@ -154,7 +154,7 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
         import('$shared/nostr/client.js')
       ]);
       const rxNostr = await getRxNostr();
-      const { firstValueFrom, filter, timeout, catchError, of, defaultIfEmpty } =
+      const { firstValueFrom, filter, timeout, catchError, of, merge, map, take } =
         await import('rxjs');
 
       const BATCH_SIZE = 20;
@@ -175,13 +175,28 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
               filter: f,
               strategy: 'backward'
             });
+            let latestEvents: unknown[] = [];
+            const eventsSubscription = synced.events$.subscribe({
+              next: (events) => {
+                latestEvents = events;
+              },
+              error: () => {}
+            });
             try {
               const result = await firstValueFrom(
-                synced.events$.pipe(
-                  filter((events: unknown[]) => events.length > 0),
+                merge(
+                  synced.events$.pipe(
+                    filter((events: unknown[]) => events.length > 0),
+                    take(1)
+                  ),
+                  synced.status$.pipe(
+                    filter((status: unknown) => status === 'complete'),
+                    map(() => latestEvents),
+                    take(1)
+                  )
+                ).pipe(
                   timeout(5000),
-                  catchError(() => of(null)),
-                  defaultIfEmpty(null)
+                  catchError(() => of(null))
                 )
               );
               if (result && Array.isArray(result) && result.length > 0) {
@@ -190,6 +205,7 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
               }
               return null;
             } finally {
+              eventsSubscription.unsubscribe();
               synced.dispose();
             }
           })

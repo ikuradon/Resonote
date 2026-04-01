@@ -104,6 +104,12 @@ describe('initSession', () => {
     expect(initStoreMock).toHaveBeenCalledOnce();
   });
 
+  it('ログイン時に profile キャッシュをクリアする', async () => {
+    await initSession(PUBKEY);
+
+    expect(clearProfilesMock).toHaveBeenCalledOnce();
+  });
+
   it('applyUserRelays を pubkey で呼び出す', async () => {
     await initSession(PUBKEY);
 

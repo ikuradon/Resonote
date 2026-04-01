@@ -74,6 +74,7 @@ function setupSyncedQueryForSets(
     const call = calls[callIndex] ?? { events: [] };
     callIndex++;
     const subject = new BehaviorSubject<unknown[]>([]);
+    const status = new BehaviorSubject<string>('cached');
     const disposeFn = vi.fn();
 
     queueMicrotask(() => {
@@ -88,12 +89,12 @@ function setupSyncedQueryForSets(
           }))
         );
       }
-      // If empty, the BehaviorSubject starts with [] which is filtered out by rxjs filter
+      status.next('complete');
     });
 
     return {
       events$: subject.asObservable(),
-      status$: new BehaviorSubject<string>('cached').asObservable(),
+      status$: status.asObservable(),
       emit: vi.fn(),
       dispose: disposeFn
     };
@@ -409,6 +410,17 @@ describe('loadCustomEmojis', () => {
     setupFetchLatest({ id: 'list-evt', tags: [['a', '30030:author:err-set']] });
 
     setupSyncedQueryForSets([{ events: [], error: new Error('set fetch error') }]);
+
+    await loadCustomEmojis(PUBKEY);
+
+    const e = getCustomEmojis();
+    expect(e.categories).toEqual([]);
+    expect(e.loading).toBe(false);
+  });
+
+  it('set が見つからない場合も complete で速やかに解決される', async () => {
+    setupFetchLatest({ id: 'list-evt', tags: [['a', '30030:author:missing-set']] });
+    setupSyncedQueryForSets([{ events: [] }]);
 
     await loadCustomEmojis(PUBKEY);
 
