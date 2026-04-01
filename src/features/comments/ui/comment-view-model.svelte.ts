@@ -52,6 +52,7 @@ const log = createLogger('comment-vm');
 
 interface SyncedQueryHandle {
   dispose: () => void;
+  completed: Promise<void>;
 }
 
 export function createCommentViewModel(contentId: ContentId, provider: ContentProvider) {
@@ -88,6 +89,14 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   let syncedQueries: SyncedQueryHandle[] = [];
   /** Set of event IDs already processed from SyncedQuery events$ to avoid re-dispatch */
   let processedEventIds = new Set<string>();
+
+  function finishLoading(): void {
+    if (loadingTimeout) {
+      clearTimeout(loadingTimeout);
+      loadingTimeout = undefined;
+    }
+    loading = false;
+  }
 
   // --- Domain operations ---
   function rebuildReactionIndex() {
@@ -377,6 +386,18 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
         filter: queryFilter,
         strategy: 'dual'
       });
+      const completed = new Promise<void>((resolve) => {
+        const statusSub = synced.status$.subscribe({
+          next: (status: unknown) => {
+            if (status === 'complete') {
+              statusSub.unsubscribe();
+              resolve();
+            }
+          },
+          error: () => resolve(),
+          complete: () => resolve()
+        });
+      });
 
       const sub = synced.events$.subscribe({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -390,6 +411,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
       });
 
       handles.push({
+        completed,
         dispose: () => {
           sub.unsubscribe();
           synced.dispose();
@@ -446,18 +468,13 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
       // destroyed may flip while awaiting dynamic imports / store init
       if (destroyed) {
         for (const h of handles) h.dispose();
-        loading = false;
+        finishLoading();
         return;
       }
       syncedQueries = handles;
-
-      // Mark loading as complete after a short delay to allow backward data to arrive
-      setTimeout(() => {
-        if (!destroyed) {
-          clearTimeout(loadingTimeout);
-          loading = false;
-        }
-      }, 2000);
+      void Promise.all(handles.map((handle) => handle.completed)).then(() => {
+        if (!destroyed) finishLoading();
+      });
 
       log.info('Subscribed to comments', {
         contentId: `${contentId.platform}:${contentId.type}:${contentId.id}`
@@ -466,11 +483,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
       log.error('Failed to subscribe to comments', err);
       for (const q of syncedQueries) q.dispose();
       syncedQueries = [];
-      if (loadingTimeout) {
-        clearTimeout(loadingTimeout);
-        loadingTimeout = undefined;
-      }
-      loading = false;
+      finishLoading();
     }
   }
 

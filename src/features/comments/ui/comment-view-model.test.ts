@@ -22,6 +22,7 @@ const {
   getStoreAsyncMock,
   createSyncedQueryMock,
   mockEventsSubjects,
+  mockStatusSubjects,
   logInfoMock,
   logDebugMock,
   logErrorMock
@@ -75,6 +76,7 @@ const {
     }),
     createSyncedQueryMock: vi.fn(),
     mockEventsSubjects: [] as BehaviorSubject<unknown[]>[],
+    mockStatusSubjects: [] as BehaviorSubject<string>[],
     logInfoMock: vi.fn(),
     logDebugMock: vi.fn(),
     logErrorMock: vi.fn()
@@ -184,11 +186,13 @@ function makeCommentEvent(
  */
 function setupSyncedQuery(): void {
   createSyncedQueryMock.mockImplementation(() => {
-    const subject = new BehaviorSubject<unknown[]>([]);
-    mockEventsSubjects.push(subject);
+    const eventsSubject = new BehaviorSubject<unknown[]>([]);
+    const statusSubject = new BehaviorSubject<string>('cached');
+    mockEventsSubjects.push(eventsSubject);
+    mockStatusSubjects.push(statusSubject);
     return {
-      events$: subject.asObservable(),
-      status$: new BehaviorSubject<string>('cached').asObservable(),
+      events$: eventsSubject.asObservable(),
+      status$: statusSubject.asObservable(),
       emit: vi.fn(),
       dispose: vi.fn()
     };
@@ -214,6 +218,7 @@ describe('createCommentViewModel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockEventsSubjects.length = 0;
+    mockStatusSubjects.length = 0;
 
     // Re-apply default return values after clearAllMocks
     getCommentRepositoryMock.mockResolvedValue({ put: vi.fn() });
@@ -344,9 +349,13 @@ describe('createCommentViewModel', () => {
     it('sets loading=false after subscribe completes', async () => {
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
-      // Wait for the 2s setTimeout that marks loading as false
-      await new Promise<void>((r) => setTimeout(r, 2100));
-      expect(vm.loading).toBe(false);
+      expect(vm.loading).toBe(true);
+      for (const subject of mockStatusSubjects) {
+        subject.next('complete');
+      }
+      await vi.waitFor(() => {
+        expect(vm.loading).toBe(false);
+      });
     });
 
     it('restores comments from cache and sets loading=false when cache is non-empty', async () => {
