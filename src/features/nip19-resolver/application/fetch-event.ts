@@ -16,10 +16,18 @@ export async function fetchNostrEvent(
   const { getStoreAsync } = await import('$shared/nostr/store.js');
   const store = await getStoreAsync();
 
-  const cached = await store.fetchById(eventId, {
+  // Try each relay hint in order until found
+  let cached = await store.fetchById(eventId, {
     relayHint: relayHints.length > 0 ? relayHints[0] : undefined,
     timeout: 10_000
   });
+
+  if (!cached && relayHints.length > 1) {
+    for (const hint of relayHints.slice(1)) {
+      cached = await store.fetchById(eventId, { relayHint: hint, timeout: 5_000 });
+      if (cached) break;
+    }
+  }
 
   if (!cached) return null;
 
