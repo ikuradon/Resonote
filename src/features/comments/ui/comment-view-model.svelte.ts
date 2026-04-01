@@ -373,26 +373,36 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
 
     for (const filter of mergedFilters) {
       const queryFilter = options?.since ? { ...filter, since: options.since } : filter;
-      const synced = createSyncedQuery(rxNostr, store, {
+      const backward = createSyncedQuery(rxNostr, store, {
         filter: queryFilter,
-        strategy: 'dual'
+        strategy: 'backward'
+      });
+      const forward = createSyncedQuery(rxNostr, store, {
+        filter: queryFilter,
+        strategy: 'forward'
       });
 
-      const sub = synced.events$.subscribe({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        next: (events: any[]) => {
-          if (destroyed) return;
-          processEventsSnapshot(events);
-        },
-        error: (err: unknown) => {
-          log.error('SyncedQuery subscription error', err);
-        }
-      });
+      const subscribeToEvents = (label: 'backward' | 'forward', synced: typeof backward) =>
+        synced.events$.subscribe({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          next: (events: any[]) => {
+            if (destroyed) return;
+            processEventsSnapshot(events);
+          },
+          error: (err: unknown) => {
+            log.error(`SyncedQuery ${label} subscription error`, err);
+          }
+        });
+
+      const backwardSub = subscribeToEvents('backward', backward);
+      const forwardSub = subscribeToEvents('forward', forward);
 
       handles.push({
         dispose: () => {
-          sub.unsubscribe();
-          synced.dispose();
+          backwardSub.unsubscribe();
+          forwardSub.unsubscribe();
+          backward.dispose();
+          forward.dispose();
         }
       });
     }
