@@ -1,16 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // --- hoisted mocks ---
-const { mockGetSync, createRxBackwardReqMock, getRxNostrMock, logWarnMock, logErrorMock } =
-  vi.hoisted(() => {
-    return {
-      mockGetSync: vi.fn(),
-      createRxBackwardReqMock: vi.fn(),
-      getRxNostrMock: vi.fn(),
-      logWarnMock: vi.fn(),
-      logErrorMock: vi.fn()
-    };
-  });
+const { mockGetSync, fetchLatestBatchMock, logWarnMock, logErrorMock } = vi.hoisted(() => {
+  return {
+    mockGetSync: vi.fn(),
+    fetchLatestBatchMock: vi.fn(),
+    logWarnMock: vi.fn(),
+    logErrorMock: vi.fn()
+  };
+});
 
 vi.mock('$shared/nostr/store.js', () => ({
   getStoreAsync: vi.fn().mockResolvedValue({
@@ -20,12 +18,12 @@ vi.mock('$shared/nostr/store.js', () => ({
   })
 }));
 
-vi.mock('rx-nostr', () => ({
-  createRxBackwardReq: createRxBackwardReqMock
+vi.mock('@ikuradon/auftakt/sync', () => ({
+  fetchLatestBatch: fetchLatestBatchMock
 }));
 
 vi.mock('$shared/nostr/client.js', () => ({
-  getRxNostr: getRxNostrMock
+  getRxNostr: vi.fn().mockResolvedValue({})
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -64,47 +62,22 @@ function makeKind0Event(pubkey: string, content: Record<string, unknown>) {
 function setupMocks(
   dbEvents: ReturnType<typeof makeKind0Event>[],
   relayPackets: { event: ReturnType<typeof makeKind0Event> }[],
-  opts: { complete?: boolean; error?: Error } = {}
+  opts: { error?: Error } = {}
 ) {
-  const { complete = true, error } = opts;
+  const { error } = opts;
 
   // DB mock — wrap events in CachedEvent format
   mockGetSync.mockResolvedValue(dbEvents.map((event) => ({ event, seenOn: [], firstSeen: 0 })));
 
-  // relay mock via rx-nostr backward req
-  type Observer = {
-    next?: (packet: { event: Record<string, unknown>; from: string }) => void;
-    complete?: () => void;
-    error?: (err: Error) => void;
-  };
-  let capturedObserver: Observer | undefined;
-
-  const mockReq = { emit: vi.fn(), over: vi.fn() };
-  createRxBackwardReqMock.mockReturnValue(mockReq);
-
-  const mockSub = { unsubscribe: vi.fn() };
-  const mockRxNostr = {
-    use: vi.fn().mockReturnValue({
-      subscribe: vi.fn((obs: Observer) => {
-        capturedObserver = obs;
-        // Deliver relay events asynchronously
-        setTimeout(() => {
-          if (error) {
-            obs.error?.(error);
-          } else {
-            for (const p of relayPackets) {
-              obs.next?.({ event: p.event, from: 'wss://relay.test' });
-            }
-            if (complete) obs.complete?.();
-          }
-        }, 10);
-        return mockSub;
-      })
-    })
-  };
-  getRxNostrMock.mockResolvedValue(mockRxNostr);
-
-  return { mockRxNostr, mockReq, mockSub, capturedObserver };
+  // relay mock via fetchLatestBatch — returns CachedEvent[] for batch
+  fetchLatestBatchMock.mockImplementation(async () => {
+    if (error) throw error;
+    return relayPackets.map((p) => ({
+      event: p.event,
+      seenOn: ['wss://relay.test'],
+      firstSeen: Date.now()
+    }));
+  });
 }
 
 // --- tests ---
@@ -132,7 +105,7 @@ describe('clearProfiles', () => {
 
   it('clearProfiles 後は全プロファイルが undefined になる', async () => {
     const event = makeKind0Event(PUBKEY_A, { name: 'Alice', display_name: 'Alice Display' });
-    setupMocks([event], [], { complete: false });
+    setupMocks([event], []);
 
     await fetchProfile(PUBKEY_A);
     expect(getProfile(PUBKEY_A)).toBeDefined();
@@ -143,13 +116,13 @@ describe('clearProfiles', () => {
 
   it('clearProfiles は pending を空にする（再 fetch が通る）', async () => {
     const event = makeKind0Event(PUBKEY_A, { name: 'Alice' });
-    setupMocks([event], [], { complete: false });
+    setupMocks([event], []);
 
     await fetchProfile(PUBKEY_A);
     clearProfiles();
 
     // clearProfiles 後はもう一度 fetch が呼べる（モックを再設定）
-    setupMocks([event], [], { complete: false });
+    setupMocks([event], []);
     await fetchProfile(PUBKEY_A);
     expect(getProfile(PUBKEY_A)).toBeDefined();
   });
@@ -168,7 +141,7 @@ describe('fetchProfile — DB キャッシュあり', () => {
       picture: 'https://example.com/alice.png',
       nip05: 'alice@example.com'
     });
-    setupMocks([event], [], { complete: false });
+    setupMocks([event], []);
 
     await fetchProfile(PUBKEY_A);
 
@@ -185,7 +158,7 @@ describe('fetchProfile — DB キャッシュあり', () => {
       name: 'Bob',
       picture: 'javascript:alert(1)'
     });
-    setupMocks([event], [], { complete: false });
+    setupMocks([event], []);
 
     await fetchProfile(PUBKEY_A);
 
@@ -205,17 +178,8 @@ describe('fetchProfile — DB キャッシュあり', () => {
     };
     mockGetSync.mockResolvedValue([{ event: badEvent, seenOn: [], firstSeen: 0 }]);
 
-    // Relay mock — returns no events, just completes
-    const mockReq = { emit: vi.fn(), over: vi.fn() };
-    createRxBackwardReqMock.mockReturnValue(mockReq);
-    getRxNostrMock.mockResolvedValue({
-      use: vi.fn().mockReturnValue({
-        subscribe: vi.fn((obs: { complete?: () => void }) => {
-          setTimeout(() => obs.complete?.(), 10);
-          return { unsubscribe: vi.fn() };
-        })
-      })
-    });
+    // Relay mock — returns no events
+    fetchLatestBatchMock.mockResolvedValue([]);
 
     await fetchProfile(PUBKEY_A);
     await new Promise<void>((r) => setTimeout(r, 50));
@@ -225,7 +189,7 @@ describe('fetchProfile — DB キャッシュあり', () => {
 
   it('既に fetch 済みの pubkey は再 fetch しない', async () => {
     const event = makeKind0Event(PUBKEY_A, { name: 'Alice' });
-    setupMocks([event], [], { complete: false });
+    setupMocks([event], []);
 
     await fetchProfile(PUBKEY_A);
     const callCount = mockGetSync.mock.calls.length;
@@ -273,10 +237,7 @@ describe('fetchProfile — relay から取得', () => {
     await fetchProfile(PUBKEY_A);
     await new Promise<void>((r) => setTimeout(r, 50));
 
-    expect(logWarnMock).toHaveBeenCalledWith(
-      'Profile fetch subscription error',
-      expect.any(Object)
-    );
+    expect(logWarnMock).toHaveBeenCalledWith('Profile batch fetch failed', expect.any(Object));
   });
 
   it('relay からの不正な JSON プロファイルは warn を出してスキップする', async () => {
