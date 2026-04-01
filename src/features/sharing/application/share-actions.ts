@@ -3,8 +3,8 @@
  */
 
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
+import { castSigned } from '$shared/nostr/client.js';
 import { buildShare } from '$shared/nostr/events.js';
-import { castSigned } from '$shared/nostr/gateway.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('share-actions');

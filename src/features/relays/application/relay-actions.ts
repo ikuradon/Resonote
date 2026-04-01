@@ -12,7 +12,7 @@ const RELAY_LIST_KIND = 10002;
 
 export async function publishRelayList(entries: RelayEntry[]): Promise<string[]> {
   log.info('Publishing relay list', { count: entries.length });
-  const { castSigned, getRxNostr } = await import('$shared/nostr/gateway.js');
+  const { castSigned, getRxNostr } = await import('$shared/nostr/client.js');
 
   const tags: string[][] = entries.map((e) => {
     if (e.read && e.write) return ['r', e.url];

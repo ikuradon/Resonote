@@ -4,8 +4,8 @@
  */
 
 import { fetchProfile, getDisplayName } from '$shared/browser/profile.js';
-import { cachedFetchById } from '$shared/nostr/cached-query.js';
 import { COMMENT_KIND } from '$shared/nostr/events.js';
+import { getStoreAsync } from '$shared/nostr/store.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('quote-vm');
@@ -29,13 +29,14 @@ export function createQuoteViewModel(eventId: string) {
 
   async function load() {
     try {
-      const event = await cachedFetchById(eventId);
-      if (!event) {
+      const result = await (await getStoreAsync()).fetchById(eventId, { negativeTTL: 30_000 });
+      if (!result) {
         status = 'not-found';
         return;
       }
+      const event = result.event;
 
-      const cwTag = event.tags.find((t) => t[0] === 'content-warning');
+      const cwTag = event.tags.find((t: string[]) => t[0] === 'content-warning');
       data = {
         eventId: event.id,
         pubkey: event.pubkey,

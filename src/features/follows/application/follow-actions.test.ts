@@ -1,14 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { castSignedMock, fetchLatestEventMock, logInfoMock } = vi.hoisted(() => ({
+const { castSignedMock, fetchLatestMock, logInfoMock } = vi.hoisted(() => ({
   castSignedMock: vi.fn(async () => {}),
-  fetchLatestEventMock: vi.fn(async (): Promise<Record<string, unknown> | null> => null),
+  fetchLatestMock: vi.fn(async (): Promise<Record<string, unknown> | null> => null),
   logInfoMock: vi.fn()
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  castSigned: castSignedMock,
-  fetchLatestEvent: fetchLatestEventMock
+vi.mock('$shared/nostr/client.js', () => ({
+  castSigned: castSignedMock
+}));
+
+vi.mock('$shared/nostr/store.js', () => ({
+  fetchLatest: fetchLatestMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -28,13 +31,13 @@ describe('publishFollow', () => {
   });
 
   it('fetches latest kind:3 event for myPubkey', async () => {
-    fetchLatestEventMock.mockResolvedValueOnce(null);
+    fetchLatestMock.mockResolvedValueOnce(null);
     await publishFollow(TARGET_PUBKEY, MY_PUBKEY);
-    expect(fetchLatestEventMock).toHaveBeenCalledWith(MY_PUBKEY, FOLLOW_KIND);
+    expect(fetchLatestMock).toHaveBeenCalledWith(MY_PUBKEY, FOLLOW_KIND);
   });
 
   it('publishes event with p-tag added when no existing follow list', async () => {
-    fetchLatestEventMock.mockResolvedValueOnce(null);
+    fetchLatestMock.mockResolvedValueOnce(null);
     await publishFollow(TARGET_PUBKEY, MY_PUBKEY);
     expect(castSignedMock).toHaveBeenCalledWith({
       kind: FOLLOW_KIND,
@@ -48,7 +51,7 @@ describe('publishFollow', () => {
       tags: [['p', 'other-pubkey']],
       content: 'relay hints'
     };
-    fetchLatestEventMock.mockResolvedValueOnce(existing);
+    fetchLatestMock.mockResolvedValueOnce(existing);
     await publishFollow(TARGET_PUBKEY, MY_PUBKEY);
     expect(castSignedMock).toHaveBeenCalledWith({
       kind: FOLLOW_KIND,
@@ -65,14 +68,14 @@ describe('publishFollow', () => {
       tags: [['p', TARGET_PUBKEY]],
       content: ''
     };
-    fetchLatestEventMock.mockResolvedValueOnce(existing);
+    fetchLatestMock.mockResolvedValueOnce(existing);
     await publishFollow(TARGET_PUBKEY, MY_PUBKEY);
     expect(castSignedMock).not.toHaveBeenCalled();
   });
 
   it('preserves existing content field', async () => {
     const existing = { tags: [], content: '{"relay":"wss://example.com"}' };
-    fetchLatestEventMock.mockResolvedValueOnce(existing);
+    fetchLatestMock.mockResolvedValueOnce(existing);
     await publishFollow(TARGET_PUBKEY, MY_PUBKEY);
     expect(castSignedMock).toHaveBeenCalledWith(
       expect.objectContaining({ content: '{"relay":"wss://example.com"}' })
@@ -80,13 +83,13 @@ describe('publishFollow', () => {
   });
 
   it('propagates errors from castSigned', async () => {
-    fetchLatestEventMock.mockResolvedValueOnce(null);
+    fetchLatestMock.mockResolvedValueOnce(null);
     castSignedMock.mockRejectedValueOnce(new Error('follow failed'));
     await expect(publishFollow(TARGET_PUBKEY, MY_PUBKEY)).rejects.toThrow('follow failed');
   });
 
-  it('propagates errors from fetchLatestEvent', async () => {
-    fetchLatestEventMock.mockRejectedValueOnce(new Error('fetch failed'));
+  it('propagates errors from fetchLatest', async () => {
+    fetchLatestMock.mockRejectedValueOnce(new Error('fetch failed'));
     await expect(publishFollow(TARGET_PUBKEY, MY_PUBKEY)).rejects.toThrow('fetch failed');
   });
 });
@@ -97,13 +100,13 @@ describe('publishUnfollow', () => {
   });
 
   it('fetches latest kind:3 event for myPubkey', async () => {
-    fetchLatestEventMock.mockResolvedValueOnce(null);
+    fetchLatestMock.mockResolvedValueOnce(null);
     await publishUnfollow(TARGET_PUBKEY, MY_PUBKEY);
-    expect(fetchLatestEventMock).toHaveBeenCalledWith(MY_PUBKEY, FOLLOW_KIND);
+    expect(fetchLatestMock).toHaveBeenCalledWith(MY_PUBKEY, FOLLOW_KIND);
   });
 
   it('does nothing when no existing follow list', async () => {
-    fetchLatestEventMock.mockResolvedValueOnce(null);
+    fetchLatestMock.mockResolvedValueOnce(null);
     await publishUnfollow(TARGET_PUBKEY, MY_PUBKEY);
     expect(castSignedMock).not.toHaveBeenCalled();
   });
@@ -116,7 +119,7 @@ describe('publishUnfollow', () => {
       ],
       content: ''
     };
-    fetchLatestEventMock.mockResolvedValueOnce(existing);
+    fetchLatestMock.mockResolvedValueOnce(existing);
     await publishUnfollow(TARGET_PUBKEY, MY_PUBKEY);
     expect(castSignedMock).toHaveBeenCalledWith({
       kind: FOLLOW_KIND,
@@ -130,7 +133,7 @@ describe('publishUnfollow', () => {
       tags: [['p', TARGET_PUBKEY]],
       content: ''
     };
-    fetchLatestEventMock.mockResolvedValueOnce(existing);
+    fetchLatestMock.mockResolvedValueOnce(existing);
     await publishUnfollow(TARGET_PUBKEY, MY_PUBKEY);
     expect(castSignedMock).toHaveBeenCalledWith({
       kind: FOLLOW_KIND,
@@ -144,7 +147,7 @@ describe('publishUnfollow', () => {
       tags: [['p', TARGET_PUBKEY]],
       content: '{"relay":"wss://example.com"}'
     };
-    fetchLatestEventMock.mockResolvedValueOnce(existing);
+    fetchLatestMock.mockResolvedValueOnce(existing);
     await publishUnfollow(TARGET_PUBKEY, MY_PUBKEY);
     expect(castSignedMock).toHaveBeenCalledWith(
       expect.objectContaining({ content: '{"relay":"wss://example.com"}' })
@@ -159,7 +162,7 @@ describe('publishUnfollow', () => {
       ],
       content: ''
     };
-    fetchLatestEventMock.mockResolvedValueOnce(existing);
+    fetchLatestMock.mockResolvedValueOnce(existing);
     await publishUnfollow(TARGET_PUBKEY, MY_PUBKEY);
     expect(castSignedMock).toHaveBeenCalledWith({
       kind: FOLLOW_KIND,
@@ -169,7 +172,7 @@ describe('publishUnfollow', () => {
   });
 
   it('propagates errors from castSigned', async () => {
-    fetchLatestEventMock.mockResolvedValueOnce({
+    fetchLatestMock.mockResolvedValueOnce({
       tags: [['p', TARGET_PUBKEY]],
       content: ''
     });
@@ -177,8 +180,8 @@ describe('publishUnfollow', () => {
     await expect(publishUnfollow(TARGET_PUBKEY, MY_PUBKEY)).rejects.toThrow('unfollow failed');
   });
 
-  it('propagates errors from fetchLatestEvent', async () => {
-    fetchLatestEventMock.mockRejectedValueOnce(new Error('fetch failed'));
+  it('propagates errors from fetchLatest', async () => {
+    fetchLatestMock.mockRejectedValueOnce(new Error('fetch failed'));
     await expect(publishUnfollow(TARGET_PUBKEY, MY_PUBKEY)).rejects.toThrow('fetch failed');
   });
 });

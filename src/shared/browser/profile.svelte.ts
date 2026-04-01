@@ -10,7 +10,6 @@ import { sanitizeUrl } from '$shared/utils/url.js';
 
 const log = createLogger('profile');
 
-const PROFILE_BATCH_SIZE = 50;
 const MAX_PROFILES = 2000;
 
 const pending = new Set<string>();
@@ -56,16 +55,16 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
   for (const pk of toFetch) pending.add(pk);
 
   try {
-    const { getEventsDB } = await import('$shared/nostr/gateway.js');
-    const eventsDB = await getEventsDB();
-    const cached = await eventsDB.getManyByPubkeysAndKind(toFetch, 0);
+    const { getStoreAsync } = await import('$shared/nostr/store.js');
+    const store = await getStoreAsync();
+    const cached = await store.getSync({ kinds: [0], authors: toFetch });
 
-    for (const event of cached) {
+    for (const cachedEvent of cached) {
       try {
-        const profile = parseProfileContent(event.content);
-        profiles.set(event.pubkey, profile);
+        const profile = parseProfileContent(cachedEvent.event.content);
+        profiles.set(cachedEvent.event.pubkey, profile);
       } catch {
-        log.warn('Malformed cached profile JSON', { pubkey: shortHex(event.pubkey) });
+        log.warn('Malformed cached profile JSON', { pubkey: shortHex(cachedEvent.event.pubkey) });
       }
     }
 
@@ -76,68 +75,57 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
       return;
     }
 
-    const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
-      import('rx-nostr'),
-      import('$shared/nostr/gateway.js')
+    const [{ fetchLatestBatch }, { getRxNostr }] = await Promise.all([
+      import('@ikuradon/auftakt/sync'),
+      import('$shared/nostr/client.js')
     ]);
     const rxNostr = await getRxNostr();
 
-    for (let i = 0; i < toFetch.length; i += PROFILE_BATCH_SIZE) {
-      const chunk = toFetch.slice(i, i + PROFILE_BATCH_SIZE);
-      const req = createRxBackwardReq();
-
-      const sub = rxNostr.use(req).subscribe({
-        next: (packet) => {
-          try {
-            const profile = parseProfileContent(packet.event.content);
-            profiles.set(packet.event.pubkey, profile);
-            eventsDB
-              .put(packet.event)
-              .catch((e) => log.error('Failed to persist profile event', e));
-            const nip05 = profile.nip05;
-            if (nip05) {
-              void import('$shared/nostr/nip05.js').then(({ verifyNip05 }) =>
-                verifyNip05(nip05, packet.event.pubkey).then((result) => {
-                  const existing = profiles.get(packet.event.pubkey);
-                  if (existing && existing.nip05 === profile.nip05) {
-                    const updated = { ...existing, nip05valid: result.valid };
-                    profiles.set(packet.event.pubkey, updated);
-                    profiles = new Map(profiles);
-                  }
-                })
-              );
-            }
-          } catch {
-            log.warn('Malformed profile JSON', { pubkey: shortHex(packet.event.pubkey) });
+    // Batch fetch missing profiles via single backward REQ
+    try {
+      const results = await fetchLatestBatch(rxNostr, store, toFetch, 0, { timeout: 10_000 });
+      for (const ce of results) {
+        const pk = ce.event.pubkey;
+        if (profiles.has(pk)) continue;
+        try {
+          const profile = parseProfileContent(ce.event.content);
+          profiles.set(pk, profile);
+          const nip05 = profile.nip05;
+          if (nip05) {
+            void import('$shared/nostr/nip05.js').then(({ verifyNip05 }) =>
+              verifyNip05(nip05, pk).then((result) => {
+                const existing = profiles.get(pk);
+                if (existing && existing.nip05 === profile.nip05) {
+                  const updated = { ...existing, nip05valid: result.valid };
+                  profiles.set(pk, updated);
+                  profiles = new Map(profiles);
+                }
+              })
+            );
           }
-        },
-        complete: () => {
-          for (const pk of chunk) {
-            if (!profiles.has(pk)) {
-              profiles.set(pk, {});
-            }
-            pending.delete(pk);
-          }
-
-          if (profiles.size > MAX_PROFILES) {
-            const keys = [...profiles.keys()];
-            const toRemove = keys.slice(0, profiles.size - MAX_PROFILES);
-            for (const key of toRemove) profiles.delete(key);
-          }
-
-          profiles = new Map(profiles);
-          sub.unsubscribe();
-        },
-        error: (err) => {
-          log.warn('Profile fetch subscription error', { error: err });
-          for (const pk of chunk) pending.delete(pk);
-          sub.unsubscribe();
+        } catch {
+          log.warn('Malformed profile JSON', { pubkey: shortHex(pk) });
         }
-      });
-
-      req.emit({ kinds: [0], authors: chunk });
-      req.over();
+      }
+    } catch (err) {
+      log.warn('Profile batch fetch failed', { error: err });
     }
+
+    // Set empty profile for pubkeys not returned by relay
+    for (const pk of toFetch) {
+      if (!profiles.has(pk)) {
+        profiles.set(pk, {});
+      }
+      pending.delete(pk);
+    }
+
+    if (profiles.size > MAX_PROFILES) {
+      const keys = [...profiles.keys()];
+      const toRemove = keys.slice(0, profiles.size - MAX_PROFILES);
+      for (const key of toRemove) profiles.delete(key);
+    }
+
+    profiles = new Map(profiles);
   } catch (err) {
     log.error('Profile fetch failed', { error: err });
     for (const pk of toFetch) pending.delete(pk);

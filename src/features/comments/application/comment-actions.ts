@@ -5,6 +5,7 @@
  */
 
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
+import { castSigned } from '$shared/nostr/client.js';
 import {
   buildComment,
   buildContentReaction,
@@ -13,7 +14,6 @@ import {
   COMMENT_KIND,
   CONTENT_REACTION_KIND
 } from '$shared/nostr/events.js';
-import { castSigned } from '$shared/nostr/gateway.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 
 import type { Comment } from '../domain/comment-model.js';

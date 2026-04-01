@@ -1,6 +1,6 @@
 /**
- * IndexedDB repository for comment events.
- * Encapsulates all IndexedDB operations related to comments.
+ * Comment repository — adapter between auftakt EventStore and comment feature.
+ * Provides the EventsDB interface that comment-view-model expects.
  */
 
 import { createLogger } from '$shared/utils/logger.js';
@@ -23,8 +23,26 @@ export interface CachedEvent {
 }
 
 export async function getCommentRepository(): Promise<EventsDB> {
-  const { getEventsDB } = await import('$shared/nostr/gateway.js');
-  return getEventsDB();
+  const { getStoreAsync } = await import('$shared/nostr/store.js');
+  const store = await getStoreAsync();
+
+  return {
+    async getByTagValue(tagQuery: string): Promise<CachedEvent[]> {
+      // tagQuery is like "I:youtube:video:abc" → split to tag name + value
+      const colonIndex = tagQuery.indexOf(':');
+      if (colonIndex < 0) return [];
+      const tagName = tagQuery.slice(0, colonIndex);
+      const tagValue = tagQuery.slice(colonIndex + 1);
+      const results = await store.getSync({ [`#${tagName}`]: [tagValue] });
+      return results.map((ce) => ce.event as CachedEvent);
+    },
+    put(): void {
+      // connectStore() handles caching — no-op
+    },
+    async deleteByIds(): Promise<void> {
+      // auftakt handles deletions via kind:5 — no-op
+    }
+  };
 }
 
 export async function restoreFromCache(db: EventsDB, tagQuery: string): Promise<CachedEvent[]> {
@@ -36,12 +54,7 @@ export async function restoreFromCache(db: EventsDB, tagQuery: string): Promise<
   }
 }
 
-export async function purgeDeletedFromCache(db: EventsDB, ids: string[]): Promise<void> {
-  if (ids.length === 0) return;
-  try {
-    await db.deleteByIds(ids);
-    log.info('Purged deleted events from DB', { count: ids.length });
-  } catch (err) {
-    log.error('Failed to purge deletion targets', err);
-  }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function purgeDeletedFromCache(_db: EventsDB, _ids: string[]): Promise<void> {
+  // auftakt handles deletions via kind:5 — no-op
 }

@@ -4,7 +4,7 @@
  */
 
 import { resolveByApi } from '$shared/content/resolution.js';
-import { publishSignedEvents } from '$shared/nostr/gateway.js';
+import { publishSignedEvents } from '$shared/nostr/publish-signed.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('resolve-feed');

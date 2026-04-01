@@ -15,7 +15,7 @@ export function initApp(): void {
   void import('$shared/browser/extension.js').then(({ initExtensionListener }) =>
     initExtensionListener()
   );
-  void import('$shared/nostr/gateway.js').then(({ retryPendingPublishes }) =>
+  void import('$shared/nostr/publish-signed.js').then(({ retryPendingPublishes }) =>
     retryPendingPublishes().catch((e) => log.error('Failed to retry pending publishes', e))
   );
 }

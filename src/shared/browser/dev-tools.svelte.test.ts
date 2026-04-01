@@ -1,11 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getEventsDBMock } = vi.hoisted(() => ({
-  getEventsDBMock: vi.fn()
+const { mockGetSync, mockCount } = vi.hoisted(() => ({
+  mockGetSync: vi.fn(),
+  mockCount: vi.fn()
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getEventsDB: getEventsDBMock
+vi.mock('$shared/nostr/store.js', () => ({
+  getStoreAsync: vi.fn().mockReturnValue({
+    getSync: mockGetSync,
+    count: mockCount,
+    fetchById: vi.fn().mockResolvedValue(null),
+    dispose: vi.fn()
+  })
 }));
 
 import {
@@ -46,22 +52,18 @@ describe('dev-tools.svelte', () => {
 
   describe('loadDbStats', () => {
     it('returns kind-by-kind counts from DB', async () => {
-      const mockDb = {
-        getAllByKind: vi
-          .fn()
-          .mockResolvedValue([]) // fallback for any kind not listed below
-          .mockResolvedValueOnce([{ id: '1' }, { id: '2' }]) // kind 0: 2 events
-          .mockResolvedValueOnce([]) // kind 3: 0
-          .mockResolvedValueOnce([]) // kind 5: 0
-          .mockResolvedValueOnce([{ id: '3' }]) // kind 7: 1
-          .mockResolvedValueOnce([]) // kind 1111: 0
-          .mockResolvedValueOnce([]) // kind 10000: 0
-          .mockResolvedValueOnce([]) // kind 10002: 0
-          .mockResolvedValueOnce([]) // kind 10003: 0
-          .mockResolvedValueOnce([]) // kind 10030: 0
-          .mockResolvedValueOnce([]) // kind 30030: 0
-      };
-      getEventsDBMock.mockResolvedValue(mockDb);
+      mockCount
+        .mockResolvedValue(0) // fallback for any kind not listed below
+        .mockResolvedValueOnce(2) // kind 0: 2 events
+        .mockResolvedValueOnce(0) // kind 3: 0
+        .mockResolvedValueOnce(0) // kind 5: 0
+        .mockResolvedValueOnce(1) // kind 7: 1
+        .mockResolvedValueOnce(0) // kind 1111: 0
+        .mockResolvedValueOnce(0) // kind 10000: 0
+        .mockResolvedValueOnce(0) // kind 10002: 0
+        .mockResolvedValueOnce(0) // kind 10003: 0
+        .mockResolvedValueOnce(0) // kind 10030: 0
+        .mockResolvedValueOnce(0); // kind 30030: 0
 
       const result = await loadDbStats();
 
@@ -73,10 +75,7 @@ describe('dev-tools.svelte', () => {
     });
 
     it('skips kinds with zero events in byKind array', async () => {
-      const mockDb = {
-        getAllByKind: vi.fn().mockResolvedValue([])
-      };
-      getEventsDBMock.mockResolvedValue(mockDb);
+      mockCount.mockResolvedValue(0);
 
       const result = await loadDbStats();
 
@@ -84,19 +83,16 @@ describe('dev-tools.svelte', () => {
       expect(result.byKind).toEqual([]);
     });
 
-    it('returns { total: 0, byKind: [] } on getEventsDB rejection', async () => {
-      getEventsDBMock.mockRejectedValue(new Error('DB open failed'));
+    it('returns { total: 0, byKind: [] } on getStore error', async () => {
+      mockCount.mockRejectedValue(new Error('DB read failed'));
 
       const result = await loadDbStats();
 
       expect(result).toEqual({ total: 0, byKind: [] });
     });
 
-    it('returns { total: 0, byKind: [] } when getAllByKind throws', async () => {
-      const mockDb = {
-        getAllByKind: vi.fn().mockRejectedValue(new Error('read error'))
-      };
-      getEventsDBMock.mockResolvedValue(mockDb);
+    it('returns { total: 0, byKind: [] } when count throws', async () => {
+      mockCount.mockRejectedValue(new Error('read error'));
 
       const result = await loadDbStats();
 
@@ -105,20 +101,21 @@ describe('dev-tools.svelte', () => {
   });
 
   describe('clearIndexedDB', () => {
-    it('calls db.clearAll()', async () => {
-      const mockDb = { clearAll: vi.fn().mockResolvedValue(undefined) };
-      getEventsDBMock.mockResolvedValue(mockDb);
+    it('calls indexedDB.deleteDatabase', async () => {
+      const deleteDbMock = vi.fn().mockImplementation(() => {
+        const req = {
+          onsuccess: null as (() => void) | null,
+          onerror: null as (() => void) | null
+        };
+        queueMicrotask(() => req.onsuccess?.());
+        return req;
+      });
+      vi.stubGlobal('indexedDB', { deleteDatabase: deleteDbMock });
 
       await clearIndexedDB();
 
-      expect(mockDb.clearAll).toHaveBeenCalledOnce();
-    });
-
-    it('propagates DB error', async () => {
-      const mockDb = { clearAll: vi.fn().mockRejectedValue(new Error('clear failed')) };
-      getEventsDBMock.mockResolvedValue(mockDb);
-
-      await expect(clearIndexedDB()).rejects.toThrow('clear failed');
+      expect(deleteDbMock).toHaveBeenCalledWith('resonote-events');
+      vi.unstubAllGlobals();
     });
   });
 

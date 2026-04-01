@@ -21,17 +21,23 @@ export async function initSession(pubkey: string): Promise<void> {
   log.info('Initializing session stores');
 
   const [
+    { initStore },
     { applyUserRelays },
     { loadFollows, loadBookmarks, loadMuteList, loadCustomEmojis, refreshRelayList }
   ] = await Promise.all([
+    import('$shared/nostr/store.js'),
     import('$shared/nostr/user-relays.js'),
     import('$shared/browser/stores.js')
   ]);
+
+  await initStore();
 
   const relayUrls = await applyUserRelays(pubkey);
   void refreshRelayList(relayUrls);
 
   // Fire-and-forget: load user data in parallel
+  const { fetchProfile } = await import('$shared/browser/profile.js');
+  void fetchProfile(pubkey).catch((err) => log.error('Failed to load profile', err));
   void loadFollows(pubkey).catch((err) => log.error('Failed to load follows', err));
   void loadCustomEmojis(pubkey).catch((err) => log.error('Failed to load custom emojis', err));
   void loadBookmarks(pubkey).catch((err) => log.error('Failed to load bookmarks', err));
@@ -52,12 +58,12 @@ export async function destroySession(): Promise<void> {
       clearMuteList,
       refreshRelayList
     },
-    { getEventsDB }
+    { disposeStore }
   ] = await Promise.all([
     import('$shared/nostr/user-relays.js'),
     import('$shared/nostr/relays.js'),
     import('$shared/browser/stores.js'),
-    import('$shared/nostr/gateway.js')
+    import('$shared/nostr/store.js')
   ]);
 
   await resetToDefaultRelays();
@@ -68,6 +74,5 @@ export async function destroySession(): Promise<void> {
   clearMuteList();
   void refreshRelayList(DEFAULT_RELAYS);
 
-  const db = await getEventsDB();
-  await db.clearAll();
+  disposeStore();
 }

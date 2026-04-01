@@ -96,10 +96,7 @@ export async function fetchLatestEvent(
           if (!latest || packet.event.created_at > latest.created_at) {
             latest = packet.event;
           }
-          import('$shared/nostr/event-db.js')
-            .then(({ getEventsDB }) => getEventsDB())
-            .then((db) => db.put(packet.event))
-            .catch((e) => log.error('Failed to cache event to IndexedDB', e));
+          // connectStore() handles caching to auftakt store automatically
         },
         complete: () => {
           if (!resolved) {

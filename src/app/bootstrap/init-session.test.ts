@@ -14,8 +14,8 @@ const {
   clearProfilesMock,
   clearBookmarksMock,
   clearMuteListMock,
-  getEventsDBMock,
-  clearAllMock,
+  initStoreMock,
+  disposeStoreMock,
   logInfoMock,
   logErrorMock
 } = vi.hoisted(() => ({
@@ -31,8 +31,8 @@ const {
   clearProfilesMock: vi.fn(),
   clearBookmarksMock: vi.fn(),
   clearMuteListMock: vi.fn(),
-  getEventsDBMock: vi.fn(),
-  clearAllMock: vi.fn(),
+  initStoreMock: vi.fn(),
+  disposeStoreMock: vi.fn(),
   logInfoMock: vi.fn(),
   logErrorMock: vi.fn()
 }));
@@ -59,8 +59,9 @@ vi.mock('$shared/nostr/relays.js', () => ({
   DEFAULT_RELAYS: ['wss://relay.example.com']
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getEventsDB: getEventsDBMock
+vi.mock('$shared/nostr/store.js', () => ({
+  initStore: initStoreMock,
+  disposeStore: disposeStoreMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -89,6 +90,12 @@ describe('initSession', () => {
     loadBookmarksMock.mockResolvedValue(undefined);
     loadMuteListMock.mockResolvedValue(undefined);
     loadCustomEmojisMock.mockResolvedValue(undefined);
+  });
+
+  it('initStore を呼び出す', async () => {
+    await initSession(PUBKEY);
+
+    expect(initStoreMock).toHaveBeenCalledOnce();
   });
 
   it('applyUserRelays を pubkey で呼び出す', async () => {
@@ -166,8 +173,6 @@ describe('destroySession', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetToDefaultRelaysMock.mockResolvedValue(undefined);
-    clearAllMock.mockResolvedValue(undefined);
-    getEventsDBMock.mockResolvedValue({ clearAll: clearAllMock });
   });
 
   it('resetToDefaultRelays を呼び出す', async () => {
@@ -212,10 +217,10 @@ describe('destroySession', () => {
     expect(refreshRelayListMock).toHaveBeenCalledWith(['wss://relay.example.com']);
   });
 
-  it('getEventsDB の clearAll を呼び出す', async () => {
+  it('disposeStore を呼び出す', async () => {
     await destroySession();
 
-    expect(clearAllMock).toHaveBeenCalledOnce();
+    expect(disposeStoreMock).toHaveBeenCalledOnce();
   });
 
   it('セッション破棄ログが出力される', async () => {

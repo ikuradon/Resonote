@@ -1,27 +1,33 @@
+import { BehaviorSubject, Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { parseDTagEvent } from '$shared/content/podcast-resolver.js';
 
-const { verifierMock, mockGetEventsDB, mockGetRxNostr } = vi.hoisted(() => ({
+const { verifierMock, mockGetEventsDB, mockGetRxNostr, mockCreateSyncedQuery } = vi.hoisted(() => ({
   verifierMock: vi.fn(),
   mockGetEventsDB: vi.fn(),
-  mockGetRxNostr: vi.fn()
+  mockGetRxNostr: vi.fn(),
+  mockCreateSyncedQuery: vi.fn()
 }));
 
 vi.mock('@rx-nostr/crypto', () => ({
   verifier: verifierMock
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getEventsDB: (...args: unknown[]) => mockGetEventsDB(...(args as [])),
+vi.mock('$shared/nostr/store.js', () => ({
+  getStoreAsync: () => ({
+    getSync: (...args: unknown[]) => mockGetEventsDB(...(args as [])),
+    fetchById: vi.fn().mockResolvedValue(null),
+    dispose: vi.fn()
+  })
+}));
+
+vi.mock('$shared/nostr/client.js', () => ({
   getRxNostr: (...args: unknown[]) => mockGetRxNostr(...(args as []))
 }));
 
-const mockCreateRxBackwardReq = vi.fn();
-const mockUniq = vi.fn();
-vi.mock('rx-nostr', () => ({
-  createRxBackwardReq: (...args: unknown[]) => mockCreateRxBackwardReq(...(args as [])),
-  uniq: (...args: unknown[]) => mockUniq(...(args as []))
+vi.mock('@ikuradon/auftakt/sync', () => ({
+  createSyncedQuery: (...args: unknown[]) => mockCreateSyncedQuery(...(args as []))
 }));
 
 function stubPubkeyFetch(pubkey: string) {
@@ -38,23 +44,34 @@ function stubFailedPubkeyFetch() {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
 }
 
-/** Set up rx-nostr mock that emits a single event asynchronously, or completes immediately. */
+/** Set up createSyncedQuery mock that emits a single event, or completes empty. */
 function setupRelayMock(event: { tags: string[][]; content: string } | null) {
-  const mockReq = { emit: vi.fn(), over: vi.fn() };
-  mockCreateRxBackwardReq.mockReturnValue(mockReq);
-  mockUniq.mockReturnValue((source: unknown) => source);
+  mockGetRxNostr.mockResolvedValue({});
 
-  const mockSubscribe = vi.fn().mockImplementation(({ next, complete }) => {
-    if (event) {
-      void Promise.resolve().then(() => next({ event }));
-    } else {
-      complete();
-    }
-    return { unsubscribe: vi.fn() };
-  });
-  const mockPipe = vi.fn().mockReturnValue({ subscribe: mockSubscribe });
-  const mockUse = vi.fn().mockReturnValue({ pipe: mockPipe });
-  mockGetRxNostr.mockResolvedValue({ use: mockUse });
+  if (event) {
+    // Pre-load the event so it's available when subscribed
+    const eventsSubject = new BehaviorSubject<unknown[]>([
+      { event, seenOn: ['wss://relay.test'], firstSeen: Date.now() }
+    ]);
+    mockCreateSyncedQuery.mockReturnValue({
+      events$: eventsSubject.asObservable(),
+      status$: new BehaviorSubject<string>('cached').asObservable(),
+      emit: vi.fn(),
+      dispose: vi.fn()
+    });
+  } else {
+    // Empty case: use Subject that completes so defaultIfEmpty(null) fires
+    const eventsSubject = new Subject<unknown[]>();
+    mockCreateSyncedQuery.mockReturnValue({
+      events$: eventsSubject.asObservable(),
+      status$: new BehaviorSubject<string>('cached').asObservable(),
+      emit: vi.fn(),
+      dispose: vi.fn()
+    });
+    queueMicrotask(() => {
+      eventsSubject.complete();
+    });
+  }
 }
 
 describe('podcast-resolver', () => {
@@ -501,8 +518,7 @@ describe('podcast-resolver', () => {
       vi.restoreAllMocks();
       mockGetEventsDB.mockReset();
       mockGetRxNostr.mockReset();
-      mockCreateRxBackwardReq.mockReset();
-      mockUniq.mockReset();
+      mockCreateSyncedQuery.mockReset();
     });
 
     it('should return cached result from DB when available', async () => {
@@ -515,9 +531,7 @@ describe('podcast-resolver', () => {
         ],
         content: 'Cached desc'
       };
-      mockGetEventsDB.mockResolvedValue({
-        getByReplaceKey: vi.fn().mockResolvedValue(cachedEvent)
-      });
+      mockGetEventsDB.mockResolvedValue([{ event: cachedEvent, seenOn: [], firstSeen: 0 }]);
 
       const { searchBookmarkByUrl } = await import('$shared/content/podcast-resolver.js');
       const result = await searchBookmarkByUrl('https://example.com/ep.mp3');
@@ -531,10 +545,7 @@ describe('podcast-resolver', () => {
     it('should fall through to relay when DB cache misses', async () => {
       stubPubkeyFetch('sys-pubkey');
 
-      mockGetEventsDB.mockResolvedValue({
-        getByReplaceKey: vi.fn().mockResolvedValue(null),
-        put: vi.fn()
-      });
+      mockGetEventsDB.mockResolvedValue([]);
 
       const relayEvent = {
         tags: [
@@ -566,9 +577,7 @@ describe('podcast-resolver', () => {
     it('should return null when relay subscription times out (complete with no events)', async () => {
       stubPubkeyFetch('sys-pubkey');
 
-      mockGetEventsDB.mockResolvedValue({
-        getByReplaceKey: vi.fn().mockResolvedValue(null)
-      });
+      mockGetEventsDB.mockResolvedValue([]);
 
       setupRelayMock(null);
 
@@ -588,25 +597,24 @@ describe('podcast-resolver', () => {
         ],
         content: ''
       };
-      const getByReplaceKeyMock = vi.fn().mockResolvedValue(cachedEvent);
-      mockGetEventsDB.mockResolvedValue({
-        getByReplaceKey: getByReplaceKeyMock
-      });
+      mockGetEventsDB.mockResolvedValue([{ event: cachedEvent, seenOn: [], firstSeen: 0 }]);
 
       const { searchBookmarkByUrl } = await import('$shared/content/podcast-resolver.js');
       await searchBookmarkByUrl('https://Example.COM/ep.mp3/');
 
-      expect(getByReplaceKeyMock).toHaveBeenCalledWith('sys-pubkey', 39701, 'example.com/ep.mp3');
+      expect(mockGetEventsDB).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kinds: [39701],
+          authors: ['sys-pubkey'],
+          '#d': ['example.com/ep.mp3']
+        })
+      );
     });
 
-    it('should cache relay result in DB after successful fetch', async () => {
+    it('should use relay result (connectStore handles caching automatically)', async () => {
       stubPubkeyFetch('sys-pubkey');
 
-      const putMock = vi.fn();
-      mockGetEventsDB.mockResolvedValue({
-        getByReplaceKey: vi.fn().mockResolvedValue(null),
-        put: putMock
-      });
+      mockGetEventsDB.mockResolvedValue([]);
 
       const relayEvent = {
         tags: [
@@ -619,15 +627,17 @@ describe('podcast-resolver', () => {
       setupRelayMock(relayEvent);
 
       const { searchBookmarkByUrl } = await import('$shared/content/podcast-resolver.js');
-      await searchBookmarkByUrl('https://example.com/ep.mp3');
+      const result = await searchBookmarkByUrl('https://example.com/ep.mp3');
 
-      expect(putMock).toHaveBeenCalledWith(relayEvent);
+      // connectStore() handles caching automatically — no explicit put call
+      expect(result).not.toBeNull();
+      expect(result!.guid).toBe('ep-guid');
     });
 
     it('should return null when DB and relay both fail', async () => {
       stubPubkeyFetch('sys-pubkey');
 
-      // DB throws
+      // Store getSync throws
       mockGetEventsDB.mockRejectedValue(new Error('DB error'));
 
       // Relay also fails
@@ -647,10 +657,7 @@ describe('podcast-resolver', () => {
         tags: [['d', 'something']],
         content: ''
       };
-      mockGetEventsDB.mockResolvedValue({
-        getByReplaceKey: vi.fn().mockResolvedValue(invalidCachedEvent),
-        put: vi.fn()
-      });
+      mockGetEventsDB.mockResolvedValue([{ event: invalidCachedEvent, seenOn: [], firstSeen: 0 }]);
 
       const relayEvent = {
         tags: [

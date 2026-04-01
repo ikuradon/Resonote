@@ -19,56 +19,63 @@ const COMMENTS_LIMIT = 20;
 
 /**
  * Fetch kind:1111 comments authored by a given pubkey.
- * Uses rx-nostr backward request with optional cursor-based pagination.
+ * Uses auftakt createSyncedQuery backward with optional cursor-based pagination.
  */
 export async function fetchProfileComments(
   pubkey: string,
   until?: number
 ): Promise<ProfileCommentsResult> {
-  const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
-    import('rx-nostr'),
-    import('$shared/nostr/gateway.js')
+  const [{ createSyncedQuery }, { getRxNostr }, { getStoreAsync }] = await Promise.all([
+    import('@ikuradon/auftakt/sync'),
+    import('$shared/nostr/client.js'),
+    import('$shared/nostr/store.js')
   ]);
-  const rxNostr = await getRxNostr();
-  const req = createRxBackwardReq();
+  const { firstValueFrom, filter, timeout, catchError, of, defaultIfEmpty } = await import('rxjs');
+  const [rxNostr, store] = await Promise.all([getRxNostr(), getStoreAsync()]);
 
-  return new Promise((resolve, reject) => {
-    const items: ProfileComment[] = [];
+  const queryFilter = until
+    ? { kinds: [1111], authors: [pubkey], limit: COMMENTS_LIMIT, until }
+    : { kinds: [1111], authors: [pubkey], limit: COMMENTS_LIMIT };
 
-    const sub = rxNostr.use(req).subscribe({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      next: (packet: any) => {
-        const iTag = packet.event.tags.find((tag: string[]) => tag[0] === 'I')?.[1] ?? null;
-        items.push({
-          id: packet.event.id,
-          content: packet.event.content,
-          createdAt: packet.event.created_at,
-          iTag
-        });
-      },
-      complete: () => {
-        sub.unsubscribe();
-        items.sort((a, b) => b.createdAt - a.createdAt);
-        const oldestTimestamp = items.length > 0 ? items[items.length - 1].createdAt : null;
-        resolve({
-          comments: items,
-          hasMore: items.length >= COMMENTS_LIMIT,
-          oldestTimestamp
-        });
-      },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      error: (err: any) => {
-        sub.unsubscribe();
-        log.error('Failed to load profile comments', err);
-        reject(err);
-      }
+  const synced = createSyncedQuery(rxNostr, store, {
+    filter: queryFilter,
+    strategy: 'backward'
+  });
+
+  try {
+    const result = await firstValueFrom(
+      synced.events$.pipe(
+        filter((events: unknown[]) => events.length > 0),
+        timeout(10_000),
+        catchError(() => of(null)),
+        defaultIfEmpty(null)
+      )
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cachedEvents: any[] = result ?? [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const items: ProfileComment[] = cachedEvents.map((ce: any) => {
+      const iTag = ce.event.tags.find((tag: string[]) => tag[0] === 'I')?.[1] ?? null;
+      return {
+        id: ce.event.id,
+        content: ce.event.content,
+        createdAt: ce.event.created_at,
+        iTag
+      };
     });
 
-    req.emit(
-      until
-        ? { kinds: [1111], authors: [pubkey], limit: COMMENTS_LIMIT, until }
-        : { kinds: [1111], authors: [pubkey], limit: COMMENTS_LIMIT }
-    );
-    req.over();
-  });
+    items.sort((a, b) => b.createdAt - a.createdAt);
+    const oldestTimestamp = items.length > 0 ? items[items.length - 1].createdAt : null;
+    return {
+      comments: items,
+      hasMore: items.length >= COMMENTS_LIMIT,
+      oldestTimestamp
+    };
+  } catch (err) {
+    log.error('Failed to load profile comments', err);
+    throw err;
+  } finally {
+    synced.dispose();
+  }
 }

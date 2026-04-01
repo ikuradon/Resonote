@@ -7,8 +7,15 @@ const mockCachedFetchById = vi.fn();
 const mockGetDisplayName = vi.fn();
 const mockFetchProfile = vi.fn();
 
-vi.mock('$shared/nostr/cached-query.js', () => ({
-  cachedFetchById: (...args: unknown[]) => mockCachedFetchById(...args)
+vi.mock('$shared/nostr/store.js', () => ({
+  getStoreAsync: () => ({
+    fetchById: async (...args: unknown[]) => {
+      const event = await mockCachedFetchById(...args);
+      return event ? { event, seenOn: [], firstSeen: 0 } : null;
+    },
+    getSync: vi.fn().mockResolvedValue([]),
+    dispose: vi.fn()
+  })
 }));
 
 vi.mock('$shared/browser/profile.js', () => ({
@@ -53,7 +60,7 @@ describe('createQuoteViewModel', () => {
     expect(vm.data!.content).toBe('Hello world');
     expect(vm.data!.isComment).toBe(true);
     expect(vm.authorName).toBe('Author');
-    expect(mockCachedFetchById).toHaveBeenCalledWith(EVENT_ID);
+    expect(mockCachedFetchById).toHaveBeenCalledWith(EVENT_ID, expect.any(Object));
   });
 
   it('sets not-found when event is null', async () => {

@@ -14,7 +14,7 @@ const { castSignedMock, fetchLatestEventMock, setDefaultRelaysMock, getRxNostrMo
   }
 );
 
-vi.mock('$shared/nostr/gateway.js', () => ({
+vi.mock('$shared/nostr/client.js', () => ({
   castSigned: castSignedMock,
   fetchLatestEvent: fetchLatestEventMock,
   getRxNostr: getRxNostrMock

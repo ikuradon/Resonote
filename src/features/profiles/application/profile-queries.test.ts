@@ -1,24 +1,28 @@
+import { BehaviorSubject, Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getRxNostrMock, createRxBackwardReqMock, reqEmitMock, reqOverMock, logErrorMock } =
-  vi.hoisted(() => {
-    const reqEmitMock = vi.fn();
-    const reqOverMock = vi.fn();
-    return {
-      getRxNostrMock: vi.fn(),
-      createRxBackwardReqMock: vi.fn(),
-      reqEmitMock,
-      reqOverMock,
-      logErrorMock: vi.fn()
-    };
-  });
+const { getRxNostrMock, createSyncedQueryMock, logErrorMock } = vi.hoisted(() => {
+  return {
+    getRxNostrMock: vi.fn(),
+    createSyncedQueryMock: vi.fn(),
+    logErrorMock: vi.fn()
+  };
+});
 
-vi.mock('$shared/nostr/gateway.js', () => ({
+vi.mock('$shared/nostr/client.js', () => ({
   getRxNostr: getRxNostrMock
 }));
 
-vi.mock('rx-nostr', () => ({
-  createRxBackwardReq: createRxBackwardReqMock
+vi.mock('$shared/nostr/store.js', () => ({
+  getStoreAsync: vi.fn().mockResolvedValue({
+    getSync: vi.fn().mockResolvedValue([]),
+    fetchById: vi.fn().mockResolvedValue(null),
+    dispose: vi.fn()
+  })
+}));
+
+vi.mock('@ikuradon/auftakt/sync', () => ({
+  createSyncedQuery: createSyncedQueryMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -34,48 +38,59 @@ import { fetchProfileComments } from './profile-queries.js';
 
 const PUBKEY = 'aabbccdd'.repeat(8);
 
-interface Observer {
-  next: (p: unknown) => void;
-  complete: () => void;
-  error: (e: unknown) => void;
-}
-
 /**
- * subscribe 呼び出し時は一旦 subscription オブジェクトを返してから
- * マイクロタスクで events を emit / complete するモックを構築する。
- * これにより実装側の `const sub = rxNostr.use(req).subscribe(...)` の
- * TDZ を回避できる。
+ * Set up createSyncedQuery mock to emit CachedEvent[] then complete.
  */
-function makeReq(
-  packets: Array<{ event: { id: string; content: string; created_at: number; tags: string[][] } }>,
+function setupSyncedQuery(
+  cachedEvents: Array<{
+    event: { id: string; content: string; created_at: number; tags: string[][] };
+  }>,
   errorToThrow?: unknown
 ) {
-  const subscriptionMock = { unsubscribe: vi.fn() };
-  const req = { emit: reqEmitMock, over: reqOverMock };
+  const disposeMock = vi.fn();
+  getRxNostrMock.mockResolvedValue({});
 
-  const rxNostr = {
-    use: vi.fn(() => ({
-      subscribe: vi.fn((obs: Observer) => {
-        // Return subscription first, then drive events asynchronously
-        void Promise.resolve().then(() => {
-          if (errorToThrow !== undefined) {
-            obs.error(errorToThrow);
-          } else {
-            for (const packet of packets) {
-              obs.next(packet);
-            }
-            obs.complete();
-          }
-        });
-        return subscriptionMock;
-      })
-    }))
-  };
-
-  createRxBackwardReqMock.mockReturnValue(req);
-  getRxNostrMock.mockResolvedValue(rxNostr);
-
-  return { subscriptionMock };
+  if (errorToThrow !== undefined) {
+    const eventsSubject = new Subject<unknown[]>();
+    createSyncedQueryMock.mockReturnValue({
+      events$: eventsSubject.asObservable(),
+      status$: new BehaviorSubject<string>('cached').asObservable(),
+      emit: vi.fn(),
+      dispose: disposeMock
+    });
+    queueMicrotask(() => {
+      eventsSubject.error(errorToThrow);
+    });
+    return { disposeMock, eventsSubject };
+  } else if (cachedEvents.length > 0) {
+    // Use BehaviorSubject with pre-loaded events so they're available when subscribed
+    const mappedEvents = cachedEvents.map((ce) => ({
+      event: ce.event,
+      seenOn: ['wss://relay.test'],
+      firstSeen: Date.now()
+    }));
+    const eventsSubject = new BehaviorSubject<unknown[]>(mappedEvents);
+    createSyncedQueryMock.mockReturnValue({
+      events$: eventsSubject.asObservable(),
+      status$: new BehaviorSubject<string>('cached').asObservable(),
+      emit: vi.fn(),
+      dispose: disposeMock
+    });
+    return { disposeMock, eventsSubject };
+  } else {
+    // Empty case: use Subject that completes immediately so defaultIfEmpty(null) fires
+    const eventsSubject = new Subject<unknown[]>();
+    createSyncedQueryMock.mockReturnValue({
+      events$: eventsSubject.asObservable(),
+      status$: new BehaviorSubject<string>('cached').asObservable(),
+      emit: vi.fn(),
+      dispose: disposeMock
+    });
+    queueMicrotask(() => {
+      eventsSubject.complete();
+    });
+    return { disposeMock, eventsSubject };
+  }
 }
 
 describe('fetchProfileComments', () => {
@@ -84,7 +99,7 @@ describe('fetchProfileComments', () => {
   });
 
   it('returns empty list when no events', async () => {
-    makeReq([]);
+    setupSyncedQuery([]);
     const result = await fetchProfileComments(PUBKEY);
     expect(result.comments).toEqual([]);
     expect(result.hasMore).toBe(false);
@@ -92,7 +107,7 @@ describe('fetchProfileComments', () => {
   });
 
   it('returns comments sorted by createdAt descending', async () => {
-    makeReq([
+    setupSyncedQuery([
       { event: { id: 'a', content: 'first', created_at: 100, tags: [] } },
       { event: { id: 'b', content: 'second', created_at: 200, tags: [] } }
     ]);
@@ -102,7 +117,7 @@ describe('fetchProfileComments', () => {
   });
 
   it('extracts iTag from I tag', async () => {
-    makeReq([
+    setupSyncedQuery([
       {
         event: {
           id: 'x',
@@ -117,7 +132,7 @@ describe('fetchProfileComments', () => {
   });
 
   it('sets iTag to null when no I tag', async () => {
-    makeReq([
+    setupSyncedQuery([
       { event: { id: 'y', content: 'no tag', created_at: 500, tags: [['e', 'some-event']] } }
     ]);
     const result = await fetchProfileComments(PUBKEY);
@@ -125,7 +140,7 @@ describe('fetchProfileComments', () => {
   });
 
   it('sets oldestTimestamp to smallest createdAt', async () => {
-    makeReq([
+    setupSyncedQuery([
       { event: { id: 'a', content: '', created_at: 300, tags: [] } },
       { event: { id: 'b', content: '', created_at: 100, tags: [] } },
       { event: { id: 'c', content: '', created_at: 200, tags: [] } }
@@ -134,37 +149,48 @@ describe('fetchProfileComments', () => {
     expect(result.oldestTimestamp).toBe(100);
   });
 
-  it('emits filter without until when not provided', async () => {
-    makeReq([]);
+  it('creates synced query with correct filter without until', async () => {
+    setupSyncedQuery([]);
     await fetchProfileComments(PUBKEY);
-    expect(reqEmitMock).toHaveBeenCalledWith({ kinds: [1111], authors: [PUBKEY], limit: 20 });
+    expect(createSyncedQueryMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({
+        filter: { kinds: [1111], authors: [PUBKEY], limit: 20 },
+        strategy: 'backward'
+      })
+    );
   });
 
-  it('emits filter with until when provided', async () => {
-    makeReq([]);
+  it('creates synced query with until when provided', async () => {
+    setupSyncedQuery([]);
     await fetchProfileComments(PUBKEY, 9999);
-    expect(reqEmitMock).toHaveBeenCalledWith({
-      kinds: [1111],
-      authors: [PUBKEY],
-      limit: 20,
-      until: 9999
-    });
+    expect(createSyncedQueryMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({
+        filter: { kinds: [1111], authors: [PUBKEY], limit: 20, until: 9999 },
+        strategy: 'backward'
+      })
+    );
   });
 
   it('sets hasMore=true when items.length >= 20', async () => {
-    const packets = Array.from({ length: 20 }, (_, i) => ({
-      event: { id: `id${i}`, content: '', created_at: i, tags: [] }
+    const events = Array.from({ length: 20 }, (_, i) => ({
+      event: { id: `id${i}`, content: '', created_at: i, tags: [] as string[][] }
     }));
-    makeReq(packets);
+    setupSyncedQuery(events);
     const result = await fetchProfileComments(PUBKEY);
     expect(result.hasMore).toBe(true);
   });
 
-  it('rejects and logs error when subscription errors', async () => {
+  it('returns empty result when subscription errors (caught by rxjs catchError)', async () => {
     const testError = new Error('relay error');
-    makeReq([], testError);
+    setupSyncedQuery([], testError);
 
-    await expect(fetchProfileComments(PUBKEY)).rejects.toThrow('relay error');
-    expect(logErrorMock).toHaveBeenCalledWith('Failed to load profile comments', testError);
+    // The rxjs pipe has catchError(() => of(null)), so errors are caught gracefully
+    const result = await fetchProfileComments(PUBKEY);
+    expect(result.comments).toEqual([]);
+    expect(result.hasMore).toBe(false);
   });
 });

@@ -90,12 +90,14 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
   log.info('Loading custom emojis', { pubkey: shortHex(pubkey) });
 
   try {
-    const { getEventsDB } = await import('$shared/nostr/gateway.js');
-    const eventsDB = await getEventsDB();
+    const { fetchLatest, getStoreAsync } = await import('$shared/nostr/store.js');
+    const store = await getStoreAsync();
 
-    const cachedList = await eventsDB.getByPubkeyAndKind(pubkey, 10030);
+    // Try cache first
+    const cachedListResults = await store.getSync({ kinds: [10030], authors: [pubkey], limit: 1 });
     if (gen !== generation) return;
 
+    const cachedList = cachedListResults.length > 0 ? cachedListResults[0].event : null;
     if (cachedList) {
       const { inlineEmojis, setRefs } = extractFromEmojiList(cachedList);
 
@@ -104,7 +106,13 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
           setRefs.map(async (ref) => {
             const parts = ref.split(':');
             if (parts.length < 3 || !parts[1] || !parts[2]) return null;
-            const cached = await eventsDB.getByReplaceKey(parts[1], 30030, parts[2]);
+            const cachedResults = await store.getSync({
+              kinds: [30030],
+              authors: [parts[1]],
+              '#d': [parts[2]],
+              limit: 1
+            });
+            const cached = cachedResults.length > 0 ? cachedResults[0].event : null;
             return cached ? buildCategoryFromEvent(cached) : null;
           })
         )
@@ -121,48 +129,17 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
       }
     }
 
-    const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
-      import('rx-nostr'),
-      import('$shared/nostr/gateway.js')
-    ]);
-    const rxNostr = await getRxNostr();
-
-    const { inlineEmojis, setRefs } = await new Promise<{
-      inlineEmojis: CustomEmoji[];
-      setRefs: string[];
-    }>((resolve) => {
-      const req = createRxBackwardReq();
-      const emojis: CustomEmoji[] = [];
-      const refs: string[] = [];
-
-      const sub = rxNostr.use(req).subscribe({
-        next: (packet) => {
-          eventsDB
-            .put(packet.event)
-            .catch((err) => log.error('Failed to cache emoji list event', err));
-          for (const tag of packet.event.tags) {
-            if (isEmojiTag(tag)) {
-              emojis.push({ shortcode: tag[1], url: tag[2] });
-            } else if (tag[0] === 'a' && tag[1]?.startsWith('30030:')) {
-              refs.push(tag[1]);
-            }
-          }
-        },
-        complete: () => {
-          sub.unsubscribe();
-          resolve({ inlineEmojis: emojis, setRefs: refs });
-        },
-        error: () => {
-          sub.unsubscribe();
-          resolve({ inlineEmojis: emojis, setRefs: refs });
-        }
-      });
-
-      req.emit({ kinds: [10030], authors: [pubkey], limit: 1 });
-      req.over();
-    });
-
+    // Fetch latest from relay via fetchLatest (kind:10030)
+    const latestEvent = await fetchLatest(pubkey, 10030, { timeout: 5000 });
     if (gen !== generation) return;
+
+    if (!latestEvent) {
+      // No emoji list found — keep cached results if any
+      log.info('No emoji list found on relays');
+      return;
+    }
+
+    const { inlineEmojis, setRefs } = extractFromEmojiList(latestEvent);
 
     log.info('Emoji list loaded', {
       inlineCount: inlineEmojis.length,
@@ -172,7 +149,14 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
     const setCategories: EmojiCategory[] = [];
 
     if (setRefs.length > 0) {
-      const batchPromises: Promise<EmojiCategory[]>[] = [];
+      const [{ createSyncedQuery }, { getRxNostr }] = await Promise.all([
+        import('@ikuradon/auftakt/sync'),
+        import('$shared/nostr/client.js')
+      ]);
+      const rxNostr = await getRxNostr();
+      const { firstValueFrom, filter, timeout, catchError, of, defaultIfEmpty } =
+        await import('rxjs');
+
       const BATCH_SIZE = 20;
 
       for (let i = 0; i < setRefs.length; i += BATCH_SIZE) {
@@ -183,43 +167,38 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
             if (parts.length < 3 || !parts[1] || !parts[2]) return null;
             return { kinds: [30030 as number], authors: [parts[1]], '#d': [parts[2]] };
           })
-          .filter((filter): filter is NonNullable<typeof filter> => filter !== null);
+          .filter((f): f is NonNullable<typeof f> => f !== null);
 
-        batchPromises.push(
-          new Promise<EmojiCategory[]>((resolve) => {
-            const req = createRxBackwardReq();
-            const categories: EmojiCategory[] = [];
-
-            const sub = rxNostr.use(req).subscribe({
-              next: (packet) => {
-                eventsDB
-                  .put(packet.event)
-                  .catch((err) => log.error('Failed to cache emoji set event', err));
-                const category = buildCategoryFromEvent(packet.event);
-                if (category) categories.push(category);
-              },
-              complete: () => {
-                sub.unsubscribe();
-                resolve(categories);
-              },
-              error: () => {
-                sub.unsubscribe();
-                resolve(categories);
-              }
+        const batchCategories = await Promise.all(
+          filters.map(async (f) => {
+            const synced = createSyncedQuery(rxNostr, store, {
+              filter: f,
+              strategy: 'backward'
             });
-
-            for (const filter of filters) {
-              req.emit(filter);
+            try {
+              const result = await firstValueFrom(
+                synced.events$.pipe(
+                  filter((events: unknown[]) => events.length > 0),
+                  timeout(5000),
+                  catchError(() => of(null)),
+                  defaultIfEmpty(null)
+                )
+              );
+              if (result && Array.isArray(result) && result.length > 0) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                return buildCategoryFromEvent((result as any[])[0].event);
+              }
+              return null;
+            } finally {
+              synced.dispose();
             }
-            req.over();
           })
         );
-      }
 
-      const results = await Promise.all(batchPromises);
-      if (gen !== generation) return;
-      for (const batch of results) {
-        setCategories.push(...batch);
+        if (gen !== generation) return;
+        for (const cat of batchCategories) {
+          if (cat) setCategories.push(cat);
+        }
       }
     }
 

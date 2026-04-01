@@ -1,6 +1,6 @@
 /**
  * Bookmark actions — load, add, remove.
- * Encapsulates all infra access (castSigned, fetchLatestEvent).
+ * Encapsulates all infra access (castSigned, fetchLatest).
  */
 
 import type { ContentId } from '$shared/content/types.js';
@@ -18,8 +18,8 @@ const BOOKMARK_KIND = 10003;
 
 export async function loadBookmarks(pubkey: string): Promise<{ tags: string[][] } | null> {
   log.info('Loading bookmarks', { pubkey: shortHex(pubkey) });
-  const { fetchLatestEvent } = await import('$shared/nostr/gateway.js');
-  return fetchLatestEvent(pubkey, BOOKMARK_KIND);
+  const { fetchLatest } = await import('$shared/nostr/store.js');
+  return fetchLatest(pubkey, BOOKMARK_KIND);
 }
 
 export async function publishAddBookmark(
@@ -27,10 +27,11 @@ export async function publishAddBookmark(
   openUrl: string,
   myPubkey: string
 ): Promise<string[][]> {
-  const { castSigned, fetchLatestEvent } = await import('$shared/nostr/gateway.js');
+  const { castSigned } = await import('$shared/nostr/client.js');
+  const { fetchLatest } = await import('$shared/nostr/store.js');
   const value = contentIdToString(contentId);
 
-  const latest = await fetchLatestEvent(myPubkey, BOOKMARK_KIND);
+  const latest = await fetchLatest(myPubkey, BOOKMARK_KIND);
   let tags: string[][];
 
   if (latest) {
@@ -52,10 +53,11 @@ export async function publishRemoveBookmark(
   contentId: ContentId,
   myPubkey: string
 ): Promise<string[][]> {
-  const { castSigned, fetchLatestEvent } = await import('$shared/nostr/gateway.js');
+  const { castSigned } = await import('$shared/nostr/client.js');
+  const { fetchLatest } = await import('$shared/nostr/store.js');
   const value = contentIdToString(contentId);
 
-  const latest = await fetchLatestEvent(myPubkey, BOOKMARK_KIND);
+  const latest = await fetchLatest(myPubkey, BOOKMARK_KIND);
   const tags = latest ? removeBookmarkTag(latest.tags, value) : [];
 
   await castSigned({ kind: BOOKMARK_KIND, tags, content: '' });

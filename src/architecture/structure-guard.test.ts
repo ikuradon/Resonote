@@ -22,6 +22,20 @@ const bannedImportPatterns: Array<{ pattern: RegExp; reason: string }> = [
   {
     pattern: /^\.{1,2}(?:\/[^'"]+)*\/i18n\/(?:t|locales)\.js$/,
     reason: 'Relative i18n runtime imports are not allowed.'
+  },
+  {
+    pattern: /\$shared\/nostr\/gateway\.js$/,
+    reason:
+      'gateway.ts was removed. Use $shared/nostr/store.js or $shared/nostr/client.js directly.'
+  },
+  {
+    pattern: /\$shared\/nostr\/event-db\.js$/,
+    reason: 'event-db.ts was removed. Use $shared/nostr/store.js (auftakt EventStore).'
+  },
+  {
+    pattern: /\$shared\/nostr\/cached-query(?:\.svelte)?\.js$/,
+    reason:
+      'cached-query was removed. Use store.fetchById() or fetchLatest() from $shared/nostr/store.js.'
   }
 ];
 

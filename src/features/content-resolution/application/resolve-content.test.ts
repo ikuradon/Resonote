@@ -32,7 +32,7 @@ vi.mock('$shared/content/url-utils.js', () => ({
   toBase64url: (...args: unknown[]) => mockToBase64url(...(args as []))
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
+vi.mock('$shared/nostr/publish-signed.js', () => ({
   publishSignedEvents: (...args: unknown[]) => mockPublishSignedEvents(...(args as []))
 }));
 

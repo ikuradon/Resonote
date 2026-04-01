@@ -1,43 +1,29 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // --- hoisted mocks ---
-const {
-  getEventsDBMock,
-  getManyByPubkeysAndKindMock,
-  putMock,
-  getRxNostrMock,
-  createRxBackwardReqMock,
-  reqEmitMock,
-  reqOverMock,
-  logWarnMock,
-  logErrorMock
-} = vi.hoisted(() => {
-  const reqEmitMock = vi.fn();
-  const reqOverMock = vi.fn();
-  const getManyByPubkeysAndKindMock = vi.fn();
-  const putMock = vi.fn().mockResolvedValue(undefined);
-  const getEventsDBMock = vi.fn();
-
+const { mockGetSync, fetchLatestBatchMock, logWarnMock, logErrorMock } = vi.hoisted(() => {
   return {
-    getEventsDBMock,
-    getManyByPubkeysAndKindMock,
-    putMock,
-    getRxNostrMock: vi.fn(),
-    createRxBackwardReqMock: vi.fn(),
-    reqEmitMock,
-    reqOverMock,
+    mockGetSync: vi.fn(),
+    fetchLatestBatchMock: vi.fn(),
     logWarnMock: vi.fn(),
     logErrorMock: vi.fn()
   };
 });
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getEventsDB: getEventsDBMock,
-  getRxNostr: getRxNostrMock
+vi.mock('$shared/nostr/store.js', () => ({
+  getStoreAsync: vi.fn().mockResolvedValue({
+    getSync: mockGetSync,
+    fetchById: vi.fn().mockResolvedValue(null),
+    dispose: vi.fn()
+  })
 }));
 
-vi.mock('rx-nostr', () => ({
-  createRxBackwardReq: createRxBackwardReqMock
+vi.mock('@ikuradon/auftakt/sync', () => ({
+  fetchLatestBatch: fetchLatestBatchMock
+}));
+
+vi.mock('$shared/nostr/client.js', () => ({
+  getRxNostr: vi.fn().mockResolvedValue({})
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -72,42 +58,26 @@ function makeKind0Event(pubkey: string, content: Record<string, unknown>) {
   };
 }
 
-interface SubscribeObserver {
-  next: (p: unknown) => void;
-  complete: () => void;
-  error: (e: unknown) => void;
-}
-
-/** DB モック (空配列) と relay モックをまとめてセットアップする */
+/** DB mock + relay mock setup */
 function setupMocks(
   dbEvents: ReturnType<typeof makeKind0Event>[],
   relayPackets: { event: ReturnType<typeof makeKind0Event> }[],
-  opts: { complete?: boolean; error?: Error } = {}
+  opts: { error?: Error } = {}
 ) {
-  const { complete = true, error } = opts;
+  const { error } = opts;
 
-  // DB mock
-  getManyByPubkeysAndKindMock.mockResolvedValue(dbEvents);
-  getEventsDBMock.mockResolvedValue({
-    getManyByPubkeysAndKind: getManyByPubkeysAndKindMock,
-    put: putMock
+  // DB mock — wrap events in CachedEvent format
+  mockGetSync.mockResolvedValue(dbEvents.map((event) => ({ event, seenOn: [], firstSeen: 0 })));
+
+  // relay mock via fetchLatestBatch — returns CachedEvent[] for batch
+  fetchLatestBatchMock.mockImplementation(async () => {
+    if (error) throw error;
+    return relayPackets.map((p) => ({
+      event: p.event,
+      seenOn: ['wss://relay.test'],
+      firstSeen: Date.now()
+    }));
   });
-
-  // relay mock
-  const req = { emit: reqEmitMock, over: reqOverMock };
-  createRxBackwardReqMock.mockReturnValue(req);
-  const rxNostr = {
-    use: vi.fn().mockReturnValue({
-      subscribe: vi.fn().mockImplementation((observer: SubscribeObserver) => {
-        for (const p of relayPackets) observer.next(p);
-        if (error) observer.error(error);
-        else if (complete) observer.complete();
-        return { unsubscribe: vi.fn() };
-      })
-    })
-  };
-  getRxNostrMock.mockResolvedValue(rxNostr);
-  return { rxNostr, req };
 }
 
 // --- tests ---
@@ -135,7 +105,7 @@ describe('clearProfiles', () => {
 
   it('clearProfiles 後は全プロファイルが undefined になる', async () => {
     const event = makeKind0Event(PUBKEY_A, { name: 'Alice', display_name: 'Alice Display' });
-    setupMocks([event], [], { complete: false });
+    setupMocks([event], []);
 
     await fetchProfile(PUBKEY_A);
     expect(getProfile(PUBKEY_A)).toBeDefined();
@@ -146,13 +116,13 @@ describe('clearProfiles', () => {
 
   it('clearProfiles は pending を空にする（再 fetch が通る）', async () => {
     const event = makeKind0Event(PUBKEY_A, { name: 'Alice' });
-    setupMocks([event], [], { complete: false });
+    setupMocks([event], []);
 
     await fetchProfile(PUBKEY_A);
     clearProfiles();
 
     // clearProfiles 後はもう一度 fetch が呼べる（モックを再設定）
-    setupMocks([event], [], { complete: false });
+    setupMocks([event], []);
     await fetchProfile(PUBKEY_A);
     expect(getProfile(PUBKEY_A)).toBeDefined();
   });
@@ -171,7 +141,7 @@ describe('fetchProfile — DB キャッシュあり', () => {
       picture: 'https://example.com/alice.png',
       nip05: 'alice@example.com'
     });
-    setupMocks([event], [], { complete: false });
+    setupMocks([event], []);
 
     await fetchProfile(PUBKEY_A);
 
@@ -188,7 +158,7 @@ describe('fetchProfile — DB キャッシュあり', () => {
       name: 'Bob',
       picture: 'javascript:alert(1)'
     });
-    setupMocks([event], [], { complete: false });
+    setupMocks([event], []);
 
     await fetchProfile(PUBKEY_A);
 
@@ -206,38 +176,27 @@ describe('fetchProfile — DB キャッシュあり', () => {
       tags: [],
       sig: 'sig'
     };
-    getManyByPubkeysAndKindMock.mockResolvedValue([badEvent]);
-    getEventsDBMock.mockResolvedValue({
-      getManyByPubkeysAndKind: getManyByPubkeysAndKindMock,
-      put: putMock
-    });
-    // DB キャッシュが失敗してもプロファイルは設定されないため relay fetch へ進む
-    const req = { emit: reqEmitMock, over: reqOverMock };
-    createRxBackwardReqMock.mockReturnValue(req);
-    getRxNostrMock.mockResolvedValue({
-      use: vi.fn().mockReturnValue({
-        subscribe: vi.fn().mockImplementation((observer: SubscribeObserver) => {
-          observer.complete();
-          return { unsubscribe: vi.fn() };
-        })
-      })
-    });
+    mockGetSync.mockResolvedValue([{ event: badEvent, seenOn: [], firstSeen: 0 }]);
+
+    // Relay mock — returns no events
+    fetchLatestBatchMock.mockResolvedValue([]);
 
     await fetchProfile(PUBKEY_A);
+    await new Promise<void>((r) => setTimeout(r, 50));
 
     expect(logWarnMock).toHaveBeenCalledWith('Malformed cached profile JSON', expect.any(Object));
   });
 
   it('既に fetch 済みの pubkey は再 fetch しない', async () => {
     const event = makeKind0Event(PUBKEY_A, { name: 'Alice' });
-    setupMocks([event], [], { complete: false });
+    setupMocks([event], []);
 
     await fetchProfile(PUBKEY_A);
-    const callCount = getManyByPubkeysAndKindMock.mock.calls.length;
+    const callCount = mockGetSync.mock.calls.length;
 
     // 2回目の fetch は DB にアクセスしない
     await fetchProfile(PUBKEY_A);
-    expect(getManyByPubkeysAndKindMock.mock.calls.length).toBe(callCount);
+    expect(mockGetSync.mock.calls.length).toBe(callCount);
   });
 });
 
@@ -252,6 +211,8 @@ describe('fetchProfile — relay から取得', () => {
     setupMocks([], [{ event }]);
 
     await fetchProfile(PUBKEY_A);
+    // Wait for async subscription events
+    await new Promise<void>((r) => setTimeout(r, 50));
 
     const profile = getProfile(PUBKEY_A);
     expect(profile).toBeDefined();
@@ -263,6 +224,7 @@ describe('fetchProfile — relay から取得', () => {
     setupMocks([], []);
 
     await fetchProfile(PUBKEY_A);
+    await new Promise<void>((r) => setTimeout(r, 50));
 
     const profile = getProfile(PUBKEY_A);
     expect(profile).toBeDefined();
@@ -273,11 +235,9 @@ describe('fetchProfile — relay から取得', () => {
     setupMocks([], [], { error: new Error('relay error') });
 
     await fetchProfile(PUBKEY_A);
+    await new Promise<void>((r) => setTimeout(r, 50));
 
-    expect(logWarnMock).toHaveBeenCalledWith(
-      'Profile fetch subscription error',
-      expect.any(Object)
-    );
+    expect(logWarnMock).toHaveBeenCalledWith('Profile batch fetch failed', expect.any(Object));
   });
 
   it('relay からの不正な JSON プロファイルは warn を出してスキップする', async () => {
@@ -293,17 +253,20 @@ describe('fetchProfile — relay から取得', () => {
     setupMocks([], [{ event: badEvent as ReturnType<typeof makeKind0Event> }]);
 
     await fetchProfile(PUBKEY_A);
+    await new Promise<void>((r) => setTimeout(r, 50));
 
     expect(logWarnMock).toHaveBeenCalledWith('Malformed profile JSON', expect.any(Object));
   });
 
-  it('relay から取得したプロファイルは DB に保存される', async () => {
+  it('relay から取得したプロファイルは connectStore で自動キャッシュされる', async () => {
     const event = makeKind0Event(PUBKEY_B, { name: 'Bob' });
     setupMocks([], [{ event }]);
 
     await fetchProfiles([PUBKEY_B]);
+    await new Promise<void>((r) => setTimeout(r, 50));
 
-    expect(putMock).toHaveBeenCalledWith(event);
+    // connectStore() handles caching automatically — no explicit put call
+    expect(getProfile(PUBKEY_B)?.name).toBe('Bob');
   });
 
   it('複数 pubkey を同時に fetch できる', async () => {
@@ -312,6 +275,7 @@ describe('fetchProfile — relay から取得', () => {
     setupMocks([], [{ event: eventA }, { event: eventB }]);
 
     await fetchProfiles([PUBKEY_A, PUBKEY_B]);
+    await new Promise<void>((r) => setTimeout(r, 50));
 
     expect(getProfile(PUBKEY_A)?.name).toBe('Alice');
     expect(getProfile(PUBKEY_B)?.name).toBe('Bob');
