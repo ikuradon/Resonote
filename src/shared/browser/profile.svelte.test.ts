@@ -303,4 +303,18 @@ describe('fetchProfile — relay から取得', () => {
 
     expect(getProfile(PUBKEY_A)?.name).toBe('Alice');
   });
+
+  it('batch fetch 完了後に store へ反映された profile を再読込する', async () => {
+    const event = makeKind0Event(PUBKEY_A, { name: 'Late Alice' });
+    mockGetSync
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ event, seenOn: ['wss://relay.test'], firstSeen: 0 }]);
+    fetchLatestBatchMock.mockResolvedValue([]);
+
+    await fetchProfile(PUBKEY_A);
+    await new Promise<void>((r) => setTimeout(r, 50));
+
+    expect(getProfile(PUBKEY_A)?.name).toBe('Late Alice');
+    expect(mockGetSync).toHaveBeenNthCalledWith(2, { kinds: [0], authors: [PUBKEY_A] });
+  });
 });

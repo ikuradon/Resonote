@@ -101,6 +101,7 @@ export async function fetchLatest(
   const { firstValueFrom, filter, race, timer, Observable, take } = await import('rxjs');
   const { map, withLatestFrom } = await import('rxjs/operators');
   const rxNostr = await getRxNostr();
+  const completeSentinel = Symbol('fetchLatest.complete');
 
   const synced = createSyncedQuery(rxNostr, s, {
     filter: { kinds: [kind], authors: [pubkey], limit: 1 },
@@ -117,7 +118,7 @@ export async function fetchLatest(
       filter((status: unknown) => status === 'complete'),
       take(1),
       withLatestFrom(synced.events$),
-      map(([, events]) => (events as Array<{ event: NostrEvent }>)[0]?.event ?? null)
+      map(() => completeSentinel)
     );
     const timeout$ = timer(options?.timeout ?? 5000).pipe(map(() => null));
     const racers = [eventFound$, complete$, timeout$];
@@ -131,7 +132,15 @@ export async function fetchLatest(
       racers.push(abort$);
     }
 
-    return await firstValueFrom(race(racers));
+    const result = (await firstValueFrom(race(racers))) as
+      | NostrEvent
+      | null
+      | typeof completeSentinel;
+    if (result === completeSentinel) {
+      const refreshed = await s.getSync({ kinds: [kind], authors: [pubkey], limit: 1 });
+      return refreshed[0]?.event ?? null;
+    }
+    return result;
   } finally {
     synced.dispose();
   }

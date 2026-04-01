@@ -83,7 +83,9 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
 
     // Batch fetch missing profiles via single backward REQ
     try {
-      const results = await fetchLatestBatch(rxNostr, store, toFetch, 0, { timeout: 10_000 });
+      const relayResults = await fetchLatestBatch(rxNostr, store, toFetch, 0, { timeout: 10_000 });
+      const cachedAfterFetch = await store.getSync({ kinds: [0], authors: toFetch });
+      const results = cachedAfterFetch.length > 0 ? cachedAfterFetch : relayResults;
       for (const ce of results) {
         const pk = ce.event.pubkey;
         if (profiles.has(pk)) continue;

@@ -343,5 +343,70 @@ describe('store.ts', () => {
       await expect(resultPromise).resolves.toBeNull();
       expect(mockDispose).toHaveBeenCalled();
     });
+
+    it('re-reads the store after backward completion before returning null', async () => {
+      vi.resetModules();
+
+      const mockDispose = vi.fn();
+      const { BehaviorSubject } = await import('rxjs');
+      const eventsSubject = new BehaviorSubject<unknown[]>([]);
+      const statusSubject = new BehaviorSubject('cached');
+      const lateEvent = {
+        id: 'late',
+        kind: 0,
+        pubkey: 'pk1',
+        created_at: 200,
+        tags: [],
+        content: 'late profile',
+        sig: ''
+      };
+
+      const mockStore7 = {
+        add: vi.fn(),
+        query: vi.fn(),
+        fetchById: vi.fn(),
+        getSync: vi
+          .fn()
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([{ event: lateEvent, seenOn: [], firstSeen: 0 }]),
+        dispose: vi.fn(),
+        changes$: { subscribe: vi.fn() },
+        _setConnectFilter: vi.fn(),
+        _getConnectFilter: vi.fn()
+      };
+
+      vi.doMock('@ikuradon/auftakt', () => ({
+        createEventStore: vi.fn().mockReturnValue(mockStore7)
+      }));
+      vi.doMock('@ikuradon/auftakt/backends/dexie', () => ({
+        dexieBackend: vi.fn().mockReturnValue({})
+      }));
+      vi.doMock('@ikuradon/auftakt/sync', () => ({
+        connectStore: vi.fn().mockReturnValue(() => {}),
+        createSyncedQuery: vi.fn().mockReturnValue({
+          events$: eventsSubject.asObservable(),
+          status$: statusSubject.asObservable(),
+          emit: vi.fn(),
+          dispose: mockDispose
+        })
+      }));
+      vi.doMock('./client.js', () => ({
+        getRxNostr: vi.fn().mockResolvedValue({ createAllEventObservable: vi.fn() })
+      }));
+
+      const { initStore, fetchLatest } = await import('./store.js');
+      await initStore();
+
+      const resultPromise = fetchLatest('pk1', 0, { timeout: 10_000 });
+      statusSubject.next('complete');
+
+      await expect(resultPromise).resolves.toEqual(lateEvent);
+      expect(mockStore7.getSync).toHaveBeenNthCalledWith(2, {
+        kinds: [0],
+        authors: ['pk1'],
+        limit: 1
+      });
+      expect(mockDispose).toHaveBeenCalled();
+    });
   });
 });

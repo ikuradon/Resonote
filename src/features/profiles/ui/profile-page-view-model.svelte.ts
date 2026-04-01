@@ -1,7 +1,7 @@
+import { getAuth } from '$shared/browser/auth.js';
 import { followUser, getFollows, unfollowUser } from '$shared/browser/follows.js';
 import { getMuteList, muteUser } from '$shared/browser/mute.js';
 import { fetchProfile, getProfileDisplay } from '$shared/browser/profile.js';
-import { getAuth } from '$shared/browser/auth.js';
 import { t } from '$shared/i18n/t.js';
 import { decodeNip19 } from '$shared/nostr/nip19-decode.js';
 import { createLogger } from '$shared/utils/logger.js';
