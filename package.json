@@ -12,7 +12,7 @@
     "dev:full": "wrangler pages dev --port 5173 --proxy 5174 -- vite dev --port 5174",
     "build": "vite build",
     "preview": "vite preview",
-    "prepare": "svelte-kit sync || echo ''",
+    "prepare": "(svelte-kit sync || echo '') && simple-git-hooks",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "check:structure": "node scripts/check-structure.mjs",
@@ -55,9 +55,11 @@
     "eslint-plugin-svelte": "^3.16.0",
     "fake-indexeddb": "^6.2.5",
     "globals": "^17.4.0",
+    "nano-staged": "^0.9.0",
     "nostr-typedef": "^0.13.0",
     "prettier": "^3.8.1",
     "prettier-plugin-svelte": "^3.5.1",
+    "simple-git-hooks": "^2.13.1",
     "svelte": "^5.55.0",
     "svelte-check": "^4.4.2",
     "tailwindcss": "^4.2.2",
@@ -90,5 +92,24 @@
       "undici@<6.24.0": ">=6.24.0",
       "cookie@<0.7.0": ">=0.7.0"
     }
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm nano-staged"
+  },
+  "nano-staged": {
+    "*.{ts,js,svelte}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "**/*.{ts,js,svelte}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ],
+    "**/*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   }
 }
