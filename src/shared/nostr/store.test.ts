@@ -103,6 +103,68 @@ describe('store.ts', () => {
       });
       expect(() => getStore()).not.toThrow();
     });
+
+    it('allows retry after init failure without keeping a partial store', async () => {
+      vi.resetModules();
+
+      const failedStore = {
+        add: vi.fn(),
+        query: vi.fn(),
+        fetchById: vi.fn(),
+        getSync: vi.fn().mockResolvedValue([]),
+        dispose: vi.fn(),
+        changes$: { subscribe: vi.fn() },
+        _setConnectFilter: vi.fn(),
+        _getConnectFilter: vi.fn()
+      };
+      const connectedStore = {
+        add: vi.fn(),
+        query: vi.fn(),
+        fetchById: vi.fn(),
+        getSync: vi.fn().mockResolvedValue([]),
+        dispose: vi.fn(),
+        changes$: { subscribe: vi.fn() },
+        _setConnectFilter: vi.fn(),
+        _getConnectFilter: vi.fn()
+      };
+      const mockCreate = vi
+        .fn()
+        .mockReturnValueOnce(failedStore)
+        .mockReturnValueOnce(connectedStore);
+      const mockBackend = vi.fn().mockReturnValue({});
+      const mockConnect = vi.fn().mockReturnValue(() => {});
+      const mockRxNostr = { createAllEventObservable: vi.fn() };
+      const mockGetRxNostr = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('network'))
+        .mockResolvedValueOnce(mockRxNostr);
+
+      vi.doMock('@ikuradon/auftakt', () => ({
+        createEventStore: mockCreate
+      }));
+      vi.doMock('@ikuradon/auftakt/backends/dexie', () => ({
+        dexieBackend: mockBackend
+      }));
+      vi.doMock('@ikuradon/auftakt/sync', () => ({
+        connectStore: mockConnect,
+        createSyncedQuery: vi.fn()
+      }));
+      vi.doMock('./client.js', () => ({
+        getRxNostr: mockGetRxNostr
+      }));
+
+      const { initStore, getStore } = await import('./store.js');
+
+      await expect(initStore()).rejects.toThrow('network');
+      await expect(initStore()).resolves.toBeUndefined();
+
+      expect(failedStore.dispose).toHaveBeenCalledOnce();
+      expect(mockCreate).toHaveBeenCalledTimes(2);
+      expect(mockConnect).toHaveBeenCalledWith(mockRxNostr, connectedStore, {
+        reconcileDeletions: true
+      });
+      expect(getStore()).toBe(connectedStore);
+    });
   });
 
   describe('disposeStore', () => {

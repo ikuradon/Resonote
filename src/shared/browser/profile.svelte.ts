@@ -49,10 +49,11 @@ export async function fetchProfile(pubkey: string): Promise<void> {
  * Falls back to DB cache before making relay requests.
  */
 export async function fetchProfiles(pubkeys: string[]): Promise<void> {
-  let toFetch = pubkeys.filter((pk) => !profiles.has(pk) && !pending.has(pk));
+  const claimedPubkeys = pubkeys.filter((pk) => !profiles.has(pk) && !pending.has(pk));
+  let toFetch = claimedPubkeys;
   if (toFetch.length === 0) return;
 
-  for (const pk of toFetch) pending.add(pk);
+  for (const pk of claimedPubkeys) pending.add(pk);
 
   try {
     const { getStoreAsync } = await import('$shared/nostr/store.js');
@@ -71,7 +72,6 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
     toFetch = toFetch.filter((pk) => !profiles.has(pk));
     if (toFetch.length === 0) {
       profiles = new Map(profiles);
-      for (const pk of pubkeys) pending.delete(pk);
       return;
     }
 
@@ -116,7 +116,6 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
       if (!profiles.has(pk)) {
         profiles.set(pk, {});
       }
-      pending.delete(pk);
     }
 
     if (profiles.size > MAX_PROFILES) {
@@ -128,7 +127,8 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
     profiles = new Map(profiles);
   } catch (err) {
     log.error('Profile fetch failed', { error: err });
-    for (const pk of toFetch) pending.delete(pk);
+  } finally {
+    for (const pk of claimedPubkeys) pending.delete(pk);
   }
 }
 

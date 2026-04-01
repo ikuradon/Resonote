@@ -280,4 +280,27 @@ describe('fetchProfile — relay から取得', () => {
     expect(getProfile(PUBKEY_A)?.name).toBe('Alice');
     expect(getProfile(PUBKEY_B)?.name).toBe('Bob');
   });
+
+  it('cache hit と relay fetch が混在しても cache hit 側の pending を解放する', async () => {
+    const extraPubkeys = Array.from({ length: 2000 }, (_, i) => `extra-${i.toString(16)}`);
+    const requestedPubkeys = [PUBKEY_A, PUBKEY_B, ...extraPubkeys];
+
+    mockGetSync.mockImplementation(async ({ authors }: { authors: string[] }) =>
+      authors
+        .filter((pubkey) => pubkey !== PUBKEY_B)
+        .map((pubkey) => ({
+          event: makeKind0Event(pubkey, { name: pubkey === PUBKEY_A ? 'Alice' : `User ${pubkey}` }),
+          seenOn: [],
+          firstSeen: 0
+        }))
+    );
+    fetchLatestBatchMock.mockResolvedValue([]);
+
+    await fetchProfiles(requestedPubkeys);
+    expect(getProfile(PUBKEY_A)).toBeUndefined();
+
+    await fetchProfile(PUBKEY_A);
+
+    expect(getProfile(PUBKEY_A)?.name).toBe('Alice');
+  });
 });

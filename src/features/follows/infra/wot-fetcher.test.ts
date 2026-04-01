@@ -275,4 +275,43 @@ describe('fetchWot', () => {
 
     expect(result.directFollows).toEqual(new Set(['new-follow']));
   });
+
+  it('starts 2nd-hop batches in parallel when direct follows exceed one batch', async () => {
+    const callbacks = makeCallbacks();
+    const MY_PUBKEY = 'parallel-pubkey';
+    const follows = Array.from({ length: 101 }, (_, i) => `follow-${i}`);
+
+    fetchLatestMock.mockResolvedValue({
+      tags: follows.map((follow) => ['p', follow]),
+      created_at: 1
+    });
+
+    const firstBatchEvents$ = new Subject<unknown[]>();
+    const secondBatchEvents$ = new Subject<unknown[]>();
+    createSyncedQueryMock
+      .mockReturnValueOnce({
+        events$: firstBatchEvents$.asObservable(),
+        status$: new BehaviorSubject<string>('cached').asObservable(),
+        emit: vi.fn(),
+        dispose: vi.fn()
+      })
+      .mockReturnValueOnce({
+        events$: secondBatchEvents$.asObservable(),
+        status$: new BehaviorSubject<string>('cached').asObservable(),
+        emit: vi.fn(),
+        dispose: vi.fn()
+      });
+
+    const promise = fetchWot(MY_PUBKEY, callbacks);
+
+    await new Promise<void>((r) => setImmediate(r));
+    await new Promise<void>((r) => setImmediate(r));
+
+    expect(createSyncedQueryMock).toHaveBeenCalledTimes(2);
+
+    firstBatchEvents$.complete();
+    secondBatchEvents$.complete();
+
+    await promise;
+  });
 });

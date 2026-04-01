@@ -39,18 +39,31 @@ export async function initStore(): Promise<void> {
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
-    const [{ createEventStore }, { dexieBackend }, { connectStore }, { getRxNostr }] =
-      await Promise.all([
-        import('@ikuradon/auftakt'),
-        import('@ikuradon/auftakt/backends/dexie'),
-        import('@ikuradon/auftakt/sync'),
-        import('./client.js')
-      ]);
+    let nextStore: EventStore | undefined;
+    let nextDisconnectStore: (() => void) | undefined;
 
-    store = createEventStore({ backend: dexieBackend({ dbName: 'resonote-events' }) });
-    const rxNostr = await getRxNostr();
-    disconnectStore = connectStore(rxNostr, store, { reconcileDeletions: true });
-    log.info('Auftakt store initialized');
+    try {
+      const [{ createEventStore }, { dexieBackend }, { connectStore }, { getRxNostr }] =
+        await Promise.all([
+          import('@ikuradon/auftakt'),
+          import('@ikuradon/auftakt/backends/dexie'),
+          import('@ikuradon/auftakt/sync'),
+          import('./client.js')
+        ]);
+
+      nextStore = createEventStore({ backend: dexieBackend({ dbName: 'resonote-events' }) });
+      const rxNostr = await getRxNostr();
+      nextDisconnectStore = connectStore(rxNostr, nextStore, { reconcileDeletions: true });
+
+      store = nextStore;
+      disconnectStore = nextDisconnectStore;
+      log.info('Auftakt store initialized');
+    } catch (err) {
+      nextDisconnectStore?.();
+      nextStore?.dispose();
+      initPromise = undefined;
+      throw err;
+    }
   })();
 
   return initPromise;
