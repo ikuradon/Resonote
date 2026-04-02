@@ -33,7 +33,7 @@ export async function clearIndexedDB(): Promise<void> {
     const req = indexedDB.deleteDatabase(EVENTS_DB_NAME);
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
-    req.onblocked = () => reject(new Error('Failed to delete IndexedDB: blocked'));
+    req.onblocked = () => resolve();
   });
 }
 
