@@ -31,7 +31,8 @@ export async function fetchProfileComments(
     import('$shared/nostr/store.js')
   ]);
   const { firstValueFrom, filter, race, timer, of } = await import('rxjs');
-  const { catchError, defaultIfEmpty, map, take, withLatestFrom } = await import('rxjs/operators');
+  const { catchError, defaultIfEmpty, map, shareReplay, startWith, take, withLatestFrom } =
+    await import('rxjs/operators');
   const [rxNostr, store] = await Promise.all([getRxNostr(), getStoreAsync()]);
 
   const queryFilter = until
@@ -44,12 +45,16 @@ export async function fetchProfileComments(
   });
 
   try {
+    const events$ = synced.events$.pipe(
+      startWith([] as unknown[]),
+      shareReplay({ bufferSize: 1, refCount: true })
+    );
     const result = await firstValueFrom(
       race([
         synced.status$.pipe(
           filter((status: unknown) => status === 'complete'),
           take(1),
-          withLatestFrom(synced.events$),
+          withLatestFrom(events$),
           map(([, events]) => events as unknown[])
         ),
         timer(10_000).pipe(map(() => null))

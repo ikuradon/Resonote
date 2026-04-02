@@ -112,6 +112,30 @@ describe('fetchProfileComments', () => {
     expect(result.oldestTimestamp).toBeNull();
   });
 
+  it('treats completion without events emissions as an empty snapshot', async () => {
+    const disposeMock = vi.fn();
+    getRxNostrMock.mockResolvedValue({});
+    const eventsSubject = new Subject<unknown[]>();
+    const statusSubject = new BehaviorSubject<string>('cached');
+
+    createSyncedQueryMock.mockReturnValue({
+      events$: eventsSubject.asObservable(),
+      status$: statusSubject.asObservable(),
+      emit: vi.fn(),
+      dispose: disposeMock
+    });
+
+    queueMicrotask(() => {
+      statusSubject.next('complete');
+    });
+
+    const result = await fetchProfileComments(PUBKEY);
+    expect(result.comments).toEqual([]);
+    expect(result.hasMore).toBe(false);
+    expect(result.oldestTimestamp).toBeNull();
+    expect(disposeMock).toHaveBeenCalled();
+  });
+
   it('returns comments sorted by createdAt descending', async () => {
     setupSyncedQuery([
       { event: { id: 'a', content: 'first', created_at: 100, tags: [] } },
