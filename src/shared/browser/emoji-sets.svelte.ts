@@ -167,8 +167,10 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
 
       const BATCH_SIZE = 20;
 
-      for (let i = 0; i < setRefs.length; i += BATCH_SIZE) {
-        const batch = setRefs.slice(i, i + BATCH_SIZE);
+      const batchPromises = Array.from(
+        { length: Math.ceil(setRefs.length / BATCH_SIZE) },
+        (_, index) => setRefs.slice(index * BATCH_SIZE, index * BATCH_SIZE + BATCH_SIZE)
+      ).map(async (batch) => {
         const filters = batch
           .map((ref) => {
             const parts = ref.split(':');
@@ -177,7 +179,7 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
           })
           .filter((f): f is NonNullable<typeof f> => f !== null);
 
-        if (filters.length === 0) continue;
+        if (filters.length === 0) return [] as Array<EmojiCategory | null>;
 
         const authors = [...new Set(filters.flatMap((f) => f.authors))];
         const dTags = [...new Set(filters.flatMap((f) => f['#d']))];
@@ -266,7 +268,12 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
           synced.dispose();
         }
 
-        if (gen !== generation) return;
+        return batchCategories;
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      if (gen !== generation) return;
+      for (const batchCategories of batchResults) {
         for (const cat of batchCategories) {
           if (cat) setCategories.push(cat);
         }

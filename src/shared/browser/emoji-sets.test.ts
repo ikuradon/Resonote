@@ -588,6 +588,90 @@ describe('loadCustomEmojis', () => {
     expect(e.categories.map((category) => category.name)).toEqual(['Set A', 'Set B']);
   });
 
+  it('複数バッチの set query を直列待ちせず並列に開始する', async () => {
+    const setRefs = Array.from(
+      { length: 21 },
+      (_, i) => ['a', `30030:author-${i}:set-${i}`] as string[]
+    );
+    setupFetchLatest({
+      id: 'list-evt',
+      tags: setRefs
+    });
+
+    let resolveSecondBatchStarted: (() => void) | undefined;
+    const secondBatchStarted = new Promise<void>((resolve) => {
+      resolveSecondBatchStarted = resolve;
+    });
+    const controllers: Array<{
+      events$: BehaviorSubject<unknown[]>;
+      status$: BehaviorSubject<string>;
+      dispose: ReturnType<typeof vi.fn>;
+    }> = [];
+
+    createSyncedQueryMock.mockImplementation(() => {
+      const controller = {
+        events$: new BehaviorSubject<unknown[]>([]),
+        status$: new BehaviorSubject<string>('cached'),
+        dispose: vi.fn()
+      };
+      controllers.push(controller);
+      if (controllers.length === 2) {
+        resolveSecondBatchStarted?.();
+      }
+      return {
+        events$: controller.events$.asObservable(),
+        status$: controller.status$.asObservable(),
+        emit: vi.fn(),
+        dispose: controller.dispose
+      };
+    });
+
+    const loadingPromise = loadCustomEmojis(PUBKEY);
+    await secondBatchStarted;
+
+    expect(createSyncedQueryMock).toHaveBeenCalledTimes(2);
+
+    controllers[0].events$.next([
+      {
+        event: {
+          id: 'set-0-id',
+          pubkey: 'author-0',
+          tags: [
+            ['d', 'set-0'],
+            ['title', 'Set 0'],
+            ['emoji', 'zero', 'https://example.com/0.png']
+          ]
+        },
+        seenOn: ['wss://relay.test'],
+        firstSeen: Date.now()
+      }
+    ]);
+    controllers[0].status$.next('complete');
+
+    controllers[1].events$.next([
+      {
+        event: {
+          id: 'set-20-id',
+          pubkey: 'author-20',
+          tags: [
+            ['d', 'set-20'],
+            ['title', 'Set 20'],
+            ['emoji', 'twenty', 'https://example.com/20.png']
+          ]
+        },
+        seenOn: ['wss://relay.test'],
+        firstSeen: Date.now()
+      }
+    ]);
+    controllers[1].status$.next('complete');
+
+    await loadingPromise;
+
+    const e = getCustomEmojis();
+    expect(e.categories.map((category) => category.name)).toContain('Set 0');
+    expect(e.categories.map((category) => category.name)).toContain('Set 20');
+  });
+
   it('catch ブロックがエラーをログに記録する', async () => {
     // Make getSync throw to trigger catch block
     mockGetSync.mockRejectedValueOnce(new Error('DB failed'));
