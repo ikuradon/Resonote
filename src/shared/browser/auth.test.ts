@@ -124,6 +124,26 @@ describe('nlAuth イベント: login', () => {
     expect(getAuth().pubkey).toBe(TEST_PUBKEY);
     expect(getAuth().loggedIn).toBe(true);
   });
+
+  it('initSession 完了前は pubkey を公開しない', async () => {
+    let resolveInit!: () => void;
+    const { getAuth, initAuth } = await import('./auth.svelte.js');
+    const { initSession } = await import('$appcore/bootstrap/init-session.js');
+    const initPromise = new Promise<void>((resolve) => {
+      resolveInit = resolve;
+    });
+    (initSession as ReturnType<typeof vi.fn>).mockReturnValueOnce(initPromise);
+    await initAuth();
+
+    dispatchNlAuth('login');
+    await vi.waitUntil(() => (initSession as ReturnType<typeof vi.fn>).mock.calls.length > 0);
+
+    expect(getAuth().pubkey).toBeNull();
+
+    resolveInit();
+    await vi.waitUntil(() => getAuth().pubkey !== null);
+    expect(getAuth().pubkey).toBe(TEST_PUBKEY);
+  });
 });
 
 describe('nlAuth イベント: logout', () => {
@@ -159,6 +179,7 @@ describe('nlAuth イベント: logout', () => {
 
   it('login → logout → login で再ログインできる', async () => {
     const { getAuth, initAuth } = await import('./auth.svelte.js');
+    const { destroySession } = await import('$appcore/bootstrap/init-session.js');
     await initAuth();
 
     dispatchNlAuth('login');
@@ -166,6 +187,7 @@ describe('nlAuth イベント: logout', () => {
 
     dispatchNlAuth('logout');
     await vi.waitUntil(() => getAuth().pubkey === null);
+    await vi.waitUntil(() => (destroySession as ReturnType<typeof vi.fn>).mock.calls.length > 0);
 
     dispatchNlAuth('login');
     await vi.waitUntil(() => getAuth().pubkey !== null);
