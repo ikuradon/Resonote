@@ -1,4 +1,4 @@
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // --- hoisted mocks ---
@@ -421,6 +421,30 @@ describe('loadCustomEmojis', () => {
   it('set が見つからない場合も complete で速やかに解決される', async () => {
     setupFetchLatest({ id: 'list-evt', tags: [['a', '30030:author:missing-set']] });
     setupSyncedQueryForSets([{ events: [] }]);
+
+    await loadCustomEmojis(PUBKEY);
+
+    const e = getCustomEmojis();
+    expect(e.categories).toEqual([]);
+    expect(e.loading).toBe(false);
+  });
+
+  it('events$ に初期値がなくても complete で空セットとして解決される', async () => {
+    setupFetchLatest({ id: 'list-evt', tags: [['a', '30030:author:no-initial-value']] });
+
+    createSyncedQueryMock.mockImplementation(() => {
+      const events$ = new Subject<unknown[]>();
+      const status$ = new BehaviorSubject<string>('cached');
+      queueMicrotask(() => {
+        status$.next('complete');
+      });
+      return {
+        events$: events$.asObservable(),
+        status$: status$.asObservable(),
+        emit: vi.fn(),
+        dispose: vi.fn()
+      };
+    });
 
     await loadCustomEmojis(PUBKEY);
 

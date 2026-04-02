@@ -159,7 +159,7 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
       const rxNostr = await getRxNostr();
       const { firstValueFrom, filter, timeout, catchError, of, merge, map, take } =
         await import('rxjs');
-      const { shareReplay, withLatestFrom } = await import('rxjs/operators');
+      const { shareReplay, startWith, withLatestFrom } = await import('rxjs/operators');
 
       const BATCH_SIZE = 20;
 
@@ -180,6 +180,7 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
               strategy: 'backward'
             });
             const sharedEvents$ = synced.events$.pipe(
+              startWith([] as unknown[]),
               shareReplay({ bufferSize: 1, refCount: true })
             );
             try {
