@@ -62,6 +62,50 @@ describe('store.ts', () => {
     });
   });
 
+  describe('getStoreAsync', () => {
+    it('lazily initializes the store and returns it', async () => {
+      vi.resetModules();
+
+      const mockStoreLazy = {
+        add: vi.fn(),
+        query: vi.fn(),
+        fetchById: vi.fn(),
+        getSync: vi.fn().mockResolvedValue([]),
+        dispose: vi.fn(),
+        changes$: { subscribe: vi.fn() },
+        _setConnectFilter: vi.fn(),
+        _getConnectFilter: vi.fn()
+      };
+      const mockCreate = vi.fn().mockReturnValue(mockStoreLazy);
+      const mockBackend = vi.fn().mockReturnValue({});
+      const mockConnect = vi.fn().mockReturnValue(() => {});
+      const mockRxNostr = { createAllEventObservable: vi.fn() };
+
+      vi.doMock('@ikuradon/auftakt', () => ({
+        createEventStore: mockCreate
+      }));
+      vi.doMock('@ikuradon/auftakt/backends/dexie', () => ({
+        dexieBackend: mockBackend
+      }));
+      vi.doMock('@ikuradon/auftakt/sync', () => ({
+        connectStore: mockConnect,
+        createSyncedQuery: vi.fn()
+      }));
+      vi.doMock('./client.js', () => ({
+        fetchLatestEvent: vi.fn().mockResolvedValue(null),
+        getRxNostr: vi.fn().mockResolvedValue(mockRxNostr)
+      }));
+
+      const { getStoreAsync } = await import('./store.js');
+
+      await expect(getStoreAsync()).resolves.toBe(mockStoreLazy);
+      expect(mockCreate).toHaveBeenCalledOnce();
+      expect(mockConnect).toHaveBeenCalledWith(mockRxNostr, mockStoreLazy, {
+        reconcileDeletions: true
+      });
+    });
+  });
+
   describe('initStore', () => {
     it('creates EventStore with indexedDB backend and connects', async () => {
       vi.resetModules();
