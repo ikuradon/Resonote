@@ -511,6 +511,83 @@ describe('loadCustomEmojis', () => {
     expect(e.loading).toBe(false);
   });
 
+  it('complete 前に増えた最終 snapshot まで待って全 set を反映する', async () => {
+    setupFetchLatest({
+      id: 'list-evt',
+      tags: [
+        ['a', '30030:author-a:set-a'],
+        ['a', '30030:author-b:set-b']
+      ]
+    });
+
+    createSyncedQueryMock.mockImplementation(() => {
+      const events$ = new BehaviorSubject<unknown[]>([]);
+      const status$ = new BehaviorSubject<string>('cached');
+
+      queueMicrotask(() => {
+        events$.next([
+          {
+            event: {
+              id: 'set-a-id',
+              pubkey: 'author-a',
+              tags: [
+                ['d', 'set-a'],
+                ['title', 'Set A'],
+                ['emoji', 'a', 'https://example.com/a.png']
+              ]
+            },
+            seenOn: ['wss://relay.test'],
+            firstSeen: Date.now()
+          }
+        ]);
+
+        queueMicrotask(() => {
+          events$.next([
+            {
+              event: {
+                id: 'set-a-id',
+                pubkey: 'author-a',
+                tags: [
+                  ['d', 'set-a'],
+                  ['title', 'Set A'],
+                  ['emoji', 'a', 'https://example.com/a.png']
+                ]
+              },
+              seenOn: ['wss://relay.test'],
+              firstSeen: Date.now()
+            },
+            {
+              event: {
+                id: 'set-b-id',
+                pubkey: 'author-b',
+                tags: [
+                  ['d', 'set-b'],
+                  ['title', 'Set B'],
+                  ['emoji', 'b', 'https://example.com/b.png']
+                ]
+              },
+              seenOn: ['wss://relay.test'],
+              firstSeen: Date.now()
+            }
+          ]);
+          status$.next('complete');
+        });
+      });
+
+      return {
+        events$: events$.asObservable(),
+        status$: status$.asObservable(),
+        emit: vi.fn(),
+        dispose: vi.fn()
+      };
+    });
+
+    await loadCustomEmojis(PUBKEY);
+
+    const e = getCustomEmojis();
+    expect(e.categories.map((category) => category.name)).toEqual(['Set A', 'Set B']);
+  });
+
   it('catch ブロックがエラーをログに記録する', async () => {
     // Make getSync throw to trigger catch block
     mockGetSync.mockRejectedValueOnce(new Error('DB failed'));

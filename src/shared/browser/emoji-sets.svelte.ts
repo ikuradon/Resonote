@@ -161,7 +161,7 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
         import('$shared/nostr/client.js')
       ]);
       const rxNostr = await getRxNostr();
-      const { firstValueFrom, filter, timeout, catchError, of, merge, map, take } =
+      const { firstValueFrom, filter, catchError, of, race, timer, map, take } =
         await import('rxjs');
       const { shareReplay, startWith, withLatestFrom } = await import('rxjs/operators');
 
@@ -205,25 +205,35 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
           startWith([] as unknown[]),
           shareReplay({ bufferSize: 1, refCount: true })
         );
+        let eventsSubscription:
+          | {
+              unsubscribe: () => void;
+            }
+          | undefined;
 
         let batchCategories: Array<EmojiCategory | null> = [];
         try {
+          let latestEvents: unknown[] = [];
+          eventsSubscription = sharedEvents$.subscribe({
+            next: (events) => {
+              latestEvents = events;
+            },
+            error: () => {}
+          });
+
           const result = await firstValueFrom(
-            merge(
-              sharedEvents$.pipe(
-                filter((events: unknown[]) => events.length > 0),
-                take(1)
-              ),
+            race(
               synced.status$.pipe(
                 filter((status: unknown) => status === 'complete'),
                 take(1),
                 withLatestFrom(sharedEvents$),
                 map(([, events]) => events as unknown[])
+              ),
+              timer(5000).pipe(
+                take(1),
+                map(() => latestEvents)
               )
-            ).pipe(
-              timeout(5000),
-              catchError(() => of(null))
-            )
+            ).pipe(catchError(() => of(null)))
           );
 
           if (Array.isArray(result) && result.length > 0) {
@@ -252,6 +262,7 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
             });
           }
         } finally {
+          eventsSubscription?.unsubscribe();
           synced.dispose();
         }
 
