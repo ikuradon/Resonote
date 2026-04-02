@@ -129,12 +129,10 @@ describe('nlAuth イベント: login', () => {
     let resolveInit!: () => void;
     const { getAuth, initAuth } = await import('./auth.svelte.js');
     const { initSession } = await import('$appcore/bootstrap/init-session.js');
-    (initSession as ReturnType<typeof vi.fn>).mockImplementationOnce(
-      () =>
-        new Promise<void>((resolve) => {
-          resolveInit = resolve;
-        })
-    );
+    const initPromise = new Promise<void>((resolve) => {
+      resolveInit = resolve;
+    });
+    (initSession as ReturnType<typeof vi.fn>).mockReturnValueOnce(initPromise);
     await initAuth();
 
     dispatchNlAuth('login');
