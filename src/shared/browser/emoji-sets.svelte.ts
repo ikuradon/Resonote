@@ -62,6 +62,10 @@ function buildCategoryFromEvent(event: { id: string; tags: string[][] }): EmojiC
   return { id: setId, name: setName, emojis };
 }
 
+function buildSetKey(author: string, dTag: string): string {
+  return `${author}:${dTag}`;
+}
+
 function buildCategories(
   inlineEmojis: CustomEmoji[],
   setCategories: EmojiCategory[]
@@ -173,44 +177,83 @@ export async function loadCustomEmojis(pubkey: string): Promise<void> {
           })
           .filter((f): f is NonNullable<typeof f> => f !== null);
 
-        const batchCategories = await Promise.all(
-          filters.map(async (f) => {
-            const synced = createSyncedQuery(rxNostr, store, {
-              filter: f,
-              strategy: 'backward'
-            });
-            const sharedEvents$ = synced.events$.pipe(
-              startWith([] as unknown[]),
-              shareReplay({ bufferSize: 1, refCount: true })
-            );
-            try {
-              const result = await firstValueFrom(
-                merge(
-                  sharedEvents$.pipe(
-                    filter((events: unknown[]) => events.length > 0),
-                    take(1)
-                  ),
-                  synced.status$.pipe(
-                    filter((status: unknown) => status === 'complete'),
-                    take(1),
-                    withLatestFrom(sharedEvents$),
-                    map(([, events]) => events as unknown[])
-                  )
-                ).pipe(
-                  timeout(5000),
-                  catchError(() => of(null))
-                )
-              );
-              if (result && Array.isArray(result) && result.length > 0) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                return buildCategoryFromEvent((result as any[])[0].event);
-              }
-              return null;
-            } finally {
-              synced.dispose();
-            }
-          })
+        if (filters.length === 0) continue;
+
+        const authors = [...new Set(filters.flatMap((f) => f.authors))];
+        const dTags = [...new Set(filters.flatMap((f) => f['#d']))];
+        const requestedKeys = new Set(
+          filters.flatMap((f) =>
+            f.authors.flatMap((author) => f['#d'].map((dTag) => buildSetKey(author, dTag)))
+          )
         );
+        const onlyRequestedKey = requestedKeys.size === 1 ? [...requestedKeys][0] : undefined;
+        const uniqueKeyByDTag = new Map<string, string | null>();
+        for (const f of filters) {
+          const author = f.authors[0];
+          const dTag = f['#d'][0];
+          if (!author || !dTag) continue;
+          const key = buildSetKey(author, dTag);
+          const existing = uniqueKeyByDTag.get(dTag);
+          uniqueKeyByDTag.set(dTag, existing && existing !== key ? null : key);
+        }
+
+        const synced = createSyncedQuery(rxNostr, store, {
+          filter: { kinds: [30030], authors, '#d': dTags },
+          strategy: 'backward'
+        });
+        const sharedEvents$ = synced.events$.pipe(
+          startWith([] as unknown[]),
+          shareReplay({ bufferSize: 1, refCount: true })
+        );
+
+        let batchCategories: Array<EmojiCategory | null> = [];
+        try {
+          const result = await firstValueFrom(
+            merge(
+              sharedEvents$.pipe(
+                filter((events: unknown[]) => events.length > 0),
+                take(1)
+              ),
+              synced.status$.pipe(
+                filter((status: unknown) => status === 'complete'),
+                take(1),
+                withLatestFrom(sharedEvents$),
+                map(([, events]) => events as unknown[])
+              )
+            ).pipe(
+              timeout(5000),
+              catchError(() => of(null))
+            )
+          );
+
+          if (Array.isArray(result) && result.length > 0) {
+            const matchedByKey = new Map<string, EmojiCategory>();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            for (const cachedEvent of result as any[]) {
+              const author = cachedEvent.event.pubkey;
+              const dTag = findTagValue(cachedEvent.event.tags, 'd');
+              const key = author
+                ? dTag
+                  ? buildSetKey(author, dTag)
+                  : onlyRequestedKey
+                : dTag
+                  ? (uniqueKeyByDTag.get(dTag) ?? onlyRequestedKey)
+                  : onlyRequestedKey;
+              if (!key) continue;
+              if (!requestedKeys.has(key) || matchedByKey.has(key)) continue;
+              const category = buildCategoryFromEvent(cachedEvent.event);
+              if (category) matchedByKey.set(key, category);
+            }
+            batchCategories = filters.map((f) => {
+              const author = f.authors[0];
+              const dTag = f['#d'][0];
+              if (!author || !dTag) return null;
+              return matchedByKey.get(buildSetKey(author, dTag)) ?? null;
+            });
+          }
+        } finally {
+          synced.dispose();
+        }
 
         if (gen !== generation) return;
         for (const cat of batchCategories) {

@@ -395,4 +395,45 @@ describe('fetchWot', () => {
 
     await promise;
   });
+
+  it('keeps partial 2nd-hop results when backward query times out', async () => {
+    vi.useFakeTimers();
+    const callbacks = makeCallbacks();
+    const MY_PUBKEY = 'timeout-pubkey';
+    const FOLLOW1 = 'timeout-follow';
+
+    fetchLatestMock.mockResolvedValue({
+      tags: [['p', FOLLOW1]],
+      created_at: 1
+    });
+
+    const wotEventsSubject = new Subject<unknown[]>();
+    const statusSubject = new BehaviorSubject<string>('cached');
+    createSyncedQueryMock.mockReturnValue({
+      events$: wotEventsSubject.asObservable(),
+      status$: statusSubject.asObservable(),
+      emit: vi.fn(),
+      dispose: vi.fn()
+    });
+
+    const promise = fetchWot(MY_PUBKEY, callbacks);
+
+    await vi.waitFor(() => {
+      expect(createSyncedQueryMock).toHaveBeenCalledTimes(1);
+    });
+
+    wotEventsSubject.next([
+      {
+        event: { tags: [['p', 'wot-before-timeout']], created_at: 2 },
+        seenOn: ['wss://relay.test'],
+        firstSeen: Date.now()
+      }
+    ]);
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    const result = await promise;
+
+    expect(result.wot.has('wot-before-timeout')).toBe(true);
+    expect(callbacks.onWotProgress).toHaveBeenCalledWith(expect.any(Number));
+  });
 });

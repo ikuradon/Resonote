@@ -65,7 +65,7 @@ function setupFetchLatest(event: { id: string; tags: string[][] } | null) {
  */
 function setupSyncedQueryForSets(
   calls: Array<{
-    events: Array<{ event: { id: string; tags: string[][] } }>;
+    events: Array<{ event: { id: string; tags: string[][]; pubkey?: string } }>;
     error?: Error;
   }>
 ) {
@@ -212,6 +212,64 @@ describe('loadCustomEmojis', () => {
     expect(e.categories[0].name).toBe('My Emoji Set');
     expect(e.categories[0].emojis).toHaveLength(2);
     expect(e.categories[0].emojis[0].id).toBe('cat');
+    expect(createSyncedQueryMock).toHaveBeenCalledOnce();
+  });
+
+  it('同一バッチ内の複数 setRef を 1 回の SyncedQuery で取得する', async () => {
+    setupFetchLatest({
+      id: 'list-evt',
+      tags: [
+        ['a', '30030:author-a:set-a'],
+        ['a', '30030:author-b:set-b']
+      ]
+    });
+
+    setupSyncedQueryForSets([
+      {
+        events: [
+          {
+            event: {
+              id: 'set-a-id',
+              pubkey: 'author-a',
+              tags: [
+                ['d', 'set-a'],
+                ['title', 'Set A'],
+                ['emoji', 'a', 'https://example.com/a.png']
+              ]
+            }
+          },
+          {
+            event: {
+              id: 'set-b-id',
+              pubkey: 'author-b',
+              tags: [
+                ['d', 'set-b'],
+                ['title', 'Set B'],
+                ['emoji', 'b', 'https://example.com/b.png']
+              ]
+            }
+          }
+        ]
+      }
+    ]);
+
+    await loadCustomEmojis(PUBKEY);
+
+    const e = getCustomEmojis();
+    expect(createSyncedQueryMock).toHaveBeenCalledOnce();
+    expect(createSyncedQueryMock).toHaveBeenCalledWith(
+      mockRxNostr,
+      expect.anything(),
+      expect.objectContaining({
+        filter: {
+          kinds: [30030],
+          authors: ['author-a', 'author-b'],
+          '#d': ['set-a', 'set-b']
+        },
+        strategy: 'backward'
+      })
+    );
+    expect(e.categories.map((category) => category.name)).toEqual(['Set A', 'Set B']);
   });
 
   it('DB キャッシュから復元し、リレーが空でも最終的に空になる', async () => {

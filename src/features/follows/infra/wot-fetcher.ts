@@ -50,7 +50,7 @@ export async function fetchWot(pubkey: string, callbacks: WotProgressCallback): 
     import('$shared/nostr/store.js')
   ]);
   const { firstValueFrom, filter, race, timer, of } = await import('rxjs');
-  const { catchError, defaultIfEmpty, map, startWith, take, withLatestFrom } =
+  const { catchError, defaultIfEmpty, map, shareReplay, startWith, take, withLatestFrom } =
     await import('rxjs/operators');
   const [rxNostr, store] = await Promise.all([getRxNostr(), getStoreAsync()]);
 
@@ -67,9 +67,24 @@ export async function fetchWot(pubkey: string, callbacks: WotProgressCallback): 
           filter: { kinds: [FOLLOW_KIND], authors: batch },
           strategy: 'backward'
         });
+        let eventsSubscription:
+          | {
+              unsubscribe: () => void;
+            }
+          | undefined;
 
         try {
-          const events$ = synced.events$.pipe(startWith([] as unknown[]));
+          const events$ = synced.events$.pipe(
+            startWith([] as unknown[]),
+            shareReplay({ bufferSize: 1, refCount: true })
+          );
+          let latestEvents: unknown[] = [];
+          eventsSubscription = events$.subscribe({
+            next: (events) => {
+              latestEvents = events;
+            },
+            error: () => {}
+          });
           const result = await firstValueFrom(
             race([
               synced.status$.pipe(
@@ -78,14 +93,17 @@ export async function fetchWot(pubkey: string, callbacks: WotProgressCallback): 
                 withLatestFrom(events$),
                 map(([, events]) => events as unknown[])
               ),
-              timer(10_000).pipe(map(() => null))
+              timer(10_000).pipe(
+                take(1),
+                map(() => latestEvents)
+              )
             ]).pipe(
               defaultIfEmpty(null),
               catchError(() => of(null))
             )
           );
 
-          if (!result || !Array.isArray(result) || callbacks.isCancelled()) return;
+          if (!Array.isArray(result) || callbacks.isCancelled()) return;
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           for (const ce of result as any[]) {
@@ -96,6 +114,7 @@ export async function fetchWot(pubkey: string, callbacks: WotProgressCallback): 
           }
           callbacks.onWotProgress(allWot.size);
         } finally {
+          eventsSubscription?.unsubscribe();
           synced.dispose();
         }
       })()
