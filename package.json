@@ -77,7 +77,7 @@
     "@konemono/nostr-login": "^1.15.2",
     "@rx-nostr/crypto": "^0.0.0",
     "@scure/base": "^2.0.0",
-    "hono": "^4.12.9",
+    "hono": "^4.12.12",
     "idb": "^8.0.3",
     "nostr-tools": "^2.23.3",
     "rx-nostr": "^3.6.2",
