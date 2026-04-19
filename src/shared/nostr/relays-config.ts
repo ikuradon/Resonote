@@ -9,8 +9,10 @@ export { DEFAULT_RELAYS };
 
 export async function applyUserRelays(pubkey: string): Promise<string[]> {
   log.info('Fetching user relay list (kind:10002)', { pubkey: shortHex(pubkey) });
-  const { createRxBackwardReq, getRxNostr, setDefaultRelays } =
-    await import('$shared/nostr/gateway.js');
+  const [{ createRxBackwardReq }, { getRxNostr, setDefaultRelays }] = await Promise.all([
+    import('@auftakt/adapter-relay'),
+    import('$shared/nostr/client.js')
+  ]);
   const rxNostr = await getRxNostr();
 
   async function applyFallbackDefaults(reason: string, error?: unknown): Promise<string[]> {
@@ -78,6 +80,6 @@ export async function applyUserRelays(pubkey: string): Promise<string[]> {
 
 export async function resetToDefaultRelays(): Promise<void> {
   log.info('Resetting to default relays');
-  const { setDefaultRelays } = await import('$shared/nostr/gateway.js');
+  const { setDefaultRelays } = await import('$shared/nostr/client.js');
   await setDefaultRelays(DEFAULT_RELAYS);
 }

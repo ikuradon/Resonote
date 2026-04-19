@@ -42,7 +42,7 @@ jobs:
       - name: Structure check
         run: pnpm check:structure
 
-      - name: Auftakt migration proof
+      - name: Auftakt retirement proof (authoritative gate)
         run: |
           mkdir -p artifacts
           pnpm run check:auftakt-migration -- --fail-on-unauthorized --fail-on-unclassified --proof | tee artifacts/auftakt-migration-proof.txt
@@ -53,7 +53,7 @@ jobs:
           pnpm graph:imports:summary > artifacts/import-graph-summary.txt
           pnpm graph:imports > artifacts/import-graph.dot
 
-      - name: Upload Auftakt migration proof artifact
+      - name: Upload Auftakt retirement proof artifact
         uses: actions/upload-artifact@v7
         with:
           name: auftakt-migration-proof

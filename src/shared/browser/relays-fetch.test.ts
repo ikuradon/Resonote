@@ -1,21 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const {
-  fetchBackwardEventsMock,
-  getRelayConnectionStateMock,
-  observeRelayConnectionStatesMock,
-  publishRelayListMock
-} = vi.hoisted(() => ({
-  fetchBackwardEventsMock: vi.fn(),
-  getRelayConnectionStateMock: vi.fn(),
-  observeRelayConnectionStatesMock: vi.fn(),
-  publishRelayListMock: vi.fn(async () => ['wss://relay.example.com'])
-}));
+const { fetchRelayListEventsMock, snapshotRelayStatusesMock, publishRelayListMock } = vi.hoisted(
+  () => ({
+    fetchRelayListEventsMock: vi.fn(),
+    snapshotRelayStatusesMock: vi.fn(),
+    publishRelayListMock: vi.fn(async () => ['wss://relay.example.com'])
+  })
+);
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  fetchBackwardEvents: fetchBackwardEventsMock,
-  getRelayConnectionState: getRelayConnectionStateMock,
-  observeRelayConnectionStates: observeRelayConnectionStatesMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  fetchRelayListEvents: fetchRelayListEventsMock,
+  observeRelayStatuses: vi.fn(),
+  snapshotRelayStatuses: snapshotRelayStatusesMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -53,45 +49,50 @@ describe('fetchRelayList', () => {
   beforeEach(() => {
     destroyRelayStatus();
     vi.clearAllMocks();
-    getRelayConnectionStateMock.mockResolvedValue(null);
-    observeRelayConnectionStatesMock.mockResolvedValue({ unsubscribe: vi.fn() });
+    snapshotRelayStatusesMock.mockImplementation(async (urls: string[]) =>
+      urls.map((url) => ({
+        url,
+        relay: { url, connection: 'idle', replaying: false, degraded: false, reason: 'opened' },
+        aggregate: { state: 'booting', reason: 'relay-opened', relays: [] }
+      }))
+    );
   });
 
-  it('returns kind10002 entries when kind:10002 has relay tags', async () => {
-    fetchBackwardEventsMock.mockResolvedValueOnce([
-      { created_at: 1000, tags: [['r', 'wss://relay.example.com']] }
-    ]);
+  it('returns kind10002 entries when relay list events contain relay tags', async () => {
+    fetchRelayListEventsMock.mockResolvedValueOnce({
+      relayListEvents: [{ created_at: 1000, tags: [['r', 'wss://relay.example.com']] }],
+      followListEvents: []
+    });
 
     const result = await fetchRelayList(PUBKEY);
 
-    expect(result.source).toBe('kind10002');
-    expect(result.entries).toHaveLength(1);
-    expect(result.entries[0].url).toBe('wss://relay.example.com');
+    expect(result).toEqual({
+      source: 'kind10002',
+      entries: [{ url: 'wss://relay.example.com', read: true, write: true }]
+    });
   });
 
-  it('falls back to kind3 when kind:10002 returns no relay tags', async () => {
-    fetchBackwardEventsMock
-      .mockResolvedValueOnce([{ created_at: 1000, tags: [] }])
-      .mockResolvedValueOnce([
+  it('falls back to kind3 entries when kind10002 is empty', async () => {
+    fetchRelayListEventsMock.mockResolvedValueOnce({
+      relayListEvents: [{ created_at: 1000, tags: [] }],
+      followListEvents: [
         {
           created_at: 1000,
           content: JSON.stringify({ 'wss://fallback.relay.com': { read: true, write: true } })
         }
-      ]);
+      ]
+    });
 
     const result = await fetchRelayList(PUBKEY);
 
     expect(result.source).toBe('kind3');
-    expect(result.entries[0].url).toBe('wss://fallback.relay.com');
+    expect(result.entries).toEqual([{ url: 'wss://fallback.relay.com', read: true, write: true }]);
   });
 
-  it('returns source=none when both kind:10002 and kind:3 have no entries', async () => {
-    fetchBackwardEventsMock.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+  it('returns none when both event groups are empty', async () => {
+    fetchRelayListEventsMock.mockResolvedValueOnce({ relayListEvents: [], followListEvents: [] });
 
-    const result = await fetchRelayList(PUBKEY);
-
-    expect(result.source).toBe('none');
-    expect(result.entries).toEqual([]);
+    await expect(fetchRelayList(PUBKEY)).resolves.toEqual({ entries: [], source: 'none' });
   });
 });
 
@@ -101,15 +102,26 @@ describe('publishRelayList', () => {
     vi.clearAllMocks();
   });
 
-  it('calls publishRelayList action and refreshes relay list', async () => {
+  it('publishes via action and refreshes relay state from snapshot', async () => {
     publishRelayListMock.mockResolvedValue(['wss://published.relay.com']);
-    getRelayConnectionStateMock.mockResolvedValue(null);
+    snapshotRelayStatusesMock.mockResolvedValue([
+      {
+        url: 'wss://published.relay.com',
+        relay: {
+          url: 'wss://published.relay.com',
+          connection: 'open',
+          replaying: false,
+          degraded: false,
+          reason: 'opened'
+        },
+        aggregate: { state: 'live', reason: 'relay-opened', relays: [] }
+      }
+    ]);
 
     const entries = [{ url: 'wss://published.relay.com', read: true, write: true }];
     await publishRelayList(entries);
 
     expect(publishRelayListMock).toHaveBeenCalledWith(entries);
-    expect(getRelays()).toHaveLength(1);
-    expect(getRelays()[0].url).toBe('wss://published.relay.com');
+    expect(getRelays()).toEqual([{ url: 'wss://published.relay.com', state: 'connected' }]);
   });
 });

@@ -25,8 +25,8 @@ vi.mock('./auth.svelte.js', () => ({
   getAuth: () => authState
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getEventsDB: getEventsDBMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  openEventsDb: getEventsDBMock
 }));
 
 vi.mock('$features/follows/application/follow-actions.js', () => ({

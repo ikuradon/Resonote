@@ -29,8 +29,8 @@ vi.mock('$shared/nostr/events.js', () => ({
   buildContentReaction: buildContentReactionMock
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  castSigned: castSignedMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  publishSignedEvent: castSignedMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({

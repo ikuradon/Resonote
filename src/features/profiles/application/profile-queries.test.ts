@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { fetchBackwardEventsMock, logErrorMock } = vi.hoisted(() => ({
-  fetchBackwardEventsMock: vi.fn(),
+const { fetchProfileCommentEventsMock, logErrorMock } = vi.hoisted(() => ({
+  fetchProfileCommentEventsMock: vi.fn(),
   logErrorMock: vi.fn()
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  fetchBackwardEvents: fetchBackwardEventsMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  fetchProfileCommentEvents: fetchProfileCommentEventsMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -28,7 +28,7 @@ describe('fetchProfileComments', () => {
   });
 
   it('returns empty list when no events', async () => {
-    fetchBackwardEventsMock.mockResolvedValue([]);
+    fetchProfileCommentEventsMock.mockResolvedValue([]);
     const result = await fetchProfileComments(PUBKEY);
     expect(result.comments).toEqual([]);
     expect(result.hasMore).toBe(false);
@@ -36,7 +36,7 @@ describe('fetchProfileComments', () => {
   });
 
   it('returns comments sorted by createdAt descending', async () => {
-    fetchBackwardEventsMock.mockResolvedValue([
+    fetchProfileCommentEventsMock.mockResolvedValue([
       { id: 'a', content: 'first', created_at: 100, tags: [] },
       { id: 'b', content: 'second', created_at: 200, tags: [] }
     ]);
@@ -46,7 +46,7 @@ describe('fetchProfileComments', () => {
   });
 
   it('extracts iTag from I tag', async () => {
-    fetchBackwardEventsMock.mockResolvedValue([
+    fetchProfileCommentEventsMock.mockResolvedValue([
       { id: 'x', content: 'hello', created_at: 1000, tags: [['I', 'spotify:track:abc']] }
     ]);
     const result = await fetchProfileComments(PUBKEY);
@@ -54,7 +54,7 @@ describe('fetchProfileComments', () => {
   });
 
   it('sets iTag to null when no I tag', async () => {
-    fetchBackwardEventsMock.mockResolvedValue([
+    fetchProfileCommentEventsMock.mockResolvedValue([
       { id: 'y', content: 'no tag', created_at: 500, tags: [['e', 'some-event']] }
     ]);
     const result = await fetchProfileComments(PUBKEY);
@@ -62,7 +62,7 @@ describe('fetchProfileComments', () => {
   });
 
   it('sets oldestTimestamp to smallest createdAt', async () => {
-    fetchBackwardEventsMock.mockResolvedValue([
+    fetchProfileCommentEventsMock.mockResolvedValue([
       { id: 'a', content: '', created_at: 300, tags: [] },
       { id: 'b', content: '', created_at: 100, tags: [] },
       { id: 'c', content: '', created_at: 200, tags: [] }
@@ -72,34 +72,28 @@ describe('fetchProfileComments', () => {
   });
 
   it('emits filter without until when not provided', async () => {
-    fetchBackwardEventsMock.mockResolvedValue([]);
+    fetchProfileCommentEventsMock.mockResolvedValue([]);
     await fetchProfileComments(PUBKEY);
-    expect(fetchBackwardEventsMock).toHaveBeenCalledWith(
-      [{ kinds: [1111], authors: [PUBKEY], limit: 20 }],
-      { rejectOnError: true }
-    );
+    expect(fetchProfileCommentEventsMock).toHaveBeenCalledWith(PUBKEY, undefined, 20);
   });
 
   it('emits filter with until when provided', async () => {
-    fetchBackwardEventsMock.mockResolvedValue([]);
+    fetchProfileCommentEventsMock.mockResolvedValue([]);
     await fetchProfileComments(PUBKEY, 9999);
-    expect(fetchBackwardEventsMock).toHaveBeenCalledWith(
-      [{ kinds: [1111], authors: [PUBKEY], limit: 20, until: 9999 }],
-      { rejectOnError: true }
-    );
+    expect(fetchProfileCommentEventsMock).toHaveBeenCalledWith(PUBKEY, 9999, 20);
   });
 
   it('sets hasMore=true when items.length >= 20', async () => {
-    fetchBackwardEventsMock.mockResolvedValue(
+    fetchProfileCommentEventsMock.mockResolvedValue(
       Array.from({ length: 20 }, (_, i) => ({ id: `id${i}`, content: '', created_at: i, tags: [] }))
     );
     const result = await fetchProfileComments(PUBKEY);
     expect(result.hasMore).toBe(true);
   });
 
-  it('rejects and logs error when fetchBackwardEvents rejects', async () => {
+  it('rejects and logs error when fetchProfileCommentEvents rejects', async () => {
     const testError = new Error('relay error');
-    fetchBackwardEventsMock.mockRejectedValue(testError);
+    fetchProfileCommentEventsMock.mockRejectedValue(testError);
 
     await expect(fetchProfileComments(PUBKEY)).rejects.toThrow('relay error');
     expect(logErrorMock).toHaveBeenCalledWith('Failed to load profile comments', testError);

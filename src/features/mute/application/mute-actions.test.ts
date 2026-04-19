@@ -1,13 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { castSignedMock, fetchLatestEventMock } = vi.hoisted(() => ({
-  castSignedMock: vi.fn(async () => {}),
-  fetchLatestEventMock: vi.fn(async (): Promise<Record<string, unknown> | null> => null)
+const { castSignedMock } = vi.hoisted(() => ({
+  castSignedMock: vi.fn(async () => {})
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  castSigned: castSignedMock,
-  fetchLatestEvent: fetchLatestEventMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  publishSignedEvent: castSignedMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({

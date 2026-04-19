@@ -28,45 +28,9 @@ export const bannedImportPatterns = [
 
 export const gatewayCompatibilityImport = '$shared/nostr/gateway.js';
 
-export const allowedGatewayImporters = [
-  'src/shared/auftakt/resonote.ts',
-  'src/shared/nostr/cached-query.svelte.ts',
-  'src/shared/nostr/relays-config.ts'
-];
-
 export const retiredAuftaktInternalImports = [
   '$shared/auftakt/comment-subscriptions.js',
   '$shared/auftakt/emoji-runtime.js'
-];
-
-export const gatewayFrozenExportSnapshot = [
-  'AggregateSessionState',
-  'ConsumerVisibleState',
-  'EventParameters',
-  'LatestEventResult',
-  'QueryDescriptor',
-  'ReadSettlement',
-  'ReconcileReasonCode',
-  'RelayConnectionState',
-  'RelayOverlay',
-  'RelayOverlayPolicy',
-  'StoredEvent',
-  'castSigned',
-  'createRxBackwardReq',
-  'createRxForwardReq',
-  'fetchBackwardEvents',
-  'fetchBackwardFirst',
-  'fetchLatestEvent',
-  'getEventsDB',
-  'getRelayConnectionState',
-  'getRxNostr',
-  'observeRelayConnectionStates',
-  'publishSignedEvent',
-  'publishSignedEvents',
-  'retryPendingPublishes',
-  'setDefaultRelays',
-  'uniq',
-  'verifier'
 ];
 
 export const SHARED_NOSTR_ROOT = 'src/shared/nostr';
@@ -168,11 +132,9 @@ export function collectGatewayCompatibilityImportViolations(sourceFiles) {
     const specifiers = collectSpecifiers(source);
     if (!specifiers.includes(gatewayCompatibilityImport)) continue;
 
-    if (!allowedGatewayImporters.includes(file)) {
-      violations.push(
-        `${file}: ${gatewayCompatibilityImport} — compatibility gateway imports are restricted to explicit file-level allowlist entries.`
-      );
-    }
+    violations.push(
+      `${file}: ${gatewayCompatibilityImport} — gateway.ts has been retired; import the façade/bridge/private runtime module you actually need instead.`
+    );
   }
 
   return violations;
@@ -200,75 +162,6 @@ export function collectRetiredAuftaktInternalImportViolations(sourceFiles) {
   }
 
   return violations;
-}
-
-/**
- * @param {string} clause
- * @returns {string[]}
- */
-function collectNamedExports(clause) {
-  return clause
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .map((part) => part.replace(/^type\s+/, ''))
-    .map((part) => {
-      const aliasMatch = part.match(/^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/);
-      return aliasMatch ? aliasMatch[2] : part;
-    });
-}
-
-/**
- * @param {string} source
- * @returns {string[]}
- */
-export function collectGatewayExports(source) {
-  const stripped = stripComments(source);
-  /** @type {Set<string>} */
-  const exports = new Set();
-
-  for (const match of stripped.matchAll(
-    /export\s+(?:type\s+)?\{([^}]+)\}(?:\s+from\s+['"][^'"]+['"])?/g
-  )) {
-    for (const name of collectNamedExports(match[1])) {
-      exports.add(name);
-    }
-  }
-
-  for (const match of stripped.matchAll(/export\s+interface\s+([A-Za-z_$][\w$]*)/g)) {
-    exports.add(match[1]);
-  }
-
-  for (const match of stripped.matchAll(/export\s+type\s+([A-Za-z_$][\w$]*)\s*=/g)) {
-    exports.add(match[1]);
-  }
-
-  for (const match of stripped.matchAll(/export\s+(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/g)) {
-    exports.add(match[1]);
-  }
-
-  for (const match of stripped.matchAll(/export\s+(?:const|let|var|class)\s+([A-Za-z_$][\w$]*)/g)) {
-    exports.add(match[1]);
-  }
-
-  return [...exports].sort();
-}
-
-/**
- * @param {string} [gatewayFile='src/shared/nostr/gateway.ts']
- * @returns {string[]}
- */
-export function collectGatewayExportSnapshotViolations(
-  gatewayFile = 'src/shared/nostr/gateway.ts'
-) {
-  const gatewayExports = collectGatewayExports(readFileSync(gatewayFile, 'utf8'));
-  const snapshot = new Set(gatewayFrozenExportSnapshot);
-  const unexpected = gatewayExports.filter((name) => !snapshot.has(name));
-
-  return unexpected.map(
-    (name) =>
-      `${gatewayFile}: unexpected export \`${name}\` — gateway.ts is subtract-only; add new APIs to higher-level facades instead.`
-  );
 }
 
 /**

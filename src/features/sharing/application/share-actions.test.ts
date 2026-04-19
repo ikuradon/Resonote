@@ -2,19 +2,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 
-const { buildShareMock, castSignedMock, fetchLatestEventMock } = vi.hoisted(() => ({
+const { buildShareMock, castSignedMock } = vi.hoisted(() => ({
   buildShareMock: vi.fn(() => ({ kind: 1, content: '', tags: [] })),
-  castSignedMock: vi.fn(async () => {}),
-  fetchLatestEventMock: vi.fn(async (): Promise<Record<string, unknown> | null> => null)
+  castSignedMock: vi.fn(async () => {})
 }));
 
 vi.mock('$shared/nostr/events.js', () => ({
   buildShare: buildShareMock
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  castSigned: castSignedMock,
-  fetchLatestEvent: fetchLatestEventMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  publishSignedEvent: castSignedMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({

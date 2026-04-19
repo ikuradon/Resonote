@@ -4,8 +4,8 @@ const { getEventsDBMock } = vi.hoisted(() => ({
   getEventsDBMock: vi.fn()
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getEventsDB: getEventsDBMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  openEventsDb: getEventsDBMock
 }));
 
 import {

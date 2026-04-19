@@ -71,7 +71,6 @@ export default defineConfig({
         'src/shared/content/resolution.ts',
         'src/shared/nostr/cached-query.ts',
         'src/shared/nostr/content-link.ts',
-        'src/shared/nostr/gateway.ts',
         'src/shared/nostr/nip19-decode.ts',
         'src/shared/nostr/relays.ts',
         'src/shared/nostr/user-relays.ts',

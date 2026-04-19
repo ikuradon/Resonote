@@ -3,7 +3,8 @@
  *
  * RETIREMENT POLICY:
  * This file will be removed once all external consumers are migrated.
- * It currently has zero importers and is kept only for structural parity.
+ * Production callers were moved to `cached-query.svelte.ts`; this alias remains for
+ * transitional compatibility only.
  */
 export {
   cachedFetchById,

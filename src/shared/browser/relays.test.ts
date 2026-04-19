@@ -1,16 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getRelayConnectionStateMock, observeRelayConnectionStatesMock, logInfoMock, logDebugMock } =
-  vi.hoisted(() => ({
-    getRelayConnectionStateMock: vi.fn(),
-    observeRelayConnectionStatesMock: vi.fn(),
-    logInfoMock: vi.fn(),
-    logDebugMock: vi.fn()
-  }));
+const {
+  fetchRelayListEventsMock,
+  observeRelayStatusesMock,
+  snapshotRelayStatusesMock,
+  logInfoMock,
+  logDebugMock
+} = vi.hoisted(() => ({
+  fetchRelayListEventsMock: vi.fn(),
+  observeRelayStatusesMock: vi.fn(),
+  snapshotRelayStatusesMock: vi.fn(),
+  logInfoMock: vi.fn(),
+  logDebugMock: vi.fn()
+}));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getRelayConnectionState: getRelayConnectionStateMock,
-  observeRelayConnectionStates: observeRelayConnectionStatesMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  fetchRelayListEvents: fetchRelayListEventsMock,
+  observeRelayStatuses: observeRelayStatusesMock,
+  snapshotRelayStatuses: snapshotRelayStatusesMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -52,29 +59,29 @@ import {
   refreshRelayList
 } from './relays.svelte.js';
 
-function setupRelayGatewayMocks(connectionStates: Record<string, string> = {}) {
-  getRelayConnectionStateMock.mockImplementation(async (url: string) => {
-    const state = connectionStates[url];
-    if (!state) return null;
-    return {
-      connection: state,
-      replaying: state === 'replaying',
-      degraded: state === 'degraded' || state === 'backoff' || state === 'closed',
-      reason: 'opened',
-      relay: {
+function setupRelayGatewayMocks(connectionStates: Partial<Record<string, string>> = {}) {
+  snapshotRelayStatusesMock.mockImplementation(async (urls: string[]) =>
+    urls.map((url) => {
+      const state = connectionStates[url];
+      const connection = state ?? 'idle';
+      return {
         url,
-        connection: state,
-        replaying: state === 'replaying',
-        degraded: state === 'degraded' || state === 'backoff' || state === 'closed',
-        reason: 'opened'
-      },
-      aggregate: {
-        state: state === 'open' ? 'live' : 'connecting',
-        reason: state === 'open' ? 'relay-opened' : 'relay-disconnected',
-        relays: []
-      }
-    };
-  });
+        relay: {
+          url,
+          connection,
+          replaying: connection === 'replaying',
+          degraded:
+            connection === 'degraded' || connection === 'backoff' || connection === 'closed',
+          reason: 'opened'
+        },
+        aggregate: {
+          state: connection === 'open' ? 'live' : 'connecting',
+          reason: connection === 'open' ? 'relay-opened' : 'relay-disconnected',
+          relays: []
+        }
+      };
+    })
+  );
 
   let callback:
     | ((packet: {
@@ -96,7 +103,7 @@ function setupRelayGatewayMocks(connectionStates: Record<string, string> = {}) {
       }) => void)
     | undefined;
   const unsubscribe = vi.fn();
-  observeRelayConnectionStatesMock.mockImplementation(async (cb) => {
+  observeRelayStatusesMock.mockImplementation(async (cb) => {
     callback = cb;
     return { unsubscribe };
   });
@@ -197,7 +204,7 @@ describe('initRelayStatus', () => {
     await initRelayStatus();
     await initRelayStatus();
 
-    expect(observeRelayConnectionStatesMock).toHaveBeenCalledOnce();
+    expect(observeRelayStatusesMock).toHaveBeenCalledOnce();
   });
 
   it('接続状態コールバックで既存リレーの状態を更新する', async () => {

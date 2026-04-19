@@ -1,3 +1,4 @@
+import { createRxBackwardReq, createRxForwardReq, uniq, verifier } from '@auftakt/adapter-relay';
 import type {
   RelayConnectionState,
   RelayObservation,
@@ -39,8 +40,17 @@ import {
   invalidateFetchByIdCache as invalidateFetchByIdCacheImpl,
   useCachedLatest as useCachedLatestImpl,
   type UseCachedLatestResult
-} from '$shared/nostr/cached-query.js';
-import * as gateway from '$shared/nostr/gateway.js';
+} from '$shared/nostr/cached-query.svelte.js';
+import {
+  castSigned,
+  fetchLatestEvent,
+  getRelayConnectionState,
+  getRxNostr,
+  observeRelayConnectionStates,
+  setDefaultRelays
+} from '$shared/nostr/client.js';
+import { getEventsDB } from '$shared/nostr/event-db.js';
+import { fetchBackwardEvents, fetchBackwardFirst } from '$shared/nostr/query.js';
 
 interface FetchBackwardOptions {
   readonly overlay?: {
@@ -112,18 +122,18 @@ interface WotResult {
 
 const runtime: SessionRuntime = {
   fetchBackwardEvents: (filters, options) =>
-    gateway.fetchBackwardEvents(filters, options && normalizeFetchOptions(options)),
+    fetchBackwardEvents(filters, options && normalizeFetchOptions(options)),
   fetchBackwardFirst: (filters, options) =>
-    gateway.fetchBackwardFirst(filters, options && normalizeFetchOptions(options)),
-  fetchLatestEvent: (...args) => gateway.fetchLatestEvent(...args),
-  getEventsDB: () => gateway.getEventsDB(),
-  getRxNostr: () => gateway.getRxNostr(),
-  createRxBackwardReq: () => gateway.createRxBackwardReq(),
-  createRxForwardReq: () => gateway.createRxForwardReq(),
-  uniq: () => gateway.uniq(),
+    fetchBackwardFirst(filters, options && normalizeFetchOptions(options)),
+  fetchLatestEvent: (...args) => fetchLatestEvent(...args),
+  getEventsDB: () => getEventsDB(),
+  getRxNostr: () => getRxNostr(),
+  createRxBackwardReq: () => createRxBackwardReq(),
+  createRxForwardReq: () => createRxForwardReq(),
+  uniq: () => uniq(),
   merge,
-  getRelayConnectionState: (...args) => gateway.getRelayConnectionState(...args),
-  observeRelayConnectionStates: (...args) => gateway.observeRelayConnectionStates(...args)
+  getRelayConnectionState: (...args) => getRelayConnectionState(...args),
+  observeRelayConnectionStates: (...args) => observeRelayConnectionStates(...args)
 };
 
 export type { StoredEvent, WotResult };
@@ -138,11 +148,11 @@ export type {
 };
 
 export async function publishSignedEvent(params: EventParameters): Promise<void> {
-  return gateway.castSigned(params);
+  return castSigned(params);
 }
 
 export async function readLatestEvent(pubkey: string, kind: number) {
-  return gateway.fetchLatestEvent(pubkey, kind);
+  return fetchLatestEvent(pubkey, kind);
 }
 
 export async function cachedFetchById(eventId: string): Promise<CachedFetchByIdResult> {
@@ -158,11 +168,11 @@ export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestRe
 }
 
 export async function openEventsDb() {
-  return gateway.getEventsDB();
+  return getEventsDB();
 }
 
 export async function setPreferredRelays(urls: string[]): Promise<void> {
-  return gateway.setDefaultRelays(urls);
+  return setDefaultRelays(urls);
 }
 
 export async function retryQueuedPublishes(): Promise<void> {
@@ -176,7 +186,7 @@ export async function publishSignedEvents(params: EventParameters[]): Promise<vo
 }
 
 export async function verifySignedEvent(event: unknown): Promise<boolean> {
-  return gateway.verifier(event as never);
+  return verifier(event as Parameters<typeof verifier>[0]);
 }
 
 export async function fetchProfileCommentEvents(pubkey: string, until?: number, limit?: number) {

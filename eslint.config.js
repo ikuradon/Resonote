@@ -603,7 +603,7 @@ export default ts.config(
                 '../nostr/event-db*'
               ],
               message:
-                'Content resolvers should use $shared/nostr/gateway.js instead of direct client/event-db imports.'
+                'Content resolvers should use $shared/auftakt/resonote.js instead of direct client/event-db imports.'
             },
             // Include legacy content drift (from general content scope, since this overrides it)
             {

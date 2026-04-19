@@ -39,7 +39,7 @@ const {
   logErrorMock: vi.fn()
 }));
 
-vi.mock('$shared/nostr/user-relays.js', () => ({
+vi.mock('$shared/nostr/relays-config.js', () => ({
   applyUserRelays: applyUserRelaysMock,
   resetToDefaultRelays: resetToDefaultRelaysMock
 }));
@@ -65,8 +65,8 @@ vi.mock('$shared/nostr/relays.js', () => ({
   DEFAULT_RELAYS: ['wss://relay.example.com']
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getEventsDB: getEventsDBMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  openEventsDb: getEventsDBMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({

@@ -20,7 +20,7 @@ export const nostrOwnershipMatrix = {
   'src/shared/nostr/cached-query.ts': {
     classification: 'adapter-specific',
     owner: 'shared/nostr adapter read bridge',
-    disposition: 'retire after consumers finish cutover away from cached-query bridge'
+    disposition: 'retire-ready legacy alias after consumer cutover; no remaining runtime or test imports'
   },
   'src/shared/nostr/client-integration.test.ts': {
     classification: 'app-owned',
@@ -76,11 +76,6 @@ export const nostrOwnershipMatrix = {
     classification: 'protocol/domain helper',
     owner: 'shared/nostr public protocol helpers',
     disposition: 'retain as app-facing event builder helper'
-  },
-  'src/shared/nostr/gateway.ts': {
-    classification: 'compatibility shim',
-    owner: 'shared/nostr migration compatibility layer',
-    disposition: 'retire last after gateway importers reach zero'
   },
   'src/shared/nostr/helpers.test.ts': {
     classification: 'app-owned',
@@ -155,7 +150,7 @@ export const nostrOwnershipMatrix = {
   'src/shared/nostr/relays-config.ts': {
     classification: 'adapter-specific',
     owner: 'shared/nostr relay configuration adapter',
-    disposition: 'retire after consumers switch to higher-level relay facade'
+    disposition: 'retain as active relay-config bridge/runtime dependency'
   },
   'src/shared/nostr/relays.test.ts': {
     classification: 'app-owned',
@@ -175,11 +170,13 @@ export const nostrOwnershipMatrix = {
   'src/shared/nostr/user-relays.test.ts': {
     classification: 'app-owned',
     owner: 'app test harness',
-    disposition: 'retain as regression coverage for user-relay facade'
+    disposition:
+      'retain as intentional test-only coverage for residual legacy user-relays alias until the alias file is deleted'
   },
   'src/shared/nostr/user-relays.ts': {
     classification: 'adapter-specific',
     owner: 'shared/nostr relay configuration adapter',
-    disposition: 'retire after consumers cut over to higher-level relay facade'
+    disposition:
+      'intentional residual legacy alias for test-only coverage; runtime consumers are already cut over'
   }
 };

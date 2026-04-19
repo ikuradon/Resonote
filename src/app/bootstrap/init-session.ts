@@ -26,7 +26,7 @@ export async function initSession(pubkey: string): Promise<void> {
     { loadFollows, loadBookmarks, loadMuteList, loadCustomEmojis, refreshRelayList },
     { fetchProfile }
   ] = await Promise.all([
-    import('$shared/nostr/user-relays.js'),
+    import('$shared/nostr/relays-config.js'),
     import('$shared/browser/stores.js'),
     import('$shared/browser/profile.js')
   ]);
@@ -59,7 +59,7 @@ export async function destroySession(): Promise<void> {
       refreshRelayList
     }
   ] = await Promise.all([
-    import('$shared/nostr/user-relays.js'),
+    import('$shared/nostr/relays-config.js'),
     import('$shared/nostr/relays.js'),
     import('$shared/browser/stores.js')
   ]);

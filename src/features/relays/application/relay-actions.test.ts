@@ -7,9 +7,9 @@ const { castSignedMock, setDefaultRelaysMock } = vi.hoisted(() => ({
   setDefaultRelaysMock: vi.fn()
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  castSigned: castSignedMock,
-  setDefaultRelays: setDefaultRelaysMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  publishSignedEvent: castSignedMock,
+  setPreferredRelays: setDefaultRelaysMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({

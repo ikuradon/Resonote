@@ -16,16 +16,22 @@ const { dbGetByIdMock, dbGetByPubkeyAndKindMock, subscribeMock } = vi.hoisted(()
   })
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
+vi.mock('@auftakt/adapter-relay', () => ({
   createRxBackwardReq: () => ({
     emit: vi.fn(),
     over: vi.fn()
-  }),
+  })
+}));
+
+vi.mock('$shared/nostr/event-db.js', () => ({
   getEventsDB: async () => ({
     getById: dbGetByIdMock,
     getByPubkeyAndKind: dbGetByPubkeyAndKindMock,
     put: vi.fn()
-  }),
+  })
+}));
+
+vi.mock('$shared/nostr/client.js', () => ({
   getRxNostr: async () => ({
     use: () => ({
       subscribe: subscribeMock

@@ -97,7 +97,7 @@ pnpm run dev:full
 | `pnpm run preview`                 | ビルド結果のプレビュー                           |
 | `pnpm run check`                   | svelte-kit sync + 型チェック                     |
 | `pnpm run test:packages`           | package contract tests                           |
-| `pnpm run check:auftakt-migration` | Auftakt migration proof / guard                  |
+| `pnpm run check:auftakt-migration` | Auftakt retirement proof / guard                 |
 | `pnpm test`                        | 単体テスト実行                                   |
 | `pnpm test:coverage`               | カバレッジ付きテスト                             |
 | `pnpm test:e2e`                    | Playwright E2E テスト                            |
@@ -111,7 +111,7 @@ pnpm run dev:full
 - **フレームワーク**: SvelteKit (SPA モード, Svelte 5 runes)
 - **アダプタ**: @sveltejs/adapter-cloudflare (SSR + API via hooks.server.ts)
 - **スタイリング**: Tailwind CSS v4 (`@tailwindcss/vite` plugin)
-- **Nostr ランタイム**: Auftakt relay/session runtime (@auftakt/core + @auftakt/adapter-relay) — 移行完了済み
+- **Nostr ランタイム**: Auftakt relay/session runtime (@auftakt/core + @auftakt/adapter-relay) — compat gateway 退役済み
 - **認証**: @konemono/nostr-login (`init()` + `nlAuth` DOM event)
 - **NIP ユーティリティ**: @auftakt/core codec/signing helpers
 - **テスト**: Vitest (単体) + Playwright (E2E)
@@ -177,6 +177,10 @@ pnpm run test:packages
 pnpm run check
 pnpm run build
 ```
+
+`pnpm run check:auftakt-migration -- --proof` が Auftakt retirement の authoritative machine-checkable gate。CI でも同じ proof を artifact として保存する。
+
+現時点の residual legacy dependency は production では 0。test-only では `src/shared/nostr/user-relays.test.ts` が退役予定 alias `src/shared/nostr/user-relays.ts` の回帰確認として残っている。
 
 ### PR / CI 運用
 

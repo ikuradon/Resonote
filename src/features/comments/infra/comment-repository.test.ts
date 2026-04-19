@@ -6,8 +6,8 @@ const { getEventsDBMock, logErrorMock, logInfoMock } = vi.hoisted(() => ({
   logInfoMock: vi.fn()
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getEventsDB: getEventsDBMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  openEventsDb: getEventsDBMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({

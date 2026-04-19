@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs';
 
 import {
   collectGatewayCompatibilityImportViolations,
-  collectGatewayExportSnapshotViolations,
   collectSharedNostrOwnershipState,
   collectSpecifiers,
   findGatewayImporters,
@@ -104,7 +103,6 @@ function parseViolationFiles(violations) {
 
 const sourceFiles = walk(ROOT);
 const unauthorizedImportViolations = collectGatewayCompatibilityImportViolations(sourceFiles);
-const exportViolations = collectGatewayExportSnapshotViolations();
 const ownershipState = collectSharedNostrOwnershipState();
 const consumerState = collectTargetedConsumerState();
 
@@ -122,7 +120,6 @@ ownershipViolations.push(
 
 const violations = [
   ...(failOnUnauthorized ? unauthorizedImportViolations : []),
-  ...exportViolations,
   ...ownershipViolations,
   ...consumerState.violations
 ];
@@ -133,14 +130,6 @@ if (violations.length > 0) {
   if (failOnUnauthorized && unauthorizedImportViolations.length > 0) {
     console.error('Unauthorized gateway importers:');
     for (const violation of unauthorizedImportViolations) {
-      console.error(`- ${violation}`);
-    }
-    console.error('');
-  }
-
-  if (exportViolations.length > 0) {
-    console.error('Gateway export snapshot violations:');
-    for (const violation of exportViolations) {
       console.error(`- ${violation}`);
     }
     console.error('');
@@ -167,10 +156,8 @@ if (violations.length > 0) {
 
 const importers = findGatewayImporters(sourceFiles);
 const unauthorizedImporterFiles = parseViolationFiles(unauthorizedImportViolations);
-const allowlistedImporters = importers.filter((file) => !unauthorizedImporterFiles.includes(file));
 const proofComplete =
   unauthorizedImportViolations.length === 0 &&
-  exportViolations.length === 0 &&
   ownershipViolations.length === 0 &&
   consumerState.violations.length === 0;
 
@@ -180,8 +167,8 @@ if (proof) {
   console.log(`Date: ${new Date().toISOString()}`);
   console.log('');
   console.log('1. Gateway Compatibility Surface');
-  console.log(`   Allowlisted internal importers: ${allowlistedImporters.length}`);
-  for (const file of allowlistedImporters) {
+  console.log(`   Gateway importers: ${importers.length}`);
+  for (const file of importers) {
     console.log(`   - ${file}`);
   }
   console.log(`   Unauthorized importers: ${unauthorizedImporterFiles.length}`);
@@ -189,10 +176,7 @@ if (proof) {
     console.log(`   - ${file}`);
   }
   console.log('');
-  console.log('2. Gateway Exports');
-  console.log(`   Status: ${exportViolations.length === 0 ? 'STABLE' : 'VIOLATED'}`);
-  console.log('');
-  console.log('3. Ownership Distribution');
+  console.log('2. Ownership Distribution');
   const counts = ownershipState.records.reduce((acc, r) => {
     acc[r.classification] = (acc[r.classification] || 0) + 1;
     return acc;
@@ -201,7 +185,7 @@ if (proof) {
     console.log(`   - ${cls}: ${count}`);
   }
   console.log('');
-  console.log('4. Targeted Consumer Cutover');
+  console.log('3. Targeted Consumer Cutover');
   console.log(`   Status: ${consumerState.violations.length === 0 ? 'CLEAR' : 'LEAKING'}`);
   console.log(`   Targeted files: ${consumerState.fileCount}`);
   console.log(`   Consumer leak count: ${consumerState.violations.length}`);
@@ -211,20 +195,21 @@ if (proof) {
     );
   }
   console.log('');
-  console.log('5. Retirement Readiness');
+  console.log('4. Retirement Readiness');
   const readyToRetire = ownershipState.records.filter(
-    (r) =>
-      r.disposition.includes('retire') &&
-      r.file !== 'src/shared/nostr/gateway.ts' &&
-      !importers.includes(r.file)
+    (r) => r.disposition.startsWith('retire-ready') && !importers.includes(r.file)
   );
-  if (unauthorizedImporterFiles.length === 0) {
-    readyToRetire.push(
-      ...ownershipState.records.filter((r) => r.file === 'src/shared/nostr/gateway.ts')
-    );
-  }
   console.log(`   Files ready to retire: ${readyToRetire.length}`);
   for (const r of readyToRetire) {
+    console.log(`   - ${r.file}`);
+  }
+  console.log('');
+  console.log('5. Intentional Residual Legacy Coverage');
+  const residualLegacyCoverage = ownershipState.records.filter((r) =>
+    r.disposition.includes('intentional residual legacy alias')
+  );
+  console.log(`   Residual legacy entries: ${residualLegacyCoverage.length}`);
+  for (const r of residualLegacyCoverage) {
     console.log(`   - ${r.file}`);
   }
   console.log('-------------------------------');

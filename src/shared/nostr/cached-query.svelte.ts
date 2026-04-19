@@ -93,7 +93,7 @@ export async function cachedFetchById(eventId: string): Promise<CachedFetchByIdR
 
 async function cachedFetchByIdInner(eventId: string): Promise<CachedFetchByIdResult> {
   try {
-    const { getEventsDB } = await import('$shared/nostr/gateway.js');
+    const { getEventsDB } = await import('$shared/nostr/event-db.js');
     const db = await getEventsDB();
     const event = await db.getById(eventId);
     if (event) {
@@ -119,7 +119,10 @@ async function cachedFetchByIdInner(eventId: string): Promise<CachedFetchByIdRes
   }
 
   try {
-    const { createRxBackwardReq, getRxNostr } = await import('$shared/nostr/gateway.js');
+    const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
+      import('@auftakt/adapter-relay'),
+      import('$shared/nostr/client.js')
+    ]);
     const rxNostr = await getRxNostr();
 
     const result = await new Promise<FetchedEventFull | null>((resolve) => {
@@ -135,7 +138,7 @@ async function cachedFetchByIdInner(eventId: string): Promise<CachedFetchByIdRes
           found = packet.event as FetchedEventFull;
           void (async () => {
             try {
-              const { getEventsDB } = await import('$shared/nostr/gateway.js');
+              const { getEventsDB } = await import('$shared/nostr/event-db.js');
               const db = await getEventsDB();
               await db.put(packet.event);
             } catch {
@@ -227,7 +230,7 @@ export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestRe
 
   const startDB = async () => {
     try {
-      const { getEventsDB } = await import('$shared/nostr/gateway.js');
+      const { getEventsDB } = await import('$shared/nostr/event-db.js');
       const db = await getEventsDB();
       const cached = await db.getByPubkeyAndKind(pubkey, kind);
       if (destroyed) return;
@@ -250,7 +253,10 @@ export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestRe
 
   const startRelay = async () => {
     try {
-      const { createRxBackwardReq, getRxNostr } = await import('$shared/nostr/gateway.js');
+      const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
+        import('@auftakt/adapter-relay'),
+        import('$shared/nostr/client.js')
+      ]);
       if (destroyed) return;
       const rxNostr = await getRxNostr();
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- destroyed may become true during preceding awaits
@@ -279,7 +285,7 @@ export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestRe
           relayHit = true;
           void (async () => {
             try {
-              const { getEventsDB } = await import('$shared/nostr/gateway.js');
+              const { getEventsDB } = await import('$shared/nostr/event-db.js');
               const db = await getEventsDB();
               await db.put(packet.event);
             } catch {
