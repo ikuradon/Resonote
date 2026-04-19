@@ -1,0 +1,15 @@
+{
+  "name": "@auftakt/core",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@noble/curves": "^1.9.7",
+    "@noble/hashes": "^1.8.0",
+    "@scure/base": "^2.0.0",
+    "nostr-typedef": "^0.13.0"
+  }
+}

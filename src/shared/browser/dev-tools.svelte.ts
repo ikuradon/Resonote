@@ -1,3 +1,4 @@
+import { openEventsDb } from '$shared/auftakt/resonote.js';
 export interface DbStats {
   total: number;
   byKind: { kind: number; count: number }[];
@@ -8,8 +9,7 @@ const EVENTS_DB_NAME = 'resonote-events';
 
 export async function loadDbStats(): Promise<DbStats> {
   try {
-    const { getEventsDB } = await import('$shared/nostr/gateway.js');
-    const db = await getEventsDB();
+    const db = await openEventsDb();
     const byKind: { kind: number; count: number }[] = [];
     let total = 0;
     for (const kind of TRACKED_KINDS) {
@@ -26,8 +26,7 @@ export async function loadDbStats(): Promise<DbStats> {
 }
 
 export async function clearIndexedDB(): Promise<void> {
-  const { getEventsDB } = await import('$shared/nostr/gateway.js');
-  const db = await getEventsDB();
+  const db = await openEventsDb();
   await db.clearAll();
 }
 

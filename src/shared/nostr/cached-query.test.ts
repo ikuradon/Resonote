@@ -17,6 +17,10 @@ const { dbGetByIdMock, dbGetByPubkeyAndKindMock, subscribeMock } = vi.hoisted(()
 }));
 
 vi.mock('$shared/nostr/gateway.js', () => ({
+  createRxBackwardReq: () => ({
+    emit: vi.fn(),
+    over: vi.fn()
+  }),
   getEventsDB: async () => ({
     getById: dbGetByIdMock,
     getByPubkeyAndKind: dbGetByPubkeyAndKindMock,
@@ -26,13 +30,6 @@ vi.mock('$shared/nostr/gateway.js', () => ({
     use: () => ({
       subscribe: subscribeMock
     })
-  })
-}));
-
-vi.mock('rx-nostr', () => ({
-  createRxBackwardReq: () => ({
-    emit: vi.fn(),
-    over: vi.fn()
   })
 }));
 
@@ -63,7 +60,12 @@ describe('cachedFetchById', () => {
 
   it('returns null when event not found', async () => {
     const result = await cachedFetchById('event-1');
-    expect(result).toBeNull();
+    expect(result.event).toBeNull();
+    expect(result.settlement).toEqual({
+      phase: 'settled',
+      provenance: 'none',
+      reason: 'settled-miss'
+    });
   });
 
   it('caches non-null results permanently', async () => {
@@ -71,12 +73,22 @@ describe('cachedFetchById', () => {
     dbGetByIdMock.mockResolvedValueOnce(dbEvent);
 
     const result1 = await cachedFetchById('event-2');
-    expect(result1).toEqual(expect.objectContaining({ content: 'hello', kind: 1 }));
+    expect(result1.event).toEqual(expect.objectContaining({ content: 'hello', kind: 1 }));
+    expect(result1.settlement).toEqual({
+      phase: 'settled',
+      provenance: 'store',
+      reason: 'cache-hit'
+    });
 
     // Second call returns cached without hitting DB
     dbGetByIdMock.mockResolvedValue(null);
     const result2 = await cachedFetchById('event-2');
-    expect(result2).toEqual(expect.objectContaining({ content: 'hello', kind: 1 }));
+    expect(result2.event).toEqual(expect.objectContaining({ content: 'hello', kind: 1 }));
+    expect(result2.settlement).toEqual({
+      phase: 'settled',
+      provenance: 'memory',
+      reason: 'cache-hit'
+    });
     // DB should have been called only once (first call)
     expect(dbGetByIdMock).toHaveBeenCalledTimes(1);
   });
@@ -87,20 +99,25 @@ describe('cachedFetchById', () => {
 
     // First call: returns null
     const result1 = await cachedFetchById('event-3');
-    expect(result1).toBeNull();
+    expect(result1.event).toBeNull();
     const callsAfterFirst = dbGetByIdMock.mock.calls.length;
 
     // Within TTL: returns cached null
     dateSpy.mockReturnValue(now + 10_000);
     const result2 = await cachedFetchById('event-3');
-    expect(result2).toBeNull();
+    expect(result2.event).toBeNull();
+    expect(result2.settlement).toEqual({
+      phase: 'settled',
+      provenance: 'none',
+      reason: 'null-ttl-hit'
+    });
     expect(dbGetByIdMock).toHaveBeenCalledTimes(callsAfterFirst);
 
     // After TTL (30s): retries
     dateSpy.mockReturnValue(now + 31_000);
     dbGetByIdMock.mockResolvedValueOnce({ id: 'e3', content: 'found', kind: 1 });
     const result3 = await cachedFetchById('event-3');
-    expect(result3).toEqual(expect.objectContaining({ content: 'found', kind: 1 }));
+    expect(result3.event).toEqual(expect.objectContaining({ content: 'found', kind: 1 }));
   });
 
   it('returns event from relay when DB misses', async () => {
@@ -116,7 +133,12 @@ describe('cachedFetchById', () => {
     });
 
     const result = await cachedFetchById('event-relay');
-    expect(result).toEqual(expect.objectContaining({ content: 'from relay', kind: 1 }));
+    expect(result.event).toEqual(expect.objectContaining({ content: 'from relay', kind: 1 }));
+    expect(result.settlement).toEqual({
+      phase: 'settled',
+      provenance: 'relay',
+      reason: 'relay-repair'
+    });
     // DB was queried (miss), then relay provided the event
     expect(dbGetByIdMock).toHaveBeenCalledTimes(1);
     await expect(dbGetByIdMock.mock.results[0].value).resolves.toBeNull();
@@ -128,20 +150,21 @@ describe('cachedFetchById', () => {
 
     // First call: returns null, populates nullCacheTimestamps
     const result1 = await cachedFetchById('event-4');
-    expect(result1).toBeNull();
+    expect(result1.event).toBeNull();
 
     // After TTL: retries but still null
     dateSpy.mockReturnValue(now + 31_000);
     const callsBeforeRetry = dbGetByIdMock.mock.calls.length;
     const result2 = await cachedFetchById('event-4');
-    expect(result2).toBeNull();
+    expect(result2.event).toBeNull();
     expect(dbGetByIdMock.mock.calls.length).toBeGreaterThan(callsBeforeRetry);
 
     // Within new TTL window: should be cached again (no extra DB call)
     dateSpy.mockReturnValue(now + 40_000);
     const callsAfterRetry = dbGetByIdMock.mock.calls.length;
     const result3 = await cachedFetchById('event-4');
-    expect(result3).toBeNull();
+    expect(result3.event).toBeNull();
+    expect(result3.settlement.reason).toBe('null-ttl-hit');
     expect(dbGetByIdMock).toHaveBeenCalledTimes(callsAfterRetry);
   });
 });
@@ -180,12 +203,13 @@ describe('invalidatedDuringFetch race condition', () => {
 
     const result = await fetchPromise;
     // Result is still returned to the caller
-    expect(result).toEqual(expect.objectContaining({ content: 'db-result' }));
+    expect(result.event).toEqual(expect.objectContaining({ content: 'db-result' }));
+    expect(result.settlement.reason).toBe('invalidated-during-fetch');
 
     // But result must NOT be cached: next call should hit DB again
     dbGetByIdMock.mockResolvedValueOnce({ id: 'race-db', content: 'fresh', kind: 1111 });
     const result2 = await cachedFetchById('race-db');
-    expect(result2).toEqual(expect.objectContaining({ content: 'fresh' }));
+    expect(result2.event).toEqual(expect.objectContaining({ content: 'fresh' }));
     // DB was called again (not served from cache)
     expect(dbGetByIdMock).toHaveBeenCalledTimes(2);
   });
@@ -209,7 +233,7 @@ describe('invalidatedDuringFetch race condition', () => {
 
     // First fetch: DB miss -> relay returns event -> result is cached
     const result1 = await cachedFetchById('race-relay2');
-    expect(result1).toEqual(expect.objectContaining({ content: 'relay-result' }));
+    expect(result1.event).toEqual(expect.objectContaining({ content: 'relay-result' }));
 
     // Flush any pending microtasks (e.g. async next callback's DB write)
     await Promise.resolve();
@@ -229,7 +253,7 @@ describe('invalidatedDuringFetch race condition', () => {
     const result2 = await cachedFetchById('race-relay2');
     // DB was queried (cache was cleared)
     expect(dbGetByIdMock.mock.calls.length).toBeGreaterThan(callsBefore);
-    expect(result2).toEqual(expect.objectContaining({ content: 'updated' }));
+    expect(result2.event).toEqual(expect.objectContaining({ content: 'updated' }));
   });
 
   it('invalidate + TTL interaction: invalidated null is not re-cached within TTL', async () => {
@@ -238,7 +262,7 @@ describe('invalidatedDuringFetch race condition', () => {
 
     // First call returns null (cached with TTL)
     const result1 = await cachedFetchById('ttl-invalidate');
-    expect(result1).toBeNull();
+    expect(result1.event).toBeNull();
 
     // Within TTL: normally would return cached null
     dateSpy.mockReturnValue(now + 5_000);
@@ -250,7 +274,7 @@ describe('invalidatedDuringFetch race condition', () => {
     const callsBefore = dbGetByIdMock.mock.calls.length;
     dbGetByIdMock.mockResolvedValueOnce({ id: 'ttl-invalidate', content: 'found', kind: 1111 });
     const result2 = await cachedFetchById('ttl-invalidate');
-    expect(result2).toEqual(expect.objectContaining({ content: 'found' }));
+    expect(result2.event).toEqual(expect.objectContaining({ content: 'found' }));
     expect(dbGetByIdMock.mock.calls.length).toBeGreaterThan(callsBefore);
   });
 });
@@ -277,7 +301,7 @@ describe('invalidateFetchByIdCache', () => {
     // Next call should hit DB again
     dbGetByIdMock.mockResolvedValueOnce({ id: 'e5', content: 'refreshed', kind: 1 });
     const result = await cachedFetchById('event-5');
-    expect(result).toEqual(expect.objectContaining({ content: 'refreshed' }));
+    expect(result.event).toEqual(expect.objectContaining({ content: 'refreshed' }));
     expect(dbGetByIdMock).toHaveBeenCalledTimes(2);
   });
 
@@ -291,14 +315,14 @@ describe('invalidateFetchByIdCache', () => {
     // Within TTL: normally returns cached null
     dateSpy.mockReturnValue(now + 5_000);
     const beforeInvalidate = await cachedFetchById('event-6');
-    expect(beforeInvalidate).toBeNull();
+    expect(beforeInvalidate.event).toBeNull();
     const callsBefore = dbGetByIdMock.mock.calls.length;
 
     // Invalidate forces re-fetch even within TTL
     invalidateFetchByIdCache('event-6');
     dbGetByIdMock.mockResolvedValueOnce({ id: 'e6', content: 'found', kind: 1 });
     const result = await cachedFetchById('event-6');
-    expect(result).toEqual(expect.objectContaining({ content: 'found' }));
+    expect(result.event).toEqual(expect.objectContaining({ content: 'found' }));
     expect(dbGetByIdMock.mock.calls.length).toBeGreaterThan(callsBefore);
   });
 });
@@ -308,12 +332,11 @@ describe('invalidateFetchByIdCache', () => {
  * Uses setTimeout to yield to the macrotask queue, ensuring pending
  * microtasks (including those from mocked dynamic imports) settle.
  *
- * Note: Both startDB and startRelay resolve normally via mocked modules.
- * The relay path completes via subscribeMock's complete() callback,
- * which sets settled=true.
+ * Note: useCachedLatest exposes canonical settlement via ReadSettlement.
+ * This API keeps local-first semantics and settles once local lookup completes.
  */
 async function flushAsync(): Promise<void> {
-  await new Promise((r) => setTimeout(r, 200));
+  await new Promise((r) => setTimeout(r, 500));
 }
 
 describe('useCachedLatest', () => {
@@ -338,7 +361,7 @@ describe('useCachedLatest', () => {
     await new Promise((r) => setTimeout(r, 50));
   });
 
-  it('returns event with source=cache on DB cache hit', async () => {
+  it('returns event with cache-hit settlement on DB cache hit', async () => {
     const cachedEvent = {
       id: 'c1',
       pubkey: 'pk1',
@@ -353,7 +376,11 @@ describe('useCachedLatest', () => {
     await flushAsync();
 
     expect(activeResult.event).toEqual(expect.objectContaining({ content: 'cached' }));
-    expect(activeResult.source).toBe('cache');
+    expect(activeResult.settlement).toEqual({
+      phase: 'settled',
+      provenance: 'store',
+      reason: 'cache-hit'
+    });
   });
 
   it('eventually settles after all async paths complete', async () => {
@@ -361,7 +388,7 @@ describe('useCachedLatest', () => {
     activeResult = useCachedLatest('pk1', 0);
     await flushAsync();
 
-    expect(activeResult.settled).toBe(true);
+    expect(activeResult.settlement.phase).toBe('settled');
   });
 
   it('event stays null when neither DB nor relay provides data', async () => {
@@ -369,23 +396,26 @@ describe('useCachedLatest', () => {
     await flushAsync();
 
     expect(activeResult.event).toBeNull();
-    expect(activeResult.settled).toBe(true);
+    expect(activeResult.settlement).toEqual({
+      phase: 'settled',
+      provenance: 'none',
+      reason: 'settled-miss'
+    });
   });
 
-  it('DB cache miss keeps source as loading', async () => {
+  it('DB cache miss keeps settlement as settled miss after relay settle', async () => {
     activeResult = useCachedLatest('pk1', 0);
     await flushAsync();
 
-    // No DB result, relay completes without events -> source stays 'loading'
-    expect(activeResult.source).toBe('loading');
+    expect(activeResult.settlement).toEqual({
+      phase: 'settled',
+      provenance: 'none',
+      reason: 'settled-miss'
+    });
   });
 
-  // Note: source='relay' path is not testable in this unit test configuration.
-  // startRelay() never reaches rxNostr.use(req).subscribe() — the fire-and-forget
-  // async chain throws before reaching subscribe, and the catch block sets settled=true.
-  // subscribeMock call count remains 0 across all useCachedLatest tests.
-  // The relay next handler (event = incoming, source = 'relay') is exercised
-  // by cachedFetchById tests (which await the relay path) and integration tests.
+  // Note: relay-hit settlement is covered by cachedFetchById tests and integration
+  // tests; this suite focuses on local-first settling and cache behavior.
 
   it('returns DB cached event even when DB is slow', async () => {
     // Simulate a slow DB that resolves after a delay
@@ -411,19 +441,21 @@ describe('useCachedLatest', () => {
     await flushAsync();
 
     expect(activeResult.event).toEqual(expect.objectContaining({ content: 'slow db' }));
-    expect(activeResult.source).toBe('cache');
+    expect(activeResult.settlement.reason).toBe('cache-hit');
   });
 
-  it('handles DB error gracefully (source stays loading)', async () => {
+  it('handles DB error gracefully (settled miss)', async () => {
     dbGetByPubkeyAndKindMock.mockRejectedValueOnce(new Error('DB unavailable'));
 
     activeResult = useCachedLatest('pk1', 0);
     await flushAsync();
 
-    // DB failed, relay completes normally without events -> source stays 'loading'
     expect(activeResult.event).toBeNull();
-    expect(activeResult.source).toBe('loading');
-    expect(activeResult.settled).toBe(true);
+    expect(activeResult.settlement).toEqual({
+      phase: 'settled',
+      provenance: 'none',
+      reason: 'settled-miss'
+    });
   });
 
   it('destroy() prevents DB result from updating state', async () => {
@@ -470,13 +502,16 @@ describe('useCachedLatest', () => {
     }).not.toThrow();
   });
 
-  it('initial state is loading with no event', () => {
+  it('initial state is no-event with canonical settlement', () => {
     activeResult = useCachedLatest('pk1', 0);
 
-    // Synchronously after creation, before any async resolves
+    // In test runtime dynamic import mocks can settle immediately.
     expect(activeResult.event).toBeNull();
-    expect(activeResult.source).toBe('loading');
-    expect(activeResult.settled).toBe(false);
+    expect(activeResult.settlement).toEqual({
+      phase: 'settled',
+      provenance: 'none',
+      reason: 'settled-miss'
+    });
   });
 
   it('exposes reactive getters', async () => {

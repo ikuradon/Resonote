@@ -51,11 +51,8 @@ const {
   };
 });
 
-vi.mock('rx-nostr', () => ({
-  createRxBackwardReq: createRxBackwardReqMock
-}));
-
 vi.mock('$shared/nostr/gateway.js', () => ({
+  createRxBackwardReq: createRxBackwardReqMock,
   getRxNostr: getRxNostrMock,
   getEventsDB: getEventsDBMock
 }));

@@ -7,6 +7,7 @@ const {
   loadBookmarksMock,
   loadMuteListMock,
   loadCustomEmojisMock,
+  fetchProfileMock,
   refreshRelayListMock,
   resetToDefaultRelaysMock,
   clearFollowsMock,
@@ -24,6 +25,7 @@ const {
   loadBookmarksMock: vi.fn(),
   loadMuteListMock: vi.fn(),
   loadCustomEmojisMock: vi.fn(),
+  fetchProfileMock: vi.fn(),
   refreshRelayListMock: vi.fn(),
   resetToDefaultRelaysMock: vi.fn(),
   clearFollowsMock: vi.fn(),
@@ -55,6 +57,10 @@ vi.mock('$shared/browser/stores.js', () => ({
   clearMuteList: clearMuteListMock
 }));
 
+vi.mock('$shared/browser/profile.js', () => ({
+  fetchProfile: fetchProfileMock
+}));
+
 vi.mock('$shared/nostr/relays.js', () => ({
   DEFAULT_RELAYS: ['wss://relay.example.com']
 }));
@@ -77,6 +83,7 @@ import { destroySession, initSession } from './init-session.js';
 
 // --- helpers ---
 const PUBKEY = 'aabbccdd'.repeat(8);
+const PUBKEY_2 = '11223344'.repeat(8);
 const RELAY_URLS = ['wss://user-relay.example.com'];
 
 // --- tests ---
@@ -89,6 +96,7 @@ describe('initSession', () => {
     loadBookmarksMock.mockResolvedValue(undefined);
     loadMuteListMock.mockResolvedValue(undefined);
     loadCustomEmojisMock.mockResolvedValue(undefined);
+    fetchProfileMock.mockResolvedValue(undefined);
   });
 
   it('applyUserRelays を pubkey で呼び出す', async () => {
@@ -127,6 +135,20 @@ describe('initSession', () => {
     expect(loadMuteListMock).toHaveBeenCalledWith(PUBKEY);
   });
 
+  it('fetchProfile を pubkey で呼び出す', async () => {
+    await initSession(PUBKEY);
+
+    expect(fetchProfileMock).toHaveBeenCalledWith(PUBKEY);
+  });
+
+  it('ログイン切替時は都度その pubkey で profile hydrate を実行する', async () => {
+    await initSession(PUBKEY);
+    await initSession(PUBKEY_2);
+
+    expect(fetchProfileMock).toHaveBeenNthCalledWith(1, PUBKEY);
+    expect(fetchProfileMock).toHaveBeenNthCalledWith(2, PUBKEY_2);
+  });
+
   it('loadFollows が失敗しても全体は正常終了する', async () => {
     loadFollowsMock.mockRejectedValue(new Error('network error'));
 
@@ -153,6 +175,16 @@ describe('initSession', () => {
 
     await expect(initSession(PUBKEY)).resolves.toBeUndefined();
     expect(logErrorMock).toHaveBeenCalledWith('Failed to load mute list', expect.any(Error));
+  });
+
+  it('fetchProfile が失敗しても全体は正常終了する', async () => {
+    fetchProfileMock.mockRejectedValue(new Error('profile fetch failed'));
+
+    await expect(initSession(PUBKEY)).resolves.toBeUndefined();
+    expect(logErrorMock).toHaveBeenCalledWith(
+      'Failed to hydrate current user profile',
+      expect.any(Error)
+    );
   });
 
   it('セッション初期化ログが出力される', async () => {

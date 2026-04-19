@@ -12,15 +12,11 @@ vi.mock('$shared/nostr/client.js', () => ({
 }));
 
 const mockAddPendingPublish = vi.fn();
-const mockGetPendingPublishes = vi.fn();
-const mockRemovePendingPublish = vi.fn();
-const mockCleanExpired = vi.fn();
+const mockDrainPendingPublishes = vi.fn();
 
 vi.mock('$shared/nostr/pending-publishes.js', () => ({
   addPendingPublish: (...args: unknown[]) => mockAddPendingPublish(...args),
-  getPendingPublishes: (...args: unknown[]) => mockGetPendingPublishes(...args),
-  removePendingPublish: (...args: unknown[]) => mockRemovePendingPublish(...args),
-  cleanExpired: (...args: unknown[]) => mockCleanExpired(...args)
+  drainPendingPublishes: (...args: unknown[]) => mockDrainPendingPublishes(...args)
 }));
 
 function makeEvent(overrides: Partial<PendingEvent> = {}): PendingEvent {
@@ -37,10 +33,12 @@ function makeEvent(overrides: Partial<PendingEvent> = {}): PendingEvent {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockGetPendingPublishes.mockResolvedValue([]);
+  mockDrainPendingPublishes.mockResolvedValue({
+    emissions: [],
+    settledCount: 0,
+    retryingCount: 0
+  });
   mockAddPendingPublish.mockResolvedValue(undefined);
-  mockRemovePendingPublish.mockResolvedValue(undefined);
-  mockCleanExpired.mockResolvedValue(undefined);
   mockCast.mockResolvedValue(undefined);
 });
 
@@ -153,66 +151,70 @@ describe('publishSignedEvents', () => {
 });
 
 describe('retryPendingPublishes', () => {
-  it('should do nothing when queue is empty', async () => {
+  it('delegates retry lifecycle to pending queue owner', async () => {
     const { retryPendingPublishes } = await import('./publish-signed.js');
-    mockGetPendingPublishes.mockResolvedValueOnce([]);
 
     await retryPendingPublishes();
 
-    expect(mockCleanExpired).toHaveBeenCalledOnce();
-    expect(mockGetPendingPublishes).toHaveBeenCalledOnce();
-    expect(mockCast).not.toHaveBeenCalled();
+    expect(mockDrainPendingPublishes).toHaveBeenCalledOnce();
   });
 
-  it('should retry pending events and remove successful ones', async () => {
+  it('returns confirmed decision when cast succeeds', async () => {
     const { retryPendingPublishes } = await import('./publish-signed.js');
-    const pending = [makeEvent({ id: 'retry-1' }), makeEvent({ id: 'retry-2' })];
-    mockGetPendingPublishes.mockResolvedValueOnce(pending);
-
-    await retryPendingPublishes();
-
-    expect(mockCast).toHaveBeenCalledTimes(2);
-    expect(mockRemovePendingPublish).toHaveBeenCalledTimes(2);
-    expect(mockRemovePendingPublish).toHaveBeenCalledWith('retry-1');
-    expect(mockRemovePendingPublish).toHaveBeenCalledWith('retry-2');
-  });
-
-  it('should re-queue failed events via addPendingPublish', async () => {
-    const { retryPendingPublishes } = await import('./publish-signed.js');
-    const pending = [
-      makeEvent({ id: 'ok-1' }),
-      makeEvent({ id: 'fail-1' }),
-      makeEvent({ id: 'ok-2' })
-    ];
-    mockGetPendingPublishes.mockResolvedValueOnce(pending);
-    mockCast
-      .mockResolvedValueOnce(undefined)
-      .mockRejectedValueOnce(new Error('still down'))
-      .mockResolvedValueOnce(undefined);
-
-    await retryPendingPublishes();
-
-    // publishSignedEvent catches cast() errors internally and adds to pending,
-    // so removePendingPublish is called for all events (publishSignedEvent never throws)
-    expect(mockRemovePendingPublish).toHaveBeenCalledTimes(3);
-    // The failed event is re-added to the pending queue by publishSignedEvent's catch
-    expect(mockAddPendingPublish).toHaveBeenCalledOnce();
-    expect(mockAddPendingPublish).toHaveBeenCalledWith(pending[1]);
-  });
-
-  it('should call cleanExpired before processing', async () => {
-    const { retryPendingPublishes } = await import('./publish-signed.js');
-    const callOrder: string[] = [];
-    mockCleanExpired.mockImplementation(async () => {
-      callOrder.push('cleanExpired');
-    });
-    mockGetPendingPublishes.mockImplementation(async () => {
-      callOrder.push('getPendingPublishes');
-      return [];
+    let capturedDeliver: ((event: PendingEvent) => Promise<'confirmed' | 'retrying'>) | undefined;
+    mockDrainPendingPublishes.mockImplementationOnce(async (deliver) => {
+      capturedDeliver = deliver as (event: PendingEvent) => Promise<'confirmed' | 'retrying'>;
+      return { emissions: [], settledCount: 0, retryingCount: 0 };
     });
 
     await retryPendingPublishes();
 
-    expect(callOrder).toEqual(['cleanExpired', 'getPendingPublishes']);
+    expect(capturedDeliver).toBeTypeOf('function');
+    const decision = await capturedDeliver!(makeEvent({ id: 'retry-1' }));
+    expect(decision).toBe('confirmed');
+  });
+
+  it('returns retrying decision when cast fails', async () => {
+    const { retryPendingPublishes } = await import('./publish-signed.js');
+    let capturedDeliver: ((event: PendingEvent) => Promise<'confirmed' | 'retrying'>) | undefined;
+    mockDrainPendingPublishes.mockImplementationOnce(async (deliver) => {
+      capturedDeliver = deliver as (event: PendingEvent) => Promise<'confirmed' | 'retrying'>;
+      return { emissions: [], settledCount: 0, retryingCount: 0 };
+    });
+    mockCast.mockRejectedValueOnce(new Error('still offline'));
+
+    await retryPendingPublishes();
+
+    expect(capturedDeliver).toBeTypeOf('function');
+    const decision = await capturedDeliver!(makeEvent({ id: 'retry-fail' }));
+    expect(decision).toBe('retrying');
+  });
+
+  it('does not re-queue inside retry path', async () => {
+    const { retryPendingPublishes } = await import('./publish-signed.js');
+    let capturedDeliver: ((event: PendingEvent) => Promise<'confirmed' | 'retrying'>) | undefined;
+    mockDrainPendingPublishes.mockImplementationOnce(async (deliver) => {
+      capturedDeliver = deliver as (event: PendingEvent) => Promise<'confirmed' | 'retrying'>;
+      return { emissions: [], settledCount: 0, retryingCount: 0 };
+    });
+    mockCast.mockRejectedValueOnce(new Error('still offline'));
+
+    await retryPendingPublishes();
+
+    await capturedDeliver!(makeEvent({ id: 'retry-fail' }));
+    expect(mockAddPendingPublish).not.toHaveBeenCalled();
+  });
+
+  it('passes events to session runtime cast in retry path', async () => {
+    const { retryPendingPublishes } = await import('./publish-signed.js');
+    const pending = makeEvent({ id: 'retry-pass-through' });
+    mockDrainPendingPublishes.mockImplementationOnce(async (deliver) => {
+      await (deliver as (event: PendingEvent) => Promise<'confirmed' | 'retrying'>)(pending);
+      return { emissions: [], settledCount: 1, retryingCount: 0 };
+    });
+
+    await retryPendingPublishes();
+
+    expect(mockCast).toHaveBeenCalledWith(pending);
   });
 });

@@ -9,7 +9,7 @@ vi.mock('$shared/content/resolution.js', () => ({
   resolveByApi: resolveByApiMock
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
+vi.mock('$shared/auftakt/resonote.js', () => ({
   publishSignedEvents: publishSignedEventsMock
 }));
 

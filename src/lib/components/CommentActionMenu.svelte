@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { neventEncode } from 'nostr-tools/nip19';
+  import { neventEncode } from '@auftakt/core';
   import { onMount } from 'svelte';
   import type { Action } from 'svelte/action';
 

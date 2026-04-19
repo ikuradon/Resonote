@@ -1,5 +1,5 @@
+import { finalizeEvent, generateSecretKey, getPublicKey } from '@auftakt/core';
 import { expect, test } from '@playwright/test';
-import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 
 import { setupFullLogin, setupMockPool, simulateLogin } from './helpers/e2e-setup.js';
 

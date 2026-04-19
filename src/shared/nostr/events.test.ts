@@ -1,4 +1,4 @@
-import { nip19 } from 'nostr-tools';
+import { noteEncode } from '@auftakt/core';
 import { describe, expect, it } from 'vitest';
 
 import { SpotifyProvider } from '$shared/content/spotify.js';
@@ -703,7 +703,7 @@ describe('buildContentReaction', () => {
 
 describe('buildComment with content quotes (q-tag)', () => {
   const EVENT_HEX = 'aaaa'.repeat(16);
-  const VALID_NOTE = nip19.noteEncode(EVENT_HEX);
+  const VALID_NOTE = noteEncode(EVENT_HEX);
 
   it('adds q-tag (not e-tag) for nostr:note1 references in content', () => {
     const content = `see nostr:${VALID_NOTE}`;

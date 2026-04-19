@@ -38,3 +38,4 @@ docs/superpowers/
 .worktrees/
 .claude/worktrees/
 e2e/helpers/*.js
+.omx/

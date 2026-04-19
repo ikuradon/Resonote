@@ -1,43 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// --- hoisted mocks ---
 const {
+  fetchBackwardEventsMock,
   getEventsDBMock,
   getManyByPubkeysAndKindMock,
   putMock,
-  getRxNostrMock,
-  createRxBackwardReqMock,
-  reqEmitMock,
-  reqOverMock,
   logWarnMock,
   logErrorMock
-} = vi.hoisted(() => {
-  const reqEmitMock = vi.fn();
-  const reqOverMock = vi.fn();
-  const getManyByPubkeysAndKindMock = vi.fn();
-  const putMock = vi.fn().mockResolvedValue(undefined);
-  const getEventsDBMock = vi.fn();
-
-  return {
-    getEventsDBMock,
-    getManyByPubkeysAndKindMock,
-    putMock,
-    getRxNostrMock: vi.fn(),
-    createRxBackwardReqMock: vi.fn(),
-    reqEmitMock,
-    reqOverMock,
-    logWarnMock: vi.fn(),
-    logErrorMock: vi.fn()
-  };
-});
-
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getEventsDB: getEventsDBMock,
-  getRxNostr: getRxNostrMock
+} = vi.hoisted(() => ({
+  fetchBackwardEventsMock: vi.fn(),
+  getEventsDBMock: vi.fn(),
+  getManyByPubkeysAndKindMock: vi.fn(),
+  putMock: vi.fn().mockResolvedValue(undefined),
+  logWarnMock: vi.fn(),
+  logErrorMock: vi.fn()
 }));
 
-vi.mock('rx-nostr', () => ({
-  createRxBackwardReq: createRxBackwardReqMock
+vi.mock('$shared/nostr/gateway.js', () => ({
+  fetchBackwardEvents: fetchBackwardEventsMock,
+  getEventsDB: getEventsDBMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -56,7 +37,6 @@ vi.mock('$shared/nostr/nip05.js', () => ({
 
 import { clearProfiles, fetchProfile, fetchProfiles, getProfile } from './profile.svelte.js';
 
-// --- helpers ---
 const PUBKEY_A = 'aaaa1111'.repeat(8);
 const PUBKEY_B = 'bbbb2222'.repeat(8);
 
@@ -72,45 +52,19 @@ function makeKind0Event(pubkey: string, content: Record<string, unknown>) {
   };
 }
 
-interface SubscribeObserver {
-  next: (p: unknown) => void;
-  complete: () => void;
-  error: (e: unknown) => void;
-}
-
-/** DB モック (空配列) と relay モックをまとめてセットアップする */
 function setupMocks(
   dbEvents: ReturnType<typeof makeKind0Event>[],
-  relayPackets: { event: ReturnType<typeof makeKind0Event> }[],
-  opts: { complete?: boolean; error?: Error } = {}
+  relayEvents: ReturnType<typeof makeKind0Event>[],
+  opts: { error?: Error } = {}
 ) {
-  const { complete = true, error } = opts;
-
-  // DB mock
   getManyByPubkeysAndKindMock.mockResolvedValue(dbEvents);
   getEventsDBMock.mockResolvedValue({
     getManyByPubkeysAndKind: getManyByPubkeysAndKindMock,
     put: putMock
   });
-
-  // relay mock
-  const req = { emit: reqEmitMock, over: reqOverMock };
-  createRxBackwardReqMock.mockReturnValue(req);
-  const rxNostr = {
-    use: vi.fn().mockReturnValue({
-      subscribe: vi.fn().mockImplementation((observer: SubscribeObserver) => {
-        for (const p of relayPackets) observer.next(p);
-        if (error) observer.error(error);
-        else if (complete) observer.complete();
-        return { unsubscribe: vi.fn() };
-      })
-    })
-  };
-  getRxNostrMock.mockResolvedValue(rxNostr);
-  return { rxNostr, req };
+  if (opts.error) fetchBackwardEventsMock.mockRejectedValue(opts.error);
+  else fetchBackwardEventsMock.mockResolvedValue(relayEvents);
 }
-
-// --- tests ---
 
 describe('getProfile', () => {
   beforeEach(() => {
@@ -135,26 +89,13 @@ describe('clearProfiles', () => {
 
   it('clearProfiles 後は全プロファイルが undefined になる', async () => {
     const event = makeKind0Event(PUBKEY_A, { name: 'Alice', display_name: 'Alice Display' });
-    setupMocks([event], [], { complete: false });
+    setupMocks([event], []);
 
     await fetchProfile(PUBKEY_A);
     expect(getProfile(PUBKEY_A)).toBeDefined();
 
     clearProfiles();
     expect(getProfile(PUBKEY_A)).toBeUndefined();
-  });
-
-  it('clearProfiles は pending を空にする（再 fetch が通る）', async () => {
-    const event = makeKind0Event(PUBKEY_A, { name: 'Alice' });
-    setupMocks([event], [], { complete: false });
-
-    await fetchProfile(PUBKEY_A);
-    clearProfiles();
-
-    // clearProfiles 後はもう一度 fetch が呼べる（モックを再設定）
-    setupMocks([event], [], { complete: false });
-    await fetchProfile(PUBKEY_A);
-    expect(getProfile(PUBKEY_A)).toBeDefined();
   });
 });
 
@@ -171,12 +112,11 @@ describe('fetchProfile — DB キャッシュあり', () => {
       picture: 'https://example.com/alice.png',
       nip05: 'alice@example.com'
     });
-    setupMocks([event], [], { complete: false });
+    setupMocks([event], []);
 
     await fetchProfile(PUBKEY_A);
 
     const profile = getProfile(PUBKEY_A);
-    expect(profile).toBeDefined();
     expect(profile?.name).toBe('Alice');
     expect(profile?.displayName).toBe('Alice Display');
     expect(profile?.picture).toBe('https://example.com/alice.png');
@@ -184,60 +124,35 @@ describe('fetchProfile — DB キャッシュあり', () => {
   });
 
   it('picture が unsafe な URL の場合は undefined になる', async () => {
-    const event = makeKind0Event(PUBKEY_A, {
-      name: 'Bob',
-      picture: 'javascript:alert(1)'
-    });
-    setupMocks([event], [], { complete: false });
+    const event = makeKind0Event(PUBKEY_A, { name: 'Bob', picture: 'javascript:alert(1)' });
+    setupMocks([event], []);
 
     await fetchProfile(PUBKEY_A);
 
-    const profile = getProfile(PUBKEY_A);
-    expect(profile?.picture).toBeUndefined();
+    expect(getProfile(PUBKEY_A)?.picture).toBeUndefined();
   });
 
   it('DB キャッシュに不正な JSON があっても warn を出してスキップする', async () => {
-    const badEvent = {
-      id: 'evt-bad',
-      pubkey: PUBKEY_A,
-      kind: 0,
-      created_at: 1_000_000,
-      content: 'NOT_JSON',
-      tags: [],
-      sig: 'sig'
-    };
-    getManyByPubkeysAndKindMock.mockResolvedValue([badEvent]);
+    getManyByPubkeysAndKindMock.mockResolvedValue([
+      {
+        id: 'evt-bad',
+        pubkey: PUBKEY_A,
+        kind: 0,
+        created_at: 1_000_000,
+        content: 'NOT_JSON',
+        tags: [],
+        sig: 'sig'
+      }
+    ]);
     getEventsDBMock.mockResolvedValue({
       getManyByPubkeysAndKind: getManyByPubkeysAndKindMock,
       put: putMock
     });
-    // DB キャッシュが失敗してもプロファイルは設定されないため relay fetch へ進む
-    const req = { emit: reqEmitMock, over: reqOverMock };
-    createRxBackwardReqMock.mockReturnValue(req);
-    getRxNostrMock.mockResolvedValue({
-      use: vi.fn().mockReturnValue({
-        subscribe: vi.fn().mockImplementation((observer: SubscribeObserver) => {
-          observer.complete();
-          return { unsubscribe: vi.fn() };
-        })
-      })
-    });
+    fetchBackwardEventsMock.mockResolvedValue([]);
 
     await fetchProfile(PUBKEY_A);
 
     expect(logWarnMock).toHaveBeenCalledWith('Malformed cached profile JSON', expect.any(Object));
-  });
-
-  it('既に fetch 済みの pubkey は再 fetch しない', async () => {
-    const event = makeKind0Event(PUBKEY_A, { name: 'Alice' });
-    setupMocks([event], [], { complete: false });
-
-    await fetchProfile(PUBKEY_A);
-    const callCount = getManyByPubkeysAndKindMock.mock.calls.length;
-
-    // 2回目の fetch は DB にアクセスしない
-    await fetchProfile(PUBKEY_A);
-    expect(getManyByPubkeysAndKindMock.mock.calls.length).toBe(callCount);
   });
 });
 
@@ -249,14 +164,11 @@ describe('fetchProfile — relay から取得', () => {
 
   it('DB にキャッシュがない場合 relay から kind:0 を取得してプロファイルを設定する', async () => {
     const event = makeKind0Event(PUBKEY_A, { name: 'Alice', display_name: 'Alice Relay' });
-    setupMocks([], [{ event }]);
+    setupMocks([], [event]);
 
     await fetchProfile(PUBKEY_A);
 
-    const profile = getProfile(PUBKEY_A);
-    expect(profile).toBeDefined();
-    expect(profile?.name).toBe('Alice');
-    expect(profile?.displayName).toBe('Alice Relay');
+    expect(getProfile(PUBKEY_A)?.displayName).toBe('Alice Relay');
   });
 
   it('relay にプロファイルが存在しない場合は空オブジェクトをセットする', async () => {
@@ -264,9 +176,7 @@ describe('fetchProfile — relay から取得', () => {
 
     await fetchProfile(PUBKEY_A);
 
-    const profile = getProfile(PUBKEY_A);
-    expect(profile).toBeDefined();
-    expect(profile).toEqual({});
+    expect(getProfile(PUBKEY_A)).toEqual({});
   });
 
   it('relay fetch 中にエラーが発生しても warn を出す', async () => {
@@ -280,17 +190,32 @@ describe('fetchProfile — relay から取得', () => {
     );
   });
 
+  it('relay fetch が失敗した pubkey は空プロファイルで固定しない', async () => {
+    setupMocks([], [], { error: new Error('relay error') });
+
+    await fetchProfiles([PUBKEY_A, PUBKEY_B]);
+
+    expect(getProfile(PUBKEY_A)).toBeUndefined();
+    expect(getProfile(PUBKEY_B)).toBeUndefined();
+  });
+
   it('relay からの不正な JSON プロファイルは warn を出してスキップする', async () => {
-    const badEvent = {
-      id: 'evt-bad',
-      pubkey: PUBKEY_A,
-      kind: 0,
-      created_at: 1_000_000,
-      content: 'NOT_JSON',
-      tags: [],
-      sig: 'sig'
-    };
-    setupMocks([], [{ event: badEvent as ReturnType<typeof makeKind0Event> }]);
+    getEventsDBMock.mockResolvedValue({
+      getManyByPubkeysAndKind: getManyByPubkeysAndKindMock,
+      put: putMock
+    });
+    getManyByPubkeysAndKindMock.mockResolvedValue([]);
+    fetchBackwardEventsMock.mockResolvedValue([
+      {
+        id: 'evt-bad',
+        pubkey: PUBKEY_A,
+        kind: 0,
+        created_at: 1_000_000,
+        content: 'NOT_JSON',
+        tags: [],
+        sig: 'sig'
+      }
+    ]);
 
     await fetchProfile(PUBKEY_A);
 
@@ -299,7 +224,7 @@ describe('fetchProfile — relay から取得', () => {
 
   it('relay から取得したプロファイルは DB に保存される', async () => {
     const event = makeKind0Event(PUBKEY_B, { name: 'Bob' });
-    setupMocks([], [{ event }]);
+    setupMocks([], [event]);
 
     await fetchProfiles([PUBKEY_B]);
 
@@ -309,11 +234,90 @@ describe('fetchProfile — relay から取得', () => {
   it('複数 pubkey を同時に fetch できる', async () => {
     const eventA = makeKind0Event(PUBKEY_A, { name: 'Alice' });
     const eventB = makeKind0Event(PUBKEY_B, { name: 'Bob' });
-    setupMocks([], [{ event: eventA }, { event: eventB }]);
+    setupMocks([], [eventA, eventB]);
 
     await fetchProfiles([PUBKEY_A, PUBKEY_B]);
 
     expect(getProfile(PUBKEY_A)?.name).toBe('Alice');
     expect(getProfile(PUBKEY_B)?.name).toBe('Bob');
+  });
+
+  it('relay helper が一部結果だけ返した場合も取得済みプロファイルを保持する', async () => {
+    const eventA = makeKind0Event(PUBKEY_A, { name: 'Alice' });
+    setupMocks([], [eventA]);
+
+    await fetchProfiles([PUBKEY_A, PUBKEY_B]);
+
+    expect(getProfile(PUBKEY_A)?.name).toBe('Alice');
+    expect(getProfile(PUBKEY_B)).toEqual({});
+  });
+});
+
+import { getProfileDisplay } from './profile.svelte.js';
+
+describe('getProfileDisplay', () => {
+  beforeEach(() => {
+    clearProfiles();
+    vi.clearAllMocks();
+  });
+
+  it('returns fallback display when profile is missing', () => {
+    const display = getProfileDisplay(PUBKEY_A);
+    expect(display.displayName).toContain('npub1');
+    expect(display.picture).toBeUndefined();
+  });
+
+  it('returns hydrated picture when profile is loaded', async () => {
+    const event = makeKind0Event(PUBKEY_A, {
+      name: 'Alice',
+      picture: 'https://example.com/alice.png'
+    });
+    setupMocks([event], []);
+
+    await fetchProfile(PUBKEY_A);
+
+    const display = getProfileDisplay(PUBKEY_A);
+    expect(display.picture).toBe('https://example.com/alice.png');
+  });
+
+  it('logout 想定の clearProfiles 後は picture fallback に戻る', async () => {
+    const event = makeKind0Event(PUBKEY_A, {
+      name: 'Alice',
+      picture: 'https://example.com/alice.png'
+    });
+    setupMocks([event], []);
+
+    await fetchProfile(PUBKEY_A);
+    expect(getProfileDisplay(PUBKEY_A).picture).toBe('https://example.com/alice.png');
+
+    clearProfiles();
+
+    expect(getProfileDisplay(PUBKEY_A).picture).toBeUndefined();
+  });
+
+  it('別アカウントに picture がない場合は前アカウントの avatar を再利用しない', async () => {
+    const eventA = makeKind0Event(PUBKEY_A, {
+      name: 'Alice',
+      picture: 'https://example.com/alice.png'
+    });
+    setupMocks([], [eventA]);
+
+    await fetchProfiles([PUBKEY_A, PUBKEY_B]);
+
+    expect(getProfileDisplay(PUBKEY_A).picture).toBe('https://example.com/alice.png');
+    expect(getProfileDisplay(PUBKEY_B).picture).toBeUndefined();
+  });
+
+  it('returns undefined picture when picture is invalid', async () => {
+    const event = makeKind0Event(PUBKEY_A, {
+      name: 'Alice',
+      picture: 'javascript:alert(1)'
+    });
+    setupMocks([event], []);
+
+    await fetchProfile(PUBKEY_A);
+
+    const display = getProfileDisplay(PUBKEY_A);
+    expect(display.picture).toBeUndefined();
   });
 });

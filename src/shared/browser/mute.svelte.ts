@@ -1,3 +1,4 @@
+import { readLatestEvent } from '$shared/auftakt/resonote.js';
 import { MUTE_KIND } from '$shared/nostr/events.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 
@@ -80,8 +81,7 @@ export async function loadMuteList(pubkey: string): Promise<void> {
   log.info('Loading mute list', { pubkey: shortHex(pubkey) });
 
   try {
-    const { fetchLatestEvent } = await import('$shared/nostr/gateway.js');
-    const latest = await fetchLatestEvent(pubkey, MUTE_KIND);
+    const latest = await readLatestEvent(pubkey, MUTE_KIND);
     if (gen !== generation) return;
 
     const newPubkeys = new Set<string>();

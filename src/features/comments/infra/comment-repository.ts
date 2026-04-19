@@ -3,6 +3,9 @@
  * Encapsulates all IndexedDB operations related to comments.
  */
 
+import type { ReconcileEmission } from '@auftakt/timeline';
+
+import { openEventsDb } from '$shared/auftakt/resonote.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('comment-repo');
@@ -23,8 +26,7 @@ export interface CachedEvent {
 }
 
 export async function getCommentRepository(): Promise<EventsDB> {
-  const { getEventsDB } = await import('$shared/nostr/gateway.js');
-  return getEventsDB();
+  return openEventsDb();
 }
 
 export async function restoreFromCache(db: EventsDB, tagQuery: string): Promise<CachedEvent[]> {
@@ -44,4 +46,17 @@ export async function purgeDeletedFromCache(db: EventsDB, ids: string[]): Promis
   } catch (err) {
     log.error('Failed to purge deletion targets', err);
   }
+}
+
+export function materializeDeletedIds(
+  current: ReadonlySet<string>,
+  emissions: readonly ReconcileEmission[]
+): Set<string> {
+  const next = new Set(current);
+  for (const emission of emissions) {
+    if (emission.state === 'deleted') {
+      next.add(emission.subjectId);
+    }
+  }
+  return next;
 }

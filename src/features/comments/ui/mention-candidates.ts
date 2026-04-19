@@ -4,7 +4,7 @@
  * a ranked, deduplicated candidate list.
  */
 
-import { npubEncode } from 'nostr-tools/nip19';
+import { npubEncode } from '@auftakt/core';
 
 import { formatDisplayName, type Profile } from '$features/profiles/domain/profile-model.js';
 

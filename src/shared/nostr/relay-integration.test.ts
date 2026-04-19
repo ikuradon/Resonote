@@ -4,9 +4,9 @@
  * Covers: write operations, read operations, multi-relay behavior,
  * and unstable connection scenarios.
  */
+import { finalizeEvent, generateSecretKey, getPublicKey } from '@auftakt/core';
 import { type EventSigner, MockPool, type MockRelay } from '@ikuradon/tsunagiya';
 import { EventBuilder, waitFor } from '@ikuradon/tsunagiya/testing';
-import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {

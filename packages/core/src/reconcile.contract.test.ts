@@ -1,0 +1,83 @@
+import {
+  mapReasonToConsumerState,
+  reconcileDeletionSubjects,
+  reconcileOfflineDelivery,
+  reconcileReplaceableCandidates,
+  reconcileReplayRepairSubjects
+} from '@auftakt/timeline';
+import { describe, expect, it } from 'vitest';
+
+describe('reconcile reason/state contract', () => {
+  it('maps reason codes to canonical consumer-visible states', () => {
+    expect(mapReasonToConsumerState('accepted-new')).toBe('confirmed');
+    expect(mapReasonToConsumerState('ignored-older')).toBe('shadowed');
+    expect(mapReasonToConsumerState('tombstoned')).toBe('deleted');
+    expect(mapReasonToConsumerState('rejected-offline')).toBe('rejected');
+    expect(mapReasonToConsumerState('repaired-replay')).toBe('repairing');
+  });
+
+  it('emits winner + shadowed for replaceable replacement', () => {
+    const emissions = reconcileReplaceableCandidates(
+      { id: 'old', created_at: 100 },
+      { id: 'new', created_at: 200 }
+    );
+
+    expect(emissions).toEqual([
+      {
+        subjectId: 'new',
+        reason: 'replaced-winner',
+        state: 'confirmed'
+      },
+      {
+        subjectId: 'old',
+        reason: 'conflict-shadowed-local',
+        state: 'shadowed'
+      }
+    ]);
+  });
+
+  it('emits tombstoned/deleted for deletion subjects', () => {
+    expect(reconcileDeletionSubjects(['ev-1'])).toEqual([
+      {
+        subjectId: 'ev-1',
+        reason: 'tombstoned',
+        state: 'deleted'
+      }
+    ]);
+  });
+
+  it('emits canonical offline confirm/reject/repair states', () => {
+    expect(reconcileOfflineDelivery('ev-ok', 'confirmed')).toEqual({
+      subjectId: 'ev-ok',
+      reason: 'confirmed-offline',
+      state: 'confirmed'
+    });
+    expect(reconcileOfflineDelivery('ev-ng', 'rejected')).toEqual({
+      subjectId: 'ev-ng',
+      reason: 'rejected-offline',
+      state: 'rejected'
+    });
+    expect(reconcileOfflineDelivery('ev-retry', 'retrying')).toEqual({
+      subjectId: 'ev-retry',
+      reason: 'repaired-replay',
+      state: 'repairing'
+    });
+  });
+
+  it('emits replay repair/restoration reasons with canonical states', () => {
+    expect(reconcileReplayRepairSubjects(['ev-1'], 'repaired-replay')).toEqual([
+      {
+        subjectId: 'ev-1',
+        reason: 'repaired-replay',
+        state: 'repairing'
+      }
+    ]);
+    expect(reconcileReplayRepairSubjects(['ev-1'], 'restored-replay')).toEqual([
+      {
+        subjectId: 'ev-1',
+        reason: 'restored-replay',
+        state: 'confirmed'
+      }
+    ]);
+  });
+});

@@ -1,7 +1,7 @@
 import { untrack } from 'svelte';
 
+import { useCachedLatest, type UseCachedLatestResult } from '$shared/auftakt/resonote.js';
 import { t } from '$shared/i18n/t.js';
-import { useCachedLatest, type UseCachedLatestResult } from '$shared/nostr/cached-query.js';
 import { RELAY_LIST_KIND } from '$shared/nostr/events.js';
 import { DEFAULT_RELAYS } from '$shared/nostr/relays.js';
 
@@ -32,6 +32,7 @@ export function createRelaySettingsViewModel(options: RelaySettingsViewModelOpti
 
   let relayQuery = $state<UseCachedLatestResult | undefined>(undefined);
   let savedOkTimer: ReturnType<typeof setTimeout> | undefined;
+  let relayQuerySettled = $derived(relayQuery?.settlement.phase === 'settled');
 
   $effect(() => {
     const pubkey = options.getPubkey();
@@ -70,9 +71,9 @@ export function createRelaySettingsViewModel(options: RelaySettingsViewModelOpti
     }
   });
 
-  let relayLoading = $derived(!relayQuery?.settled);
+  let relayLoading = $derived(!relayQuerySettled);
   let noRelayList = $derived(
-    relayQuery?.settled === true && !relayQuery.event && entries.length === 0
+    relayQuerySettled === true && !relayQuery?.event && entries.length === 0
   );
   let liveRelays = $derived(options.getLiveRelays());
 

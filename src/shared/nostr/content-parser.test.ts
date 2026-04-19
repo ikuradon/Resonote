@@ -1,4 +1,4 @@
-import { neventEncode, noteEncode, nprofileEncode, npubEncode } from 'nostr-tools/nip19';
+import { neventEncode, noteEncode, nprofileEncode, npubEncode } from '@auftakt/core';
 import { describe, expect, it } from 'vitest';
 
 import { containsPrivateKey, extractContentTags, parseCommentContent } from './content-parser.js';

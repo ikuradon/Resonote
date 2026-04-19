@@ -114,6 +114,29 @@ describe('nlAuth イベント: login', () => {
     expect(initSession).toHaveBeenCalledWith(TEST_PUBKEY);
   });
 
+  it('復元済みセッション由来の login イベントも同じ initSession 経路を使う', async () => {
+    let resolveInit!: () => void;
+    const { getAuth, initAuth } = await import('./auth.svelte.js');
+    const { initSession } = await import('$appcore/bootstrap/init-session.js');
+    const { launchLogin } = await import('$features/auth/infra/nostr-login-gateway.js');
+    const initPromise = new Promise<void>((resolve) => {
+      resolveInit = resolve;
+    });
+    (initSession as ReturnType<typeof vi.fn>).mockReturnValueOnce(initPromise);
+    await initAuth();
+
+    dispatchNlAuth('login');
+    await vi.waitUntil(() => (initSession as ReturnType<typeof vi.fn>).mock.calls.length > 0);
+
+    expect(launchLogin).not.toHaveBeenCalled();
+    expect(initSession).toHaveBeenCalledOnce();
+    expect(initSession).toHaveBeenCalledWith(TEST_PUBKEY);
+    expect(getAuth().pubkey).toBeNull();
+
+    resolveInit();
+    await vi.waitUntil(() => getAuth().pubkey === TEST_PUBKEY);
+  });
+
   it('signup イベントでも pubkey が設定される', async () => {
     const { getAuth, initAuth } = await import('./auth.svelte.js');
     await initAuth();

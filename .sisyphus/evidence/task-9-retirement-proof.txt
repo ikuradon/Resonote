@@ -1,0 +1,6 @@
+Task 9 retirement proof evidence
+- Verified command: pnpm run check:auftakt-migration -- --fail-on-unauthorized --fail-on-unclassified --proof
+- Result: Status COMPLETE; gateway exports STABLE; unauthorized importers 0
+- Verified command: pnpm test:packages
+- Result: 8 files passed, 25 tests passed
+- Retirement readiness reported 3 files ready to retire: src/shared/nostr/cached-query.ts, src/shared/nostr/user-relays.ts, src/shared/nostr/gateway.ts

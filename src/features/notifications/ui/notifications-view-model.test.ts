@@ -49,6 +49,14 @@ vi.mock('$shared/nostr/events.js', () => ({
 }));
 
 vi.mock('$shared/nostr/gateway.js', () => ({
+  createRxBackwardReq: vi.fn(() => ({
+    emit: vi.fn((filter: unknown) => backwardEmitCalls.push(filter)),
+    over: vi.fn()
+  })),
+  createRxForwardReq: vi.fn(() => ({
+    emit: vi.fn((filter: unknown) => forwardEmitCalls.push(filter))
+  })),
+  uniq: vi.fn(() => (x: unknown) => x),
   getRxNostr: getRxNostrMock
 }));
 
@@ -73,17 +81,6 @@ vi.mock('rxjs', () => ({
       return { unsubscribe: unsubscribeMock };
     })
   }))
-}));
-
-vi.mock('rx-nostr', () => ({
-  createRxBackwardReq: vi.fn(() => ({
-    emit: vi.fn((filter: unknown) => backwardEmitCalls.push(filter)),
-    over: vi.fn()
-  })),
-  createRxForwardReq: vi.fn(() => ({
-    emit: vi.fn((filter: unknown) => forwardEmitCalls.push(filter))
-  })),
-  uniq: vi.fn(() => (x: unknown) => x)
 }));
 
 // localStorage mock

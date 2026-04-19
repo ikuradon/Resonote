@@ -15,38 +15,17 @@ vi.mock('$shared/content/podcast-resolver.js', () => ({
 
 // Mock dynamic imports via the shared Nostr gateway
 const mockGetEventsDB = vi.fn();
-const mockGetRxNostr = vi.fn();
+const mockFetchBackwardFirst = vi.fn();
 vi.mock('$shared/nostr/gateway.js', () => ({
   getEventsDB: (...args: unknown[]) => mockGetEventsDB(...(args as [])),
-  getRxNostr: (...args: unknown[]) => mockGetRxNostr(...(args as []))
-}));
-
-const mockCreateRxBackwardReq = vi.fn();
-const mockUniq = vi.fn();
-vi.mock('rx-nostr', () => ({
-  createRxBackwardReq: (...args: unknown[]) => mockCreateRxBackwardReq(...(args as [])),
-  uniq: (...args: unknown[]) => mockUniq(...(args as []))
+  fetchBackwardFirst: (...args: unknown[]) => mockFetchBackwardFirst(...(args as []))
 }));
 
 import { resolveEpisode } from '$shared/content/episode-resolver.js';
 
-/** Set up rx-nostr mock that emits a single event asynchronously, or completes immediately. */
+/** Set up query mock that returns a single event or null. */
 function setupRelayMock(event: { tags: string[][]; content: string } | null) {
-  const mockReq = { emit: vi.fn(), over: vi.fn() };
-  mockCreateRxBackwardReq.mockReturnValue(mockReq);
-  mockUniq.mockReturnValue((source: unknown) => source);
-
-  const mockSubscribe = vi.fn().mockImplementation(({ next, complete }) => {
-    if (event) {
-      void Promise.resolve().then(() => next({ event }));
-    } else {
-      complete();
-    }
-    return { unsubscribe: vi.fn() };
-  });
-  const mockPipe = vi.fn().mockReturnValue({ subscribe: mockSubscribe });
-  const mockUse = vi.fn().mockReturnValue({ pipe: mockPipe });
-  mockGetRxNostr.mockResolvedValue({ use: mockUse });
+  mockFetchBackwardFirst.mockResolvedValue(event);
 }
 
 const FEED_URL = 'https://example.com/feed.xml';

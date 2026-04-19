@@ -2,8 +2,8 @@
 import type { EventParameters } from 'nostr-typedef';
 
 import { apiClient } from '$shared/api/client.js';
+import { searchBookmarkDTagEvent, verifySignedEvent } from '$shared/auftakt/resonote.js';
 import { normalizeUrl } from '$shared/content/url-utils.js';
-import { getEventsDB, getRxNostr } from '$shared/nostr/gateway.js';
 import { htmlToMarkdown } from '$shared/utils/html.js';
 import { createLogger } from '$shared/utils/logger.js';
 
@@ -130,70 +130,8 @@ export async function searchBookmarkByUrl(url: string): Promise<DTagResult | nul
     if (!pubkey) return null;
 
     const normalized = normalizeUrl(url);
-
-    try {
-      const db = await getEventsDB();
-      const cached = await db.getByReplaceKey(pubkey, 39701, normalized);
-      if (cached) {
-        const result = parseDTagEvent({ kind: 39701, tags: cached.tags, content: cached.content });
-        if (result) return result;
-      }
-    } catch {
-      // DB not available
-    }
-
-    const { createRxBackwardReq, uniq } = await import('rx-nostr');
-
-    const rxNostr = await getRxNostr();
-    const req = createRxBackwardReq();
-
-    const filter = {
-      kinds: [39701],
-      authors: [pubkey],
-      '#d': [normalized],
-      limit: 1
-    };
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const packet = await new Promise<any>((resolve) => {
-      const timer = setTimeout(() => {
-        sub.unsubscribe();
-        resolve(null);
-      }, 5000);
-
-      const sub = rxNostr
-        .use(req)
-        .pipe(uniq())
-        .subscribe({
-          next: (p) => {
-            clearTimeout(timer);
-            sub.unsubscribe();
-            resolve(p);
-          },
-          complete: () => {
-            clearTimeout(timer);
-            resolve(null);
-          }
-        });
-
-      req.emit(filter);
-      req.over();
-    });
-
-    if (!packet) return null;
-
-    try {
-      const db = await getEventsDB();
-      await db.put(packet.event);
-    } catch {
-      // DB not available
-    }
-
-    return parseDTagEvent({
-      kind: 39701,
-      tags: packet.event.tags,
-      content: packet.event.content
-    });
+    const event = await searchBookmarkDTagEvent(pubkey, normalized);
+    return event ? parseDTagEvent({ kind: 39701, tags: event.tags, content: event.content }) : null;
   } catch {
     return null;
   }
@@ -213,12 +151,11 @@ async function validateResolveResponse(data: unknown): Promise<ResolveApiRespons
 
   // Verify signedEvents with cryptographic signature check
   if (Array.isArray(result.signedEvents) && result.signedEvents.length > 0) {
-    const { verifier } = await import('@rx-nostr/crypto');
     const verified: EventParameters[] = [];
     for (const event of result.signedEvents) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if (await verifier(event as any)) verified.push(event);
+        if (await verifySignedEvent(event as any)) verified.push(event);
       } catch {
         // Invalid event shape or failed signature — skip
       }

@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { useCachedLatestMock, cachedLatestResult, saveRelayListMock } = vi.hoisted(() => {
-  const cachedLatestResult = { event: null, settled: true, destroy: vi.fn() };
+  const cachedLatestResult = {
+    event: null,
+    settlement: { phase: 'settled', provenance: 'none', reason: 'settled-miss' },
+    destroy: vi.fn()
+  };
   return {
     useCachedLatestMock: vi.fn(() => cachedLatestResult),
     cachedLatestResult,
@@ -9,7 +13,7 @@ const { useCachedLatestMock, cachedLatestResult, saveRelayListMock } = vi.hoiste
   };
 });
 
-vi.mock('$shared/nostr/cached-query.js', () => ({
+vi.mock('$shared/auftakt/resonote.js', () => ({
   useCachedLatest: useCachedLatestMock
 }));
 
@@ -44,7 +48,11 @@ function makeVm(pubkey: string | null = 'pubkey1') {
 describe('createRelaySettingsViewModel', () => {
   beforeEach(() => {
     cachedLatestResult.event = null;
-    cachedLatestResult.settled = true;
+    cachedLatestResult.settlement = {
+      phase: 'settled',
+      provenance: 'none',
+      reason: 'settled-miss'
+    };
     cachedLatestResult.destroy.mockClear();
     useCachedLatestMock.mockReturnValue(cachedLatestResult);
     saveRelayListMock.mockReset();

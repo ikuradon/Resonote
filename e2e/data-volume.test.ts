@@ -2,8 +2,8 @@
  * E2E tests for data volume scenarios.
  * Covers section 32 of e2e-test-scenarios.md.
  */
+import { finalizeEvent } from '@auftakt/core';
 import { expect, test } from '@playwright/test';
-import { finalizeEvent } from 'nostr-tools/pure';
 
 import {
   broadcastEventsOnAllRelays,

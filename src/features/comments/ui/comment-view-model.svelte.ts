@@ -8,8 +8,10 @@
  * - Expose a clean API for route components
  */
 
+import { reconcileDeletionSubjects, reconcileReplayRepairSubjects } from '@auftakt/timeline';
+
+import { cachedFetchById, invalidateFetchByIdCache } from '$shared/auftakt/resonote.js';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
-import { cachedFetchById, invalidateFetchByIdCache } from '$shared/nostr/cached-query.js';
 import {
   COMMENT_KIND,
   CONTENT_REACTION_KIND,
@@ -25,6 +27,7 @@ import {
   type EventsDB,
   getCommentRepository,
   loadSubscriptionDeps,
+  materializeDeletedIds,
   purgeDeletedFromCache,
   restoreFromCache,
   startDeletionReconcile,
@@ -46,7 +49,7 @@ import type {
   Reaction
 } from '../domain/comment-model.js';
 import type { ReactionStats } from '../domain/comment-model.js';
-import { verifyDeletionTargets } from '../domain/deletion-rules.js';
+import { reconcileDeletionTargets, verifyDeletionTargets } from '../domain/deletion-rules.js';
 import {
   applyReaction as applyReactionImmutable,
   buildReactionIndex,
@@ -103,8 +106,13 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     pendingDeletions.delete(eventId);
     const match = candidates.some((c) => c.pubkey === eventPubkey);
     if (match) {
-      const next = new Set(deletedIds);
-      next.add(eventId);
+      const next = materializeDeletedIds(deletedIds, [
+        {
+          subjectId: eventId,
+          reason: 'tombstoned',
+          state: 'deleted'
+        }
+      ]);
       deletedIds = next;
       if (deletedIds.size !== prevDeletedSize) {
         prevDeletedSize = deletedIds.size;
@@ -161,7 +169,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   }
 
   function handleDeletionPacket(event: { id: string; pubkey: string; tags: string[][] }) {
-    const verified = verifyDeletionTargets(event, eventPubkeys);
+    const { verifiedTargetIds, emissions } = reconcileDeletionTargets(event, eventPubkeys);
 
     // Store unverified targets as pending (original event not yet observed).
     // All candidates are kept per target so the correct author's deletion
@@ -175,26 +183,28 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
       }
     }
 
-    if (verified.length === 0) return;
-    const next = new Set(deletedIds);
-    for (const id of verified) next.add(id);
+    if (verifiedTargetIds.length === 0) return;
+    const next = materializeDeletedIds(deletedIds, emissions);
     deletedIds = next;
     if (deletedIds.size !== prevDeletedSize) {
       prevDeletedSize = deletedIds.size;
       rebuildReactionIndex();
     }
-    const toPurge = verified.filter(
+    const toPurge = verifiedTargetIds.filter(
       (id) => commentIds.has(id) || reactionIds.has(id) || contentReactionIds.has(id)
     );
     if (toPurge.length > 0 && eventsDB) void purgeDeletedFromCache(eventsDB, toPurge);
-    log.debug('Deletion event received', { deletedIds: verified.map(shortHex) });
+    log.debug('Deletion event received', {
+      deletedIds: verifiedTargetIds.map(shortHex),
+      reasons: emissions.map((emission) => emission.reason)
+    });
 
     // Invalidate fetch cache for deleted events so re-visits don't restore them
-    for (const id of verified) invalidateFetchByIdCache(id);
+    for (const id of verifiedTargetIds) invalidateFetchByIdCache(id);
 
     // Update orphan placeholders to 'deleted' when kind:5 arrives later
     let updatedPlaceholders: Map<string, PlaceholderComment> | null = null;
-    for (const id of verified) {
+    for (const id of verifiedTargetIds) {
       const ph = placeholders.get(id);
       if (ph && ph.status !== 'deleted') {
         updatedPlaceholders ??= new Map(placeholders);
@@ -360,12 +370,26 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
             reconcileSub = undefined;
             reconcileTimeout = undefined;
             if (destroyed || newDeletions.size === 0) return;
-            const next = new Set(deletedIds);
-            for (const id of newDeletions) next.add(id);
+            const repairEmissions = reconcileReplayRepairSubjects(
+              [...newDeletions],
+              'repaired-replay'
+            );
+            const deletionEmissions = reconcileReplayRepairSubjects(
+              [...newDeletions],
+              'restored-replay'
+            );
+            const next = materializeDeletedIds(deletedIds, [
+              ...repairEmissions,
+              ...deletionEmissions,
+              ...reconcileDeletionSubjects([...newDeletions])
+            ]);
             deletedIds = next;
             prevDeletedSize = deletedIds.size;
             rebuildReactionIndex();
-            log.info('Offline deletions reconciled', { newDeletions: newDeletions.size });
+            log.info('Offline deletions reconciled', {
+              newDeletions: newDeletions.size,
+              reasons: [...repairEmissions, ...deletionEmissions].map((emission) => emission.reason)
+            });
             const idsToPurge = [...newDeletions].filter(
               (id) => commentIds.has(id) || reactionIds.has(id) || contentReactionIds.has(id)
             );
@@ -518,7 +542,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     next.set(parentId, placeholderFromOrphan(parentId, estimatedPositionMs));
     placeholders = next;
 
-    const result = await cachedFetchById(parentId);
+    const { event: result } = await cachedFetchById(parentId);
 
     if (destroyed) return;
 

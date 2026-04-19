@@ -3,9 +3,8 @@ import type { EventParameters } from 'nostr-typedef';
 import type { PendingEvent } from './pending-publishes.js';
 import {
   addPendingPublish,
-  cleanExpired,
-  getPendingPublishes,
-  removePendingPublish
+  drainPendingPublishes,
+  type PendingDrainResult
 } from './pending-publishes.js';
 
 type PublishableEvent = PendingEvent | EventParameters;
@@ -20,16 +19,16 @@ function toPendingEvent(event: PublishableEvent): PendingEvent | null {
 }
 
 export async function retryPendingPublishes(): Promise<void> {
-  await cleanExpired();
-  const pending = await getPendingPublishes();
-  for (const event of pending) {
+  await drainPendingPublishes(async (event) => {
     try {
-      await publishSignedEvent(event);
-      await removePendingPublish(event.id);
+      const { getRxNostr } = await import('$shared/nostr/client.js');
+      const rxNostr = await getRxNostr();
+      await rxNostr.cast(event);
+      return 'confirmed';
     } catch {
-      // Will retry next time
+      return 'retrying';
     }
-  }
+  });
 }
 
 export async function publishSignedEvent(event: PublishableEvent): Promise<void> {
@@ -60,3 +59,5 @@ export async function publishSignedEvents(events: PublishableEvent[]): Promise<v
     })
   );
 }
+
+export type { PendingDrainResult };

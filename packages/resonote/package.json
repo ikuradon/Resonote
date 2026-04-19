@@ -1,0 +1,13 @@
+{
+  "name": "@auftakt/resonote",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@auftakt/core": "workspace:*",
+    "@auftakt/timeline": "workspace:*"
+  }
+}

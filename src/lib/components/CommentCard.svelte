@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { Comment, ReactionStats } from '$features/comments/domain/comment-model.js';
+  import { parseCommentContent } from '$shared/auftakt/resonote.js';
   import type { ProfileDisplay } from '$shared/browser/profile.js';
   import { t } from '$shared/i18n/t.js';
-  import { parseCommentContent } from '$shared/nostr/content-parser.js';
   import { formatPosition } from '$shared/nostr/events.js';
   import { formatTimestamp } from '$shared/utils/format.js';
 

@@ -21,8 +21,8 @@ vi.mock('$shared/browser/extension.js', () => ({
   initExtensionListener: initExtensionListenerMock
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  retryPendingPublishes: retryPendingPublishesMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  retryQueuedPublishes: retryPendingPublishesMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({

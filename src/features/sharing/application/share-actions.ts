@@ -2,9 +2,9 @@
  * Application-layer action for sharing content as a kind:1 note.
  */
 
+import { publishSignedEvent } from '$shared/auftakt/resonote.js';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import { buildShare } from '$shared/nostr/events.js';
-import { castSigned } from '$shared/nostr/gateway.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('share-actions');
@@ -24,6 +24,6 @@ export async function sendShare(params: ShareParams): Promise<void> {
     params.emojiTags
   );
   log.info('Sharing as kind:1', { contentLength: params.content.length });
-  await castSigned(eventParams);
+  await publishSignedEvent(eventParams);
   log.info('Shared successfully');
 }

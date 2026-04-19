@@ -7,6 +7,11 @@ const { authState, profileDisplayMap, fetchProfileMock, loginNostrMock, logoutNo
       'pubkey-alice': {
         displayName: 'Alice',
         profileHref: '/profile/npub1alice',
+        picture: 'https://example.com/alice.png'
+      },
+      'pubkey-bob': {
+        displayName: 'Bob',
+        profileHref: '/profile/npub1bob',
         picture: undefined
       }
     } as Record<string, { displayName: string; profileHref: string; picture?: string }>,
@@ -42,6 +47,16 @@ describe('createLoginButtonViewModel', () => {
     authState.pubkey = null;
     authState.loggedIn = false;
     authState.initialized = true;
+    profileDisplayMap['pubkey-alice'] = {
+      displayName: 'Alice',
+      profileHref: '/profile/npub1alice',
+      picture: 'https://example.com/alice.png'
+    };
+    profileDisplayMap['pubkey-bob'] = {
+      displayName: 'Bob',
+      profileHref: '/profile/npub1bob',
+      picture: undefined
+    };
   });
 
   it('exposes auth from getAuth()', () => {
@@ -75,5 +90,55 @@ describe('createLoginButtonViewModel', () => {
     authState.pubkey = null;
     const vm = createLoginButtonViewModel();
     expect(vm.profileDisplay).toBeNull();
+  });
+
+  it('中央 hydrate 済み profile の picture をそのまま参照する', () => {
+    authState.pubkey = 'pubkey-alice';
+
+    const vm = createLoginButtonViewModel();
+
+    expect(vm.profileDisplay).toEqual({
+      displayName: 'Alice',
+      profileHref: '/profile/npub1alice',
+      picture: 'https://example.com/alice.png'
+    });
+    expect(vm.displayText).toBe('Alice');
+    expect(vm.profileHref).toBe('/profile/npub1alice');
+  });
+
+  it('account-switch で stale avatar を引き継がない', () => {
+    authState.pubkey = 'pubkey-alice';
+    const vm = createLoginButtonViewModel();
+    expect(vm.profileDisplay?.picture).toBe('https://example.com/alice.png');
+
+    authState.pubkey = 'pubkey-bob';
+
+    expect(vm.profileDisplay).toEqual({
+      displayName: 'Bob',
+      profileHref: '/profile/npub1bob',
+      picture: undefined
+    });
+    expect(vm.profileDisplay?.picture).toBeUndefined();
+    expect(vm.displayText).toBe('Bob');
+  });
+
+  it('logout 後は profile 表示を null に戻し href を fallback に戻す', () => {
+    authState.pubkey = 'pubkey-alice';
+    const vm = createLoginButtonViewModel();
+    expect(vm.profileDisplay?.picture).toBe('https://example.com/alice.png');
+
+    authState.pubkey = null;
+
+    expect(vm.profileDisplay).toBeNull();
+    expect(vm.displayText).toBe('');
+    expect(vm.profileHref).toBe('/');
+  });
+
+  it('view-model 作成時に profile fetch の副作用を起こさない', () => {
+    authState.pubkey = 'pubkey-alice';
+
+    createLoginButtonViewModel();
+
+    expect(fetchProfileMock).not.toHaveBeenCalled();
   });
 });

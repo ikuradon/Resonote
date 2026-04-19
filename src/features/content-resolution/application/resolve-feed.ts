@@ -3,8 +3,8 @@
  * Extracts the API call + publish logic from PodcastEpisodeList.svelte.
  */
 
+import { publishSignedEvents } from '$shared/auftakt/resonote.js';
 import { resolveByApi } from '$shared/content/resolution.js';
-import { publishSignedEvents } from '$shared/nostr/gateway.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('resolve-feed');

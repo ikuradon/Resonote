@@ -7,14 +7,12 @@ let subscribeFn: (observer: {
   error?: (err: unknown) => void;
 }) => { unsubscribe: () => void };
 
-vi.mock('rx-nostr', () => ({
+vi.mock('$shared/nostr/gateway.js', () => ({
   createRxBackwardReq: () => ({
     emit: vi.fn(),
     over: vi.fn()
-  })
-}));
-
-vi.mock('$shared/nostr/gateway.js', () => ({
+  }),
+  setDefaultRelays: mockSetDefaultRelays,
   getRxNostr: vi.fn().mockResolvedValue({
     use: () => ({
       subscribe: (observer: {
@@ -22,8 +20,7 @@ vi.mock('$shared/nostr/gateway.js', () => ({
         complete?: () => void;
         error?: (e: unknown) => void;
       }) => subscribeFn(observer)
-    }),
-    setDefaultRelays: mockSetDefaultRelays
+    })
   })
 }));
 

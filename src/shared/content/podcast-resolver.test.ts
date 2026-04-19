@@ -2,26 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { parseDTagEvent } from '$shared/content/podcast-resolver.js';
 
-const { verifierMock, mockGetEventsDB, mockGetRxNostr } = vi.hoisted(() => ({
+const { verifierMock, mockGetEventsDB, mockFetchBackwardFirst } = vi.hoisted(() => ({
   verifierMock: vi.fn(),
   mockGetEventsDB: vi.fn(),
-  mockGetRxNostr: vi.fn()
-}));
-
-vi.mock('@rx-nostr/crypto', () => ({
-  verifier: verifierMock
+  mockFetchBackwardFirst: vi.fn()
 }));
 
 vi.mock('$shared/nostr/gateway.js', () => ({
+  verifier: verifierMock,
   getEventsDB: (...args: unknown[]) => mockGetEventsDB(...(args as [])),
-  getRxNostr: (...args: unknown[]) => mockGetRxNostr(...(args as []))
-}));
-
-const mockCreateRxBackwardReq = vi.fn();
-const mockUniq = vi.fn();
-vi.mock('rx-nostr', () => ({
-  createRxBackwardReq: (...args: unknown[]) => mockCreateRxBackwardReq(...(args as [])),
-  uniq: (...args: unknown[]) => mockUniq(...(args as []))
+  fetchBackwardFirst: (...args: unknown[]) => mockFetchBackwardFirst(...(args as []))
 }));
 
 function stubPubkeyFetch(pubkey: string) {
@@ -38,23 +28,9 @@ function stubFailedPubkeyFetch() {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
 }
 
-/** Set up rx-nostr mock that emits a single event asynchronously, or completes immediately. */
+/** Set up query mock that returns a single event or null. */
 function setupRelayMock(event: { tags: string[][]; content: string } | null) {
-  const mockReq = { emit: vi.fn(), over: vi.fn() };
-  mockCreateRxBackwardReq.mockReturnValue(mockReq);
-  mockUniq.mockReturnValue((source: unknown) => source);
-
-  const mockSubscribe = vi.fn().mockImplementation(({ next, complete }) => {
-    if (event) {
-      void Promise.resolve().then(() => next({ event }));
-    } else {
-      complete();
-    }
-    return { unsubscribe: vi.fn() };
-  });
-  const mockPipe = vi.fn().mockReturnValue({ subscribe: mockSubscribe });
-  const mockUse = vi.fn().mockReturnValue({ pipe: mockPipe });
-  mockGetRxNostr.mockResolvedValue({ use: mockUse });
+  mockFetchBackwardFirst.mockResolvedValue(event);
 }
 
 describe('podcast-resolver', () => {
@@ -500,9 +476,7 @@ describe('podcast-resolver', () => {
       vi.resetModules();
       vi.restoreAllMocks();
       mockGetEventsDB.mockReset();
-      mockGetRxNostr.mockReset();
-      mockCreateRxBackwardReq.mockReset();
-      mockUniq.mockReset();
+      mockFetchBackwardFirst.mockReset();
     });
 
     it('should return cached result from DB when available', async () => {
@@ -631,7 +605,7 @@ describe('podcast-resolver', () => {
       mockGetEventsDB.mockRejectedValue(new Error('DB error'));
 
       // Relay also fails
-      mockGetRxNostr.mockRejectedValue(new Error('relay error'));
+      mockFetchBackwardFirst.mockRejectedValue(new Error('relay error'));
 
       const { searchBookmarkByUrl } = await import('$shared/content/podcast-resolver.js');
       const result = await searchBookmarkByUrl('https://example.com/ep.mp3');

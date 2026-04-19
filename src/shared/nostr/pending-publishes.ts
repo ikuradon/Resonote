@@ -1,3 +1,8 @@
+import {
+  type OfflineDeliveryDecision,
+  type ReconcileEmission,
+  reconcileOfflineDelivery
+} from '@auftakt/timeline';
 import { type IDBPDatabase, openDB } from 'idb';
 
 const DEFAULT_DB_NAME = 'resonote-pending-publishes';
@@ -13,6 +18,12 @@ export interface PendingEvent {
   tags: string[][];
   content: string;
   sig: string;
+}
+
+export interface PendingDrainResult {
+  readonly emissions: ReconcileEmission[];
+  readonly settledCount: number;
+  readonly retryingCount: number;
 }
 
 let dbPromise: Promise<IDBPDatabase> | undefined;
@@ -44,14 +55,51 @@ export async function removePendingPublish(id: string): Promise<void> {
   await db.delete(STORE_NAME, id);
 }
 
-export async function cleanExpired(): Promise<void> {
+export async function cleanExpired(): Promise<ReconcileEmission[]> {
   const db = await getDB();
   const all: PendingEvent[] = await db.getAll(STORE_NAME);
   const cutoffSec = (Date.now() - PENDING_TTL_MS) / 1000;
   const expired = all.filter((event) => event.created_at < cutoffSec);
-  if (expired.length === 0) return;
+  if (expired.length === 0) return [];
   const tx = db.transaction(STORE_NAME, 'readwrite');
   await Promise.all([...expired.map((event) => tx.store.delete(event.id)), tx.done]);
+  return expired.map((event) => reconcileOfflineDelivery(event.id, 'rejected'));
+}
+
+export async function drainPendingPublishes(
+  deliver: (event: PendingEvent) => Promise<OfflineDeliveryDecision>
+): Promise<PendingDrainResult> {
+  const expiredEmissions = await cleanExpired();
+  const pending = await getPendingPublishes();
+
+  const emissions: ReconcileEmission[] = [...expiredEmissions];
+  let settledCount = expiredEmissions.length;
+  let retryingCount = 0;
+
+  for (const event of pending) {
+    let decision: OfflineDeliveryDecision;
+    try {
+      decision = await deliver(event);
+    } catch {
+      decision = 'retrying';
+    }
+
+    emissions.push(reconcileOfflineDelivery(event.id, decision));
+
+    if (decision === 'confirmed' || decision === 'rejected') {
+      await removePendingPublish(event.id);
+      settledCount += 1;
+      continue;
+    }
+
+    retryingCount += 1;
+  }
+
+  return {
+    emissions,
+    settledCount,
+    retryingCount
+  };
 }
 
 export function resetPendingDB(dbName?: string): void {

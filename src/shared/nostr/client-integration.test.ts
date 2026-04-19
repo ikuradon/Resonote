@@ -1,6 +1,7 @@
+import { finalizeEvent, generateSecretKey, getPublicKey } from '@auftakt/core';
+import { createRuntimeRequestKey } from '@auftakt/timeline';
 import { type EventSigner, MockPool, type MockRelay } from '@ikuradon/tsunagiya';
 import { EventBuilder, waitFor } from '@ikuradon/tsunagiya/testing';
-import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TEST_RELAYS } from './test-relays.js';
@@ -140,5 +141,74 @@ describe('castSigned (integration with tsunagiya)', () => {
         tags: []
       })
     ).rejects.toThrow('All relays rejected the event');
+  });
+});
+
+describe('logical requestKey replay identity (integration)', () => {
+  it(
+    'accepts planner-generated requestKey for forward subscriptions',
+    { timeout: 15_000 },
+    async () => {
+      const [{ getRxNostr }, { createRxForwardReq }] = await Promise.all([
+        import('./client.js'),
+        import('@auftakt/adapter-relay')
+      ]);
+      const rxNostr = await getRxNostr();
+      const requestKey = createRuntimeRequestKey({
+        mode: 'forward',
+        scope: 'client-integration:logical-replay',
+        filters: [{ kinds: [1], authors: [pubkey] }]
+      });
+      const req = createRxForwardReq({ requestKey });
+      const receivedIds: string[] = [];
+
+      const sub = rxNostr.use(req).subscribe({
+        next: (packet) => {
+          receivedIds.push(packet.event.id);
+        }
+      });
+
+      req.emit({ kinds: [1], authors: [pubkey] });
+
+      const event = await EventBuilder.kind(1).content('forward').createdAt(3000).buildWith(signer);
+      relays[0].store(event);
+      await waitFor(() => receivedIds.includes(event.id), { timeout: 5_000 });
+
+      sub.unsubscribe();
+    }
+  );
+});
+
+describe('relay observation contract (integration)', () => {
+  it('returns runtime-owned typed relay observation shape', async () => {
+    const [{ getRxNostr, getRelayConnectionState }, { createRxForwardReq }] = await Promise.all([
+      import('./client.js'),
+      import('@auftakt/adapter-relay')
+    ]);
+
+    const rxNostr = await getRxNostr();
+    const requestKey = createRuntimeRequestKey({
+      mode: 'forward',
+      scope: 'client-integration:relay-observation',
+      filters: [{ kinds: [1], authors: [pubkey] }]
+    });
+    const req = createRxForwardReq({ requestKey });
+    const sub = rxNostr.use(req).subscribe({});
+
+    req.emit({ kinds: [1], authors: [pubkey] });
+
+    let status = await getRelayConnectionState(TEST_RELAYS[0]);
+    const started = Date.now();
+    while (status?.connection !== 'open' && Date.now() - started < 5_000) {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      status = await getRelayConnectionState(TEST_RELAYS[0]);
+    }
+
+    expect(status).not.toBeNull();
+    expect(status!.relay.url).toBe(TEST_RELAYS[0]);
+    expect(status!.aggregate.state).toMatch(/^(live|connecting|replaying|degraded)$/);
+    expect(typeof status!.reason).toBe('string');
+
+    sub.unsubscribe();
   });
 });

@@ -1,6 +1,7 @@
 import { codecovVitePlugin } from '@codecov/vite-plugin';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
+import { searchForWorkspaceRoot } from 'vite';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
@@ -14,6 +15,9 @@ export default defineConfig({
     })
   ],
   server: {
+    fs: {
+      allow: [searchForWorkspaceRoot(process.cwd())]
+    },
     watch: {
       ignored: ['**/.worktrees/**', '**/.claude/worktrees/**']
     }
@@ -26,13 +30,15 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000
   },
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'packages/**/*.test.ts'],
+    passWithNoTests: true,
     reporters: ['default', 'junit'],
     outputFile: { junit: 'test-results/junit.xml' },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
       include: [
+        'packages/**/*.ts',
         'src/lib/**/*.ts',
         'src/features/**/*.ts',
         'src/app/**/*.ts',
@@ -40,6 +46,7 @@ export default defineConfig({
         'src/server/**/*.ts'
       ],
       exclude: [
+        'packages/**/*.test.ts',
         'src/**/*.test.ts',
         'src/**/*.d.ts',
         // Re-export facades (pure re-exports, no testable logic)

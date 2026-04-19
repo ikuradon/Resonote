@@ -1,0 +1,12 @@
+F3 Manual QA Evidence
+
+The following verification steps were executed successfully:
+- pnpm exec playwright test e2e/auth-flows.test.ts e2e/login-states.test.ts
+- pnpm run check
+- pnpm run build
+
+Manual preview inspection confirmed the application loaded correctly and the navbar/login state was healthy at the root path (/).
+
+The targeted Playwright suite in e2e/auth-flows.test.ts successfully verified navbar avatar hydration and fallback scenarios.
+
+Any observed non-blocking warnings were confirmed to be pre-existing build warnings only.

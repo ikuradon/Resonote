@@ -7,8 +7,11 @@ const mockCachedFetchById = vi.fn();
 const mockGetDisplayName = vi.fn();
 const mockFetchProfile = vi.fn();
 
-vi.mock('$shared/nostr/cached-query.js', () => ({
-  cachedFetchById: (...args: unknown[]) => mockCachedFetchById(...args)
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  cachedFetchById: async (id: string) => ({
+    event: await mockCachedFetchById(id),
+    settlement: { phase: 'settled', provenance: 'none', reason: 'settled-miss' } as const
+  })
 }));
 
 vi.mock('$shared/browser/profile.js', () => ({

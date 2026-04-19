@@ -4,6 +4,7 @@
  * Fire-and-forget to match original onMount behavior.
  */
 
+import { retryQueuedPublishes } from '$shared/auftakt/resonote.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('init-app');
@@ -15,7 +16,5 @@ export function initApp(): void {
   void import('$shared/browser/extension.js').then(({ initExtensionListener }) =>
     initExtensionListener()
   );
-  void import('$shared/nostr/gateway.js').then(({ retryPendingPublishes }) =>
-    retryPendingPublishes().catch((e) => log.error('Failed to retry pending publishes', e))
-  );
+  void retryQueuedPublishes().catch((e) => log.error('Failed to retry pending publishes', e));
 }

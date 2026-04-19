@@ -1,3 +1,6 @@
+import type { ReadSettlement } from '@auftakt/core';
+import { reduceReadSettlement } from '@auftakt/timeline';
+
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 
 const log = createLogger('cached-nostr');
@@ -11,11 +14,18 @@ export interface FetchedEventFull {
   kind: number;
 }
 
+export interface SettledReadResult<TEvent> {
+  readonly event: TEvent | null;
+  readonly settlement: ReadSettlement;
+}
+
+export type CachedFetchByIdResult = SettledReadResult<FetchedEventFull>;
+
 const NULL_CACHE_TTL_MS = 30_000;
 
 const fetchByIdCache = new Map<string, FetchedEventFull | null>();
 const nullCacheTimestamps = new Map<string, number>();
-const inflight = new Map<string, Promise<FetchedEventFull | null>>();
+const inflight = new Map<string, Promise<CachedFetchByIdResult>>();
 // Track IDs invalidated while an in-flight fetch is pending — prevents cache re-pollution
 const invalidatedDuringFetch = new Set<string>();
 
@@ -36,13 +46,33 @@ export function resetFetchByIdCache(): void {
   invalidatedDuringFetch.clear();
 }
 
-export async function cachedFetchById(eventId: string): Promise<FetchedEventFull | null> {
+export async function cachedFetchById(eventId: string): Promise<CachedFetchByIdResult> {
   if (fetchByIdCache.has(eventId)) {
     const cached = fetchByIdCache.get(eventId) ?? null;
-    if (cached !== null) return cached;
+    if (cached !== null) {
+      return {
+        event: cached,
+        settlement: reduceReadSettlement({
+          localSettled: true,
+          relaySettled: false,
+          relayRequired: false,
+          localHitProvenance: 'memory'
+        })
+      };
+    }
     // Null entry — check TTL
     const ts = nullCacheTimestamps.get(eventId);
-    if (ts !== undefined && Date.now() - ts < NULL_CACHE_TTL_MS) return null;
+    if (ts !== undefined && Date.now() - ts < NULL_CACHE_TTL_MS) {
+      return {
+        event: null,
+        settlement: reduceReadSettlement({
+          localSettled: true,
+          relaySettled: false,
+          relayRequired: false,
+          nullTtlHit: true
+        })
+      };
+    }
     // Expired — evict and re-fetch
     fetchByIdCache.delete(eventId);
     nullCacheTimestamps.delete(eventId);
@@ -61,28 +91,35 @@ export async function cachedFetchById(eventId: string): Promise<FetchedEventFull
   }
 }
 
-async function cachedFetchByIdInner(eventId: string): Promise<FetchedEventFull | null> {
+async function cachedFetchByIdInner(eventId: string): Promise<CachedFetchByIdResult> {
   try {
     const { getEventsDB } = await import('$shared/nostr/gateway.js');
     const db = await getEventsDB();
     const event = await db.getById(eventId);
     if (event) {
       const result = event as FetchedEventFull;
-      if (!invalidatedDuringFetch.delete(eventId)) {
+      const invalidated = invalidatedDuringFetch.delete(eventId);
+      if (!invalidated) {
         fetchByIdCache.set(eventId, result);
         nullCacheTimestamps.delete(eventId);
       }
-      return result;
+      return {
+        event: result,
+        settlement: reduceReadSettlement({
+          localSettled: true,
+          relaySettled: false,
+          relayRequired: false,
+          localHitProvenance: 'store',
+          invalidatedDuringFetch: invalidated
+        })
+      };
     }
   } catch {
     // DB not available
   }
 
   try {
-    const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
-      import('rx-nostr'),
-      import('$shared/nostr/gateway.js')
-    ]);
+    const { createRxBackwardReq, getRxNostr } = await import('$shared/nostr/gateway.js');
     const rxNostr = await getRxNostr();
 
     const result = await new Promise<FetchedEventFull | null>((resolve) => {
@@ -122,7 +159,8 @@ async function cachedFetchByIdInner(eventId: string): Promise<FetchedEventFull |
       req.over();
     });
 
-    if (!invalidatedDuringFetch.delete(eventId)) {
+    const invalidated = invalidatedDuringFetch.delete(eventId);
+    if (!invalidated) {
       fetchByIdCache.set(eventId, result);
       if (result) {
         log.debug('Fetched target event from relay', { id: shortHex(eventId) });
@@ -131,17 +169,36 @@ async function cachedFetchByIdInner(eventId: string): Promise<FetchedEventFull |
         nullCacheTimestamps.set(eventId, Date.now());
       }
     }
-    return result;
+    return {
+      event: result,
+      settlement: reduceReadSettlement({
+        localSettled: true,
+        relaySettled: true,
+        relayRequired: true,
+        localHitProvenance: null,
+        relayHit: result !== null,
+        invalidatedDuringFetch: invalidated
+      })
+    };
   } catch {
-    if (!invalidatedDuringFetch.delete(eventId)) {
+    const invalidated = invalidatedDuringFetch.delete(eventId);
+    if (!invalidated) {
       fetchByIdCache.set(eventId, null);
       nullCacheTimestamps.set(eventId, Date.now());
     }
-    return null;
+    return {
+      event: null,
+      settlement: reduceReadSettlement({
+        localSettled: true,
+        relaySettled: true,
+        relayRequired: true,
+        localHitProvenance: null,
+        relayHit: false,
+        invalidatedDuringFetch: invalidated
+      })
+    };
   }
 }
-
-type QuerySource = 'loading' | 'cache' | 'relay';
 
 interface CachedEvent {
   tags: string[][];
@@ -154,15 +211,16 @@ interface CachedEvent {
 
 export interface UseCachedLatestResult {
   readonly event: CachedEvent | null;
-  readonly source: QuerySource;
-  readonly settled: boolean;
+  readonly settlement: ReadSettlement;
   destroy(): void;
 }
 
 export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestResult {
   let event = $state<CachedEvent | null>(null);
-  let source = $state<QuerySource>('loading');
-  let settled = $state(false);
+  let localSettled = $state(false);
+  let relaySettled = $state(false);
+  let localHitProvenance = $state<'store' | null>(null);
+  let relayHit = $state(false);
   let destroyed = false;
   let sub: { unsubscribe(): void } | undefined;
   let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -175,7 +233,7 @@ export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestRe
       if (destroyed) return;
       if (cached && (event === null || cached.created_at > event.created_at)) {
         event = cached as CachedEvent;
-        source = 'cache';
+        localHitProvenance = 'store';
         log.debug('Cache hit for pubkey+kind', {
           pubkey: shortHex(pubkey),
           kind
@@ -183,16 +241,16 @@ export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestRe
       }
     } catch {
       // DB not available
+    } finally {
+      if (!destroyed) {
+        localSettled = true;
+      }
     }
   };
 
   const startRelay = async () => {
     try {
-      const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
-        import('rx-nostr'),
-        import('$shared/nostr/gateway.js')
-      ]);
-
+      const { createRxBackwardReq, getRxNostr } = await import('$shared/nostr/gateway.js');
       if (destroyed) return;
       const rxNostr = await getRxNostr();
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- destroyed may become true during preceding awaits
@@ -201,9 +259,9 @@ export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestRe
       const req = createRxBackwardReq();
 
       timeout = setTimeout(() => {
+        sub?.unsubscribe();
         if (!destroyed) {
-          settled = true;
-          sub?.unsubscribe();
+          relaySettled = true;
         }
       }, 10_000);
 
@@ -213,12 +271,12 @@ export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestRe
           const incoming = packet.event as CachedEvent;
           if (event === null || incoming.created_at > event.created_at) {
             event = incoming;
-            source = 'relay';
             log.debug('Relay update for pubkey+kind', {
               pubkey: shortHex(pubkey),
               kind
             });
           }
+          relayHit = true;
           void (async () => {
             try {
               const { getEventsDB } = await import('$shared/nostr/gateway.js');
@@ -230,16 +288,16 @@ export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestRe
           })();
         },
         complete: () => {
-          if (!destroyed) {
-            settled = true;
-          }
           if (timeout) clearTimeout(timeout);
+          if (!destroyed) {
+            relaySettled = true;
+          }
         },
         error: () => {
-          if (!destroyed) {
-            settled = true;
-          }
           if (timeout) clearTimeout(timeout);
+          if (!destroyed) {
+            relaySettled = true;
+          }
         }
       });
 
@@ -247,7 +305,7 @@ export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestRe
       req.over();
     } catch {
       if (!destroyed) {
-        settled = true;
+        relaySettled = true;
       }
     }
   };
@@ -259,11 +317,14 @@ export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestRe
     get event() {
       return event;
     },
-    get source() {
-      return source;
-    },
-    get settled() {
-      return settled;
+    get settlement() {
+      return reduceReadSettlement({
+        localSettled,
+        relaySettled,
+        relayRequired: false,
+        localHitProvenance,
+        relayHit
+      });
     },
     destroy() {
       destroyed = true;

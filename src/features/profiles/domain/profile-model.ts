@@ -2,8 +2,7 @@
  * Profile domain types and pure display functions.
  */
 
-// eslint-disable-next-line no-restricted-imports -- npubEncode is a pure bech32 encoding function with no side effects
-import { npubEncode } from 'nostr-tools/nip19';
+import { npubEncode } from '@auftakt/core';
 
 export const MAX_NAME_LENGTH = 32;
 

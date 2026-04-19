@@ -89,31 +89,33 @@ pnpm run dev:full
 
 ## コマンド
 
-| コマンド                     | 説明                                       |
-| ---------------------------- | ------------------------------------------ |
-| `pnpm run dev`               | 開発サーバー起動 (http://localhost:5173)   |
-| `pnpm run dev:full`          | Vite + Cloudflare Pages Functions          |
-| `pnpm run build`             | プロダクションビルド → `build/`            |
-| `pnpm run preview`           | ビルド結果のプレビュー                     |
-| `pnpm run check`             | svelte-kit sync + 型チェック               |
-| `pnpm test`                  | 単体テスト実行                             |
-| `pnpm test:coverage`         | カバレッジ付きテスト                       |
-| `pnpm test:e2e`              | Playwright E2E テスト                      |
-| `pnpm run lint`              | ESLint                                     |
-| `pnpm run format`            | Prettier フォーマット                      |
-| `pnpm run build:ext:chrome`  | Chrome 拡張機能ビルド → `dist-extension/`  |
-| `pnpm run build:ext:firefox` | Firefox 拡張機能ビルド → `dist-extension/` |
+| コマンド                           | 説明                                             |
+| ---------------------------------- | ------------------------------------------------ |
+| `pnpm run dev`                     | 開発サーバー起動 (http://localhost:5173)         |
+| `pnpm run dev:full`                | Vite + Cloudflare Pages Functions                |
+| `pnpm run build`                   | プロダクションビルド → `.svelte-kit/cloudflare/` |
+| `pnpm run preview`                 | ビルド結果のプレビュー                           |
+| `pnpm run check`                   | svelte-kit sync + 型チェック                     |
+| `pnpm run test:packages`           | package contract tests                           |
+| `pnpm run check:auftakt-migration` | Auftakt migration proof / guard                  |
+| `pnpm test`                        | 単体テスト実行                                   |
+| `pnpm test:coverage`               | カバレッジ付きテスト                             |
+| `pnpm test:e2e`                    | Playwright E2E テスト                            |
+| `pnpm run lint`                    | ESLint                                           |
+| `pnpm run format`                  | Prettier フォーマット                            |
+| `pnpm run build:ext:chrome`        | Chrome 拡張機能ビルド → `dist-extension/`        |
+| `pnpm run build:ext:firefox`       | Firefox 拡張機能ビルド → `dist-extension/`       |
 
 ## 技術スタック
 
 - **フレームワーク**: SvelteKit (SPA モード, Svelte 5 runes)
-- **アダプタ**: @sveltejs/adapter-static (`fallback: 'index.html'`)
+- **アダプタ**: @sveltejs/adapter-cloudflare (SSR + API via hooks.server.ts)
 - **スタイリング**: Tailwind CSS v4 (`@tailwindcss/vite` plugin)
-- **Nostr クライアント**: rx-nostr + @rx-nostr/crypto
+- **Nostr ランタイム**: Auftakt relay/session runtime (@auftakt/core + @auftakt/adapter-relay) — 移行完了済み
 - **認証**: @konemono/nostr-login (`init()` + `nlAuth` DOM event)
-- **NIP ユーティリティ**: nostr-tools (nip19 subpath)
+- **NIP ユーティリティ**: @auftakt/core codec/signing helpers
 - **テスト**: Vitest (単体) + Playwright (E2E)
-- **CI**: GitHub Actions (format → lint → check → test → E2E → build-extension)
+- **CI**: GitHub Actions (format → lint → check → structure → migration proof → package contracts → test → E2E → build-extension)
 - **ホスティング**: Cloudflare Pages
 - **API**: Hono (`src/server/api/`, SvelteKit hooks.server.ts 経由)
 
@@ -164,6 +166,17 @@ rg -n '\$lib/i18n/(t|locales)\.js|\.\./i18n/(t|locales)\.js' src --glob '!**/*.t
 ```
 
 設計方針は `CLAUDE.md` の Architecture セクションを正とする。
+
+### 検証コマンド
+
+移行完了と現行 build 状態の確認では、少なくとも次を実行する。
+
+```bash
+pnpm run check:auftakt-migration -- --proof
+pnpm run test:packages
+pnpm run check
+pnpm run build
+```
 
 ### PR / CI 運用
 

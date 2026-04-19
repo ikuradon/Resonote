@@ -3,6 +3,7 @@ import {
   extractFollows,
   matchesFilter as matchesFilterPure
 } from '$features/follows/domain/follow-model.js';
+import { openEventsDb } from '$shared/auftakt/resonote.js';
 import { FOLLOW_KIND } from '$shared/nostr/events.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 
@@ -83,8 +84,7 @@ async function fetchWotInner(pubkey: string, gen: number): Promise<void> {
 export async function loadFollows(pubkey: string): Promise<void> {
   const gen = ++generation;
 
-  const { getEventsDB } = await import('$shared/nostr/gateway.js');
-  const eventsDB = await getEventsDB();
+  const eventsDB = await openEventsDb();
 
   const kind3 = await eventsDB.getByPubkeyAndKind(pubkey, FOLLOW_KIND);
   if (gen !== generation) return;

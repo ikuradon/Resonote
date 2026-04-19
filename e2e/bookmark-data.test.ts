@@ -2,8 +2,8 @@
  * E2E tests for bookmarks page with pre-stored kind:10003 data.
  * Covers section 8 bookmark list display scenarios.
  */
+import { finalizeEvent } from '@auftakt/core';
 import { expect, test } from '@playwright/test';
-import { finalizeEvent } from 'nostr-tools/pure';
 
 import {
   BOOKMARK_KIND,

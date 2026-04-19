@@ -12,6 +12,21 @@ importers:
 
   .:
     dependencies:
+      '@auftakt/adapter-indexeddb':
+        specifier: workspace:*
+        version: link:packages/adapter-indexeddb
+      '@auftakt/adapter-relay':
+        specifier: workspace:*
+        version: link:packages/adapter-relay
+      '@auftakt/core':
+        specifier: workspace:*
+        version: link:packages/core
+      '@auftakt/resonote':
+        specifier: workspace:*
+        version: link:packages/resonote
+      '@auftakt/timeline':
+        specifier: workspace:*
+        version: link:packages/timeline
       '@hono/zod-validator':
         specifier: ^0.7.6
         version: 0.7.6(hono@4.12.9)(zod@4.3.6)
@@ -24,9 +39,6 @@ importers:
       '@konemono/nostr-login':
         specifier: ^1.15.2
         version: 1.15.2(typescript@5.9.3)
-      '@rx-nostr/crypto':
-        specifier: ^0.0.0
-        version: 0.0.0(rx-nostr@3.6.2)
       '@scure/base':
         specifier: ^2.0.0
         version: 2.0.0
@@ -36,12 +48,6 @@ importers:
       idb:
         specifier: ^8.0.3
         version: 8.0.3
-      nostr-tools:
-        specifier: ^2.23.3
-        version: 2.23.3(typescript@5.9.3)
-      rx-nostr:
-        specifier: ^3.6.2
-        version: 3.6.2
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
@@ -148,6 +154,54 @@ importers:
       wrangler:
         specifier: ^4.78.0
         version: 4.78.0(@cloudflare/workers-types@4.20260317.1)
+
+  packages/adapter-indexeddb:
+    dependencies:
+      idb:
+        specifier: ^8.0.3
+        version: 8.0.3
+      nostr-typedef:
+        specifier: ^0.13.0
+        version: 0.13.0
+
+  packages/adapter-relay:
+    dependencies:
+      '@auftakt/core':
+        specifier: workspace:*
+        version: link:../core
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+
+  packages/core:
+    dependencies:
+      '@noble/curves':
+        specifier: ^1.9.7
+        version: 1.9.7
+      '@noble/hashes':
+        specifier: ^1.8.0
+        version: 1.8.0
+      '@scure/base':
+        specifier: ^2.0.0
+        version: 2.0.0
+      nostr-typedef:
+        specifier: ^0.13.0
+        version: 0.13.0
+
+  packages/resonote:
+    dependencies:
+      '@auftakt/core':
+        specifier: workspace:*
+        version: link:../core
+      '@auftakt/timeline':
+        specifier: workspace:*
+        version: link:../timeline
+
+  packages/timeline:
+    dependencies:
+      '@auftakt/core':
+        specifier: workspace:*
+        version: link:../core
 
 packages:
 

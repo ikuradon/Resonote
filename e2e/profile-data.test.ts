@@ -6,8 +6,8 @@
  * which closes after EOSE. Events must be pre-loaded via addInitScript
  * (preloadEvents) before page.goto(), not broadcast after.
  */
+import { npubEncode } from '@auftakt/core';
 import { expect, test } from '@playwright/test';
-import { npubEncode } from 'nostr-tools/nip19';
 
 import {
   buildMetadata,

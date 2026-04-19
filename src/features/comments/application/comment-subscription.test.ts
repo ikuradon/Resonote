@@ -34,13 +34,10 @@ const { createRxBackwardReqMock, createRxForwardReqMock, uniqMock, getRxNostrMoc
     };
   });
 
-vi.mock('rx-nostr', () => ({
+vi.mock('$shared/nostr/gateway.js', () => ({
   createRxBackwardReq: createRxBackwardReqMock,
   createRxForwardReq: createRxForwardReqMock,
-  uniq: uniqMock
-}));
-
-vi.mock('$shared/nostr/gateway.js', () => ({
+  uniq: uniqMock,
   getRxNostr: getRxNostrMock
 }));
 

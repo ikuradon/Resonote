@@ -7,14 +7,12 @@ let subscribeFn: (observer: {
   error?: (err: unknown) => void;
 }) => { unsubscribe: () => void };
 
-vi.mock('rx-nostr', () => ({
+vi.mock('$shared/nostr/gateway.js', () => ({
   createRxBackwardReq: () => ({
     emit: vi.fn(),
     over: vi.fn()
-  })
-}));
-
-vi.mock('$shared/nostr/gateway.js', () => ({
+  }),
+  setDefaultRelays: mockSetDefaultRelays,
   getRxNostr: vi.fn().mockResolvedValue({
     use: () => ({
       subscribe: (observer: {
@@ -22,8 +20,7 @@ vi.mock('$shared/nostr/gateway.js', () => ({
         complete?: () => void;
         error?: (e: unknown) => void;
       }) => subscribeFn(observer)
-    }),
-    setDefaultRelays: mockSetDefaultRelays
+    })
   })
 }));
 
@@ -65,6 +62,10 @@ describe('relays-config: applyUserRelays', () => {
     const { applyUserRelays } = await import('./relays-config.js');
     const result = await applyUserRelays('deadbeef'.repeat(8));
     expect(result).toEqual(['wss://relay1.example.com', 'wss://relay2.example.com']);
+    expect(mockSetDefaultRelays).toHaveBeenCalledWith([
+      'wss://relay1.example.com',
+      'wss://relay2.example.com'
+    ]);
   });
 
   it('applies user relays when kind:10002 event found', async () => {
@@ -91,6 +92,39 @@ describe('relays-config: applyUserRelays', () => {
     ]);
   });
 
+  it('waits for default relay update before resolving', async () => {
+    let resolveSetDefaultRelays!: () => void;
+    mockSetDefaultRelays.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveSetDefaultRelays = resolve;
+      })
+    );
+    subscribeFn = (observer) => {
+      observer.next?.({
+        event: {
+          created_at: 1000,
+          tags: [['r', 'wss://user-relay.example.com']]
+        }
+      });
+      queueMicrotask(() => observer.complete?.());
+      return { unsubscribe: vi.fn() };
+    };
+
+    const { applyUserRelays } = await import('./relays-config.js');
+    let resolved = false;
+    const pending = applyUserRelays('deadbeef'.repeat(8)).then(() => {
+      resolved = true;
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(mockSetDefaultRelays).toHaveBeenCalledWith(['wss://user-relay.example.com']);
+    expect(resolved).toBe(false);
+
+    resolveSetDefaultRelays();
+    await pending;
+    expect(resolved).toBe(true);
+  });
+
   it('falls back to defaults on subscription error', async () => {
     subscribeFn = (observer) => {
       queueMicrotask(() => observer.error?.(new Error('network')));
@@ -100,6 +134,10 @@ describe('relays-config: applyUserRelays', () => {
     const { applyUserRelays } = await import('./relays-config.js');
     const result = await applyUserRelays('deadbeef'.repeat(8));
     expect(result).toEqual(['wss://relay1.example.com', 'wss://relay2.example.com']);
+    expect(mockSetDefaultRelays).toHaveBeenCalledWith([
+      'wss://relay1.example.com',
+      'wss://relay2.example.com'
+    ]);
   });
   it('uses event with highest created_at when multiple packets arrive', async () => {
     subscribeFn = (observer) => {

@@ -864,6 +864,7 @@ export default ts.config(
       'dist-extension/',
       '.svelte-kit/',
       '.wrangler/',
+      '.omx/',
       '.worktrees/',
       '.claude/worktrees/',
       'node_modules/',

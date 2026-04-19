@@ -2,8 +2,8 @@
  * E2E tests for VirtualScrollList behavior and #153/#154.
  * Covers section 25 of e2e-test-scenarios.md.
  */
+import { finalizeEvent } from '@auftakt/core';
 import { expect, test } from '@playwright/test';
-import { finalizeEvent } from 'nostr-tools/pure';
 
 import {
   broadcastEventsOnAllRelays,

@@ -3,8 +3,8 @@
  * Fetches the event via cachedFetchById and resolves author display.
  */
 
+import { cachedFetchById } from '$shared/auftakt/resonote.js';
 import { fetchProfile, getDisplayName } from '$shared/browser/profile.js';
-import { cachedFetchById } from '$shared/nostr/cached-query.js';
 import { COMMENT_KIND } from '$shared/nostr/events.js';
 import { createLogger } from '$shared/utils/logger.js';
 
@@ -29,7 +29,7 @@ export function createQuoteViewModel(eventId: string) {
 
   async function load() {
     try {
-      const event = await cachedFetchById(eventId);
+      const { event } = await cachedFetchById(eventId);
       if (!event) {
         status = 'not-found';
         return;

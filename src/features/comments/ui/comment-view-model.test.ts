@@ -12,6 +12,7 @@ const {
   startDeletionReconcileMock,
   startMergedSubscriptionMock,
   purgeDeletedFromCacheMock,
+  materializeDeletedIdsMock,
   commentFromEventMock,
   reactionFromEventMock,
   contentReactionFromEventMock,
@@ -21,6 +22,7 @@ const {
   buildReactionIndexMock,
   isLikeReactionMock,
   verifyDeletionTargetsMock,
+  reconcileDeletionTargetsMock,
   cachedFetchByIdMock,
   invalidateFetchByIdCacheMock,
   logInfoMock,
@@ -41,6 +43,15 @@ const {
     startDeletionReconcileMock: vi.fn().mockReturnValue({ sub: mockSub, timeout: undefined }),
     startMergedSubscriptionMock: vi.fn().mockReturnValue(mockSub),
     purgeDeletedFromCacheMock: vi.fn().mockResolvedValue(undefined),
+    materializeDeletedIdsMock: vi.fn(
+      (current: Set<string>, emissions: Array<{ subjectId: string; state: string }>) => {
+        const next = new Set(current);
+        for (const emission of emissions) {
+          if (emission.state === 'deleted') next.add(emission.subjectId);
+        }
+        return next;
+      }
+    ),
     commentFromEventMock: vi.fn(
       (event: {
         id: string;
@@ -77,6 +88,7 @@ const {
     buildReactionIndexMock: vi.fn().mockReturnValue(new Map()),
     isLikeReactionMock: vi.fn().mockReturnValue(true),
     verifyDeletionTargetsMock: vi.fn().mockReturnValue([]),
+    reconcileDeletionTargetsMock: vi.fn().mockReturnValue({ verifiedTargetIds: [], emissions: [] }),
     cachedFetchByIdMock: vi.fn().mockResolvedValue(null),
     invalidateFetchByIdCacheMock: vi.fn(),
     logInfoMock: vi.fn(),
@@ -96,7 +108,8 @@ vi.mock('../application/comment-subscription.js', () => ({
   startSubscription: startSubscriptionMock,
   startDeletionReconcile: startDeletionReconcileMock,
   startMergedSubscription: startMergedSubscriptionMock,
-  purgeDeletedFromCache: purgeDeletedFromCacheMock
+  purgeDeletedFromCache: purgeDeletedFromCacheMock,
+  materializeDeletedIds: materializeDeletedIdsMock
 }));
 
 vi.mock('../domain/comment-mappers.js', () => ({
@@ -114,7 +127,8 @@ vi.mock('../domain/reaction-rules.js', () => ({
 }));
 
 vi.mock('../domain/deletion-rules.js', () => ({
-  verifyDeletionTargets: verifyDeletionTargetsMock
+  verifyDeletionTargets: verifyDeletionTargetsMock,
+  reconcileDeletionTargets: reconcileDeletionTargetsMock
 }));
 
 vi.mock('$shared/nostr/events.js', () => ({
@@ -126,8 +140,11 @@ vi.mock('$shared/nostr/events.js', () => ({
   parsePosition: vi.fn().mockReturnValue(null)
 }));
 
-vi.mock('$shared/nostr/cached-query.js', () => ({
-  cachedFetchById: cachedFetchByIdMock,
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  cachedFetchById: async (id: string) => ({
+    event: await cachedFetchByIdMock(id),
+    settlement: { phase: 'settled', provenance: 'none', reason: 'settled-miss' } as const
+  }),
   invalidateFetchByIdCache: invalidateFetchByIdCacheMock
 }));
 
@@ -232,6 +249,15 @@ describe('createCommentViewModel', () => {
     startDeletionReconcileMock.mockReturnValue({ sub: mockSub, timeout: undefined });
     startMergedSubscriptionMock.mockReturnValue(mockSub);
     purgeDeletedFromCacheMock.mockResolvedValue(undefined);
+    materializeDeletedIdsMock.mockImplementation(
+      (current: Set<string>, emissions: Array<{ subjectId: string; state: string }>) => {
+        const next = new Set(current);
+        for (const emission of emissions) {
+          if (emission.state === 'deleted') next.add(emission.subjectId);
+        }
+        return next;
+      }
+    );
     commentFromEventMock.mockImplementation(
       (event: {
         id: string;
@@ -261,6 +287,19 @@ describe('createCommentViewModel', () => {
     buildReactionIndexMock.mockReturnValue(new Map());
     isLikeReactionMock.mockReturnValue(true);
     verifyDeletionTargetsMock.mockReturnValue([]);
+    reconcileDeletionTargetsMock.mockImplementation(
+      (event: { pubkey: string; tags: string[][] }, eventPubkeys: Map<string, string>) => {
+        const verifiedTargetIds = verifyDeletionTargetsMock(event, eventPubkeys) as string[];
+        return {
+          verifiedTargetIds,
+          emissions: verifiedTargetIds.map((subjectId) => ({
+            subjectId,
+            reason: 'tombstoned' as const,
+            state: 'deleted' as const
+          }))
+        };
+      }
+    );
     cachedFetchByIdMock.mockResolvedValue(null);
     invalidateFetchByIdCacheMock.mockReturnValue(undefined);
   });

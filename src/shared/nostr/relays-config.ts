@@ -1,6 +1,5 @@
 import { parseRelayTags } from '$features/relays/domain/relay-model.js';
 import { RELAY_LIST_KIND } from '$shared/nostr/events.js';
-import { getRxNostr } from '$shared/nostr/gateway.js';
 import { DEFAULT_RELAYS } from '$shared/nostr/relays.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 
@@ -10,8 +9,25 @@ export { DEFAULT_RELAYS };
 
 export async function applyUserRelays(pubkey: string): Promise<string[]> {
   log.info('Fetching user relay list (kind:10002)', { pubkey: shortHex(pubkey) });
-  const [{ createRxBackwardReq }] = await Promise.all([import('rx-nostr')]);
+  const { createRxBackwardReq, getRxNostr, setDefaultRelays } =
+    await import('$shared/nostr/gateway.js');
   const rxNostr = await getRxNostr();
+
+  async function applyFallbackDefaults(reason: string, error?: unknown): Promise<string[]> {
+    try {
+      await setDefaultRelays(DEFAULT_RELAYS);
+    } catch (fallbackError) {
+      log.warn(`Failed to apply default relays after ${reason}`, fallbackError);
+    }
+
+    if (error) {
+      log.warn(reason, error);
+    } else {
+      log.info(reason);
+    }
+
+    return DEFAULT_RELAYS;
+  }
 
   return new Promise<string[]>((resolve) => {
     const req = createRxBackwardReq();
@@ -31,18 +47,27 @@ export async function applyUserRelays(pubkey: string): Promise<string[]> {
         const entries = parseRelayTags(relayTags);
         if (entries.length > 0) {
           const urls = entries.map((entry) => entry.url);
-          log.info('Applied user relays', { count: urls.length, relays: urls });
-          rxNostr.setDefaultRelays(urls);
-          resolve(urls);
+          void (async () => {
+            try {
+              await setDefaultRelays(urls);
+              log.info('Applied user relays', { count: urls.length, relays: urls });
+              resolve(urls);
+            } catch (err) {
+              void applyFallbackDefaults(
+                'Failed to apply fetched user relays, using defaults',
+                err
+              ).then(resolve);
+            }
+          })();
         } else {
-          log.info('No user relays found, using defaults');
-          resolve(DEFAULT_RELAYS);
+          void applyFallbackDefaults('No user relays found, using defaults').then(resolve);
         }
       },
       error: (err) => {
-        log.warn('Failed to fetch user relays, using defaults', err);
         sub.unsubscribe();
-        resolve(DEFAULT_RELAYS);
+        void applyFallbackDefaults('Failed to fetch user relays, using defaults', err).then(
+          resolve
+        );
       }
     });
 
@@ -53,6 +78,6 @@ export async function applyUserRelays(pubkey: string): Promise<string[]> {
 
 export async function resetToDefaultRelays(): Promise<void> {
   log.info('Resetting to default relays');
-  const rxNostr = await getRxNostr();
-  rxNostr.setDefaultRelays(DEFAULT_RELAYS);
+  const { setDefaultRelays } = await import('$shared/nostr/gateway.js');
+  await setDefaultRelays(DEFAULT_RELAYS);
 }

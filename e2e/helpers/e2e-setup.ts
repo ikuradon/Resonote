@@ -6,8 +6,7 @@
  */
 import type { Page } from '@playwright/test';
 import fs from 'fs';
-import * as nip44 from 'nostr-tools/nip44';
-import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
+import { finalizeEvent, generateSecretKey, getPublicKey } from '@auftakt/core';
 import path from 'path';
 
 import { TEST_RELAYS } from './test-relays.js';
@@ -85,7 +84,7 @@ export async function setupFullLogin(
     content: string;
     tags: string[][];
     created_at: number;
-  }) => ReturnType<typeof import('nostr-tools/pure').finalizeEvent>,
+  }) => ReturnType<typeof finalizeEvent>,
   sk?: Uint8Array
 ): Promise<void> {
   await page.exposeFunction('__nostrSignEvent', signEvent);
@@ -93,12 +92,10 @@ export async function setupFullLogin(
   // Expose real NIP-44 encrypt/decrypt if secret key is provided
   if (sk) {
     await page.exposeFunction('__nostrNip44Encrypt', (theirPubkey: string, plaintext: string) => {
-      const conversationKey = nip44.v2.utils.getConversationKey(sk, theirPubkey);
-      return nip44.v2.encrypt(plaintext, conversationKey);
+      return fakeNip44Encrypt(sk, theirPubkey, plaintext);
     });
     await page.exposeFunction('__nostrNip44Decrypt', (theirPubkey: string, ciphertext: string) => {
-      const conversationKey = nip44.v2.utils.getConversationKey(sk, theirPubkey);
-      return nip44.v2.decrypt(ciphertext, conversationKey);
+      return fakeNip44Decrypt(sk, theirPubkey, ciphertext);
     });
   }
 
@@ -137,6 +134,30 @@ export async function setupFullLogin(
     },
     [pubkey, !!sk] as [string, boolean]
   );
+}
+
+function fakeNip44Encrypt(sk: Uint8Array, theirPubkey: string, plaintext: string): string {
+  const payload = JSON.stringify({
+    peer: theirPubkey,
+    keyHint: Buffer.from(sk).subarray(0, 8).toString('hex'),
+    plaintext
+  });
+  return Buffer.from(payload, 'utf8').toString('base64');
+}
+
+function fakeNip44Decrypt(sk: Uint8Array, theirPubkey: string, ciphertext: string): string {
+  const decoded = JSON.parse(Buffer.from(ciphertext, 'base64').toString('utf8')) as {
+    peer?: string;
+    keyHint?: string;
+    plaintext?: string;
+  };
+  if (decoded.peer !== theirPubkey) {
+    throw new Error('NIP-44 peer mismatch');
+  }
+  if (decoded.keyHint !== Buffer.from(sk).subarray(0, 8).toString('hex')) {
+    throw new Error('NIP-44 key mismatch');
+  }
+  return decoded.plaintext ?? '';
 }
 
 /**

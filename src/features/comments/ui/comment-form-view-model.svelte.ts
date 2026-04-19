@@ -1,4 +1,4 @@
-import { neventEncode } from 'nostr-tools/nip19';
+import { neventEncode } from '@auftakt/core';
 
 import { getAuth } from '$shared/browser/auth.js';
 import { getPlayer } from '$shared/browser/player.js';

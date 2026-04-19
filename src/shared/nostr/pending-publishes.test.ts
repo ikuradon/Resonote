@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   addPendingPublish,
   cleanExpired,
+  drainPendingPublishes,
   getPendingPublishes,
   PENDING_TTL_MS,
   removePendingPublish,
@@ -94,11 +95,18 @@ describe('pending-publishes', () => {
       await addPendingPublish(makeEvent({ id: 'old-ev', created_at: oldCreatedAt }));
       await addPendingPublish(makeEvent({ id: 'new-ev', created_at: recentCreatedAt }));
 
-      await cleanExpired();
+      const emissions = await cleanExpired();
 
       const results = await getPendingPublishes();
       expect(results).toHaveLength(1);
       expect(results[0].id).toBe('new-ev');
+      expect(emissions).toEqual([
+        {
+          subjectId: 'old-ev',
+          reason: 'rejected-offline',
+          state: 'rejected'
+        }
+      ]);
     });
 
     it('should keep all events when none are expired', async () => {
@@ -107,10 +115,11 @@ describe('pending-publishes', () => {
       await addPendingPublish(makeEvent({ id: 'ev-1', created_at: recentCreatedAt }));
       await addPendingPublish(makeEvent({ id: 'ev-2', created_at: recentCreatedAt - 100 }));
 
-      await cleanExpired();
+      const emissions = await cleanExpired();
 
       const results = await getPendingPublishes();
       expect(results).toHaveLength(2);
+      expect(emissions).toEqual([]);
     });
 
     it('should remove all events when all are expired', async () => {
@@ -119,10 +128,88 @@ describe('pending-publishes', () => {
       await addPendingPublish(makeEvent({ id: 'ev-1', created_at: oldCreatedAt }));
       await addPendingPublish(makeEvent({ id: 'ev-2', created_at: oldCreatedAt - 100 }));
 
-      await cleanExpired();
+      const emissions = await cleanExpired();
 
       const results = await getPendingPublishes();
       expect(results).toHaveLength(0);
+      expect(emissions).toEqual([
+        {
+          subjectId: 'ev-1',
+          reason: 'rejected-offline',
+          state: 'rejected'
+        },
+        {
+          subjectId: 'ev-2',
+          reason: 'rejected-offline',
+          state: 'rejected'
+        }
+      ]);
+    });
+  });
+
+  describe('drainPendingPublishes', () => {
+    it('removes confirmed events and keeps retrying events', async () => {
+      await addPendingPublish(makeEvent({ id: 'confirmed-1' }));
+      await addPendingPublish(makeEvent({ id: 'retry-1' }));
+
+      const result = await drainPendingPublishes(async (event) => {
+        if (event.id === 'confirmed-1') return 'confirmed';
+        return 'retrying';
+      });
+
+      expect(result.settledCount).toBe(1);
+      expect(result.retryingCount).toBe(1);
+      expect(result.emissions).toEqual([
+        {
+          subjectId: 'confirmed-1',
+          reason: 'confirmed-offline',
+          state: 'confirmed'
+        },
+        {
+          subjectId: 'retry-1',
+          reason: 'repaired-replay',
+          state: 'repairing'
+        }
+      ]);
+
+      const remaining = await getPendingPublishes();
+      expect(remaining.map((event) => event.id)).toEqual(['retry-1']);
+    });
+
+    it('removes explicitly rejected events', async () => {
+      await addPendingPublish(makeEvent({ id: 'reject-1' }));
+
+      const result = await drainPendingPublishes(async () => 'rejected');
+
+      expect(result.settledCount).toBe(1);
+      expect(result.retryingCount).toBe(0);
+      expect(result.emissions).toEqual([
+        {
+          subjectId: 'reject-1',
+          reason: 'rejected-offline',
+          state: 'rejected'
+        }
+      ]);
+      expect(await getPendingPublishes()).toHaveLength(0);
+    });
+
+    it('treats delivery throw as retrying and keeps event queued', async () => {
+      await addPendingPublish(makeEvent({ id: 'throw-1' }));
+
+      const result = await drainPendingPublishes(async () => {
+        throw new Error('temporary failure');
+      });
+
+      expect(result.settledCount).toBe(0);
+      expect(result.retryingCount).toBe(1);
+      expect(result.emissions).toEqual([
+        {
+          subjectId: 'throw-1',
+          reason: 'repaired-replay',
+          state: 'repairing'
+        }
+      ]);
+      expect(await getPendingPublishes()).toHaveLength(1);
     });
   });
 });

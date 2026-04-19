@@ -22,6 +22,7 @@ vi.mock('$shared/utils/logger.js', () => ({
 import type { CachedEvent, EventsDB } from './comment-repository.js';
 import {
   getCommentRepository,
+  materializeDeletedIds,
   purgeDeletedFromCache,
   restoreFromCache
 } from './comment-repository.js';
@@ -121,5 +122,24 @@ describe('purgeDeletedFromCache', () => {
 
     await expect(purgeDeletedFromCache(db, ['id-1'])).resolves.toBeUndefined();
     expect(logErrorMock).toHaveBeenCalled();
+  });
+});
+
+describe('materializeDeletedIds', () => {
+  it('adds deleted subjects from reconcile emissions', () => {
+    const result = materializeDeletedIds(new Set(['existing']), [
+      {
+        subjectId: 'new-del',
+        reason: 'tombstoned',
+        state: 'deleted'
+      },
+      {
+        subjectId: 'ignored',
+        reason: 'repaired-replay',
+        state: 'repairing'
+      }
+    ]);
+
+    expect(result).toEqual(new Set(['existing', 'new-del']));
   });
 });

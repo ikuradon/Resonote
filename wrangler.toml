@@ -1,5 +1,6 @@
 name = "resonote"
 compatibility_date = "2026-03-28"
+compatibility_flags = ["nodejs_compat"]
 
 # Environment variables are set via:
 # - .dev.vars (local development)

@@ -1,7 +1,7 @@
 import { untrack } from 'svelte';
 
+import { cachedFetchById } from '$shared/auftakt/resonote.js';
 import { fetchProfiles } from '$shared/browser/profile.js';
-import { cachedFetchById } from '$shared/nostr/cached-query.js';
 import { truncateString } from '$shared/utils/format.js';
 import { createLogger } from '$shared/utils/logger.js';
 
@@ -75,7 +75,7 @@ export function createNotificationFeedViewModel(
 
       void Promise.all(
         targetIds.map(async (id) => {
-          const event = await cachedFetchById(id);
+          const { event } = await cachedFetchById(id);
           return { id, event };
         })
       )

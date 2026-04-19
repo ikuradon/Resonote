@@ -1,0 +1,57 @@
+{
+  "active_plan": "/root/src/github.com/ikuradon/Resonote/.sisyphus/plans/navbar-avatar-hydration.md",
+  "started_at": "2026-04-19T09:01:21.604Z",
+  "session_ids": ["ses_25f6b209cffeOCMcT6MMX6FkrD"],
+  "session_origins": {
+    "ses_25f6b209cffeOCMcT6MMX6FkrD": "direct"
+  },
+  "plan_name": "navbar-avatar-hydration",
+  "agent": "atlas",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "Make auth/session lifecycle the single current-user profile hydrate trigger",
+      "session_id": "ses_25b055eafffeFdFwgssf6dyrRe",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-19T09:05:52.614Z"
+    },
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "Keep navbar/app shell pure and ensure it reacts to hydrated profile picture",
+      "session_id": "ses_25b000fc4ffeHIV5szkubQ8k0I",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-04-19T09:09:08.456Z"
+    },
+    "todo:3": {
+      "task_key": "todo:3",
+      "task_label": "3",
+      "task_title": "Add central unit regression coverage for login-to-navbar avatar hydration",
+      "session_id": "ses_25af79ccfffewX0A0A1PtOxN4S",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-19T09:21:19.576Z"
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "Add E2E proof for post-login navbar avatar behavior",
+      "session_id": "ses_25aeefafbffesrl2sf7Px5y583",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-04-19T09:28:01.940Z"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "Plan Compliance Audit — oracle",
+      "session_id": "ses_25abe35ebffejJ87JikjqRe10j",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-04-19T10:21:58.794Z"
+    }
+  }
+}

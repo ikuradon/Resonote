@@ -1,4 +1,4 @@
-import { npubEncode } from 'nostr-tools/nip19';
+import { npubEncode } from '@auftakt/core';
 import { describe, expect, it } from 'vitest';
 
 import type { Profile } from '$features/profiles/domain/profile-model.js';

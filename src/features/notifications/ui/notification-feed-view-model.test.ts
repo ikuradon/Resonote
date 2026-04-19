@@ -15,8 +15,11 @@ vi.mock('$shared/browser/profile.js', () => ({
   fetchProfiles: fetchProfilesMock
 }));
 
-vi.mock('$shared/nostr/cached-query.js', () => ({
-  cachedFetchById: cachedFetchByIdMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  cachedFetchById: async () => ({
+    event: await cachedFetchByIdMock(),
+    settlement: { phase: 'settled', provenance: 'none', reason: 'settled-miss' } as const
+  })
 }));
 
 vi.mock('./notifications-view-model.svelte.js', () => ({

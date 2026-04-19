@@ -2,8 +2,8 @@
  * E2E tests for follow/unfollow and mute flows.
  * Covers sections 10 and 11 of e2e-test-scenarios.md.
  */
+import { npubEncode } from '@auftakt/core';
 import { expect, test } from '@playwright/test';
-import { npubEncode } from 'nostr-tools/nip19';
 
 import {
   broadcastEventsOnAllRelays,

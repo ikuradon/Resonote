@@ -8,9 +8,9 @@
  * from production relays, converts HTML content to Markdown, and re-publishes.
  */
 
+import { finalizeEvent, getPublicKey } from '@auftakt/core';
+import { hexToBytes } from '@auftakt/core';
 import { readFileSync } from 'fs';
-import { finalizeEvent, getPublicKey } from 'nostr-tools/pure';
-import { hexToBytes } from 'nostr-tools/utils';
 import { WebSocket } from 'ws';
 
 // --- Config ---

@@ -1,5 +1,5 @@
 import { getAuth, loginNostr, logoutNostr } from '$shared/browser/auth.js';
-import { fetchProfile, getProfileDisplay } from '$shared/browser/profile.js';
+import { getProfileDisplay } from '$shared/browser/profile.js';
 
 export function createLoginButtonViewModel() {
   const auth = getAuth();
@@ -7,11 +7,6 @@ export function createLoginButtonViewModel() {
   let profileDisplay = $derived(auth.pubkey ? getProfileDisplay(auth.pubkey) : null);
   let displayText = $derived(profileDisplay?.displayName ?? '');
   let profileHref = $derived(profileDisplay?.profileHref ?? '/');
-
-  $effect(() => {
-    if (!auth.pubkey) return;
-    void fetchProfile(auth.pubkey);
-  });
 
   return {
     auth,

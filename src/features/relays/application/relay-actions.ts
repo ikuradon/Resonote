@@ -3,6 +3,7 @@
  * Encapsulates infra (castSigned, getRxNostr).
  */
 
+import { publishSignedEvent, setPreferredRelays } from '$shared/auftakt/resonote.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 import type { RelayEntry } from '../domain/relay-model.js';
@@ -12,7 +13,6 @@ const RELAY_LIST_KIND = 10002;
 
 export async function publishRelayList(entries: RelayEntry[]): Promise<string[]> {
   log.info('Publishing relay list', { count: entries.length });
-  const { castSigned, getRxNostr } = await import('$shared/nostr/gateway.js');
 
   const tags: string[][] = entries.map((e) => {
     if (e.read && e.write) return ['r', e.url];
@@ -20,10 +20,9 @@ export async function publishRelayList(entries: RelayEntry[]): Promise<string[]>
     return ['r', e.url, 'write'];
   });
 
-  await castSigned({ kind: RELAY_LIST_KIND, content: '', tags });
+  await publishSignedEvent({ kind: RELAY_LIST_KIND, content: '', tags });
 
-  const rxNostr = await getRxNostr();
   const urls = entries.map((e) => e.url);
-  rxNostr.setDefaultRelays(urls);
+  await setPreferredRelays(urls);
   return urls;
 }
