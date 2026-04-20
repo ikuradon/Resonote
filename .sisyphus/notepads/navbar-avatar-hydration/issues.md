@@ -1,3 +1,0 @@
-- Cleaned up temporary patch scripts (patch\_\*.cjs) used during Task 2 implementation to avoid scope creep artifacts.
-- Task 3 follow-up: `app-shell-view-model.svelte.test.ts` の `$shared/browser/profile.js` mock bridge を `(...args as [])` から明示引数 `(pubkey: string)` へ変更し、`getProfileDisplay` の型エラー（Expected 1 arguments, but got 0）を解消。
-- Final verification follow-up: `auth.test.ts` に、`loginNostr()` を呼ばずに飛んでくる `nlAuth` login を restored-session path として固定し、同じ `initSession(pubkey)` hydrate 経路を通ることを明示する回帰テストを追加。

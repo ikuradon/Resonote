@@ -1,5 +1,0 @@
-Task 8 consumer cutover evidence
-- Verified command: pnpm run check:auftakt-migration -- --fail-on-unauthorized --fail-on-unclassified --proof
-- Result: Status COMPLETE
-- Targeted consumer cutover: Status CLEAR, targeted files 29, consumer leak count 0
-- Scope statuses: comments clear, notifications clear, profiles clear, relays clear, nip19 clear, content-resolution clear
