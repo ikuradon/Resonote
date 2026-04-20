@@ -29,7 +29,8 @@ vite.config.ts.timestamp-*
 /playwright-report/
 /coverage/
 
-# Superpowers
+# Temporary files
+.sisyphus/
 .superpowers/
 docs/superpowers/
 .serena/
