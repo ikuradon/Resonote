@@ -6,6 +6,7 @@ import {
   collectSpecifiers,
   findGatewayImporters,
   ROOT,
+  TEST_FILE,
   walk
 } from './auftakt-migration-guard.mjs';
 
@@ -62,6 +63,67 @@ const targetedConsumerScopes = [
   }
 ];
 
+const residualLegacyAliasPolicies = [
+  {
+    file: 'src/shared/nostr/cached-query.ts',
+    specifiers: ['$shared/nostr/cached-query.js'],
+    allowedTestImporters: []
+  },
+  {
+    file: 'src/shared/nostr/user-relays.ts',
+    specifiers: ['$shared/nostr/user-relays.js'],
+    allowedTestImporters: ['src/shared/nostr/user-relays.test.ts']
+  }
+];
+
+function collectResidualLegacyAliasState() {
+  const scanTargets = ['src', 'e2e', 'packages'];
+  const files = scanTargets.flatMap((target) => walk(target, { includeTests: true }));
+  const filesBySpecifier = files.map((file) => ({
+    file,
+    specifiers: collectSpecifiers(readFileSync(file, 'utf8'))
+  }));
+
+  const aliases = residualLegacyAliasPolicies.map((policy) => {
+    const importers = filesBySpecifier
+      .filter(({ specifiers }) => policy.specifiers.some((specifier) => specifiers.includes(specifier)))
+      .map(({ file }) => file)
+      .sort();
+
+    const productionImporters = importers.filter((file) => !TEST_FILE.test(file));
+    const testImporters = importers.filter((file) => TEST_FILE.test(file));
+    const unauthorizedTestImporters = testImporters.filter(
+      (file) => !policy.allowedTestImporters.includes(file)
+    );
+
+    const violations = [
+      ...productionImporters.map(
+        (file) =>
+          `${file}: ${policy.file} — production compatibility import is forbidden; migrate to $shared/auftakt/resonote.js or the direct bridge.`
+      ),
+      ...unauthorizedTestImporters.map(
+        (file) =>
+          `${file}: ${policy.file} — test-only residual imports must be explicitly allowlisted in migration proof policy.`
+      )
+    ];
+
+    return {
+      ...policy,
+      importers,
+      productionImporters,
+      testImporters,
+      unauthorizedTestImporters,
+      violations,
+      status: violations.length === 0 ? 'clear' : 'leaking'
+    };
+  });
+
+  return {
+    aliases,
+    violations: aliases.flatMap((alias) => alias.violations)
+  };
+}
+
 function collectTargetedConsumerState() {
   const scopes = targetedConsumerScopes.map((scope) => {
     const files = [...new Set(scope.files)].sort();
@@ -105,6 +167,7 @@ const sourceFiles = walk(ROOT);
 const unauthorizedImportViolations = collectGatewayCompatibilityImportViolations(sourceFiles);
 const ownershipState = collectSharedNostrOwnershipState();
 const consumerState = collectTargetedConsumerState();
+const residualLegacyAliasState = collectResidualLegacyAliasState();
 
 const ownershipViolations = [...ownershipState.invalidEntries];
 if (failOnUnclassified) {
@@ -121,7 +184,8 @@ ownershipViolations.push(
 const violations = [
   ...(failOnUnauthorized ? unauthorizedImportViolations : []),
   ...ownershipViolations,
-  ...consumerState.violations
+  ...consumerState.violations,
+  ...residualLegacyAliasState.violations
 ];
 
 if (violations.length > 0) {
@@ -151,6 +215,14 @@ if (violations.length > 0) {
     console.error('');
   }
 
+  if (residualLegacyAliasState.violations.length > 0) {
+    console.error('Residual legacy alias violations:');
+    for (const violation of residualLegacyAliasState.violations) {
+      console.error(`- ${violation}`);
+    }
+    console.error('');
+  }
+
   process.exit(1);
 }
 
@@ -159,7 +231,8 @@ const unauthorizedImporterFiles = parseViolationFiles(unauthorizedImportViolatio
 const proofComplete =
   unauthorizedImportViolations.length === 0 &&
   ownershipViolations.length === 0 &&
-  consumerState.violations.length === 0;
+  consumerState.violations.length === 0 &&
+  residualLegacyAliasState.violations.length === 0;
 
 if (proof) {
   console.log('--- AUFTAKT MIGRATION PROOF ---');
@@ -211,6 +284,16 @@ if (proof) {
   console.log(`   Residual legacy entries: ${residualLegacyCoverage.length}`);
   for (const r of residualLegacyCoverage) {
     console.log(`   - ${r.file}`);
+  }
+  console.log('');
+  console.log('6. Residual Compatibility Alias Enforcement');
+  for (const alias of residualLegacyAliasState.aliases) {
+    console.log(
+      `   file=${alias.file} status=${alias.status} importers=${alias.importers.length} production=${alias.productionImporters.length} allowed-test=${alias.allowedTestImporters.length} unauthorized-test=${alias.unauthorizedTestImporters.length}`
+    );
+    if (alias.allowedTestImporters.length > 0) {
+      console.log(`   allowlist=${alias.allowedTestImporters.join(', ')}`);
+    }
   }
   console.log('-------------------------------');
 } else if (report === 'ownership') {

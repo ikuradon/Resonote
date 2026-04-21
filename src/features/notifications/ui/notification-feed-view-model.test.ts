@@ -27,7 +27,10 @@ vi.mock('./notifications-view-model.svelte.js', () => ({
   markAllAsRead: markAllAsReadMock
 }));
 
-import { createNotificationFeedViewModel } from './notification-feed-view-model.svelte.js';
+import {
+  createNotificationFeedViewModel,
+  loadNotificationTargetPreviews
+} from './notification-feed-view-model.svelte.js';
 
 function makeNotif(partial: Partial<Notification> & Pick<Notification, 'id'>): Notification {
   return {
@@ -191,6 +194,64 @@ describe('createNotificationFeedViewModel', () => {
       const vm = createNotificationFeedViewModel(source);
       expect(vm.targetTexts).toBeInstanceOf(Map);
       expect(vm.targetTexts.size).toBe(0);
+    });
+  });
+
+  describe('loadNotificationTargetPreviews', () => {
+    it('stores truncated preview when fetch returns an event', async () => {
+      const next = await loadNotificationTargetPreviews({
+        targetIds: ['target-1'],
+        currentTargetTexts: new Map(),
+        targetPreviewLength: 10,
+        fetchById: async () => ({
+          event: {
+            id: 'target-1',
+            pubkey: 'author-1',
+            content: '0123456789abcdef',
+            created_at: 1,
+            tags: [],
+            kind: 1111
+          },
+          settlement: { phase: 'settled', provenance: 'store', reason: 'cache-hit' }
+        })
+      });
+
+      expect(next.get('target-1')).toBe('012345678…');
+    });
+
+    it('treats settled miss without event as non-fatal no-preview', async () => {
+      const onFetchError = vi.fn();
+      const next = await loadNotificationTargetPreviews({
+        targetIds: ['target-1'],
+        currentTargetTexts: new Map(),
+        targetPreviewLength: 40,
+        fetchById: async () => ({
+          event: null,
+          settlement: { phase: 'settled', provenance: 'none', reason: 'settled-miss' }
+        }),
+        onFetchError
+      });
+
+      expect(next.size).toBe(0);
+      expect(onFetchError).not.toHaveBeenCalled();
+    });
+
+    it('reports true fetch failure when fetch promise rejects', async () => {
+      const onFetchError = vi.fn();
+      const fetchError = new Error('network down');
+
+      const next = await loadNotificationTargetPreviews({
+        targetIds: ['target-1'],
+        currentTargetTexts: new Map(),
+        targetPreviewLength: 40,
+        fetchById: async () => {
+          throw fetchError;
+        },
+        onFetchError
+      });
+
+      expect(next.size).toBe(0);
+      expect(onFetchError).toHaveBeenCalledWith(fetchError);
     });
   });
 });

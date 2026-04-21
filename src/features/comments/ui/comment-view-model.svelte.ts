@@ -542,11 +542,13 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     next.set(parentId, placeholderFromOrphan(parentId, estimatedPositionMs));
     placeholders = next;
 
-    const { event: result } = await cachedFetchById(parentId);
+    const fetchResult = await cachedFetchById(parentId);
+    const result = fetchResult.event;
+    const wasInvalidatedDuringFetch = fetchResult.settlement.reason === 'invalidated-during-fetch';
 
     if (destroyed) return;
 
-    if (result?.kind === COMMENT_KIND) {
+    if (!wasInvalidatedDuringFetch && result?.kind === COMMENT_KIND) {
       if (!deletedIds.has(parentId)) {
         // Success and not deleted → merge into commentsRaw, remove placeholder
         if (!commentIds.has(result.id)) {

@@ -89,7 +89,10 @@ const {
     isLikeReactionMock: vi.fn().mockReturnValue(true),
     verifyDeletionTargetsMock: vi.fn().mockReturnValue([]),
     reconcileDeletionTargetsMock: vi.fn().mockReturnValue({ verifiedTargetIds: [], emissions: [] }),
-    cachedFetchByIdMock: vi.fn().mockResolvedValue(null),
+    cachedFetchByIdMock: vi.fn().mockResolvedValue({
+      event: null,
+      settlement: { phase: 'settled', provenance: 'none', reason: 'settled-miss' } as const
+    }),
     invalidateFetchByIdCacheMock: vi.fn(),
     logInfoMock: vi.fn(),
     logDebugMock: vi.fn(),
@@ -141,10 +144,7 @@ vi.mock('$shared/nostr/events.js', () => ({
 }));
 
 vi.mock('$shared/auftakt/resonote.js', () => ({
-  cachedFetchById: async (id: string) => ({
-    event: await cachedFetchByIdMock(id),
-    settlement: { phase: 'settled', provenance: 'none', reason: 'settled-miss' } as const
-  }),
+  cachedFetchById: cachedFetchByIdMock,
   invalidateFetchByIdCache: invalidateFetchByIdCacheMock
 }));
 
@@ -195,6 +195,25 @@ function makeCommentEvent(
     tags: overrides.positionMs != null ? [['position', String(overrides.positionMs)]] : [],
     kind: overrides.kind ?? 1111
   };
+}
+
+function makeCachedFetchByIdResult(
+  event: ReturnType<typeof makeCommentEvent> | null,
+  settlement: {
+    phase: 'pending' | 'partial' | 'settled';
+    provenance: 'memory' | 'store' | 'relay' | 'mixed' | 'none';
+    reason:
+      | 'settled-hit'
+      | 'settled-miss'
+      | 'timeout'
+      | 'empty-relay'
+      | 'cache-hit'
+      | 'invalidated-during-fetch'
+      | 'error'
+      | 'degraded';
+  } = { phase: 'settled', provenance: 'none', reason: 'settled-miss' }
+) {
+  return { event, settlement };
 }
 
 type PacketHandler = (event: {
@@ -300,7 +319,7 @@ describe('createCommentViewModel', () => {
         };
       }
     );
-    cachedFetchByIdMock.mockResolvedValue(null);
+    cachedFetchByIdMock.mockResolvedValue(makeCachedFetchByIdResult(null));
     invalidateFetchByIdCacheMock.mockReturnValue(undefined);
   });
 
@@ -456,7 +475,7 @@ describe('createCommentViewModel', () => {
   describe('fetchOrphanParent: success case', () => {
     it('creates a loading placeholder then removes it on success', async () => {
       const parentEvent = makeCommentEvent('parent-1');
-      cachedFetchByIdMock.mockResolvedValue(parentEvent);
+      cachedFetchByIdMock.mockResolvedValue(makeCachedFetchByIdResult(parentEvent));
 
       const vm = createCommentViewModel(contentId, provider);
 
@@ -473,7 +492,7 @@ describe('createCommentViewModel', () => {
 
     it('adds the fetched parent to comments on success', async () => {
       const parentEvent = makeCommentEvent('parent-1');
-      cachedFetchByIdMock.mockResolvedValue(parentEvent);
+      cachedFetchByIdMock.mockResolvedValue(makeCachedFetchByIdResult(parentEvent));
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.fetchOrphanParent('parent-1', null);
@@ -485,7 +504,7 @@ describe('createCommentViewModel', () => {
 
     it('passes estimatedPositionMs to placeholderFromOrphan', async () => {
       const parentEvent = makeCommentEvent('parent-1');
-      cachedFetchByIdMock.mockResolvedValue(parentEvent);
+      cachedFetchByIdMock.mockResolvedValue(makeCachedFetchByIdResult(parentEvent));
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.fetchOrphanParent('parent-1', 12_000);
@@ -499,7 +518,7 @@ describe('createCommentViewModel', () => {
   // -------------------------------------------------------------------------
   describe('fetchOrphanParent: not-found case', () => {
     it('sets placeholder status to not-found when fetch returns null', async () => {
-      cachedFetchByIdMock.mockResolvedValue(null);
+      cachedFetchByIdMock.mockResolvedValue(makeCachedFetchByIdResult(null));
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.fetchOrphanParent('missing-parent', null);
@@ -510,13 +529,32 @@ describe('createCommentViewModel', () => {
     });
 
     it('sets placeholder status to not-found when fetch returns non-comment kind event', async () => {
-      cachedFetchByIdMock.mockResolvedValue({ ...makeCommentEvent('kind0-event'), kind: 0 });
+      cachedFetchByIdMock.mockResolvedValue(
+        makeCachedFetchByIdResult({ ...makeCommentEvent('kind0-event'), kind: 0 })
+      );
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.fetchOrphanParent('kind0-event', 5_000);
 
       const ph = vm.placeholders.get('kind0-event');
       expect(ph?.status).toBe('not-found');
+    });
+
+    it('sets placeholder to not-found when settlement marks result as invalidated', async () => {
+      const parentEvent = makeCommentEvent('invalidated-parent');
+      cachedFetchByIdMock.mockResolvedValue(
+        makeCachedFetchByIdResult(parentEvent, {
+          phase: 'settled',
+          provenance: 'relay',
+          reason: 'invalidated-during-fetch'
+        })
+      );
+
+      const vm = createCommentViewModel(contentId, provider);
+      await vm.fetchOrphanParent('invalidated-parent', null);
+
+      expect(vm.comments.find((c) => c.id === 'invalidated-parent')).toBeUndefined();
+      expect(vm.placeholders.get('invalidated-parent')?.status).toBe('not-found');
     });
   });
 
@@ -595,7 +633,7 @@ describe('createCommentViewModel', () => {
 
       // At this point deletedIds does NOT contain parentId
       // Make cachedFetchById block until we manually resolve it
-      let resolveFetch!: (val: ReturnType<typeof makeCommentEvent>) => void;
+      let resolveFetch!: (val: ReturnType<typeof makeCachedFetchByIdResult>) => void;
       cachedFetchByIdMock.mockImplementation(
         () =>
           new Promise((r) => {
@@ -618,7 +656,7 @@ describe('createCommentViewModel', () => {
       });
 
       // Now resolve the fetch with a valid comment event
-      resolveFetch(makeCommentEvent(parentId));
+      resolveFetch(makeCachedFetchByIdResult(makeCommentEvent(parentId)));
       await fetchPromise;
 
       // Result: deleted placeholder (NOT added to commentsRaw)
@@ -636,7 +674,9 @@ describe('createCommentViewModel', () => {
   // -------------------------------------------------------------------------
   describe('fetchOrphanParent: dedup guard', () => {
     it('does not fetch a second time for the same parentId', async () => {
-      cachedFetchByIdMock.mockResolvedValue(makeCommentEvent('dup-parent'));
+      cachedFetchByIdMock.mockResolvedValue(
+        makeCachedFetchByIdResult(makeCommentEvent('dup-parent'))
+      );
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.fetchOrphanParent('dup-parent', null);
@@ -647,7 +687,7 @@ describe('createCommentViewModel', () => {
 
     it('updates positionMs on second call if existing placeholder has null positionMs', async () => {
       // First call: fetch resolves to null → not-found placeholder with positionMs=null
-      cachedFetchByIdMock.mockResolvedValue(null);
+      cachedFetchByIdMock.mockResolvedValue(makeCachedFetchByIdResult(null));
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.fetchOrphanParent('dedup-ph', null);
@@ -665,7 +705,7 @@ describe('createCommentViewModel', () => {
     });
 
     it('does not update positionMs if already non-null on second call', async () => {
-      cachedFetchByIdMock.mockResolvedValue(null);
+      cachedFetchByIdMock.mockResolvedValue(makeCachedFetchByIdResult(null));
 
       const vm = createCommentViewModel(contentId, provider);
       await vm.fetchOrphanParent('dedup-ph2', 5_000);
@@ -888,7 +928,7 @@ describe('createCommentViewModel', () => {
 
     it('updates orphan placeholder to deleted when deletion arrives', async () => {
       // Set up: fetch orphan parent that returns null → not-found placeholder
-      cachedFetchByIdMock.mockResolvedValue(null);
+      cachedFetchByIdMock.mockResolvedValue(makeCachedFetchByIdResult(null));
 
       const { getOnPacket } = captureOnPacket();
 
@@ -914,7 +954,7 @@ describe('createCommentViewModel', () => {
 
     it('creates deleted placeholder for fetched parent that gets deleted', async () => {
       const parentEvent = makeCommentEvent('fetched-then-del');
-      cachedFetchByIdMock.mockResolvedValue(parentEvent);
+      cachedFetchByIdMock.mockResolvedValue(makeCachedFetchByIdResult(parentEvent));
 
       const { getOnPacket } = captureOnPacket();
 
@@ -1413,7 +1453,7 @@ describe('createCommentViewModel', () => {
   // -------------------------------------------------------------------------
   describe('fetchOrphanParent: destroyed during fetch', () => {
     it('does not update state when destroyed while fetch is pending', async () => {
-      let resolveFetch!: (val: ReturnType<typeof makeCommentEvent> | null) => void;
+      let resolveFetch!: (val: ReturnType<typeof makeCachedFetchByIdResult>) => void;
       cachedFetchByIdMock.mockImplementation(
         () =>
           new Promise((r) => {
@@ -1425,7 +1465,7 @@ describe('createCommentViewModel', () => {
       const promise = vm.fetchOrphanParent('destroyed-parent', null);
 
       vm.destroy();
-      resolveFetch(makeCommentEvent('destroyed-parent'));
+      resolveFetch(makeCachedFetchByIdResult(makeCommentEvent('destroyed-parent')));
       await promise;
 
       // Comments should still be empty after destroy

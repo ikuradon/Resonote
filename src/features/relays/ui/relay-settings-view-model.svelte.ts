@@ -18,6 +18,21 @@ interface RelaySettingsViewModelOptions {
   saveRelayList: (entries: RelayEntry[]) => Promise<void>;
 }
 
+type RelayReadResult = Pick<UseCachedLatestResult, 'event' | 'settlement'>;
+type RelayListLoadState = 'loading' | 'no-list' | 'loaded';
+
+export function resolveRelayListLoadState(
+  relayReadResult: RelayReadResult | undefined,
+  entriesLength: number
+): RelayListLoadState {
+  if (!relayReadResult) return 'loading';
+  if (relayReadResult.settlement.phase !== 'settled') return 'loading';
+  if (relayReadResult.event) return 'loaded';
+  if (entriesLength > 0) return 'loaded';
+  if (relayReadResult.settlement.reason === 'settled-miss') return 'no-list';
+  return 'loaded';
+}
+
 function defaultRelayEntries(): RelayEntry[] {
   return DEFAULT_RELAYS.map((url) => ({ url, read: true, write: true }));
 }
@@ -32,7 +47,6 @@ export function createRelaySettingsViewModel(options: RelaySettingsViewModelOpti
 
   let relayQuery = $state<UseCachedLatestResult | undefined>(undefined);
   let savedOkTimer: ReturnType<typeof setTimeout> | undefined;
-  let relayQuerySettled = $derived(relayQuery?.settlement.phase === 'settled');
 
   $effect(() => {
     const pubkey = options.getPubkey();
@@ -61,8 +75,11 @@ export function createRelaySettingsViewModel(options: RelaySettingsViewModelOpti
   });
 
   let serverEntries = $derived.by(() => {
-    if (!relayQuery?.event) return [];
-    return parseRelayTags(relayQuery.event.tags);
+    const relayReadResult = relayQuery;
+    if (!relayReadResult) return [];
+    if (relayReadResult.settlement.phase !== 'settled') return [];
+    if (!relayReadResult.event) return [];
+    return parseRelayTags(relayReadResult.event.tags);
   });
 
   $effect(() => {
@@ -71,10 +88,9 @@ export function createRelaySettingsViewModel(options: RelaySettingsViewModelOpti
     }
   });
 
-  let relayLoading = $derived(!relayQuerySettled);
-  let noRelayList = $derived(
-    relayQuerySettled === true && !relayQuery?.event && entries.length === 0
-  );
+  let relayListLoadState = $derived(resolveRelayListLoadState(relayQuery, entries.length));
+  let relayLoading = $derived(relayListLoadState === 'loading');
+  let noRelayList = $derived(relayListLoadState === 'no-list');
   let liveRelays = $derived(options.getLiveRelays());
 
   function connectionStateFor(url: string): ConnectionState | null {

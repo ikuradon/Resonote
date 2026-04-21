@@ -629,20 +629,31 @@ flowchart LR
 - `resonote` は高レベル runtime
 - adapter は transport / persistence のみ
 
+### 13.3 境界スコープ・クロスウォーク (Bounded Scope Crosswalk)
+
+Auftakt façade には直接含まれないが、アプリケーションの動作に不可欠な「コードのみの公開レイヤー」および「ランタイム隣接面」を以下に定義する。これらは façade API を補完するコンパニオンとして機能し、適切なテストアンカーによって保護される。
+
+| サーフェス名                                                     | 存在理由                                                                              | 依存 façade / Public API                                                | 分類                         | テストアンカー                                                        |
+| :--------------------------------------------------------------- | :------------------------------------------------------------------------------------ | :---------------------------------------------------------------------- | :--------------------------- | :-------------------------------------------------------------------- |
+| `src/shared/browser/relays.svelte.ts`                            | リレーステータスおよび接続状態のリアクティブな管理。                                  | `snapshotRelayStatuses`, `observeRelayStatuses`, `fetchRelayListEvents` | `companion/runtime-adjacent` | `src/shared/browser/relays.test.ts`                                   |
+| `src/app/bootstrap/init-app.ts`                                  | アプリレベルの初期化オーケストレーション（Auth, 拡張機能, オフラインキュー再試行）。  | `retryQueuedPublishes`                                                  | `companion/runtime-adjacent` | `src/app/bootstrap/init-app.test.ts`                                  |
+| `src/features/content-resolution/application/resolve-content.ts` | ポッドキャスト/オーディオのコンテンツ解決オーケストレーター（Nostr + API 並列解決）。 | `publishSignedEvents`                                                   | `companion/runtime-adjacent` | `src/features/content-resolution/application/resolve-content.test.ts` |
+| `src/features/content-resolution/application/resolve-feed.ts`    | ポッドキャストフィードの解決およびエピソードメタデータの読み込み。                    | `publishSignedEvents`                                                   | `companion/runtime-adjacent` | `src/features/content-resolution/application/resolve-feed.test.ts`    |
+
 ---
 
 ## 14. 実装状況とギャップ (Implementation Status & Gaps)
 
 このセクションでは、Auftakt の主要コンポーネントの実装状況と、将来的な目標状態とのギャップを concrete anchor で管理する。
 
-| 項目                              | 現状アンカー (Current repo reality anchor)                                                                             | 目標状態 (Target-state reference)                                                      | 既知のギャップ (Known gap)                                         |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| **App-facing façade (canonical)** | `src/shared/auftakt/resonote.ts`（アプリが直接触る唯一の公開面）                                                       | app/feature の read・subscribe・publish が façade 経由に統一される。                   | 一部 consumer における旧来の内部 import への残存。                 |
-| **ReadSettlement**                | `packages/core/src/index.ts`（語彙定義） / `src/shared/auftakt/resonote.ts`（Façade 戻り値）                           | 全ての Read API が `ReadSettlement` (phase/provenance/reason) を通じて状態を報告する。 | 一部 legacy consumer における ad-hoc フラグへの依存。              |
-| **Relay lifecycle / recovery**    | `packages/core/src/index.ts`（接続状態語彙） / `src/shared/auftakt/resonote.ts`（`observeRelayStatuses`）              | `requestKey` を基準とした、セッションを跨ぐ一貫した接続回復と replay 制御。            | 複雑なネットワーク分断シナリオにおける回復シーケンスの網羅性。     |
-| **tombstone / deletion**          | `packages/core/src/index.ts`（`tombstoned` 語彙） / `src/features/comments/ui/comment-view-model.svelte.ts`（UI 反映） | NIP-09 削除イベントに基づく tombstone 伝搬と、再同期時の可視状態（`deleted`）の整合。  | 長期オフライン復帰時における大規模な削除イベント同期の整合性検証。 |
-| **negentropy**                    | `packages/core/src/index.ts`（語彙予約のみ）                                                                           | 差分同期プロトコル（negentropy）による効率的なイベント修復。                           | **未実装**。Façade および Runtime に公開アンカーが存在しない。     |
-| **publish / session**             | `src/shared/auftakt/resonote.ts`（`publishSignedEvent`, `retryQueuedPublishes`）                                       | オフライン時のキューイングと、セッション再開時の自動再送保証。                         | 長期オフライン時のキュー溢れ制御および詳細なエラー報告機能の不足。 |
+| 項目                           | ステータス    | 現状アンカー (Current repo reality anchor)                                                            | 既知のギャップ (Known gap)                                                                                 |
+| :----------------------------- | :------------ | :---------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------- |
+| **App-facing façade**          | `implemented` | `src/shared/auftakt/resonote.ts`                                                                      | 主要な consumer の移行完了。旧来の内部 import は排除済み。(Proof: `check:auftakt-migration`)               |
+| **ReadSettlement**             | `partial`     | `packages/core/src/index.ts` / `src/shared/auftakt/resonote.ts`                                       | 主要な consumer での導入完了。ad-hoc フラグへの直接依存は解消。(Proof: `read-settlement.contract.test.ts`) |
+| **Relay lifecycle / recovery** | `implemented` | `packages/core/src/index.ts` / `src/shared/auftakt/resonote.ts` (`observeRelayStatuses`)              | 複雑なネットワーク分断シナリオにおける回復シーケンスの網羅性。(Proof: `relays.test.ts`)                    |
+| **tombstone / deletion**       | `implemented` | `packages/core/src/index.ts` (`tombstoned`) / `src/features/comments/ui/comment-view-model.svelte.ts` | 長期オフライン復帰時における大規模な削除イベント同期の整合性検証。(Proof: `reply-thread.test.ts`)          |
+| **negentropy**                 | `[未実装]`    | `packages/core/src/index.ts` (語彙予約のみ)                                                           | **スコープ外**。Façade および Runtime に公開アンカーが存在しない。                                         |
+| **publish / session**          | `implemented` | `src/shared/auftakt/resonote.ts` (`publishSignedEvent`, `retryQueuedPublishes`)                       | 長期オフライン時のキュー溢れ制御および詳細なエラー報告機能の不足。(Proof: `resolve-content.test.ts`)       |
 
 キーワード追跡: `ReadSettlement`, `relay lifecycle`, `recovery`, `tombstone`, `negentropy`, `publish`, `session`
 
@@ -654,14 +665,17 @@ Auftakt の変更がアプリケーションに与える影響を検証するた
 
 ### 15.1 主要な回帰面と検証アンカー (Regression Surfaces & Verification Anchors)
 
-| 回帰面                 | consumer / 実装アンカー                                                | 検証アンカー (Unit/Contract)                                          | 検証アンカー (E2E)                |
-| ---------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------- |
-| **Comments**           | `src/features/comments/ui/comment-view-model.svelte.ts`                | `src/features/comments/ui/comment-view-model.test.ts`                 | `e2e/comment-flow.test.ts`        |
-| **Notifications**      | `src/features/notifications/ui/notification-feed-view-model.svelte.ts` | `src/features/notifications/ui/notification-feed-view-model.test.ts`  | `e2e/notifications-page.test.ts`  |
-| **Profiles**           | `src/shared/auftakt/resonote.ts`                                       | `src/features/profiles/application/profile-queries.test.ts`           | `e2e/profile-data.test.ts`        |
-| **Relay Settings**     | `src/features/relays/ui/relay-settings-view-model.svelte.ts`           | `src/features/relays/ui/relay-settings-view-model.test.ts`            | `e2e/relay-settings-data.test.ts` |
-| **NIP-19 Resolver**    | `src/shared/auftakt/resonote.ts`                                       | `src/features/nip19-resolver/application/fetch-event.test.ts`         | `e2e/nip19-routes.test.ts`        |
-| **Content Resolution** | `src/shared/auftakt/resonote.ts`                                       | `src/features/content-resolution/application/resolve-content.test.ts` | `e2e/content-page.test.ts`        |
+| 回帰面                 | consumer / 実装アンカー                                                | 検証アンカー (Unit/Contract)                                          | 検証アンカー (E2E)                                                                 |
+| :--------------------- | :--------------------------------------------------------------------- | :-------------------------------------------------------------------- | :--------------------------------------------------------------------------------- |
+| **Comments**           | `src/features/comments/ui/comment-view-model.svelte.ts`                | `src/features/comments/ui/comment-view-model.test.ts`                 | `e2e/reply-thread.test.ts` (orphan/deleted), `e2e/comment-flow.test.ts` (baseline) |
+| **Notifications**      | `src/features/notifications/ui/notification-feed-view-model.svelte.ts` | `src/features/notifications/ui/notification-feed-view-model.test.ts`  | `e2e/notifications-page.test.ts`                                                   |
+| **Profiles**           | `src/shared/auftakt/resonote.ts`                                       | `src/features/profiles/application/profile-queries.test.ts`           | `e2e/profile-data.test.ts`                                                         |
+| **Relay Settings**     | `src/features/relays/ui/relay-settings-view-model.svelte.ts`           | `src/features/relays/ui/relay-settings-view-model.test.ts`            | `e2e/relay-settings-data.test.ts`                                                  |
+| **NIP-19 Resolver**    | `src/shared/auftakt/resonote.ts`                                       | `src/features/nip19-resolver/application/fetch-event.test.ts`         | `e2e/nip19-routes.test.ts`                                                         |
+| **Content Resolution** | `src/shared/auftakt/resonote.ts`                                       | `src/features/content-resolution/application/resolve-content.test.ts` | `e2e/content-page.test.ts`                                                         |
+| **Runtime Core**       | `packages/core/src/index.ts`                                           | `packages/core/src/read-settlement.contract.test.ts`                  | -                                                                                  |
+| **Cached Query**       | `src/shared/nostr/cached-query.svelte.ts`                              | `src/shared/nostr/cached-query.test.ts`                               | -                                                                                  |
+| **Relay Lifecycle**    | `src/shared/browser/relays.svelte.ts`                                  | `src/shared/browser/relays.test.ts`                                   | -                                                                                  |
 
 ### 15.2 最小検証マトリクス (Smallest-Viable Regression Matrix)
 
@@ -671,10 +685,10 @@ Auftakt の変更時は、広範なテストの前に以下の最小セットを
    - `pnpm run check:auftakt-migration -- --proof`
 
 2. **Unit / Contract gate**
-   - `pnpm run test -- packages/core/src/read-settlement.contract.test.ts src/features/comments/ui/comment-view-model.test.ts src/features/notifications/ui/notification-feed-view-model.test.ts src/features/relays/ui/relay-settings-view-model.test.ts src/features/profiles/application/profile-queries.test.ts src/features/nip19-resolver/application/fetch-event.test.ts src/features/content-resolution/application/resolve-content.test.ts`
+   - `pnpm run test -- packages/core/src/read-settlement.contract.test.ts src/shared/nostr/cached-query.test.ts src/features/comments/ui/comment-view-model.test.ts src/features/notifications/ui/notification-feed-view-model.test.ts src/features/relays/ui/relay-settings-view-model.test.ts src/features/profiles/application/profile-queries.test.ts src/features/nip19-resolver/application/fetch-event.test.ts src/features/content-resolution/application/resolve-content.test.ts src/shared/browser/relays.test.ts`
 
 3. **User-visible flow gate (E2E)**
-   - `pnpm run test:e2e -- e2e/comment-flow.test.ts e2e/profile-data.test.ts e2e/notifications-page.test.ts e2e/relay-settings-data.test.ts e2e/nip19-routes.test.ts e2e/content-page.test.ts`
+   - `pnpm run test:e2e -- e2e/reply-thread.test.ts e2e/comment-flow.test.ts e2e/profile-data.test.ts e2e/notifications-page.test.ts e2e/relay-settings-data.test.ts e2e/nip19-routes.test.ts e2e/content-page.test.ts`
 
 ### 15.3 完了判定 (Completion Criteria)
 

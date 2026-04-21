@@ -30,7 +30,10 @@ vi.mock('$shared/i18n/t.js', () => ({
 }));
 
 import type { RelayState } from '../domain/relay-model.js';
-import { createRelaySettingsViewModel } from './relay-settings-view-model.svelte.js';
+import {
+  createRelaySettingsViewModel,
+  resolveRelayListLoadState
+} from './relay-settings-view-model.svelte.js';
 
 const liveRelays: RelayState[] = [
   { url: 'wss://relay.damus.io', state: 'connected' },
@@ -273,6 +276,63 @@ describe('createRelaySettingsViewModel', () => {
       const vm = makeVm();
       await vm.save();
       expect(saveRelayListMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resolveRelayListLoadState', () => {
+    it('returns loaded when settled result has relay list event', () => {
+      expect(
+        resolveRelayListLoadState(
+          {
+            event: {
+              id: 'relay-list',
+              pubkey: 'pubkey1',
+              kind: 10002,
+              created_at: 1,
+              content: '',
+              tags: [['r', 'wss://relay1.test']]
+            },
+            settlement: { phase: 'settled', provenance: 'store', reason: 'cache-hit' }
+          },
+          0
+        )
+      ).toBe('loaded');
+    });
+
+    it('returns no-list for settled miss with no event and empty entries', () => {
+      expect(
+        resolveRelayListLoadState(
+          {
+            event: null,
+            settlement: { phase: 'settled', provenance: 'none', reason: 'settled-miss' }
+          },
+          0
+        )
+      ).toBe('no-list');
+    });
+
+    it('returns loading before settlement completes', () => {
+      expect(
+        resolveRelayListLoadState(
+          {
+            event: null,
+            settlement: { phase: 'partial', provenance: 'none', reason: 'cache-miss' }
+          },
+          0
+        )
+      ).toBe('loading');
+    });
+
+    it('returns loaded when user already has entries even on settled miss', () => {
+      expect(
+        resolveRelayListLoadState(
+          {
+            event: null,
+            settlement: { phase: 'settled', provenance: 'none', reason: 'settled-miss' }
+          },
+          1
+        )
+      ).toBe('loaded');
     });
   });
 });
