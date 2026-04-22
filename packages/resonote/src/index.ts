@@ -1,6 +1,48 @@
 import type { ProjectionDefinition, StoredEvent } from '@auftakt/core';
 
-export * from './runtime.js';
+export type {
+  CommentFilterKinds,
+  CommentSubscriptionRefs,
+  DeletionEvent,
+  EmojiCategory,
+  PendingDrainResult,
+  ResonoteRuntime,
+  RetryableSignedEvent,
+  SubscriptionHandle
+} from './runtime.js';
+export {
+  buildCommentContentFilters,
+  cachedFetchById,
+  castSigned,
+  fetchCustomEmojiCategories,
+  fetchCustomEmojiSources,
+  fetchFollowListSnapshot,
+  fetchLatestEvent,
+  fetchNostrEventById,
+  fetchProfileCommentEvents,
+  fetchProfileMetadataEvents,
+  fetchRelayListEvents,
+  fetchWot,
+  getRelayConnectionState,
+  invalidateFetchByIdCache,
+  loadCommentSubscriptionDeps,
+  observeRelayConnectionStates,
+  observeRelayStatuses,
+  publishSignedEvents,
+  publishSignedEventsWithOfflineFallback,
+  publishSignedEventWithOfflineFallback,
+  retryPendingPublishes,
+  retryQueuedSignedPublishes,
+  searchBookmarkDTagEvent,
+  searchEpisodeBookmarkByGuid,
+  setDefaultRelays,
+  snapshotRelayStatuses,
+  startCommentDeletionReconcile,
+  startCommentSubscription,
+  startMergedCommentSubscription,
+  subscribeNotificationStreams,
+  useCachedLatest
+} from './runtime.js';
 
 export const RESONOTE_PLAY_POSITION_SORT = 'resonote:play-position';
 

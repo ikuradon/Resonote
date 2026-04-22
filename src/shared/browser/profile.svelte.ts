@@ -15,7 +15,12 @@ const PROFILE_BATCH_SIZE = 50;
 const MAX_PROFILES = 2000;
 
 const pending = new Set<string>();
+const retryQueued = new Set<string>();
 let profiles = $state<Map<string, Profile>>(new Map());
+
+function isUnresolvedPlaceholderProfile(profile: Profile | undefined): boolean {
+  return profile !== undefined && Object.keys(profile).length === 0;
+}
 
 function parseProfileContent(content: string): Profile {
   const meta = JSON.parse(content) as Record<string, unknown>;
@@ -27,6 +32,14 @@ function parseProfileContent(content: string): Profile {
     about: typeof meta.about === 'string' ? meta.about : undefined,
     nip05: typeof meta.nip05 === 'string' ? meta.nip05 : undefined
   };
+}
+
+function queueRetryIfNeeded(pubkey: string): void {
+  if (!retryQueued.has(pubkey)) return;
+  retryQueued.delete(pubkey);
+  queueMicrotask(() => {
+    void fetchProfiles([pubkey]);
+  });
 }
 
 export function getProfile(pubkey: string): Profile | undefined {
@@ -51,7 +64,17 @@ export async function fetchProfile(pubkey: string): Promise<void> {
  * Falls back to DB cache before making relay requests.
  */
 export async function fetchProfiles(pubkeys: string[]): Promise<void> {
-  let toFetch = pubkeys.filter((pk) => !profiles.has(pk) && !pending.has(pk));
+  for (const pk of pubkeys) {
+    if (pending.has(pk)) {
+      retryQueued.add(pk);
+    }
+  }
+
+  let toFetch = pubkeys.filter((pk) => {
+    if (pending.has(pk)) return false;
+    const existing = profiles.get(pk);
+    return existing === undefined || isUnresolvedPlaceholderProfile(existing);
+  });
   if (toFetch.length === 0) return;
 
   for (const pk of toFetch) pending.add(pk);
@@ -96,7 +119,10 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
     toFetch = unresolvedPubkeys;
     if (toFetch.length === 0) {
       profiles = new Map(profiles);
-      for (const pk of pubkeys) pending.delete(pk);
+      for (const pk of pubkeys) {
+        pending.delete(pk);
+        queueRetryIfNeeded(pk);
+      }
       return;
     }
 
@@ -105,6 +131,7 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
         profiles.set(pk, {});
       }
       pending.delete(pk);
+      queueRetryIfNeeded(pk);
     }
 
     if (profiles.size > MAX_PROFILES) {
@@ -116,7 +143,10 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
     profiles = new Map(profiles);
   } catch (err) {
     log.warn('Profile fetch subscription error', { error: err });
-    for (const pk of toFetch) pending.delete(pk);
+    for (const pk of toFetch) {
+      pending.delete(pk);
+      queueRetryIfNeeded(pk);
+    }
   }
 }
 
@@ -124,4 +154,5 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
 export function clearProfiles(): void {
   profiles = new Map();
   pending.clear();
+  retryQueued.clear();
 }

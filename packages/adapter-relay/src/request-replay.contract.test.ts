@@ -305,4 +305,55 @@ describe('relay replay request identity contract', () => {
 
     sub.unsubscribe();
   });
+
+  it('uses a dedicated negentropy subscription namespace and reports unsupported relays', async () => {
+    const session = createRxNostrSession({ defaultRelays: [RELAY_URL], eoseTimeout: 100 });
+
+    const pending = session.requestNegentropySync({
+      relayUrl: RELAY_URL,
+      filter: { kinds: [1], authors: ['pubkey-a'] },
+      initialMessageHex: '6100000200',
+      timeoutMs: 100
+    });
+
+    await waitUntil(() => FakeWebSocket.instances.length > 0);
+    const socket = latestSocket();
+    socket.open();
+    await waitUntil(() => socket.sent.length > 0);
+
+    const openPacket = socket.sent[0] as [string, string, Record<string, unknown>, string];
+    expect(openPacket[0]).toBe('NEG-OPEN');
+    expect(openPacket[1]).toMatch(/^neg-/);
+    expect(openPacket[2]).toEqual({ authors: ['pubkey-a'], kinds: [1] });
+    expect(openPacket[3]).toBe('6100000200');
+
+    socket.message(['NEG-ERR', openPacket[1], 'unsupported: negentropy disabled']);
+
+    await expect(pending).resolves.toEqual({
+      capability: 'unsupported',
+      reason: 'unsupported: negentropy disabled'
+    });
+
+    await waitUntil(() => socket.sent.length >= 2);
+    expect(socket.sent.at(-1)).toEqual(['NEG-CLOSE', openPacket[1]]);
+
+    session.dispose();
+  });
+
+  it('rejects requests that omit canonical requestKey instead of inventing a legacy fallback', async () => {
+    const session = createRxNostrSession({ defaultRelays: [RELAY_URL], eoseTimeout: 100 });
+    const req = createRxForwardReq();
+
+    await expect(
+      new Promise<void>((resolve, reject) => {
+        session.use(req).subscribe({
+          next: () => resolve(),
+          error: (error) => reject(error),
+          complete: () => resolve()
+        });
+      })
+    ).rejects.toThrow('Relay request is missing canonical requestKey for forward mode');
+
+    session.dispose();
+  });
 });

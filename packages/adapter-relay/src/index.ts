@@ -1,6 +1,7 @@
 import {
   type AggregateSessionReason,
   type AggregateSessionState,
+  type NegentropyTransportResult,
   type RelayConnectionState as CoreRelayConnectionState,
   type RelayObservation,
   type RelayObservationReason,
@@ -58,6 +59,13 @@ export interface RelaySelectionOptions {
 
 export interface RelayUseOptions {
   on?: RelaySelectionOptions;
+}
+
+export interface NegentropyRequestOptions {
+  readonly relayUrl: string;
+  readonly filter: Filter;
+  readonly initialMessageHex: string;
+  readonly timeoutMs?: number;
 }
 
 export interface RelaySendOptions {
@@ -224,6 +232,7 @@ export interface RxNostr {
   createSessionObservationObservable(): Observable<SessionObservation>;
   createConnectionStateObservable(): Observable<ConnectionStatePacket>;
   use(req: RelayRequest, options?: RelayUseOptions): Observable<EventPacket>;
+  requestNegentropySync(options: NegentropyRequestOptions): Promise<NegentropyTransportResult>;
   send(params: EventParameters, options?: RelaySendOptions): Observable<OkPacketAgainstEvent>;
   cast(params: EventParameters, options?: RelaySendOptions): Promise<void>;
   dispose(): void;
@@ -318,7 +327,13 @@ class RelaySession implements RxNostr {
 
   use(req: RelayRequest, options?: RelayUseOptions): Observable<EventPacket> {
     return new Observable<EventPacket>((observer) => {
-      const requestKey = req.requestKey ?? this.createLegacyRequestKey(req.mode);
+      const requestKey = req.requestKey;
+      if (!requestKey) {
+        observer.error(
+          new Error(`Relay request is missing canonical requestKey for ${req.mode} mode`)
+        );
+        return;
+      }
       const relayUrls = this.resolveReadRelays(options?.on);
       const pendingRelays = new Set<string>();
       const transportSubIds = new Map<string, string>();
@@ -475,6 +490,87 @@ class RelaySession implements RxNostr {
         }
         this.unregisterReplayRecord(requestKey);
       };
+    });
+  }
+
+  async requestNegentropySync(
+    options: NegentropyRequestOptions
+  ): Promise<NegentropyTransportResult> {
+    const relay = this.getConnection(options.relayUrl);
+    const subId = createNegentropySubId();
+
+    try {
+      await relay.connect();
+    } catch {
+      return {
+        capability: 'failed',
+        reason: 'transport-connect-failed'
+      };
+    }
+
+    return new Promise<NegentropyTransportResult>((resolve) => {
+      let settled = false;
+      const cleanup: Array<() => void> = [];
+
+      const finish = (result: NegentropyTransportResult) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        for (const stop of cleanup.splice(0)) stop();
+        void relay.send(['NEG-CLOSE', subId]).catch(() => {});
+        resolve(result);
+      };
+
+      const messageSub = this.messages.subscribe(({ from, message }) => {
+        if (from !== options.relayUrl || !Array.isArray(message)) return;
+        const [type, incomingSubId] = message as [string, string, ...unknown[]];
+        if (incomingSubId !== subId) return;
+
+        if (type === 'NEG-MSG' && typeof message[2] === 'string') {
+          finish({
+            capability: 'supported',
+            messageHex: message[2]
+          });
+          return;
+        }
+
+        if (type === 'NEG-ERR') {
+          finish({
+            capability: 'unsupported',
+            reason: typeof message[2] === 'string' ? message[2] : 'relay-error'
+          });
+        }
+      });
+      cleanup.push(() => messageSub.unsubscribe());
+
+      const stateSub = this.states.subscribe((packet) => {
+        if (packet.from !== options.relayUrl) return;
+        if (
+          packet.state === 'backoff' ||
+          packet.state === 'closed' ||
+          packet.state === 'degraded'
+        ) {
+          finish({
+            capability: 'failed',
+            reason: `relay-${packet.state}`
+          });
+        }
+      });
+      cleanup.push(() => stateSub.unsubscribe());
+
+      const timeout = setTimeout(() => {
+        finish({
+          capability: 'failed',
+          reason: 'timeout'
+        });
+      }, options.timeoutMs ?? this.eoseTimeout);
+
+      void relay.send(['NEG-OPEN', subId, options.filter, options.initialMessageHex]).catch(() => {
+        finish({
+          capability: 'failed',
+          reason: 'transport-send-failed'
+        });
+      });
     });
   }
 
@@ -664,10 +760,6 @@ class RelaySession implements RxNostr {
       case 'disposed':
         return 'disposed';
     }
-  }
-
-  private createLegacyRequestKey(mode: 'backward' | 'forward'): RequestKey {
-    return `rq:legacy:${mode}:${crypto.randomUUID()}` as RequestKey;
   }
 
   private registerReplayRecord(
@@ -916,4 +1008,8 @@ function getWindowNostr(): {
 
 function createSubId(): string {
   return `auftakt-${crypto.randomUUID()}`;
+}
+
+function createNegentropySubId(): string {
+  return `neg-${crypto.randomUUID()}`;
 }

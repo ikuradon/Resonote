@@ -10,7 +10,7 @@
 
 import { reconcileDeletionSubjects, reconcileReplayRepairSubjects } from '@auftakt/timeline';
 
-import { cachedFetchById, invalidateFetchByIdCache } from '$shared/auftakt/resonote.js';
+import { fetchNostrEventById, invalidateFetchByIdCache } from '$shared/auftakt/resonote.js';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import {
   COMMENT_KIND,
@@ -58,6 +58,28 @@ import {
 } from '../domain/reaction-rules.js';
 
 const log = createLogger('comment-vm');
+
+interface OrphanParentEvent {
+  id: string;
+  pubkey: string;
+  content: string;
+  created_at: number;
+  tags: string[][];
+  kind: number;
+}
+
+interface OrphanParentFetchEnvelope {
+  event: OrphanParentEvent | null;
+  settlement?: {
+    reason?: string;
+  };
+}
+
+function isOrphanParentFetchEnvelope(
+  value: OrphanParentEvent | OrphanParentFetchEnvelope | null
+): value is OrphanParentFetchEnvelope {
+  return typeof value === 'object' && value !== null && 'event' in value;
+}
 
 export function createCommentViewModel(contentId: ContentId, provider: ContentProvider) {
   // --- State ---
@@ -542,9 +564,14 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     next.set(parentId, placeholderFromOrphan(parentId, estimatedPositionMs));
     placeholders = next;
 
-    const fetchResult = await cachedFetchById(parentId);
-    const result = fetchResult.event;
-    const wasInvalidatedDuringFetch = fetchResult.settlement.reason === 'invalidated-during-fetch';
+    const fetchResult = await fetchNostrEventById<OrphanParentEvent | OrphanParentFetchEnvelope>(
+      parentId,
+      []
+    );
+    const result = isOrphanParentFetchEnvelope(fetchResult) ? fetchResult.event : fetchResult;
+    const wasInvalidatedDuringFetch =
+      isOrphanParentFetchEnvelope(fetchResult) &&
+      fetchResult.settlement?.reason === 'invalidated-during-fetch';
 
     if (destroyed) return;
 

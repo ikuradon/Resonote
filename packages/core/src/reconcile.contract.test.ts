@@ -1,6 +1,9 @@
 import {
+  createNegentropyRepairRequestKey,
+  createRuntimeRequestKey,
   mapReasonToConsumerState,
   reconcileDeletionSubjects,
+  reconcileNegentropyRepairSubjects,
   reconcileOfflineDelivery,
   reconcileReplaceableCandidates,
   reconcileReplayRepairSubjects
@@ -14,6 +17,7 @@ describe('reconcile reason/state contract', () => {
     expect(mapReasonToConsumerState('tombstoned')).toBe('deleted');
     expect(mapReasonToConsumerState('rejected-offline')).toBe('rejected');
     expect(mapReasonToConsumerState('repaired-replay')).toBe('repairing');
+    expect(mapReasonToConsumerState('repaired-negentropy')).toBe('repairing');
   });
 
   it('emits winner + shadowed for replaceable replacement', () => {
@@ -79,5 +83,33 @@ describe('reconcile reason/state contract', () => {
         state: 'confirmed'
       }
     ]);
+    expect(reconcileNegentropyRepairSubjects(['ev-2'])).toEqual([
+      {
+        subjectId: 'ev-2',
+        reason: 'repaired-negentropy',
+        state: 'repairing'
+      }
+    ]);
+  });
+
+  it('uses a dedicated requestKey scope for negentropy repair fetches', () => {
+    const filters = [{ kinds: [1], authors: ['pubkey-a'] }];
+
+    expect(
+      createNegentropyRepairRequestKey({
+        filters,
+        relayUrl: 'wss://relay.contract.test'
+      })
+    ).not.toBe(
+      createRuntimeRequestKey({
+        mode: 'backward',
+        filters,
+        overlay: {
+          relays: ['wss://relay.contract.test'],
+          includeDefaultReadRelays: false
+        },
+        scope: 'timeline:repair:fallback'
+      })
+    );
   });
 });

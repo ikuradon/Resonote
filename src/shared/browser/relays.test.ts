@@ -109,18 +109,27 @@ function setupRelayGatewayMocks(connectionStates: Partial<Record<string, string>
   });
 
   return {
-    emit(packet: { from: string; state: string; reason?: string; aggregateState?: string }) {
+    emit(packet: {
+      from: string;
+      state: string;
+      relayConnection?: string;
+      reason?: string;
+      aggregateState?: string;
+    }) {
       const reason = packet.reason ?? 'opened';
+      const relayConnection = packet.relayConnection ?? packet.state;
       callback?.({
         from: packet.from,
         state: packet.state,
         reason,
         relay: {
           url: packet.from,
-          connection: packet.state,
-          replaying: packet.state === 'replaying',
+          connection: relayConnection,
+          replaying: relayConnection === 'replaying',
           degraded:
-            packet.state === 'degraded' || packet.state === 'backoff' || packet.state === 'closed',
+            relayConnection === 'degraded' ||
+            relayConnection === 'backoff' ||
+            relayConnection === 'closed',
           reason
         },
         aggregate: {
@@ -163,7 +172,7 @@ describe('initRelayStatus', () => {
 
   it('DEFAULT_RELAYSをもとにrelaysを初期化する', async () => {
     setupRelayGatewayMocks({
-      'wss://relay.damus.io': 'connected',
+      'wss://relay.damus.io': 'open',
       'wss://yabu.me': 'connecting'
     });
 
@@ -211,7 +220,7 @@ describe('initRelayStatus', () => {
     const gateway = setupRelayGatewayMocks();
 
     await initRelayStatus();
-    gateway.emit({ from: 'wss://relay.damus.io', state: 'connected', aggregateState: 'live' });
+    gateway.emit({ from: 'wss://relay.damus.io', state: 'open', aggregateState: 'live' });
 
     const relays = getRelays();
     const damusRelay = relays.find((r) => r.url === 'wss://relay.damus.io');
@@ -224,7 +233,7 @@ describe('initRelayStatus', () => {
     await initRelayStatus();
     gateway.emit({
       from: 'wss://new-relay.example.com',
-      state: 'connected',
+      state: 'open',
       aggregateState: 'live'
     });
 
@@ -239,6 +248,22 @@ describe('initRelayStatus', () => {
 
     await initRelayStatus();
     gateway.emit({ from: 'wss://new-relay.example.com', state: 'open', aggregateState: 'live' });
+
+    const relays = getRelays();
+    const newRelay = relays.find((r) => r.url === 'wss://new-relay.example.com');
+    expect(newRelay?.state).toBe('connected');
+  });
+
+  it('packet の canonical relay.connection を UI state の正規化元にする', async () => {
+    const gateway = setupRelayGatewayMocks();
+
+    await initRelayStatus();
+    gateway.emit({
+      from: 'wss://new-relay.example.com',
+      state: 'closed',
+      relayConnection: 'open',
+      aggregateState: 'live'
+    });
 
     const relays = getRelays();
     const newRelay = relays.find((r) => r.url === 'wss://new-relay.example.com');
@@ -295,7 +320,7 @@ describe('refreshRelayList', () => {
 
   it('渡したURLからrelaysを更新する', async () => {
     setupRelayGatewayMocks({
-      'wss://relay.example.com': 'connected'
+      'wss://relay.example.com': 'open'
     });
 
     await refreshRelayList(['wss://relay.example.com', 'wss://other.relay.com']);

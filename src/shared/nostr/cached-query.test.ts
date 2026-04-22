@@ -420,6 +420,73 @@ describe('useCachedLatest', () => {
     });
   });
 
+  it('keeps a local cache hit partial until late EOSE settles the relay path', async () => {
+    const cachedEvent = {
+      id: 'late-eose',
+      pubkey: 'pk1',
+      content: 'cached before relay settle',
+      created_at: 100,
+      tags: [],
+      kind: 0
+    };
+    let complete!: () => void;
+
+    dbGetByPubkeyAndKindMock.mockResolvedValueOnce(cachedEvent);
+    subscribeMock.mockImplementation((callbacks: SubscribeCallbacks) => {
+      complete = () => callbacks.complete?.();
+      return { unsubscribe: vi.fn() };
+    });
+
+    activeResult = useCachedLatest('pk1', 0);
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(activeResult.event).toEqual(
+      expect.objectContaining({ content: 'cached before relay settle' })
+    );
+    expect(activeResult.settlement).toEqual({
+      phase: 'partial',
+      provenance: 'store',
+      reason: 'cache-hit'
+    });
+
+    complete();
+    await flushAsync();
+
+    expect(activeResult.settlement).toEqual({
+      phase: 'settled',
+      provenance: 'store',
+      reason: 'cache-hit'
+    });
+  });
+
+  it('keeps a miss partial until all relays disconnect or complete', async () => {
+    let complete!: () => void;
+
+    subscribeMock.mockImplementation((callbacks: SubscribeCallbacks) => {
+      complete = () => callbacks.complete?.();
+      return { unsubscribe: vi.fn() };
+    });
+
+    activeResult = useCachedLatest('pk1', 0);
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(activeResult.event).toBeNull();
+    expect(activeResult.settlement).toEqual({
+      phase: 'partial',
+      provenance: 'none',
+      reason: 'cache-miss'
+    });
+
+    complete();
+    await flushAsync();
+
+    expect(activeResult.settlement).toEqual({
+      phase: 'settled',
+      provenance: 'none',
+      reason: 'settled-miss'
+    });
+  });
+
   // Note: relay-hit settlement is covered by cachedFetchById tests and integration
   // tests; this suite focuses on local-first settling and cache behavior.
 
@@ -511,12 +578,11 @@ describe('useCachedLatest', () => {
   it('initial state is no-event with canonical settlement', () => {
     activeResult = useCachedLatest('pk1', 0);
 
-    // In test runtime dynamic import mocks can settle immediately.
     expect(activeResult.event).toBeNull();
     expect(activeResult.settlement).toEqual({
-      phase: 'settled',
+      phase: 'pending',
       provenance: 'none',
-      reason: 'settled-miss'
+      reason: 'cache-miss'
     });
   });
 

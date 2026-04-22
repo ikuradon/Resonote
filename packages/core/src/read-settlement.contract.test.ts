@@ -57,4 +57,19 @@ describe('read settlement contract', () => {
       reason: 'settled-miss'
     });
   });
+
+  it('keeps local cache hits partial until the relay path settles', () => {
+    const settlement = reduceReadSettlement({
+      localSettled: true,
+      relaySettled: false,
+      relayRequired: true,
+      localHitProvenance: 'store'
+    });
+
+    expect(settlement).toEqual({
+      phase: 'partial',
+      provenance: 'store',
+      reason: 'cache-hit'
+    });
+  });
 });

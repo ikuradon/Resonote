@@ -57,4 +57,40 @@ describe('@auftakt/adapter-indexeddb reconcile contract', () => {
       }
     ]);
   });
+
+  it('returns negentropy refs sorted by created_at asc and id asc', async () => {
+    const store = await createIndexedDbEventStore(
+      `adapter-indexeddb-negentropy-${Date.now()}-${Math.random()}`
+    );
+
+    await store.putMany([
+      makeEvent({ id: 'b'.repeat(64), created_at: 300, kind: 1, tags: [] }),
+      makeEvent({ id: 'c'.repeat(64), created_at: 100, kind: 1, tags: [] }),
+      makeEvent({ id: 'a'.repeat(64), created_at: 300, kind: 1, tags: [] })
+    ]);
+
+    await expect(store.listNegentropyEventRefs()).resolves.toEqual([
+      {
+        id: 'c'.repeat(64),
+        pubkey: 'pk-1',
+        created_at: 100,
+        kind: 1,
+        tags: []
+      },
+      {
+        id: 'a'.repeat(64),
+        pubkey: 'pk-1',
+        created_at: 300,
+        kind: 1,
+        tags: []
+      },
+      {
+        id: 'b'.repeat(64),
+        pubkey: 'pk-1',
+        created_at: 300,
+        kind: 1,
+        tags: []
+      }
+    ]);
+  });
 });

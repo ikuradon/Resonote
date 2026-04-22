@@ -1,5 +1,5 @@
-import type { ReadSettlement } from '@auftakt/core';
-import { reduceReadSettlement } from '@auftakt/timeline';
+import type { ReadSettlement, ReadSettlementLocalProvenance } from '@auftakt/core';
+import { createRuntimeRequestKey, reduceReadSettlement } from '@auftakt/timeline';
 
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 
@@ -126,7 +126,12 @@ async function cachedFetchByIdInner(eventId: string): Promise<CachedFetchByIdRes
     const rxNostr = await getRxNostr();
 
     const result = await new Promise<FetchedEventFull | null>((resolve) => {
-      const req = createRxBackwardReq();
+      const requestKey = createRuntimeRequestKey({
+        mode: 'backward',
+        filters: [{ ids: [eventId] }],
+        scope: 'shared:nostr:cached-query:cachedFetchById'
+      });
+      const req = createRxBackwardReq({ requestKey });
       let found: FetchedEventFull | null = null;
       const timeout = setTimeout(() => {
         sub.unsubscribe();
@@ -222,7 +227,7 @@ export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestRe
   let event = $state<CachedEvent | null>(null);
   let localSettled = $state(false);
   let relaySettled = $state(false);
-  let localHitProvenance = $state<'store' | null>(null);
+  let localHitProvenance = $state<ReadSettlementLocalProvenance | null>(null);
   let relayHit = $state(false);
   let destroyed = false;
   let sub: { unsubscribe(): void } | undefined;
@@ -262,7 +267,12 @@ export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestRe
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- destroyed may become true during preceding awaits
       if (destroyed) return;
 
-      const req = createRxBackwardReq();
+      const requestKey = createRuntimeRequestKey({
+        mode: 'backward',
+        filters: [{ kinds: [kind], authors: [pubkey], limit: 1 }],
+        scope: 'shared:nostr:cached-query:useCachedLatest'
+      });
+      const req = createRxBackwardReq({ requestKey });
 
       timeout = setTimeout(() => {
         sub?.unsubscribe();
@@ -327,7 +337,7 @@ export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestRe
       return reduceReadSettlement({
         localSettled,
         relaySettled,
-        relayRequired: false,
+        relayRequired: true,
         localHitProvenance,
         relayHit
       });

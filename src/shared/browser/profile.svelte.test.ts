@@ -111,6 +111,45 @@ describe('profile.svelte', () => {
     expect(getProfile(PUBKEY_B)).toEqual({});
   });
 
+  it('retries unresolved placeholder profile and hydrates when metadata appears later', async () => {
+    setupFetchResult({ unresolvedPubkeys: [PUBKEY_B] });
+    await fetchProfiles([PUBKEY_B]);
+    expect(getProfile(PUBKEY_B)).toEqual({});
+
+    setupFetchResult({ fetchedEvents: [makeKind0Event(PUBKEY_B, { name: 'Recovered Name' })] });
+    await fetchProfiles([PUBKEY_B]);
+
+    expect(getProfile(PUBKEY_B)).toEqual(expect.objectContaining({ name: 'Recovered Name' }));
+  });
+
+  it('queues retry when requested while fetch is pending and hydrates after settle', async () => {
+    let resolveFirst: ((value: unknown) => void) | undefined;
+    fetchProfileMetadataEventsMock
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve;
+          })
+      )
+      .mockResolvedValueOnce({
+        cachedEvents: [],
+        fetchedEvents: [makeKind0Event(PUBKEY_A, { name: 'After Pending Retry' })],
+        unresolvedPubkeys: []
+      });
+
+    const first = fetchProfiles([PUBKEY_A]);
+    await fetchProfiles([PUBKEY_A]);
+
+    resolveFirst?.({ cachedEvents: [], fetchedEvents: [], unresolvedPubkeys: [PUBKEY_A] });
+    await first;
+
+    await vi.waitFor(() => {
+      expect(getProfile(PUBKEY_A)).toEqual(
+        expect.objectContaining({ name: 'After Pending Retry' })
+      );
+    });
+  });
+
   it('warns and skips malformed cached profile JSON', async () => {
     setupFetchResult({ cachedEvents: [makeKind0Event(PUBKEY_A, 'NOT_JSON')] });
 

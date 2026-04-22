@@ -1,4 +1,5 @@
 import {
+  type NegentropyEventRef,
   type ReconcileEmission,
   reconcileReplaceableCandidates,
   type ReplaceableCandidate
@@ -8,7 +9,7 @@ import type { Event as NostrEvent } from 'nostr-typedef';
 
 export type { Event as NostrEvent } from 'nostr-typedef';
 
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'events';
 
 export interface IndexedDbStoredEvent extends NostrEvent {
@@ -26,6 +27,7 @@ interface EventsDBSchema {
     key: string;
     value: IndexedDbStoredEvent;
     indexes: {
+      created_id: [number, string];
       pubkey_kind: [string, number];
       replace_key: [string, number, string];
       kind_created: [number, number];
@@ -70,12 +72,26 @@ function toNostrEvent(stored: IndexedDbStoredEvent): NostrEvent {
 
 async function openEventsDB(dbName: string): Promise<IDBPDatabase<EventsDBSchema>> {
   return openDB<EventsDBSchema>(dbName, DB_VERSION, {
-    upgrade(db) {
-      const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-      store.createIndex('pubkey_kind', ['pubkey', 'kind']);
-      store.createIndex('replace_key', ['pubkey', 'kind', 'd_tag']);
-      store.createIndex('kind_created', ['kind', 'created_at']);
-      store.createIndex('tag_values', '_tag_values', { multiEntry: true });
+    upgrade(db, _oldVersion, _newVersion, transaction) {
+      const store = db.objectStoreNames.contains(STORE_NAME)
+        ? transaction.objectStore(STORE_NAME)
+        : db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+
+      if (!store.indexNames.contains('created_id')) {
+        store.createIndex('created_id', ['created_at', 'id']);
+      }
+      if (!store.indexNames.contains('pubkey_kind')) {
+        store.createIndex('pubkey_kind', ['pubkey', 'kind']);
+      }
+      if (!store.indexNames.contains('replace_key')) {
+        store.createIndex('replace_key', ['pubkey', 'kind', 'd_tag']);
+      }
+      if (!store.indexNames.contains('kind_created')) {
+        store.createIndex('kind_created', ['kind', 'created_at']);
+      }
+      if (!store.indexNames.contains('tag_values')) {
+        store.createIndex('tag_values', '_tag_values', { multiEntry: true });
+      }
     }
   });
 }
@@ -228,6 +244,17 @@ export class IndexedDbEventStore {
   async getById(id: string): Promise<NostrEvent | null> {
     const result = await this.db.get(STORE_NAME, id);
     return result ? toNostrEvent(result) : null;
+  }
+
+  async listNegentropyEventRefs(): Promise<NegentropyEventRef[]> {
+    const results = await this.db.getAllFromIndex(STORE_NAME, 'created_id');
+    return results.map((event) => ({
+      id: event.id,
+      pubkey: event.pubkey,
+      created_at: event.created_at,
+      kind: event.kind,
+      tags: event.tags
+    }));
   }
 
   async deleteByIds(ids: string[]): Promise<void> {

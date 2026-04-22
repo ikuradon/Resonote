@@ -2,15 +2,15 @@ import type {
   ConsumerVisibleState,
   LogicalRequestDescriptor,
   ReadSettlement,
-  ReadSettlementProvenance,
+  ReadSettlementLocalProvenance,
   ReconcileReasonCode,
-  RelayConnectionState,
-  RelayObservation,
-  RelayObservationReason,
+  RelayObservationPacket,
+  RelayObservationSnapshot,
   RequestKey,
   SessionObservation,
   StoredEvent
 } from '@auftakt/core';
+import { normalizeRelayObservationPacket, normalizeRelayObservationSnapshot } from '@auftakt/core';
 
 export interface TimelineWindow<TEvent extends StoredEvent> {
   readonly items: readonly TEvent[];
@@ -71,7 +71,7 @@ export interface ReadSettlementReducerInput {
   readonly localSettled: boolean;
   readonly relaySettled: boolean;
   readonly relayRequired?: boolean;
-  readonly localHitProvenance?: Extract<ReadSettlementProvenance, 'memory' | 'store'> | null;
+  readonly localHitProvenance?: ReadSettlementLocalProvenance | null;
   readonly relayHit?: boolean;
   readonly nullTtlHit?: boolean;
   readonly invalidatedDuringFetch?: boolean;
@@ -142,6 +142,11 @@ export interface ReplaceableCandidate {
   readonly created_at: number;
 }
 
+export type NegentropyEventRef = Pick<
+  StoredEvent,
+  'id' | 'pubkey' | 'created_at' | 'kind' | 'tags'
+>;
+
 export type OfflineDeliveryDecision = 'confirmed' | 'retrying' | 'rejected';
 
 export function mapReasonToConsumerState(reason: ReconcileReasonCode): ConsumerVisibleState {
@@ -211,6 +216,12 @@ export function reconcileReplayRepairSubjects(
   > = 'repaired-replay'
 ): ReconcileEmission[] {
   return [...new Set(subjectIds)].map((subjectId) => emitReconcile(subjectId, reason));
+}
+
+export function reconcileNegentropyRepairSubjects(
+  subjectIds: readonly string[]
+): ReconcileEmission[] {
+  return reconcileReplayRepairSubjects(subjectIds, 'repaired-negentropy');
 }
 
 export function reconcileOfflineDelivery(
@@ -285,21 +296,9 @@ export interface SessionRuntime<
   createRxForwardReq(options?: { requestKey?: RequestKey }): RelayRequestLike;
   uniq(): unknown;
   merge(...streams: Array<ObservableLike<unknown>>): ObservableLike<unknown>;
-  getRelayConnectionState(url: string): Promise<{
-    connection: RelayConnectionState;
-    replaying: boolean;
-    degraded: boolean;
-    reason: RelayObservationReason;
-    aggregate: SessionObservation;
-  } | null>;
+  getRelayConnectionState(url: string): Promise<RelayObservationSnapshot | null>;
   observeRelayConnectionStates(
-    onPacket: (packet: {
-      from: string;
-      state: RelayConnectionState;
-      reason: RelayObservationReason;
-      relay: RelayObservation;
-      aggregate: SessionObservation;
-    }) => void
+    onPacket: (packet: RelayObservationPacket) => void
   ): Promise<SubscriptionLike>;
 }
 
@@ -326,6 +325,97 @@ export interface EventSubscriptionRefs {
 
 function stableSortStrings(values: readonly string[]): string[] {
   return [...values].sort((left, right) => left.localeCompare(right));
+}
+
+function sortNegentropyEventRefsDesc<TEvent extends NegentropyEventRef>(
+  events: readonly TEvent[]
+): TEvent[] {
+  return [...events].sort((left, right) => {
+    if (right.created_at !== left.created_at) return right.created_at - left.created_at;
+    return right.id.localeCompare(left.id);
+  });
+}
+
+export function sortNegentropyEventRefsAsc<TEvent extends NegentropyEventRef>(
+  events: readonly TEvent[]
+): TEvent[] {
+  return [...events].sort((left, right) => {
+    if (left.created_at !== right.created_at) return left.created_at - right.created_at;
+    return left.id.localeCompare(right.id);
+  });
+}
+
+function hasMatchingTag(
+  event: Pick<StoredEvent, 'tags'>,
+  tagName: string,
+  values: readonly string[]
+): boolean {
+  return event.tags.some(
+    (tag) => tag[0] === tagName && typeof tag[1] === 'string' && values.includes(tag[1])
+  );
+}
+
+export function matchesStoredEventFilter<TEvent extends NegentropyEventRef>(
+  event: TEvent,
+  filter: Filter
+): boolean {
+  const ids = Array.isArray(filter.ids)
+    ? filter.ids.filter((value): value is string => typeof value === 'string')
+    : null;
+  if (ids && ids.length > 0 && !ids.includes(event.id)) return false;
+
+  const authors = Array.isArray(filter.authors)
+    ? filter.authors.filter((value): value is string => typeof value === 'string')
+    : null;
+  if (authors && authors.length > 0 && !authors.includes(event.pubkey)) return false;
+
+  const kinds = Array.isArray(filter.kinds)
+    ? filter.kinds.filter((value): value is number => typeof value === 'number')
+    : null;
+  if (kinds && kinds.length > 0 && !kinds.includes(event.kind)) return false;
+
+  if (typeof filter.since === 'number' && event.created_at < filter.since) return false;
+  if (typeof filter.until === 'number' && event.created_at > filter.until) return false;
+
+  for (const [key, raw] of Object.entries(filter)) {
+    if (!key.startsWith('#') || !Array.isArray(raw) || raw.length === 0) continue;
+    const values = raw.filter((value): value is string => typeof value === 'string');
+    if (values.length === 0) continue;
+    if (!hasMatchingTag(event, key.slice(1), values)) return false;
+  }
+
+  return true;
+}
+
+function selectFilterMatches<TEvent extends NegentropyEventRef>(
+  events: readonly TEvent[],
+  filter: Filter
+): TEvent[] {
+  const matched = events.filter((event) => matchesStoredEventFilter(event, filter));
+  const limit =
+    typeof filter.limit === 'number' && Number.isFinite(filter.limit)
+      ? Math.max(0, Math.trunc(filter.limit))
+      : null;
+
+  if (limit === null) return matched;
+  if (limit === 0) return [];
+  return sortNegentropyEventRefsDesc(matched).slice(0, limit);
+}
+
+export function filterNegentropyEventRefs<TEvent extends NegentropyEventRef>(
+  events: readonly TEvent[],
+  filters: readonly Filter[]
+): TEvent[] {
+  if (filters.length === 0) return [];
+
+  const matched = new Map<string, TEvent>();
+  for (const filter of filters) {
+    for (const event of selectFilterMatches(events, filter)) {
+      matched.set(event.id, event);
+    }
+  }
+
+  return sortNegentropyEventRefsAsc([...matched.values()]);
 }
 
 function normalizePrimitiveArray(values: readonly unknown[]): readonly unknown[] {
@@ -413,6 +503,22 @@ export function createRuntimeRequestKey(options: RuntimeRequestDescriptorOptions
   return `rq:${REQUEST_KEY_VERSION}:${digest}` as RequestKey;
 }
 
+export function createNegentropyRepairRequestKey(options: {
+  readonly filters: readonly Filter[];
+  readonly relayUrl: string;
+  readonly scope?: string;
+}): RequestKey {
+  return createRuntimeRequestKey({
+    mode: 'backward',
+    filters: options.filters,
+    overlay: {
+      relays: [options.relayUrl],
+      includeDefaultReadRelays: false
+    },
+    scope: options.scope ?? 'timeline:repair:negentropy'
+  });
+}
+
 export async function cacheEvent<TEvent extends StoredEvent>(
   eventsDB: EventStoreLike<TEvent>,
   event: TEvent
@@ -484,8 +590,8 @@ export async function loadEventSubscriptionDeps<TEvent extends StoredEvent>(
   return {
     rxNostr,
     rxNostrMod: {
-      createRxBackwardReq: () => runtime.createRxBackwardReq(),
-      createRxForwardReq: () => runtime.createRxForwardReq(),
+      createRxBackwardReq: (options) => runtime.createRxBackwardReq(options),
+      createRxForwardReq: (options) => runtime.createRxForwardReq(options),
       uniq: () => runtime.uniq()
     },
     rxjsMerge: (...args) => runtime.merge(...(args as Array<ObservableLike<unknown>>))
@@ -809,7 +915,7 @@ export async function subscribeDualFilterStreams<TEvent extends StoredEvent>(
 export async function snapshotRelayStatuses(
   runtime: SessionRuntime,
   urls: readonly string[]
-): Promise<Array<{ url: string; relay: RelayObservation; aggregate: SessionObservation }>> {
+): Promise<RelayObservationSnapshot[]> {
   const fallbackAggregate: SessionObservation = {
     state: 'booting',
     reason: 'boot',
@@ -819,32 +925,33 @@ export async function snapshotRelayStatuses(
   return Promise.all(
     urls.map(async (url) => {
       const status = await runtime.getRelayConnectionState(url);
-      return {
-        url,
-        relay: {
+      return (
+        status ??
+        normalizeRelayObservationSnapshot({
           url,
-          connection: status?.connection ?? 'idle',
-          replaying: status?.replaying ?? false,
-          degraded: status?.degraded ?? false,
-          reason: status?.reason ?? 'boot'
-        },
-        aggregate: status?.aggregate ?? fallbackAggregate
-      };
+          connection: 'idle',
+          reason: 'boot',
+          aggregate: fallbackAggregate
+        })
+      );
     })
   );
 }
 
 export async function observeRelayStatuses(
   runtime: SessionRuntime,
-  onPacket: (packet: {
-    from: string;
-    state: RelayConnectionState;
-    reason: RelayObservationReason;
-    relay: RelayObservation;
-    aggregate: SessionObservation;
-  }) => void
+  onPacket: (packet: RelayObservationPacket) => void
 ): Promise<SubscriptionLike> {
-  return runtime.observeRelayConnectionStates(onPacket);
+  return runtime.observeRelayConnectionStates((packet) =>
+    onPacket(
+      normalizeRelayObservationPacket({
+        from: packet.from,
+        state: packet.state,
+        reason: packet.reason,
+        aggregate: packet.aggregate
+      })
+    )
+  );
 }
 
 export async function fetchLatestEventsForKinds<TEvent extends StoredEvent>(

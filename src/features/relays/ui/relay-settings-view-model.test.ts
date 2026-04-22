@@ -35,7 +35,7 @@ import {
   resolveRelayListLoadState
 } from './relay-settings-view-model.svelte.js';
 
-const liveRelays: RelayState[] = [
+const liveRelays: readonly RelayState[] = [
   { url: 'wss://relay.damus.io', state: 'connected' },
   { url: 'wss://relay.nostr.band', state: 'connecting' }
 ];
@@ -285,12 +285,12 @@ describe('createRelaySettingsViewModel', () => {
         resolveRelayListLoadState(
           {
             event: {
-              id: 'relay-list',
-              pubkey: 'pubkey1',
-              kind: 10002,
+              id: 'relay-list-event',
+              pubkey: 'pubkey-a',
               created_at: 1,
-              content: '',
-              tags: [['r', 'wss://relay1.test']]
+              kind: 10002,
+              tags: [['r', 'wss://relay1.test']],
+              content: ''
             },
             settlement: { phase: 'settled', provenance: 'store', reason: 'cache-hit' }
           },

@@ -1,10 +1,11 @@
-import type { AggregateSessionState, RelayConnectionState } from '@auftakt/core';
-
 import type {
-  ConnectionState,
-  RelayEntry,
-  RelayState
-} from '$features/relays/domain/relay-model.js';
+  AggregateSessionState,
+  RelayObservation,
+  RelayObservationPacket,
+  RelayObservationSnapshot
+} from '@auftakt/core';
+
+import type { RelayEntry, RelayState } from '$features/relays/domain/relay-model.js';
 import { parseRelayTags } from '$features/relays/domain/relay-model.js';
 import {
   fetchRelayListEvents,
@@ -34,22 +35,14 @@ export function getAggregateRelaySessionState(): AggregateSessionState {
   return aggregateState;
 }
 
-function normalizeConnectionState(
-  state: RelayConnectionState | ConnectionState | undefined
-): ConnectionState {
-  switch (state) {
+function relayObservationConnectionToUiState(
+  connection: RelayObservation['connection'] | undefined
+): RelayState['state'] {
+  switch (connection) {
     case undefined:
       return 'initialized';
-    case 'connected':
     case 'connecting':
-    case 'waiting-for-retrying':
-    case 'retrying':
-    case 'dormant':
-    case 'error':
-    case 'rejected':
-    case 'terminated':
-    case 'initialized':
-      return state;
+      return 'connecting';
     case 'idle':
       return 'initialized';
     case 'open':
@@ -67,6 +60,22 @@ function normalizeConnectionState(
   }
 }
 
+function relaySnapshotToUiState(
+  snapshot: Pick<RelayObservationSnapshot, 'url' | 'relay'>
+): RelayState {
+  return {
+    url: snapshot.url,
+    state: relayObservationConnectionToUiState(snapshot.relay.connection)
+  };
+}
+
+function relayPacketToUiState(packet: RelayObservationPacket): RelayState {
+  return {
+    url: packet.from,
+    state: relayObservationConnectionToUiState(packet.relay.connection)
+  };
+}
+
 /**
  * Update the relay list display after login/logout or user relay changes.
  */
@@ -74,10 +83,7 @@ export async function refreshRelayList(urls: string[]): Promise<void> {
   log.info('Refreshing relay list', { count: urls.length, relays: urls });
   const snapshot = await snapshotRelayStatuses(urls);
   aggregateState = snapshot[0]?.aggregate.state ?? 'booting';
-  relays = snapshot.map(({ url, relay }) => ({
-    url,
-    state: normalizeConnectionState(relay.connection)
-  }));
+  relays = snapshot.map(relaySnapshotToUiState);
 }
 
 export async function initRelayStatus(): Promise<void> {
@@ -86,25 +92,22 @@ export async function initRelayStatus(): Promise<void> {
   const snapshot = await snapshotRelayStatuses(DEFAULT_RELAYS);
   aggregateState = snapshot[0]?.aggregate.state ?? 'booting';
 
-  relays = snapshot.map(({ url, relay }) => ({
-    url,
-    state: normalizeConnectionState(relay.connection)
-  }));
+  relays = snapshot.map(relaySnapshotToUiState);
 
   subscription = await observeRelayStatuses((packet) => {
     log.debug('Relay connection state changed', {
       relay: packet.from,
-      state: packet.state,
+      connection: packet.relay.connection,
       aggregate: packet.aggregate.state,
-      reason: packet.reason
+      reason: packet.relay.reason
     });
     aggregateState = packet.aggregate.state;
     const idx = relays.findIndex((r) => r.url === packet.from);
-    const state = normalizeConnectionState(packet.relay.connection);
+    const nextRelay = relayPacketToUiState(packet);
     if (idx >= 0) {
-      relays[idx] = { url: packet.from, state };
+      relays[idx] = nextRelay;
     } else {
-      relays = [...relays, { url: packet.from, state }];
+      relays = [...relays, nextRelay];
     }
   });
 }

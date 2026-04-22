@@ -1,9 +1,9 @@
 import { createRxNostrSession, nip07Signer, type RxNostr } from '@auftakt/adapter-relay';
-import type {
-  RelayConnectionState,
-  RelayObservation,
-  RelayObservationReason,
-  SessionObservation
+import {
+  normalizeRelayObservationPacket,
+  normalizeRelayObservationSnapshot,
+  type RelayObservationPacket,
+  type RelayObservationSnapshot
 } from '@auftakt/core';
 import { createRuntimeRequestKey } from '@auftakt/timeline';
 import type { EventParameters } from 'nostr-typedef';
@@ -135,44 +135,34 @@ export async function setDefaultRelays(urls: string[]): Promise<void> {
   instance.setDefaultRelays(urls);
 }
 
-export async function getRelayConnectionState(url: string): Promise<{
-  connection: RelayConnectionState;
-  replaying: boolean;
-  degraded: boolean;
-  reason: RelayObservationReason;
-  relay: RelayObservation;
-  aggregate: SessionObservation;
-} | null> {
+export async function getRelayConnectionState(
+  url: string
+): Promise<RelayObservationSnapshot | null> {
   const instance = await getRxNostr();
   const status = instance.getRelayStatus(url);
   if (!status) return null;
-  return {
+  return normalizeRelayObservationSnapshot({
+    url,
     connection: status.connection,
-    replaying: status.replaying,
-    degraded: status.degraded,
     reason: status.reason,
-    relay: {
-      url,
-      connection: status.connection,
-      replaying: status.replaying,
-      degraded: status.degraded,
-      reason: status.reason
-    },
     aggregate: status.aggregate
-  };
+  });
 }
 
 export async function observeRelayConnectionStates(
-  onPacket: (packet: {
-    from: string;
-    state: RelayConnectionState;
-    reason: RelayObservationReason;
-    relay: RelayObservation;
-    aggregate: SessionObservation;
-  }) => void
+  onPacket: (packet: RelayObservationPacket) => void
 ): Promise<{ unsubscribe(): void }> {
   const instance = await getRxNostr();
-  return instance.createConnectionStateObservable().subscribe(onPacket);
+  return instance.createConnectionStateObservable().subscribe((packet) =>
+    onPacket(
+      normalizeRelayObservationPacket({
+        from: packet.from,
+        state: packet.state,
+        reason: packet.reason,
+        aggregate: packet.aggregate
+      })
+    )
+  );
 }
 export function disposeRxNostr(): void {
   log.info('Disposing RxNostr');

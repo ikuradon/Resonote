@@ -1,3 +1,4 @@
+import { createRuntimeRequestKey } from '@auftakt/timeline';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 interface SubscribeCallbacks {
@@ -53,6 +54,13 @@ describe('fetchBackwardEvents', () => {
     await expect(fetchBackwardEvents([{ authors: ['pk1'], kinds: [0] }])).resolves.toEqual([
       { id: 'evt-1', pubkey: 'pk1', created_at: 1, content: 'hello', tags: [] }
     ]);
+    expect(createRxBackwardReqMock).toHaveBeenCalledWith({
+      requestKey: createRuntimeRequestKey({
+        mode: 'backward',
+        filters: [{ authors: ['pk1'], kinds: [0] }],
+        scope: 'shared:nostr:query:fetchBackwardEvents'
+      })
+    });
   });
 
   it('rejects on relay errors when rejectOnError is enabled', async () => {

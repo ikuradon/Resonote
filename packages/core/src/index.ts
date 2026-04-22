@@ -55,8 +55,56 @@ export interface SessionObservation {
 }
 
 export interface RelayObservationPacket {
+  readonly from: string;
+  readonly state: RelayConnectionState;
+  readonly reason: RelayObservationReason;
   readonly relay: RelayObservation;
   readonly aggregate: SessionObservation;
+}
+
+export interface RelayObservationSnapshot {
+  readonly url: string;
+  readonly relay: RelayObservation;
+  readonly aggregate: SessionObservation;
+}
+
+export function normalizeRelayObservation(
+  url: string,
+  connection: RelayConnectionState,
+  reason: RelayObservationReason
+): RelayObservation {
+  return {
+    url,
+    connection,
+    replaying: connection === 'replaying',
+    degraded: connection === 'degraded' || connection === 'backoff' || connection === 'closed',
+    reason
+  };
+}
+
+export function normalizeRelayObservationPacket(packet: {
+  readonly from: string;
+  readonly state: RelayConnectionState;
+  readonly reason: RelayObservationReason;
+  readonly aggregate: SessionObservation;
+}): RelayObservationPacket {
+  return {
+    ...packet,
+    relay: normalizeRelayObservation(packet.from, packet.state, packet.reason)
+  };
+}
+
+export function normalizeRelayObservationSnapshot(snapshot: {
+  readonly url: string;
+  readonly connection: RelayConnectionState;
+  readonly reason: RelayObservationReason;
+  readonly aggregate: SessionObservation;
+}): RelayObservationSnapshot {
+  return {
+    url: snapshot.url,
+    relay: normalizeRelayObservation(snapshot.url, snapshot.connection, snapshot.reason),
+    aggregate: snapshot.aggregate
+  };
 }
 
 export type RelayOverlayPolicy = 'restrict' | 'prefer' | 'augment';
@@ -68,6 +116,7 @@ export interface RelayOverlay {
 
 export type ReadSettlementPhase = 'pending' | 'partial' | 'settled';
 export type ReadSettlementProvenance = 'memory' | 'store' | 'relay' | 'mixed' | 'none';
+export type ReadSettlementLocalProvenance = Extract<ReadSettlementProvenance, 'memory' | 'store'>;
 export type ReadSettlementReason =
   | 'cache-hit'
   | 'cache-miss'
@@ -82,6 +131,14 @@ export interface ReadSettlement {
   readonly phase: ReadSettlementPhase;
   readonly provenance: ReadSettlementProvenance;
   readonly reason: ReadSettlementReason;
+}
+
+export type NegentropyCapability = 'supported' | 'unsupported' | 'failed';
+
+export interface NegentropyTransportResult {
+  readonly capability: NegentropyCapability;
+  readonly reason?: string;
+  readonly messageHex?: string;
 }
 
 export type ReconcileReasonCode =

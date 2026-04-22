@@ -144,7 +144,7 @@ vi.mock('$shared/nostr/events.js', () => ({
 }));
 
 vi.mock('$shared/auftakt/resonote.js', () => ({
-  cachedFetchById: cachedFetchByIdMock,
+  fetchNostrEventById: cachedFetchByIdMock,
   invalidateFetchByIdCache: invalidateFetchByIdCacheMock
 }));
 
@@ -665,7 +665,7 @@ describe('createCommentViewModel', () => {
       expect(ph?.status).toBe('deleted');
       expect(vm.comments.find((c) => c.id === parentId)).toBeUndefined();
       // cachedFetchById WAS called (unlike the early-return path)
-      expect(cachedFetchByIdMock).toHaveBeenCalledWith(parentId);
+      expect(cachedFetchByIdMock).toHaveBeenCalledWith(parentId, []);
     });
   });
 

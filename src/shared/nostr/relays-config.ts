@@ -1,3 +1,5 @@
+import { createRuntimeRequestKey } from '@auftakt/timeline';
+
 import { parseRelayTags } from '$features/relays/domain/relay-model.js';
 import { RELAY_LIST_KIND } from '$shared/nostr/events.js';
 import { DEFAULT_RELAYS } from '$shared/nostr/relays.js';
@@ -32,7 +34,12 @@ export async function applyUserRelays(pubkey: string): Promise<string[]> {
   }
 
   return new Promise<string[]>((resolve) => {
-    const req = createRxBackwardReq();
+    const requestKey = createRuntimeRequestKey({
+      mode: 'backward',
+      filters: [{ kinds: [RELAY_LIST_KIND], authors: [pubkey], limit: 1 }],
+      scope: 'shared:nostr:relays-config:applyUserRelays'
+    });
+    const req = createRxBackwardReq({ requestKey });
     let relayTags: string[][] = [];
     let latestCreatedAt = 0;
 

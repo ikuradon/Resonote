@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(currentDir, '..');
+const packageIndexPath = resolve(currentDir, 'index.ts');
 
 function readPackageJson(): { exports?: Record<string, string | Record<string, string>> } {
   const raw = readFileSync(resolve(packageRoot, 'package.json'), 'utf8');
@@ -50,5 +51,29 @@ describe('@auftakt/resonote public api contract', () => {
         expect(name).not.toMatch(pattern);
       }
     }
+  });
+
+  it('does not expose raw negentropy protocol names', async () => {
+    const mod = await import('@auftakt/resonote');
+    const exportNames = Object.keys(mod);
+
+    for (const name of exportNames) {
+      expect(name).not.toMatch(/^NEG-(OPEN|MSG|CLOSE)$/);
+      expect(name).not.toMatch(/^neg(Open|Msg|Close)$/);
+    }
+  });
+
+  it('does not expose internal repair-facing runtime symbols from package root', async () => {
+    const mod = await import('@auftakt/resonote');
+    const exportNames = Object.keys(mod);
+    const source = readFileSync(packageIndexPath, 'utf8');
+
+    expect(exportNames).not.toContain('repairEventsFromRelay');
+    expect(exportNames).not.toContain('fetchBackwardEvents');
+    expect(exportNames).not.toContain('fetchBackwardFirst');
+    expect(exportNames).not.toContain('publishSignedEvent');
+    expect(source).not.toMatch(/\brepairEventsFromRelay\b/);
+    expect(source).not.toMatch(/\bRelayRepairOptions\b/);
+    expect(source).not.toMatch(/\bRelayRepairResult\b/);
   });
 });

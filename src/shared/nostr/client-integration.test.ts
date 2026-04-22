@@ -199,7 +199,7 @@ describe('relay observation contract (integration)', () => {
 
     let status = await getRelayConnectionState(TEST_RELAYS[0]);
     const started = Date.now();
-    while (status?.connection !== 'open' && Date.now() - started < 5_000) {
+    while (status?.relay.connection !== 'open' && Date.now() - started < 5_000) {
       await new Promise((resolve) => setTimeout(resolve, 25));
       status = await getRelayConnectionState(TEST_RELAYS[0]);
     }
@@ -207,7 +207,7 @@ describe('relay observation contract (integration)', () => {
     expect(status).not.toBeNull();
     expect(status!.relay.url).toBe(TEST_RELAYS[0]);
     expect(status!.aggregate.state).toMatch(/^(live|connecting|replaying|degraded)$/);
-    expect(typeof status!.reason).toBe('string');
+    expect(typeof status!.relay.reason).toBe('string');
 
     sub.unsubscribe();
   });

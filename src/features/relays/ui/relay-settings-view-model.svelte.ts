@@ -12,13 +12,19 @@ import {
   type RelayState
 } from '../domain/relay-model.js';
 
+type LiveRelayState = Readonly<Pick<RelayState, 'url' | 'state'>>;
+
+interface RelayReadResult {
+  event: UseCachedLatestResult['event'];
+  settlement: UseCachedLatestResult['settlement'];
+}
+
 interface RelaySettingsViewModelOptions {
   getPubkey: () => string | null;
-  getLiveRelays: () => RelayState[];
+  getLiveRelays: () => readonly LiveRelayState[];
   saveRelayList: (entries: RelayEntry[]) => Promise<void>;
 }
 
-type RelayReadResult = Pick<UseCachedLatestResult, 'event' | 'settlement'>;
 type RelayListLoadState = 'loading' | 'no-list' | 'loaded';
 
 export function resolveRelayListLoadState(
@@ -62,6 +68,7 @@ export function createRelaySettingsViewModel(options: RelaySettingsViewModelOpti
     if (!pubkey) return;
 
     relayQuery = useCachedLatest(pubkey, RELAY_LIST_KIND);
+
     return () => {
       relayQuery?.destroy();
       relayQuery = undefined;

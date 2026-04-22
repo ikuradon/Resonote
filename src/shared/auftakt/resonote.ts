@@ -1,13 +1,9 @@
 import { createRxBackwardReq, createRxForwardReq, uniq, verifier } from '@auftakt/adapter-relay';
-import type {
-  RelayConnectionState,
-  RelayObservation,
-  RelayObservationReason,
-  SessionObservation,
-  StoredEvent
-} from '@auftakt/core';
+import type { StoredEvent } from '@auftakt/core';
 import {
   buildCommentContentFilters as buildCommentContentFiltersImpl,
+  cachedFetchById as cachedFetchByIdHelper,
+  castSigned as castSignedHelper,
   type CommentFilterKinds,
   type CommentSubscriptionRefs,
   type DeletionEvent,
@@ -15,21 +11,28 @@ import {
   fetchCustomEmojiCategories as fetchCustomEmojiCategoriesImpl,
   fetchCustomEmojiSources as fetchCustomEmojiSourcesImpl,
   fetchFollowListSnapshot as fetchFollowListSnapshotImpl,
+  fetchLatestEvent as fetchLatestEventHelper,
   fetchNostrEventById as fetchNostrEventByIdImpl,
   fetchProfileCommentEvents as fetchProfileCommentEventsImpl,
   fetchProfileMetadataEvents as fetchProfileMetadataEventsImpl,
   fetchRelayListEvents as fetchRelayListEventsImpl,
   fetchWot as fetchWotImpl,
+  invalidateFetchByIdCache as invalidateFetchByIdCacheHelper,
   loadCommentSubscriptionDeps as loadCommentSubscriptionDepsImpl,
   observeRelayStatuses as observeRelayStatusesImpl,
+  publishSignedEvents as publishSignedEventsHelper,
+  type ResonoteRuntime,
+  retryPendingPublishes as retryPendingPublishesHelper,
   searchBookmarkDTagEvent as searchBookmarkDTagEventImpl,
   searchEpisodeBookmarkByGuid as searchEpisodeBookmarkByGuidImpl,
+  setDefaultRelays as setDefaultRelaysHelper,
   snapshotRelayStatuses as snapshotRelayStatusesImpl,
   startCommentDeletionReconcile as startCommentDeletionReconcileImpl,
   startCommentSubscription as startCommentSubscriptionImpl,
   startMergedCommentSubscription as startMergedCommentSubscriptionImpl,
   subscribeNotificationStreams as subscribeNotificationStreamsImpl,
-  type SubscriptionHandle
+  type SubscriptionHandle,
+  useCachedLatest as useCachedLatestHelper
 } from '@auftakt/resonote';
 import type { EventParameters } from 'nostr-typedef';
 import { merge } from 'rxjs';
@@ -42,72 +45,18 @@ import {
   type UseCachedLatestResult
 } from '$shared/nostr/cached-query.svelte.js';
 import {
-  castSigned,
-  fetchLatestEvent,
-  getRelayConnectionState,
+  castSigned as castSignedImpl,
+  fetchLatestEvent as fetchLatestEventImpl,
+  getRelayConnectionState as getRelayConnectionStateImpl,
   getRxNostr,
-  observeRelayConnectionStates,
-  setDefaultRelays
+  observeRelayConnectionStates as observeRelayConnectionStatesImpl,
+  setDefaultRelays as setDefaultRelaysImpl
 } from '$shared/nostr/client.js';
 import { getEventsDB } from '$shared/nostr/event-db.js';
-import { fetchBackwardEvents, fetchBackwardFirst } from '$shared/nostr/query.js';
-
-interface FetchBackwardOptions {
-  readonly overlay?: {
-    readonly relays: readonly string[];
-    readonly includeDefaultReadRelays?: boolean;
-  };
-  readonly timeoutMs?: number;
-  readonly rejectOnError?: boolean;
-}
-
-interface SessionRuntime {
-  fetchBackwardEvents<TEvent>(
-    filters: readonly Record<string, unknown>[],
-    options?: FetchBackwardOptions
-  ): Promise<TEvent[]>;
-  fetchBackwardFirst<TEvent>(
-    filters: readonly Record<string, unknown>[],
-    options?: FetchBackwardOptions
-  ): Promise<TEvent | null>;
-  fetchLatestEvent(
-    pubkey: string,
-    kind: number
-  ): Promise<{
-    tags: string[][];
-    content: string;
-    created_at: number;
-  } | null>;
-  getEventsDB(): Promise<{
-    getByPubkeyAndKind(pubkey: string, kind: number): Promise<StoredEvent | null>;
-    getManyByPubkeysAndKind(pubkeys: string[], kind: number): Promise<StoredEvent[]>;
-    getByReplaceKey(pubkey: string, kind: number, dTag: string): Promise<StoredEvent | null>;
-    getByTagValue(tagQuery: string, kind?: number): Promise<StoredEvent[]>;
-    put(event: StoredEvent): Promise<unknown>;
-  }>;
-  getRxNostr(): Promise<unknown>;
-  createRxBackwardReq(): unknown;
-  createRxForwardReq(): unknown;
-  uniq(): unknown;
-  merge(...streams: unknown[]): unknown;
-  getRelayConnectionState(url: string): Promise<{
-    connection: RelayConnectionState;
-    replaying: boolean;
-    degraded: boolean;
-    reason: RelayObservationReason;
-    relay: RelayObservation;
-    aggregate: SessionObservation;
-  } | null>;
-  observeRelayConnectionStates(
-    onPacket: (packet: {
-      from: string;
-      state: RelayConnectionState;
-      reason: RelayObservationReason;
-      relay: RelayObservation;
-      aggregate: SessionObservation;
-    }) => void
-  ): Promise<{ unsubscribe(): void }>;
-}
+import {
+  fetchBackwardEvents as fetchBackwardEventsImpl,
+  fetchBackwardFirst as fetchBackwardFirstImpl
+} from '$shared/nostr/query.js';
 
 interface WotProgressCallback {
   onDirectFollows(follows: Set<string>): void;
@@ -120,20 +69,68 @@ interface WotResult {
   wot: Set<string>;
 }
 
-const runtime: SessionRuntime = {
+const runtime: ResonoteRuntime = {
   fetchBackwardEvents: (filters, options) =>
-    fetchBackwardEvents(filters, options && normalizeFetchOptions(options)),
+    fetchBackwardEventsImpl(filters, {
+      ...options,
+      overlay: options?.overlay
+        ? {
+            ...options.overlay,
+            relays: [...options.overlay.relays]
+          }
+        : undefined
+    }),
   fetchBackwardFirst: (filters, options) =>
-    fetchBackwardFirst(filters, options && normalizeFetchOptions(options)),
-  fetchLatestEvent: (...args) => fetchLatestEvent(...args),
+    fetchBackwardFirstImpl(filters, {
+      ...options,
+      overlay: options?.overlay
+        ? {
+            ...options.overlay,
+            relays: [...options.overlay.relays]
+          }
+        : undefined
+    }),
+  fetchLatestEvent: (...args) => fetchLatestEventImpl(...args),
   getEventsDB: () => getEventsDB(),
   getRxNostr: () => getRxNostr(),
-  createRxBackwardReq: () => createRxBackwardReq(),
-  createRxForwardReq: () => createRxForwardReq(),
+  createRxBackwardReq: (options) => createRxBackwardReq(options),
+  createRxForwardReq: (options) => createRxForwardReq(options),
   uniq: () => uniq(),
   merge,
-  getRelayConnectionState: (...args) => getRelayConnectionState(...args),
-  observeRelayConnectionStates: (...args) => observeRelayConnectionStates(...args)
+  getRelayConnectionState: (...args) => getRelayConnectionStateImpl(...args),
+  observeRelayConnectionStates: (...args) => observeRelayConnectionStatesImpl(...args)
+};
+
+const nostrReadRuntime = {
+  cachedFetchById: cachedFetchByIdImpl,
+  invalidateFetchByIdCache: invalidateFetchByIdCacheImpl,
+  useCachedLatest: useCachedLatestImpl
+};
+
+const publishRuntime = {
+  castSigned: (params: EventParameters) => castSignedImpl(params),
+  retryPendingPublishes: async () => {
+    const { retryPendingPublishes } = await import('$shared/nostr/publish-signed.js');
+    return retryPendingPublishes();
+  },
+  publishSignedEvent: async (params: EventParameters) => {
+    const { publishSignedEvent } = await import('$shared/nostr/publish-signed.js');
+    return publishSignedEvent(params);
+  },
+  publishSignedEvents: async (params: EventParameters[]) => {
+    const { publishSignedEvents } = await import('$shared/nostr/publish-signed.js');
+    return publishSignedEvents(params);
+  }
+};
+
+const relayRuntime = {
+  fetchLatestEvent: (...args: Parameters<typeof fetchLatestEventImpl>) =>
+    fetchLatestEventImpl(...args),
+  setDefaultRelays: (urls: string[]) => setDefaultRelaysImpl(urls),
+  getRelayConnectionState: (...args: Parameters<typeof getRelayConnectionStateImpl>) =>
+    getRelayConnectionStateImpl(...args),
+  observeRelayConnectionStates: (...args: Parameters<typeof observeRelayConnectionStatesImpl>) =>
+    observeRelayConnectionStatesImpl(...args)
 };
 
 export type { StoredEvent, WotResult };
@@ -148,23 +145,23 @@ export type {
 };
 
 export async function publishSignedEvent(params: EventParameters): Promise<void> {
-  return castSigned(params);
+  return castSignedHelper(publishRuntime, params);
 }
 
 export async function readLatestEvent(pubkey: string, kind: number) {
-  return fetchLatestEvent(pubkey, kind);
+  return fetchLatestEventHelper(relayRuntime, pubkey, kind);
 }
 
 export async function cachedFetchById(eventId: string): Promise<CachedFetchByIdResult> {
-  return cachedFetchByIdImpl(eventId);
+  return cachedFetchByIdHelper(nostrReadRuntime, eventId);
 }
 
 export function invalidateFetchByIdCache(eventId: string): void {
-  invalidateFetchByIdCacheImpl(eventId);
+  invalidateFetchByIdCacheHelper(nostrReadRuntime, eventId);
 }
 
 export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestResult {
-  return useCachedLatestImpl(pubkey, kind);
+  return useCachedLatestHelper(nostrReadRuntime, pubkey, kind);
 }
 
 export async function openEventsDb() {
@@ -172,17 +169,15 @@ export async function openEventsDb() {
 }
 
 export async function setPreferredRelays(urls: string[]): Promise<void> {
-  return setDefaultRelays(urls);
+  return setDefaultRelaysHelper(relayRuntime, urls);
 }
 
 export async function retryQueuedPublishes(): Promise<void> {
-  const { retryPendingPublishes } = await import('$shared/nostr/publish-signed.js');
-  return retryPendingPublishes();
+  return retryPendingPublishesHelper(publishRuntime);
 }
 
 export async function publishSignedEvents(params: EventParameters[]): Promise<void> {
-  const { publishSignedEvents } = await import('$shared/nostr/publish-signed.js');
-  return publishSignedEvents(params);
+  return publishSignedEventsHelper(publishRuntime, params);
 }
 
 export async function verifySignedEvent(event: unknown): Promise<boolean> {
@@ -215,18 +210,6 @@ export async function searchBookmarkDTagEvent(pubkey: string, normalizedUrl: str
 
 export async function searchEpisodeBookmarkByGuid(pubkey: string, guid: string) {
   return fetchEpisodeBookmarkSearch(runtime, pubkey, guid);
-}
-
-function normalizeFetchOptions(options: FetchBackwardOptions) {
-  return {
-    ...options,
-    overlay: options.overlay
-      ? {
-          ...options.overlay,
-          relays: [...options.overlay.relays]
-        }
-      : undefined
-  };
 }
 
 export async function fetchNostrEventById<TEvent>(eventId: string, relayHints: readonly string[]) {
@@ -320,7 +303,7 @@ export async function fetchRelayListEvents(
 }
 
 async function fetchBookmarkSearch(
-  activeRuntime: SessionRuntime,
+  activeRuntime: ResonoteRuntime,
   pubkey: string,
   normalizedUrl: string
 ) {
@@ -328,7 +311,7 @@ async function fetchBookmarkSearch(
 }
 
 async function fetchEpisodeBookmarkSearch(
-  activeRuntime: SessionRuntime,
+  activeRuntime: ResonoteRuntime,
   pubkey: string,
   guid: string
 ) {
