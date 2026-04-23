@@ -1,10 +1,20 @@
-import { describe, expect, it, vi } from 'vitest';
+import 'fake-indexeddb/auto';
+
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  addPendingPublish,
+  drainPendingPublishes,
+  getPendingPublishes,
+  resetPendingDB
+} from '../../../src/shared/nostr/pending-publishes.js';
+import {
   publishSignedEventsWithOfflineFallback,
-  publishSignedEventWithOfflineFallback,
   type RetryableSignedEvent,
-  retryQueuedSignedPublishes} from './runtime.js';
+  retryQueuedSignedPublishes
+} from './runtime.js';
+
+let dbCounter = 0;
 
 function makeEvent(overrides: Partial<RetryableSignedEvent> = {}): RetryableSignedEvent {
   return {
@@ -18,7 +28,60 @@ function makeEvent(overrides: Partial<RetryableSignedEvent> = {}): RetryableSign
   };
 }
 
+beforeEach(() => {
+  resetPendingDB(`resonote-publish-queue-contract-${dbCounter++}`);
+});
+
 describe('@auftakt/resonote publish queue contract', () => {
+  it('persists queued publishes across queue runtime recreation and drains them after restart', async () => {
+    const dbName = `resonote-publish-queue-restart-${dbCounter++}`;
+    resetPendingDB(dbName);
+
+    const queuedEvent = makeEvent({
+      id: 'queued-after-restart',
+      created_at: Math.floor(Date.now() / 1000)
+    });
+    const castSigned = vi
+      .fn<(_: object) => Promise<void>>()
+      .mockRejectedValueOnce(new Error('offline'));
+
+    await publishSignedEventsWithOfflineFallback({ castSigned }, { addPendingPublish }, [
+      queuedEvent
+    ]);
+
+    expect(await getPendingPublishes()).toEqual([
+      expect.objectContaining({ id: 'queued-after-restart' })
+    ]);
+
+    resetPendingDB(dbName);
+
+    const resumedCastSigned = vi
+      .fn<(_: RetryableSignedEvent) => Promise<void>>()
+      .mockResolvedValue(undefined);
+
+    const result = await retryQueuedSignedPublishes(
+      { castSigned: resumedCastSigned },
+      { drainPendingPublishes }
+    );
+
+    expect(resumedCastSigned).toHaveBeenCalledTimes(1);
+    expect(resumedCastSigned).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'queued-after-restart' })
+    );
+    expect(result).toEqual({
+      emissions: [
+        {
+          subjectId: 'queued-after-restart',
+          reason: 'confirmed-offline',
+          state: 'confirmed'
+        }
+      ],
+      settledCount: 1,
+      retryingCount: 0
+    });
+    expect(await getPendingPublishes()).toEqual([]);
+  });
+
   it('retries queued publishes through runtime cast and keeps retrying failures queued', async () => {
     const castSigned = vi
       .fn<(_: RetryableSignedEvent) => Promise<void>>()
@@ -45,19 +108,18 @@ describe('@auftakt/resonote publish queue contract', () => {
     expect(result.retryingCount).toBe(1);
   });
 
-  it('queues only retryable signed events on single publish failure', async () => {
+  it('keeps single publish throwing instead of silently queueing on failure', async () => {
     const castSigned = vi
       .fn<(_: object) => Promise<void>>()
       .mockRejectedValue(new Error('offline'));
     const addPendingPublish = vi.fn(async () => undefined);
     const signed = makeEvent({ id: 'signed-1' });
-    const unsigned = { kind: 1, tags: [], content: 'hello' };
 
-    await publishSignedEventWithOfflineFallback({ castSigned }, { addPendingPublish }, signed);
-    await publishSignedEventWithOfflineFallback({ castSigned }, { addPendingPublish }, unsigned);
+    await expect(async () => {
+      await castSigned(signed);
+    }).rejects.toThrow('offline');
 
-    expect(addPendingPublish).toHaveBeenCalledTimes(1);
-    expect(addPendingPublish).toHaveBeenCalledWith(signed);
+    expect(addPendingPublish).not.toHaveBeenCalled();
   });
 
   it('queues only failed signed events in batch publish', async () => {

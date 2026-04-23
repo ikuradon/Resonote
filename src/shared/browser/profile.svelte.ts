@@ -5,7 +5,7 @@ import {
   type ProfileDisplay,
   truncateProfileName
 } from '$features/profiles/domain/profile-model.js';
-import { fetchProfileMetadataEvents } from '$shared/auftakt/resonote.js';
+import { fetchProfileMetadataSources } from '$shared/auftakt/resonote.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 import { sanitizeUrl } from '$shared/utils/url.js';
 
@@ -80,10 +80,8 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
   for (const pk of toFetch) pending.add(pk);
 
   try {
-    const { cachedEvents, fetchedEvents, unresolvedPubkeys } = await fetchProfileMetadataEvents(
-      toFetch,
-      PROFILE_BATCH_SIZE
-    );
+    const { cachedEvents, fetchedEvents, fallbackEvents, unresolvedPubkeys } =
+      await fetchProfileMetadataSources(toFetch, PROFILE_BATCH_SIZE);
 
     for (const event of cachedEvents) {
       try {
@@ -113,6 +111,17 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
         }
       } catch {
         log.warn('Malformed profile JSON', { pubkey: shortHex(event.pubkey) });
+      }
+    }
+
+    for (const event of fallbackEvents) {
+      try {
+        const profile = parseProfileContent(event.content);
+        profiles.set(event.pubkey, profile);
+      } catch {
+        log.warn('Malformed profile JSON from latest-event fallback', {
+          pubkey: shortHex(event.pubkey)
+        });
       }
     }
 

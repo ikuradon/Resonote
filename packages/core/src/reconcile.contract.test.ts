@@ -3,6 +3,7 @@ import {
   createRuntimeRequestKey,
   mapReasonToConsumerState,
   reconcileDeletionSubjects,
+  reconcileDeletionTargets,
   reconcileNegentropyRepairSubjects,
   reconcileOfflineDelivery,
   reconcileReplaceableCandidates,
@@ -48,6 +49,34 @@ describe('reconcile reason/state contract', () => {
         state: 'deleted'
       }
     ]);
+  });
+
+  it('verifies NIP-09 targets with author match and dedupes repeated e-tags', () => {
+    expect(
+      reconcileDeletionTargets(
+        {
+          pubkey: 'author-a',
+          tags: [
+            ['e', 'ev-1'],
+            ['e', 'ev-2'],
+            ['e', 'ev-1']
+          ]
+        },
+        new Map([
+          ['ev-1', 'author-a'],
+          ['ev-2', 'author-b']
+        ])
+      )
+    ).toEqual({
+      verifiedTargetIds: ['ev-1'],
+      emissions: [
+        {
+          subjectId: 'ev-1',
+          reason: 'tombstoned',
+          state: 'deleted'
+        }
+      ]
+    });
   });
 
   it('emits canonical offline confirm/reject/repair states', () => {

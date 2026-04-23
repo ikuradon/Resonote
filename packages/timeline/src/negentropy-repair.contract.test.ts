@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   createNegentropyRepairRequestKey,
+  createRuntimeRequestKey,
   filterNegentropyEventRefs,
   reconcileNegentropyRepairSubjects,
   sortNegentropyEventRefsAsc
@@ -26,6 +27,21 @@ function makeEvent(
 describe('@auftakt/timeline negentropy repair contract', () => {
   it('creates a dedicated request key scope for negentropy repair fetches', () => {
     const filters = [{ kinds: [1], authors: ['pubkey-a'] }];
+    const appRequestKey = createRuntimeRequestKey({
+      mode: 'backward',
+      filters,
+      overlay: {
+        relays: ['wss://relay-a.test'],
+        includeDefaultReadRelays: false
+      }
+    });
+
+    expect(
+      createNegentropyRepairRequestKey({
+        filters,
+        relayUrl: 'wss://relay-a.test'
+      })
+    ).not.toBe(appRequestKey);
 
     expect(
       createNegentropyRepairRequestKey({

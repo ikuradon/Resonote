@@ -3,6 +3,7 @@ import {
   normalizeRelayObservationPacket,
   normalizeRelayObservationSnapshot,
   type RelayObservationPacket,
+  type RelayObservationRuntime,
   type RelayObservationSnapshot
 } from '@auftakt/core';
 import { createRuntimeRequestKey } from '@auftakt/timeline';
@@ -135,34 +136,47 @@ export async function setDefaultRelays(urls: string[]): Promise<void> {
   instance.setDefaultRelays(urls);
 }
 
+function createRelayObservationRuntime(instance: RxNostr): RelayObservationRuntime {
+  return {
+    getRelayConnectionState(url: string): RelayObservationSnapshot | null {
+      const status = instance.getRelayStatus(url);
+      if (!status) return null;
+      return normalizeRelayObservationSnapshot({
+        url,
+        connection: status.connection,
+        reason: status.reason,
+        aggregate: status.aggregate
+      });
+    },
+    observeRelayConnectionStates(onPacket: (packet: RelayObservationPacket) => void): {
+      unsubscribe(): void;
+    } {
+      return instance.createConnectionStateObservable().subscribe((packet) =>
+        onPacket(
+          normalizeRelayObservationPacket({
+            from: packet.from,
+            state: packet.state,
+            reason: packet.reason,
+            aggregate: packet.aggregate
+          })
+        )
+      );
+    }
+  };
+}
+
 export async function getRelayConnectionState(
   url: string
 ): Promise<RelayObservationSnapshot | null> {
   const instance = await getRxNostr();
-  const status = instance.getRelayStatus(url);
-  if (!status) return null;
-  return normalizeRelayObservationSnapshot({
-    url,
-    connection: status.connection,
-    reason: status.reason,
-    aggregate: status.aggregate
-  });
+  return createRelayObservationRuntime(instance).getRelayConnectionState(url);
 }
 
 export async function observeRelayConnectionStates(
   onPacket: (packet: RelayObservationPacket) => void
 ): Promise<{ unsubscribe(): void }> {
   const instance = await getRxNostr();
-  return instance.createConnectionStateObservable().subscribe((packet) =>
-    onPacket(
-      normalizeRelayObservationPacket({
-        from: packet.from,
-        state: packet.state,
-        reason: packet.reason,
-        aggregate: packet.aggregate
-      })
-    )
-  );
+  return createRelayObservationRuntime(instance).observeRelayConnectionStates(onPacket);
 }
 export function disposeRxNostr(): void {
   log.info('Disposing RxNostr');

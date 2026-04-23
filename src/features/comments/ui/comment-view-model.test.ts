@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // ---------------------------------------------------------------------------
 const {
   loadSubscriptionDepsMock,
-  getCommentRepositoryMock,
+  cacheCommentEventMock,
   restoreFromCacheMock,
   buildContentFiltersMock,
   startSubscriptionMock,
@@ -36,7 +36,7 @@ const {
       rxNostrMod: {},
       rxjsMerge: vi.fn()
     }),
-    getCommentRepositoryMock: vi.fn().mockResolvedValue({ put: vi.fn() }),
+    cacheCommentEventMock: vi.fn().mockReturnValue(undefined),
     restoreFromCacheMock: vi.fn().mockResolvedValue([]),
     buildContentFiltersMock: vi.fn().mockReturnValue([]),
     startSubscriptionMock: vi.fn().mockReturnValue([mockSub, mockSub]),
@@ -105,7 +105,7 @@ const {
 // ---------------------------------------------------------------------------
 vi.mock('../application/comment-subscription.js', () => ({
   loadSubscriptionDeps: loadSubscriptionDepsMock,
-  getCommentRepository: getCommentRepositoryMock,
+  cacheCommentEvent: cacheCommentEventMock,
   restoreFromCache: restoreFromCacheMock,
   buildContentFilters: buildContentFiltersMock,
   startSubscription: startSubscriptionMock,
@@ -261,7 +261,7 @@ describe('createCommentViewModel', () => {
       rxNostrMod: {},
       rxjsMerge: vi.fn()
     });
-    getCommentRepositoryMock.mockResolvedValue({ put: vi.fn() });
+    cacheCommentEventMock.mockReturnValue(undefined);
     restoreFromCacheMock.mockResolvedValue([]);
     buildContentFiltersMock.mockReturnValue([]);
     startSubscriptionMock.mockReturnValue([mockSub, mockSub]);
@@ -354,20 +354,16 @@ describe('createCommentViewModel', () => {
   // 2. subscribe()
   // -------------------------------------------------------------------------
   describe('subscribe()', () => {
-    it('calls loadSubscriptionDeps and getCommentRepository', async () => {
+    it('calls loadSubscriptionDeps', async () => {
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
       expect(loadSubscriptionDepsMock).toHaveBeenCalledOnce();
-      expect(getCommentRepositoryMock).toHaveBeenCalledOnce();
     });
 
     it('calls restoreFromCache with tag query derived from provider', async () => {
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
-      expect(restoreFromCacheMock).toHaveBeenCalledWith(
-        expect.anything(),
-        'I:spotify:track:track-1'
-      );
+      expect(restoreFromCacheMock).toHaveBeenCalledWith('I:spotify:track:track-1');
     });
 
     it('calls startSubscription after loading deps', async () => {
@@ -754,10 +750,7 @@ describe('createCommentViewModel', () => {
       restoreFromCacheMock.mockResolvedValue([additionalEvent]);
 
       await vm.addSubscription('spotify:track:other-1');
-      expect(restoreFromCacheMock).toHaveBeenCalledWith(
-        expect.anything(),
-        'I:spotify:track:other-1'
-      );
+      expect(restoreFromCacheMock).toHaveBeenCalledWith('I:spotify:track:other-1');
       expect(vm.comments).toHaveLength(1);
       expect(vm.comments[0].id).toBe('add-c1');
     });
@@ -884,7 +877,7 @@ describe('createCommentViewModel', () => {
         created_at: 2000
       });
 
-      expect(purgeDeletedFromCacheMock).toHaveBeenCalledWith(expect.anything(), ['c1']);
+      expect(purgeDeletedFromCacheMock).toHaveBeenCalledWith(['c1']);
     });
 
     it('invalidates fetch cache for deleted events', async () => {
@@ -1411,7 +1404,7 @@ describe('createCommentViewModel', () => {
       const vm = createCommentViewModel(contentId, provider);
       await vm.subscribe();
 
-      expect(purgeDeletedFromCacheMock).toHaveBeenCalledWith(expect.anything(), ['purge-target']);
+      expect(purgeDeletedFromCacheMock).toHaveBeenCalledWith(['purge-target']);
     });
   });
 

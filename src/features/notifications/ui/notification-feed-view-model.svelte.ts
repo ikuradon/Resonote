@@ -1,7 +1,6 @@
 import { untrack } from 'svelte';
 
-import type { CachedFetchByIdResult } from '$shared/auftakt/resonote.js';
-import { cachedFetchById } from '$shared/auftakt/resonote.js';
+import { fetchNotificationTargetPreview } from '$shared/auftakt/resonote.js';
 import { fetchProfiles } from '$shared/browser/profile.js';
 import { truncateString } from '$shared/utils/format.js';
 import { createLogger } from '$shared/utils/logger.js';
@@ -31,7 +30,7 @@ interface NotificationTargetPreviewLoaderParams {
   readonly targetIds: readonly string[];
   readonly currentTargetTexts: ReadonlyMap<string, string>;
   readonly targetPreviewLength: number;
-  readonly fetchById?: (eventId: string) => Promise<CachedFetchByIdResult>;
+  readonly fetchPreview?: (eventId: string) => Promise<string | null>;
   readonly onFetchError?: (error: unknown) => void;
 }
 
@@ -39,13 +38,13 @@ export async function loadNotificationTargetPreviews({
   targetIds,
   currentTargetTexts,
   targetPreviewLength,
-  fetchById = cachedFetchById,
+  fetchPreview = fetchNotificationTargetPreview,
   onFetchError
 }: NotificationTargetPreviewLoaderParams): Promise<Map<string, string>> {
   if (targetIds.length === 0) return new Map(currentTargetTexts);
 
   const next = new Map(currentTargetTexts);
-  const results = await Promise.allSettled(targetIds.map((id) => fetchById(id)));
+  const results = await Promise.allSettled(targetIds.map((id) => fetchPreview(id)));
 
   results.forEach((result, index) => {
     if (result.status === 'rejected') {
@@ -53,18 +52,14 @@ export async function loadNotificationTargetPreviews({
       return;
     }
 
-    const fetchResult = result.value;
-    const event = fetchResult.event;
-    const settlement = fetchResult.settlement;
+    const preview = result.value;
     const targetId = targetIds[index];
 
-    if (!event) {
-      // Missing target event is a valid no-preview outcome once read settlement has completed.
-      if (settlement.phase === 'settled') return;
+    if (!preview) {
       return;
     }
 
-    next.set(targetId, truncateString(event.content, targetPreviewLength));
+    next.set(targetId, truncateString(preview, targetPreviewLength));
   });
 
   return next;

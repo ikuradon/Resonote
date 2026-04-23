@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { fetchProfileMetadataEventsMock, logWarnMock, logErrorMock } = vi.hoisted(() => ({
-  fetchProfileMetadataEventsMock: vi.fn(),
+const { fetchProfileMetadataSourcesMock, logWarnMock, logErrorMock } = vi.hoisted(() => ({
+  fetchProfileMetadataSourcesMock: vi.fn(),
   logWarnMock: vi.fn(),
   logErrorMock: vi.fn()
 }));
 
 vi.mock('$shared/auftakt/resonote.js', () => ({
-  fetchProfileMetadataEvents: fetchProfileMetadataEventsMock
+  fetchProfileMetadataSources: fetchProfileMetadataSourcesMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -50,11 +50,18 @@ function makeKind0Event(pubkey: string, content: Record<string, unknown> | strin
 function setupFetchResult(args: {
   cachedEvents?: ReturnType<typeof makeKind0Event>[];
   fetchedEvents?: ReturnType<typeof makeKind0Event>[];
+  fallbackEvents?: Array<{
+    pubkey: string;
+    tags: string[][];
+    content: string;
+    created_at: number;
+  }>;
   unresolvedPubkeys?: string[];
 }) {
-  fetchProfileMetadataEventsMock.mockResolvedValue({
+  fetchProfileMetadataSourcesMock.mockResolvedValue({
     cachedEvents: args.cachedEvents ?? [],
     fetchedEvents: args.fetchedEvents ?? [],
+    fallbackEvents: args.fallbackEvents ?? [],
     unresolvedPubkeys: args.unresolvedPubkeys ?? []
   });
 }
@@ -103,6 +110,23 @@ describe('profile.svelte', () => {
     expect(getProfile(PUBKEY_A)).toEqual(expect.objectContaining({ name: 'Alice Relay' }));
   });
 
+  it('hydrates profile from coordinator-owned latest-event fallback sources', async () => {
+    setupFetchResult({
+      fallbackEvents: [
+        {
+          pubkey: PUBKEY_B,
+          created_at: 1_000_000,
+          content: JSON.stringify({ name: 'Fallback Name' }),
+          tags: []
+        }
+      ]
+    });
+
+    await fetchProfile(PUBKEY_B);
+
+    expect(getProfile(PUBKEY_B)).toEqual(expect.objectContaining({ name: 'Fallback Name' }));
+  });
+
   it('stores empty profiles for unresolved pubkeys', async () => {
     setupFetchResult({ unresolvedPubkeys: [PUBKEY_B] });
 
@@ -124,7 +148,7 @@ describe('profile.svelte', () => {
 
   it('queues retry when requested while fetch is pending and hydrates after settle', async () => {
     let resolveFirst: ((value: unknown) => void) | undefined;
-    fetchProfileMetadataEventsMock
+    fetchProfileMetadataSourcesMock
       .mockImplementationOnce(
         () =>
           new Promise((resolve) => {
@@ -134,13 +158,19 @@ describe('profile.svelte', () => {
       .mockResolvedValueOnce({
         cachedEvents: [],
         fetchedEvents: [makeKind0Event(PUBKEY_A, { name: 'After Pending Retry' })],
+        fallbackEvents: [],
         unresolvedPubkeys: []
       });
 
     const first = fetchProfiles([PUBKEY_A]);
     await fetchProfiles([PUBKEY_A]);
 
-    resolveFirst?.({ cachedEvents: [], fetchedEvents: [], unresolvedPubkeys: [PUBKEY_A] });
+    resolveFirst?.({
+      cachedEvents: [],
+      fetchedEvents: [],
+      fallbackEvents: [],
+      unresolvedPubkeys: [PUBKEY_A]
+    });
     await first;
 
     await vi.waitFor(() => {
@@ -169,7 +199,7 @@ describe('profile.svelte', () => {
   });
 
   it('logs and preserves undefined profile state when metadata fetch rejects', async () => {
-    fetchProfileMetadataEventsMock.mockRejectedValue(new Error('relay error'));
+    fetchProfileMetadataSourcesMock.mockRejectedValue(new Error('relay error'));
 
     await fetchProfiles([PUBKEY_A, PUBKEY_B]);
 

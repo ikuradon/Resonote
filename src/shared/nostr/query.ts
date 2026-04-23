@@ -63,7 +63,9 @@ export async function fetchBackwardEvents<TEvent>(
       }
     });
 
-    for (const filter of filters) req.emit(filter as never);
+    for (const filter of filters) {
+      req.emit(filter as never);
+    }
     req.over();
 
     function settleResolve() {

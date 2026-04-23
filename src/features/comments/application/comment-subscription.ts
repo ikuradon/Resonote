@@ -106,9 +106,8 @@ export function startDeletionReconcile(
 
 // Re-export infra repository for application-layer consumers (UI should not import infra directly)
 export {
+  cacheCommentEvent,
   type CachedEvent,
-  type EventsDB,
-  getCommentRepository,
   materializeDeletedIds,
   purgeDeletedFromCache,
   restoreFromCache

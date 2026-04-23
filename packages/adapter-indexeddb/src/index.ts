@@ -1,5 +1,15 @@
 import {
+  defineProjection,
+  type OrderedEventCursor,
+  type OrderedEventTraversalDirection,
+  type OrderedEventTraversalOptions,
+  type ProjectionDefinition,
+  type ProjectionTraversalOptions
+} from '@auftakt/core';
+import {
+  extractDeletionTargetIds,
   type NegentropyEventRef,
+  reconcileDeletionTargets,
   type ReconcileEmission,
   reconcileReplaceableCandidates,
   type ReplaceableCandidate
@@ -11,6 +21,7 @@ export type { Event as NostrEvent } from 'nostr-typedef';
 
 const DB_VERSION = 2;
 const STORE_NAME = 'events';
+const DELETION_KIND = 5;
 
 export interface IndexedDbStoredEvent extends NostrEvent {
   d_tag: string;
@@ -70,6 +81,30 @@ function toNostrEvent(stored: IndexedDbStoredEvent): NostrEvent {
   return event;
 }
 
+function normalizeTraversalDirection(
+  direction: OrderedEventTraversalDirection | undefined
+): IDBCursorDirection {
+  return direction === 'desc' ? 'prev' : 'next';
+}
+
+function normalizeTraversalLimit(limit: number | undefined): number {
+  if (limit === undefined) return Number.POSITIVE_INFINITY;
+  if (!Number.isFinite(limit) || limit <= 0) return 0;
+  return Math.floor(limit);
+}
+
+function buildCreatedIdRange(
+  cursor: OrderedEventCursor | null | undefined,
+  direction: OrderedEventTraversalDirection | undefined
+): IDBKeyRange | undefined {
+  if (!cursor) return undefined;
+
+  const key: [number, string] = [cursor.created_at, cursor.id];
+  return direction === 'desc'
+    ? IDBKeyRange.upperBound(key, true)
+    : IDBKeyRange.lowerBound(key, true);
+}
+
 async function openEventsDB(dbName: string): Promise<IDBPDatabase<EventsDBSchema>> {
   return openDB<EventsDBSchema>(dbName, DB_VERSION, {
     upgrade(db, _oldVersion, _newVersion, transaction) {
@@ -98,6 +133,50 @@ async function openEventsDB(dbName: string): Promise<IDBPDatabase<EventsDBSchema
 
 export class IndexedDbEventStore {
   constructor(private readonly db: IDBPDatabase<EventsDBSchema>) {}
+
+  private async lookupDeletionPubkeys(targetId: string): Promise<Set<string>> {
+    const matches = await this.db.getAllFromIndex(STORE_NAME, 'tag_values', `e:${targetId}`);
+    return new Set(
+      matches.filter((event) => event.kind === DELETION_KIND).map((event) => event.pubkey)
+    );
+  }
+
+  private async isTombstoned(eventId: string, eventPubkey: string): Promise<boolean> {
+    const deletionPubkeys = await this.lookupDeletionPubkeys(eventId);
+    return deletionPubkeys.has(eventPubkey);
+  }
+
+  private async applyDeletionEvent(stored: IndexedDbStoredEvent): Promise<PutReconcileResult> {
+    const targetIds = extractDeletionTargetIds(stored);
+    const targetPubkeys = new Map<string, string>();
+
+    for (const targetId of targetIds) {
+      const target = await this.db.get(STORE_NAME, targetId);
+      if (target) {
+        targetPubkeys.set(targetId, target.pubkey);
+      }
+    }
+
+    const { verifiedTargetIds, emissions } = reconcileDeletionTargets(stored, targetPubkeys);
+    const tx = this.db.transaction(STORE_NAME, 'readwrite');
+    await tx.store.put(stored);
+    for (const targetId of verifiedTargetIds) {
+      void tx.store.delete(targetId);
+    }
+    await tx.done;
+
+    return {
+      stored: true,
+      emissions: [
+        {
+          subjectId: stored.id,
+          reason: 'accepted-new',
+          state: 'confirmed'
+        },
+        ...emissions
+      ]
+    };
+  }
 
   private async replaceIfNewer(
     existing: IndexedDbStoredEvent | undefined,
@@ -146,6 +225,20 @@ export class IndexedDbEventStore {
 
   async putWithReconcile(event: NostrEvent): Promise<PutReconcileResult> {
     const stored = toStoredEvent(event);
+
+    if (event.kind === DELETION_KIND) {
+      return this.applyDeletionEvent(stored);
+    }
+
+    if (await this.isTombstoned(event.id, event.pubkey)) {
+      return {
+        stored: false,
+        emissions: reconcileDeletionTargets(
+          { pubkey: event.pubkey, tags: [['e', event.id]] },
+          new Map([[event.id, event.pubkey]])
+        ).emissions
+      };
+    }
 
     if (isReplaceable(event.kind)) {
       const existing = await this.db.getFromIndex(STORE_NAME, 'pubkey_kind', [
@@ -216,9 +309,7 @@ export class IndexedDbEventStore {
   }
 
   async getAllByKind(kind: number): Promise<NostrEvent[]> {
-    const range = IDBKeyRange.bound([kind, 0], [kind, Number.MAX_SAFE_INTEGER]);
-    const results = await this.db.getAllFromIndex(STORE_NAME, 'kind_created', range);
-    return results.map(toNostrEvent);
+    return this.listOrderedEvents({ kinds: [kind] });
   }
 
   async getByTagValue(tagQuery: string, kind?: number): Promise<NostrEvent[]> {
@@ -246,8 +337,57 @@ export class IndexedDbEventStore {
     return result ? toNostrEvent(result) : null;
   }
 
+  async listOrderedEvents(options: OrderedEventTraversalOptions = {}): Promise<NostrEvent[]> {
+    const limit = normalizeTraversalLimit(options.limit);
+    if (limit === 0) return [];
+
+    const direction = options.direction;
+    const kindSet = options.kinds?.length ? new Set(options.kinds) : null;
+    const tx = this.db.transaction(STORE_NAME, 'readonly');
+    const index = tx.store.index('created_id');
+    const range = buildCreatedIdRange(options.cursor, direction);
+    const results: NostrEvent[] = [];
+
+    let cursor = await index.openCursor(range, normalizeTraversalDirection(direction));
+    while (cursor && results.length < limit) {
+      if (!kindSet || kindSet.has(cursor.value.kind)) {
+        results.push(toNostrEvent(cursor.value));
+      }
+      cursor = await cursor.continue();
+    }
+
+    await tx.done;
+    return results;
+  }
+
+  async listProjectionSourceEvents(
+    definition: ProjectionDefinition,
+    options: ProjectionTraversalOptions = {}
+  ): Promise<NostrEvent[]> {
+    const projection = defineProjection(definition);
+    const sortKey = options.sortKey ?? 'created_at';
+    const sort = projection.sorts.find((entry) => entry.key === sortKey);
+
+    if (!sort) {
+      throw new Error(`Projection sort is not registered: ${projection.name}:${sortKey}`);
+    }
+
+    if (sortKey !== 'created_at' && sort.pushdownSupported) {
+      throw new Error(
+        `Projection sort pushdown requires adapter-owned implementation: ${projection.name}:${sortKey}`
+      );
+    }
+
+    return this.listOrderedEvents({
+      cursor: options.cursor,
+      direction: options.direction,
+      limit: options.limit,
+      kinds: projection.sourceKinds
+    });
+  }
+
   async listNegentropyEventRefs(): Promise<NegentropyEventRef[]> {
-    const results = await this.db.getAllFromIndex(STORE_NAME, 'created_id');
+    const results = await this.listOrderedEvents();
     return results.map((event) => ({
       id: event.id,
       pubkey: event.pubkey,

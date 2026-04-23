@@ -13,7 +13,7 @@
  * 3. Clear events DB
  */
 
-import { openEventsDb } from '$shared/auftakt/resonote.js';
+import { clearStoredEvents } from '$shared/auftakt/resonote.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('session');
@@ -72,6 +72,5 @@ export async function destroySession(): Promise<void> {
   clearMuteList();
   void refreshRelayList(DEFAULT_RELAYS);
 
-  const db = await openEventsDb();
-  await db.clearAll();
+  await clearStoredEvents();
 }

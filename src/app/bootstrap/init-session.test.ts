@@ -15,8 +15,7 @@ const {
   clearProfilesMock,
   clearBookmarksMock,
   clearMuteListMock,
-  getEventsDBMock,
-  clearAllMock,
+  clearStoredEventsMock,
   logInfoMock,
   logErrorMock
 } = vi.hoisted(() => ({
@@ -33,8 +32,7 @@ const {
   clearProfilesMock: vi.fn(),
   clearBookmarksMock: vi.fn(),
   clearMuteListMock: vi.fn(),
-  getEventsDBMock: vi.fn(),
-  clearAllMock: vi.fn(),
+  clearStoredEventsMock: vi.fn(),
   logInfoMock: vi.fn(),
   logErrorMock: vi.fn()
 }));
@@ -66,7 +64,7 @@ vi.mock('$shared/nostr/relays.js', () => ({
 }));
 
 vi.mock('$shared/auftakt/resonote.js', () => ({
-  openEventsDb: getEventsDBMock
+  clearStoredEvents: clearStoredEventsMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -198,8 +196,7 @@ describe('destroySession', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetToDefaultRelaysMock.mockResolvedValue(undefined);
-    clearAllMock.mockResolvedValue(undefined);
-    getEventsDBMock.mockResolvedValue({ clearAll: clearAllMock });
+    clearStoredEventsMock.mockResolvedValue(undefined);
   });
 
   it('resetToDefaultRelays を呼び出す', async () => {
@@ -244,10 +241,10 @@ describe('destroySession', () => {
     expect(refreshRelayListMock).toHaveBeenCalledWith(['wss://relay.example.com']);
   });
 
-  it('getEventsDB の clearAll を呼び出す', async () => {
+  it('clearStoredEvents を呼び出す', async () => {
     await destroySession();
 
-    expect(clearAllMock).toHaveBeenCalledOnce();
+    expect(clearStoredEventsMock).toHaveBeenCalledOnce();
   });
 
   it('セッション破棄ログが出力される', async () => {

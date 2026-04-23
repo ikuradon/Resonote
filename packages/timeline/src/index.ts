@@ -5,6 +5,7 @@ import type {
   ReadSettlementLocalProvenance,
   ReconcileReasonCode,
   RelayObservationPacket,
+  RelayObservationRuntime,
   RelayObservationSnapshot,
   RequestKey,
   SessionObservation,
@@ -63,7 +64,32 @@ export interface RuntimeRequestDescriptorOptions {
   readonly scope?: string;
 }
 
+export interface RequestExecutionPlanOptions extends RuntimeRequestDescriptorOptions {
+  readonly requestKey?: RequestKey;
+  readonly coalescingScope?: string;
+}
+
+export interface RequestOptimizerCapabilities {
+  readonly maxFiltersPerShard?: number | null;
+}
+
+export interface OptimizedRequestShard {
+  readonly shardIndex: number;
+  readonly shardKey: string;
+  readonly filters: readonly Filter[];
+}
+
+export interface OptimizedLogicalRequestPlan {
+  readonly descriptor: LogicalRequestDescriptor;
+  readonly requestKey: RequestKey;
+  readonly logicalKey: string;
+  readonly shards: readonly OptimizedRequestShard[];
+}
+
 const REQUEST_KEY_VERSION = 'v1';
+const DEFAULT_REQUEST_COALESCING_SCOPE = 'timeline:app';
+
+export const REPAIR_REQUEST_COALESCING_SCOPE = 'timeline:repair';
 
 const WINDOW_KEYS = new Set(['limit', 'since', 'until']);
 
@@ -142,6 +168,16 @@ export interface ReplaceableCandidate {
   readonly created_at: number;
 }
 
+export interface DeletionEventLike {
+  readonly pubkey: string;
+  readonly tags: string[][];
+}
+
+export interface DeletionReconcileResult {
+  readonly verifiedTargetIds: string[];
+  readonly emissions: ReconcileEmission[];
+}
+
 export type NegentropyEventRef = Pick<
   StoredEvent,
   'id' | 'pubkey' | 'created_at' | 'kind' | 'tags'
@@ -208,6 +244,34 @@ export function reconcileDeletionSubjects(subjectIds: readonly string[]): Reconc
   return [...new Set(subjectIds)].map((subjectId) => emitReconcile(subjectId, 'tombstoned'));
 }
 
+export function extractDeletionTargetIds(event: Pick<DeletionEventLike, 'tags'>): string[] {
+  return event.tags
+    .filter((tag) => tag[0] === 'e' && typeof tag[1] === 'string' && tag[1].length > 0)
+    .map((tag) => tag[1] as string);
+}
+
+export function verifyDeletionTargets(
+  event: DeletionEventLike,
+  eventPubkeys: ReadonlyMap<string, string>
+): string[] {
+  const targets = extractDeletionTargetIds(event);
+  return [...new Set(targets)].filter((id) => {
+    const originalPubkey = eventPubkeys.get(id);
+    return originalPubkey !== undefined && originalPubkey === event.pubkey;
+  });
+}
+
+export function reconcileDeletionTargets(
+  event: DeletionEventLike,
+  eventPubkeys: ReadonlyMap<string, string>
+): DeletionReconcileResult {
+  const verifiedTargetIds = verifyDeletionTargets(event, eventPubkeys);
+  return {
+    verifiedTargetIds,
+    emissions: reconcileDeletionSubjects(verifiedTargetIds)
+  };
+}
+
 export function reconcileReplayRepairSubjects(
   subjectIds: readonly string[],
   reason: Extract<
@@ -264,6 +328,7 @@ export interface QueryRuntime<TEvent extends StoredEvent = StoredEvent> {
 
 export interface RelayRequestLike {
   readonly requestKey?: RequestKey;
+  readonly coalescingScope?: string;
   emit(input: unknown): void;
   over(): void;
 }
@@ -288,18 +353,25 @@ export interface RelaySessionLike {
   ): ObservableLike<unknown>;
 }
 
-export interface SessionRuntime<
-  TEvent extends StoredEvent = StoredEvent
-> extends QueryRuntime<TEvent> {
+export interface SessionRuntime<TEvent extends StoredEvent = StoredEvent>
+  extends QueryRuntime<TEvent>, RelayObservationRuntime {
   getRxNostr(): Promise<RelaySessionLike>;
-  createRxBackwardReq(options?: { requestKey?: RequestKey }): RelayRequestLike;
-  createRxForwardReq(options?: { requestKey?: RequestKey }): RelayRequestLike;
+  createRxBackwardReq(options?: {
+    requestKey?: RequestKey;
+    coalescingScope?: string;
+  }): RelayRequestLike;
+  createRxForwardReq(options?: {
+    requestKey?: RequestKey;
+    coalescingScope?: string;
+  }): RelayRequestLike;
   uniq(): unknown;
   merge(...streams: Array<ObservableLike<unknown>>): ObservableLike<unknown>;
-  getRelayConnectionState(url: string): Promise<RelayObservationSnapshot | null>;
-  observeRelayConnectionStates(
-    onPacket: (packet: RelayObservationPacket) => void
-  ): Promise<SubscriptionLike>;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 export interface SubscriptionHandle {
@@ -313,8 +385,11 @@ export interface EventSubscriptionRefs {
     };
   };
   rxNostrMod: {
-    createRxBackwardReq(options?: { requestKey?: RequestKey }): RelayRequestLike;
-    createRxForwardReq(options?: { requestKey?: RequestKey }): {
+    createRxBackwardReq(options?: {
+      requestKey?: RequestKey;
+      coalescingScope?: string;
+    }): RelayRequestLike;
+    createRxForwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): {
       emit(input: unknown): void;
       over?: () => void;
     };
@@ -473,6 +548,25 @@ function hashRequestDescriptor(payload: string): string {
   return (hash >>> 0).toString(36);
 }
 
+function normalizeTransportFilters(filters: readonly Filter[]): Filter[] {
+  return filters.map((filter) => normalizeObjectEntries(filter) as Filter);
+}
+
+function stableSortFilters(filters: readonly Filter[]): Filter[] {
+  return [...filters].sort((left, right) => toStableJson(left).localeCompare(toStableJson(right)));
+}
+
+function resolveMaxFiltersPerShard(
+  capabilities: RequestOptimizerCapabilities,
+  filterCount: number
+): number {
+  const candidate = capabilities.maxFiltersPerShard;
+  if (candidate == null || !Number.isFinite(candidate) || candidate < 1) {
+    return Math.max(filterCount, 1);
+  }
+  return Math.max(1, Math.floor(candidate));
+}
+
 export function buildLogicalRequestDescriptor(
   options: RuntimeRequestDescriptorOptions
 ): LogicalRequestDescriptor {
@@ -501,6 +595,45 @@ export function createRuntimeRequestKey(options: RuntimeRequestDescriptorOptions
   const encoded = toStableJson(descriptor);
   const digest = hashRequestDescriptor(encoded);
   return `rq:${REQUEST_KEY_VERSION}:${digest}` as RequestKey;
+}
+
+export function buildRequestExecutionPlan(
+  options: RequestExecutionPlanOptions,
+  capabilities: RequestOptimizerCapabilities = {}
+): OptimizedLogicalRequestPlan {
+  const descriptor = buildLogicalRequestDescriptor(options);
+  const requestKey = options.requestKey ?? createRuntimeRequestKey(options);
+  const normalizedFilters = stableSortFilters(normalizeTransportFilters(options.filters));
+  const coalescingScope = options.coalescingScope ?? DEFAULT_REQUEST_COALESCING_SCOPE;
+  const logicalKey = `lq:${REQUEST_KEY_VERSION}:${hashRequestDescriptor(
+    toStableJson({
+      coalescingScope,
+      mode: options.mode,
+      filters: normalizedFilters,
+      overlay: descriptor.overlay
+    })
+  )}`;
+  const shardSize = resolveMaxFiltersPerShard(capabilities, normalizedFilters.length);
+  const shards: OptimizedRequestShard[] = [];
+
+  for (let index = 0; index < normalizedFilters.length; index += shardSize) {
+    const shardIndex = shards.length;
+    const shardFilters = normalizedFilters.slice(index, index + shardSize);
+    shards.push({
+      shardIndex,
+      shardKey: `shard:${REQUEST_KEY_VERSION}:${hashRequestDescriptor(
+        toStableJson({ logicalKey, shardIndex, filters: shardFilters })
+      )}`,
+      filters: shardFilters
+    });
+  }
+
+  return {
+    descriptor,
+    requestKey,
+    logicalKey,
+    shards
+  };
 }
 
 export function createNegentropyRepairRequestKey(options: {
@@ -550,7 +683,18 @@ export async function fetchReplaceableEventsByAuthorsAndKind<TEvent extends Stor
   for (let index = 0; index < missing.length; index += batchSize) {
     const chunk = missing.slice(index, index + batchSize);
     const events = await runtime.fetchBackwardEvents<TEvent>([{ kinds: [kind], authors: chunk }]);
-    fetchedEvents.push(...events);
+    if (events.length > 0) {
+      fetchedEvents.push(...events);
+      continue;
+    }
+
+    // One-shot replaceable reads can miss very early during relay bootstrap in E2E.
+    // Retry once after a short delay to absorb startup timing without broad behavior changes.
+    await sleep(100);
+    const retriedEvents = await runtime.fetchBackwardEvents<TEvent>([
+      { kinds: [kind], authors: chunk }
+    ]);
+    fetchedEvents.push(...retriedEvents);
   }
 
   await Promise.all(fetchedEvents.map((event) => cacheEvent(eventsDB, event)));
@@ -913,7 +1057,7 @@ export async function subscribeDualFilterStreams<TEvent extends StoredEvent>(
 }
 
 export async function snapshotRelayStatuses(
-  runtime: SessionRuntime,
+  runtime: RelayObservationRuntime,
   urls: readonly string[]
 ): Promise<RelayObservationSnapshot[]> {
   const fallbackAggregate: SessionObservation = {
@@ -939,7 +1083,7 @@ export async function snapshotRelayStatuses(
 }
 
 export async function observeRelayStatuses(
-  runtime: SessionRuntime,
+  runtime: RelayObservationRuntime,
   onPacket: (packet: RelayObservationPacket) => void
 ): Promise<SubscriptionLike> {
   return runtime.observeRelayConnectionStates((packet) =>
@@ -960,8 +1104,16 @@ export async function fetchLatestEventsForKinds<TEvent extends StoredEvent>(
   kinds: readonly number[]
 ): Promise<TEvent[][]> {
   return Promise.all(
-    kinds.map((kind) =>
-      runtime.fetchBackwardEvents<TEvent>([{ kinds: [kind], authors: [pubkey], limit: 1 }])
-    )
+    kinds.map(async (kind) => {
+      const first = await runtime.fetchBackwardEvents<TEvent>([
+        { kinds: [kind], authors: [pubkey], limit: 1 }
+      ]);
+      if (first.length > 0) {
+        return first;
+      }
+
+      await sleep(100);
+      return runtime.fetchBackwardEvents<TEvent>([{ kinds: [kind], authors: [pubkey], limit: 1 }]);
+    })
   );
 }

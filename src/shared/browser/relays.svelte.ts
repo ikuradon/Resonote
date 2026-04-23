@@ -8,7 +8,7 @@ import type {
 import type { RelayEntry, RelayState } from '$features/relays/domain/relay-model.js';
 import { parseRelayTags } from '$features/relays/domain/relay-model.js';
 import {
-  fetchRelayListEvents,
+  fetchRelayListSources,
   observeRelayStatuses,
   snapshotRelayStatuses
 } from '$shared/auftakt/resonote.js';
@@ -63,17 +63,27 @@ function relayObservationConnectionToUiState(
 function relaySnapshotToUiState(
   snapshot: Pick<RelayObservationSnapshot, 'url' | 'relay'>
 ): RelayState {
+  return relayObservationToUiState(snapshot.relay, snapshot.url);
+}
+
+function relayObservationToUiState(
+  relay: Pick<RelayObservation, 'url' | 'connection'>,
+  fallbackUrl = relay.url
+): RelayState {
   return {
-    url: snapshot.url,
-    state: relayObservationConnectionToUiState(snapshot.relay.connection)
+    url: fallbackUrl,
+    state: relayObservationConnectionToUiState(relay.connection)
   };
 }
 
 function relayPacketToUiState(packet: RelayObservationPacket): RelayState {
-  return {
-    url: packet.from,
-    state: relayObservationConnectionToUiState(packet.relay.connection)
-  };
+  return relayObservationToUiState(packet.relay, packet.from);
+}
+
+function aggregateStateFromSnapshots(
+  snapshots: readonly Pick<RelayObservationSnapshot, 'aggregate'>[]
+): AggregateSessionState {
+  return snapshots[0]?.aggregate.state ?? 'booting';
 }
 
 /**
@@ -82,7 +92,7 @@ function relayPacketToUiState(packet: RelayObservationPacket): RelayState {
 export async function refreshRelayList(urls: string[]): Promise<void> {
   log.info('Refreshing relay list', { count: urls.length, relays: urls });
   const snapshot = await snapshotRelayStatuses(urls);
-  aggregateState = snapshot[0]?.aggregate.state ?? 'booting';
+  aggregateState = aggregateStateFromSnapshots(snapshot);
   relays = snapshot.map(relaySnapshotToUiState);
 }
 
@@ -90,7 +100,7 @@ export async function initRelayStatus(): Promise<void> {
   if (subscription) return;
 
   const snapshot = await snapshotRelayStatuses(DEFAULT_RELAYS);
-  aggregateState = snapshot[0]?.aggregate.state ?? 'booting';
+  aggregateState = aggregateStateFromSnapshots(snapshot);
 
   relays = snapshot.map(relaySnapshotToUiState);
 
@@ -168,11 +178,12 @@ function latestKind3RelayEntry(
  */
 export async function fetchRelayList(pubkey: string): Promise<RelayListResult> {
   log.info('Fetching relay list for user', { pubkey });
-  const { relayListEvents, followListEvents } = await fetchRelayListEvents(
+  const { relayListEvents, followListEvents } = await fetchRelayListSources(
     pubkey,
     RELAY_LIST_KIND,
     FOLLOW_KIND
   );
+
   const kind10002 = latestTaggedRelayEntry(relayListEvents);
 
   if (kind10002 !== null) {

@@ -17,7 +17,7 @@ NIP-73 (External Content IDs) + NIP-22 (Comments, kind:1111) + NIP-25 (Reactions
 - **リレー管理** — kind:10002 リレーリスト + kind:3 フォールバック + 設定 UI
 - **通知フィード** — 返信・リアクション・メンション・フォロー通知 + WoT フィルタ
 - **ブックマーク** — kind:10003 + NIP-73 i タグ拡張
-- **ミュートリスト** — kind:10000 (NIP-44 暗号化)
+- **ミュートリスト** — kind:10000 (NIP-44 暗号化 + NIP-04 fallback)
 - **プロフィールページ** — NIP-05 検証、フォロー一覧展開
 - **共有モーダル** — 時間付きリンクコピー + Nostr 投稿
 - **PWA** — Service Worker + manifest.webmanifest
@@ -49,20 +49,28 @@ NIP-73 (External Content IDs) + NIP-22 (Comments, kind:1111) + NIP-25 (Reactions
 
 ## 対応 NIP
 
-| NIP    | 用途                                        |
-| ------ | ------------------------------------------- |
-| NIP-02 | フォローリスト (kind:3)                     |
-| NIP-05 | NIP-05 検証 (プロフィール表示)              |
-| NIP-07 | ブラウザ拡張署名 (`window.nostr`)           |
-| NIP-09 | イベント削除 (kind:5)                       |
-| NIP-10 | 返信スレッド (`e` タグ)                     |
-| NIP-19 | npub/nprofile/nevent/note ルーティング      |
-| NIP-22 | コメント (kind:1111)                        |
-| NIP-25 | リアクション (kind:7)                       |
-| NIP-44 | ミュートリスト暗号化                        |
-| NIP-65 | リレーリストメタデータ (kind:10002)         |
-| NIP-73 | 外部コンテンツ ID (`i` タグ)                |
-| NIP-B0 | Web ブックマーク (kind:39701, Podcast 解決) |
+公開 claim は以下の canonical matrix に揃える。`public` はアプリから見える機能、`public-compat` は互換 fallback、`internal` / `internal-only` は runtime-governing な内部責務を表す。
+
+「NIPs 完全準拠 (Scoped Complete Compliance)」の定義および外部プロジェクト（rx-nostr, NDK, strfry）との比較基準については `docs/auftakt/spec.md` を参照。
+
+| NIP    | Target Level  | Current Status                                   | Canonical Owner                                                       | Proof / Test Anchor                                                                                                                                 | Scope Notes                                                                                                                                                                                                           |
+| ------ | ------------- | ------------------------------------------------ | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| NIP-01 | public        | implemented (runtime-owned REQ/replay + EOSE/OK) | `packages/adapter-relay/src/index.ts`                                 | `packages/adapter-relay/src/request-replay.contract.test.ts`                                                                                        | Contract tests cover REQ routing/replay, backward EOSE completion, and publish OK acknowledgements. Runtime-governing internals as coordinator behavior only.                                                         |
+| NIP-02 | public        | implemented                                      | `src/shared/browser/follows.svelte.ts`                                | `src/shared/browser/follows.test.ts`<br>`src/features/follows/application/follow-actions.test.ts`                                                   | public follow-list behavior。WoT filtering は kind:3 の上に載る Resonote behavior                                                                                                                                     |
+| NIP-04 | public-compat | implemented (compat fallback only)               | `src/shared/browser/mute.svelte.ts`                                   | `src/shared/browser/mute.test.ts`                                                                                                                   | private mute-tag 復号の compatibility fallback。DM 全面対応は主張しない                                                                                                                                               |
+| NIP-05 | public        | implemented                                      | `src/shared/nostr/nip05.ts`                                           | `src/shared/nostr/nip05.test.ts`                                                                                                                    | profile verification only                                                                                                                                                                                             |
+| NIP-07 | public        | implemented                                      | `src/shared/nostr/client.ts`                                          | `src/shared/nostr/client-integration.test.ts`                                                                                                       | browser signer integration via `window.nostr`                                                                                                                                                                         |
+| NIP-09 | public        | implemented                                      | `packages/adapter-indexeddb/src/index.ts`                             | `packages/core/src/reconcile.contract.test.ts`<br>`packages/adapter-indexeddb/src/reconcile.contract.test.ts`                                       | package-owned tombstone verification と late-event suppression                                                                                                                                                        |
+| NIP-10 | public        | implemented                                      | `src/features/comments/application/comment-actions.ts`                | `src/features/comments/application/comment-actions.test.ts`<br>`e2e/reply-thread.test.ts`                                                           | reply threading と parent linkage                                                                                                                                                                                     |
+| NIP-11 | internal      | implemented (runtime-only bounded support)       | `packages/adapter-relay/src/index.ts`                                 | `packages/adapter-relay/src/request-replay.contract.test.ts`                                                                                        | runtime-only relay request-limit policy shapes shard queueing and reconnect replay. No public relay metadata surface and no broader NIP-11 discovery claim.                                                           |
+| NIP-19 | public        | implemented                                      | `src/features/nip19-resolver/application/resolve-nip19-navigation.ts` | `src/shared/nostr/nip19-decode.test.ts`<br>`src/features/nip19-resolver/application/resolve-nip19-navigation.test.ts`<br>`e2e/nip19-routes.test.ts` | standard `npub` / `nprofile` / `note` / `nevent` を公開対応。`ncontent` は Resonote-specific extension であり標準 NIP-19 claim には含めない                                                                           |
+| NIP-22 | public        | implemented                                      | `src/features/comments/application/comment-actions.ts`                | `src/features/comments/application/comment-actions.test.ts`                                                                                         | comment kind:1111 publish flow (event construction + publish path)                                                                                                                                                    |
+| NIP-25 | public        | implemented                                      | `src/features/comments/application/comment-actions.ts`                | `src/features/comments/application/comment-actions.test.ts`                                                                                         | reaction kind:7 publish flow (event construction + publish path)                                                                                                                                                      |
+| NIP-44 | public        | implemented                                      | `src/shared/browser/mute.svelte.ts`                                   | `src/shared/browser/mute.test.ts`                                                                                                                   | encrypted mute/private-tag path                                                                                                                                                                                       |
+| NIP-65 | public        | implemented                                      | `src/shared/browser/relays.svelte.ts`                                 | `src/shared/browser/relays-fetch.test.ts`<br>`src/features/relays/application/relay-actions.test.ts`                                                | Read path is proven for kind:10002 consumption (`created_at` latest wins) with intended fallback to kind:3 only when kind:10002 yields no relay entries. Write path is separately proven by kind:10002 publish tests. |
+| NIP-73 | public        | implemented                                      | `src/shared/content/*.ts`                                             | `src/shared/content/providers.test.ts`                                                                                                              | canonical external content IDs via provider `toNostrTag()`                                                                                                                                                            |
+| NIP-77 | internal-only | implemented (internal-only)                      | `packages/resonote/src/runtime.ts`                                    | `packages/resonote/src/relay-repair.contract.test.ts`<br>`packages/resonote/src/public-api.contract.test.ts`                                        | negentropy repair only。public/package root surfaces は leak-free を維持                                                                                                                                              |
+| NIP-B0 | public        | implemented                                      | `src/server/api/podcast.ts`                                           | `src/server/api/podcast.test.ts`                                                                                                                    | Resonote bookmark mapping / podcast resolution flow                                                                                                                                                                   |
 
 ## 前提条件
 
@@ -173,12 +181,16 @@ rg -n '\$lib/i18n/(t|locales)\.js|\.\./i18n/(t|locales)\.js' src --glob '!**/*.t
 
 ```bash
 pnpm run check:auftakt-migration -- --proof
+pnpm run check:auftakt-migration -- --report consumers
+pnpm run check:auftakt-semantic
+pnpm run check:auftakt-complete
 pnpm run test:packages
 pnpm run check
 pnpm run build
 ```
 
-`pnpm run check:auftakt-migration -- --proof` が Auftakt retirement の authoritative machine-checkable gate。CI でも同じ proof を artifact として保存する。
+`pnpm run check:auftakt-migration -- --proof` および `--report consumers` が Auftakt retirement の authoritative machine-checkable gate。CI でも同じ proof を artifact として保存する。
+より詳細な検証マトリクスについては `docs/auftakt/spec.md` を参照。
 
 現時点の residual legacy dependency は production では 0。test-only では `src/shared/nostr/user-relays.test.ts` が退役予定 alias `src/shared/nostr/user-relays.ts` の回帰確認として残っている。
 

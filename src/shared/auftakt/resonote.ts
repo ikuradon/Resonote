@@ -3,34 +3,26 @@ import type { StoredEvent } from '@auftakt/core';
 import {
   buildCommentContentFilters as buildCommentContentFiltersImpl,
   cachedFetchById as cachedFetchByIdHelper,
-  castSigned as castSignedHelper,
   type CommentFilterKinds,
   type CommentSubscriptionRefs,
+  createResonoteCoordinator,
   type DeletionEvent,
   type EmojiCategory,
-  fetchCustomEmojiCategories as fetchCustomEmojiCategoriesImpl,
-  fetchCustomEmojiSources as fetchCustomEmojiSourcesImpl,
-  fetchFollowListSnapshot as fetchFollowListSnapshotImpl,
   fetchLatestEvent as fetchLatestEventHelper,
-  fetchNostrEventById as fetchNostrEventByIdImpl,
-  fetchProfileCommentEvents as fetchProfileCommentEventsImpl,
-  fetchProfileMetadataEvents as fetchProfileMetadataEventsImpl,
-  fetchRelayListEvents as fetchRelayListEventsImpl,
-  fetchWot as fetchWotImpl,
   invalidateFetchByIdCache as invalidateFetchByIdCacheHelper,
-  loadCommentSubscriptionDeps as loadCommentSubscriptionDepsImpl,
-  observeRelayStatuses as observeRelayStatusesImpl,
   publishSignedEvents as publishSignedEventsHelper,
-  type ResonoteRuntime,
+  registerPlugin as registerPluginHelper,
+  RESONOTE_COORDINATOR_PLUGIN_API_VERSION,
+  type ResonoteCoordinator,
+  type ResonoteCoordinatorPlugin,
+  type ResonoteCoordinatorPluginApi,
+  type ResonoteCoordinatorPluginApiVersion,
+  type ResonoteCoordinatorPluginRegistration,
   retryPendingPublishes as retryPendingPublishesHelper,
-  searchBookmarkDTagEvent as searchBookmarkDTagEventImpl,
-  searchEpisodeBookmarkByGuid as searchEpisodeBookmarkByGuidImpl,
   setDefaultRelays as setDefaultRelaysHelper,
-  snapshotRelayStatuses as snapshotRelayStatusesImpl,
   startCommentDeletionReconcile as startCommentDeletionReconcileImpl,
   startCommentSubscription as startCommentSubscriptionImpl,
   startMergedCommentSubscription as startMergedCommentSubscriptionImpl,
-  subscribeNotificationStreams as subscribeNotificationStreamsImpl,
   type SubscriptionHandle,
   useCachedLatest as useCachedLatestHelper
 } from '@auftakt/resonote';
@@ -53,10 +45,15 @@ import {
   setDefaultRelays as setDefaultRelaysImpl
 } from '$shared/nostr/client.js';
 import { getEventsDB } from '$shared/nostr/event-db.js';
+import { addPendingPublish, drainPendingPublishes } from '$shared/nostr/pending-publishes.js';
 import {
   fetchBackwardEvents as fetchBackwardEventsImpl,
   fetchBackwardFirst as fetchBackwardFirstImpl
 } from '$shared/nostr/query.js';
+
+type ResonoteRuntime = Parameters<
+  typeof createResonoteCoordinator<CachedFetchByIdResult, UseCachedLatestResult>
+>[0]['runtime'];
 
 interface WotProgressCallback {
   onDirectFollows(follows: Set<string>): void;
@@ -90,15 +87,15 @@ const runtime: ResonoteRuntime = {
           }
         : undefined
     }),
-  fetchLatestEvent: (...args) => fetchLatestEventImpl(...args),
+  fetchLatestEvent: (pubkey, kind) => fetchLatestEventImpl(pubkey, kind),
   getEventsDB: () => getEventsDB(),
   getRxNostr: () => getRxNostr(),
   createRxBackwardReq: (options) => createRxBackwardReq(options),
   createRxForwardReq: (options) => createRxForwardReq(options),
   uniq: () => uniq(),
   merge,
-  getRelayConnectionState: (...args) => getRelayConnectionStateImpl(...args),
-  observeRelayConnectionStates: (...args) => observeRelayConnectionStatesImpl(...args)
+  getRelayConnectionState: (url) => getRelayConnectionStateImpl(url),
+  observeRelayConnectionStates: (onPacket) => observeRelayConnectionStatesImpl(onPacket)
 };
 
 const nostrReadRuntime = {
@@ -107,20 +104,13 @@ const nostrReadRuntime = {
   useCachedLatest: useCachedLatestImpl
 };
 
-const publishRuntime = {
-  castSigned: (params: EventParameters) => castSignedImpl(params),
-  retryPendingPublishes: async () => {
-    const { retryPendingPublishes } = await import('$shared/nostr/publish-signed.js');
-    return retryPendingPublishes();
-  },
-  publishSignedEvent: async (params: EventParameters) => {
-    const { publishSignedEvent } = await import('$shared/nostr/publish-signed.js');
-    return publishSignedEvent(params);
-  },
-  publishSignedEvents: async (params: EventParameters[]) => {
-    const { publishSignedEvents } = await import('$shared/nostr/publish-signed.js');
-    return publishSignedEvents(params);
-  }
+const publishTransportRuntime = {
+  castSigned: (params: EventParameters) => castSignedImpl(params)
+};
+
+const pendingPublishQueueRuntime = {
+  addPendingPublish,
+  drainPendingPublishes
 };
 
 const relayRuntime = {
@@ -133,6 +123,16 @@ const relayRuntime = {
     observeRelayConnectionStatesImpl(...args)
 };
 
+const coordinator: ResonoteCoordinator<CachedFetchByIdResult, UseCachedLatestResult> =
+  createResonoteCoordinator({
+    runtime,
+    cachedFetchByIdRuntime: nostrReadRuntime,
+    cachedLatestRuntime: nostrReadRuntime,
+    publishTransportRuntime,
+    pendingPublishQueueRuntime,
+    relayStatusRuntime: relayRuntime
+  });
+
 export type { StoredEvent, WotResult };
 export type {
   CachedFetchByIdResult,
@@ -144,40 +144,122 @@ export type {
   UseCachedLatestResult
 };
 
+export { RESONOTE_COORDINATOR_PLUGIN_API_VERSION };
+export type {
+  ResonoteCoordinatorPlugin,
+  ResonoteCoordinatorPluginApi,
+  ResonoteCoordinatorPluginApiVersion,
+  ResonoteCoordinatorPluginRegistration
+};
+
+export interface CommentCacheEvent {
+  id: string;
+  pubkey: string;
+  content: string;
+  created_at: number;
+  tags: string[][];
+  kind: number;
+}
+
+export interface StoredFollowGraphSnapshot {
+  currentUserFollowList: StoredEvent | null;
+  allFollowLists: StoredEvent[];
+}
+
+export interface StoredEventCount {
+  kind: number;
+  count: number;
+}
+
 export async function publishSignedEvent(params: EventParameters): Promise<void> {
-  return castSignedHelper(publishRuntime, params);
+  return coordinator.publishSignedEvent(params);
 }
 
 export async function readLatestEvent(pubkey: string, kind: number) {
-  return fetchLatestEventHelper(relayRuntime, pubkey, kind);
+  return fetchLatestEventHelper(coordinator, pubkey, kind);
 }
 
 export async function cachedFetchById(eventId: string): Promise<CachedFetchByIdResult> {
-  return cachedFetchByIdHelper(nostrReadRuntime, eventId);
+  return cachedFetchByIdHelper(coordinator, eventId);
 }
 
 export function invalidateFetchByIdCache(eventId: string): void {
-  invalidateFetchByIdCacheHelper(nostrReadRuntime, eventId);
+  invalidateFetchByIdCacheHelper(coordinator, eventId);
 }
 
 export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestResult {
-  return useCachedLatestHelper(nostrReadRuntime, pubkey, kind);
+  return useCachedLatestHelper(coordinator, pubkey, kind);
 }
 
-export async function openEventsDb() {
-  return getEventsDB();
+export async function readCommentEventsByTag(tagQuery: string): Promise<CommentCacheEvent[]> {
+  const eventsDb = await coordinator.openEventsDb();
+  return eventsDb.getByTagValue(tagQuery);
+}
+
+export async function storeCommentEvent(event: CommentCacheEvent): Promise<boolean> {
+  const eventsDb = await coordinator.openEventsDb();
+  return (await eventsDb.put(event)) !== false;
+}
+
+export async function deleteCommentEventsByIds(ids: readonly string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const eventsDb = await coordinator.openEventsDb();
+  await eventsDb.deleteByIds([...ids]);
+}
+
+export async function readStoredFollowGraph(
+  pubkey: string,
+  followKind: number
+): Promise<StoredFollowGraphSnapshot> {
+  const eventsDb = await coordinator.openEventsDb();
+  const [currentUserFollowList, allFollowLists] = await Promise.all([
+    eventsDb.getByPubkeyAndKind(pubkey, followKind),
+    eventsDb.getAllByKind(followKind)
+  ]);
+
+  return {
+    currentUserFollowList,
+    allFollowLists
+  };
+}
+
+export async function countStoredEventsByKinds(
+  kinds: readonly number[]
+): Promise<StoredEventCount[]> {
+  const eventsDb = await coordinator.openEventsDb();
+  const counts = await Promise.all(
+    kinds.map(async (kind) => {
+      const events = await eventsDb.getAllByKind(kind);
+      return {
+        kind,
+        count: events.length
+      };
+    })
+  );
+  return counts;
+}
+
+export async function clearStoredEvents(): Promise<void> {
+  const eventsDb = await coordinator.openEventsDb();
+  await eventsDb.clearAll();
 }
 
 export async function setPreferredRelays(urls: string[]): Promise<void> {
-  return setDefaultRelaysHelper(relayRuntime, urls);
+  return setDefaultRelaysHelper(coordinator, urls);
 }
 
 export async function retryQueuedPublishes(): Promise<void> {
-  return retryPendingPublishesHelper(publishRuntime);
+  return retryPendingPublishesHelper(coordinator);
+}
+
+export async function registerPlugin(
+  plugin: ResonoteCoordinatorPlugin
+): Promise<ResonoteCoordinatorPluginRegistration> {
+  return registerPluginHelper(coordinator, plugin);
 }
 
 export async function publishSignedEvents(params: EventParameters[]): Promise<void> {
-  return publishSignedEventsHelper(publishRuntime, params);
+  return publishSignedEventsHelper(coordinator, params);
 }
 
 export async function verifySignedEvent(event: unknown): Promise<boolean> {
@@ -185,39 +267,47 @@ export async function verifySignedEvent(event: unknown): Promise<boolean> {
 }
 
 export async function fetchProfileCommentEvents(pubkey: string, until?: number, limit?: number) {
-  return fetchProfileCommentEventsImpl(runtime, pubkey, until, limit);
+  return coordinator.fetchProfileCommentEvents(pubkey, until, limit);
 }
 
 export async function fetchFollowListSnapshot(pubkey: string, followKind?: number) {
-  return fetchFollowListSnapshotImpl(runtime, pubkey, followKind);
+  return coordinator.fetchFollowListSnapshot(pubkey, followKind);
 }
 
 export async function fetchProfileMetadataEvents(pubkeys: readonly string[], batchSize?: number) {
-  return fetchProfileMetadataEventsImpl(runtime, pubkeys, batchSize);
+  return coordinator.fetchProfileMetadataEvents(pubkeys, batchSize);
+}
+
+export async function fetchProfileMetadataSources(pubkeys: readonly string[], batchSize?: number) {
+  return coordinator.fetchProfileMetadataSources(pubkeys, batchSize);
 }
 
 export async function fetchCustomEmojiSources(pubkey: string) {
-  return fetchCustomEmojiSourcesImpl(runtime, pubkey);
+  return coordinator.fetchCustomEmojiSources(pubkey);
 }
 
 export async function fetchCustomEmojiCategories(pubkey: string): Promise<EmojiCategory[]> {
-  return fetchCustomEmojiCategoriesImpl(runtime, pubkey);
+  return coordinator.fetchCustomEmojiCategories(pubkey);
 }
 
 export async function searchBookmarkDTagEvent(pubkey: string, normalizedUrl: string) {
-  return fetchBookmarkSearch(runtime, pubkey, normalizedUrl);
+  return coordinator.searchBookmarkDTagEvent(pubkey, normalizedUrl);
 }
 
 export async function searchEpisodeBookmarkByGuid(pubkey: string, guid: string) {
-  return fetchEpisodeBookmarkSearch(runtime, pubkey, guid);
+  return coordinator.searchEpisodeBookmarkByGuid(pubkey, guid);
 }
 
 export async function fetchNostrEventById<TEvent>(eventId: string, relayHints: readonly string[]) {
-  return fetchNostrEventByIdImpl<TEvent>(runtime, eventId, relayHints);
+  return coordinator.fetchNostrEventById<TEvent>(eventId, relayHints);
+}
+
+export async function fetchNotificationTargetPreview(eventId: string): Promise<string | null> {
+  return coordinator.fetchNotificationTargetPreview(eventId);
 }
 
 export async function loadCommentSubscriptionDeps(): Promise<CommentSubscriptionRefs> {
-  return loadCommentSubscriptionDepsImpl(runtime as never);
+  return coordinator.loadCommentSubscriptionDeps();
 }
 
 export function buildCommentContentFilters(idValue: string, kinds: CommentFilterKinds) {
@@ -274,24 +364,36 @@ export async function fetchWot(
   followKind?: number,
   batchSize?: number
 ): Promise<WotResult> {
-  return fetchWotImpl(runtime as never, pubkey, callbacks, extractFollows, followKind, batchSize);
+  return coordinator.fetchWot(pubkey, callbacks, extractFollows, followKind, batchSize);
 }
 
 export async function subscribeNotificationStreams(
-  options: Parameters<typeof subscribeNotificationStreamsImpl>[1],
-  handlers: Parameters<typeof subscribeNotificationStreamsImpl>[2]
+  options: Parameters<
+    ResonoteCoordinator<
+      CachedFetchByIdResult,
+      UseCachedLatestResult
+    >['subscribeNotificationStreams']
+  >[0],
+  handlers: Parameters<
+    ResonoteCoordinator<
+      CachedFetchByIdResult,
+      UseCachedLatestResult
+    >['subscribeNotificationStreams']
+  >[1]
 ) {
-  return subscribeNotificationStreamsImpl(runtime as never, options, handlers);
+  return coordinator.subscribeNotificationStreams(options, handlers);
 }
 
 export async function snapshotRelayStatuses(urls: readonly string[]) {
-  return snapshotRelayStatusesImpl(runtime as never, urls);
+  return coordinator.snapshotRelayStatuses(urls);
 }
 
 export async function observeRelayStatuses(
-  onPacket: Parameters<typeof observeRelayStatusesImpl>[1]
+  onPacket: Parameters<
+    ResonoteCoordinator<CachedFetchByIdResult, UseCachedLatestResult>['observeRelayStatuses']
+  >[0]
 ) {
-  return observeRelayStatusesImpl(runtime as never, onPacket);
+  return coordinator.observeRelayStatuses(onPacket);
 }
 
 export async function fetchRelayListEvents(
@@ -299,24 +401,17 @@ export async function fetchRelayListEvents(
   relayListKind: number,
   followKind: number
 ) {
-  return fetchRelayListEventsImpl(runtime, pubkey, relayListKind, followKind);
+  return coordinator.fetchRelayListEvents(pubkey, relayListKind, followKind);
 }
 
-async function fetchBookmarkSearch(
-  activeRuntime: ResonoteRuntime,
+export async function fetchRelayListSources(
   pubkey: string,
-  normalizedUrl: string
+  relayListKind: number,
+  followKind: number
 ) {
-  return searchBookmarkDTagEventImpl(activeRuntime, pubkey, normalizedUrl);
+  return coordinator.fetchRelayListSources(pubkey, relayListKind, followKind);
 }
 
-async function fetchEpisodeBookmarkSearch(
-  activeRuntime: ResonoteRuntime,
-  pubkey: string,
-  guid: string
-) {
-  return searchEpisodeBookmarkByGuidImpl(activeRuntime, pubkey, guid);
-}
-
+export type { ResonoteCoordinator } from '@auftakt/resonote';
 export { parseCommentContent } from '$shared/nostr/content-parser.js';
 export { addEmojiTag, extractShortcode } from '$shared/utils/emoji.js';

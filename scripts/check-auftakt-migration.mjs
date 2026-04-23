@@ -129,6 +129,19 @@ const semanticGuardPolicies = [
       'packages/adapter-relay/src/index.ts',
       'packages/adapter-relay/src/request-replay.contract.test.ts'
     ]
+  },
+  {
+    name: 'direct-shared-nostr-consumer-import',
+    description: 'direct $shared/nostr canonical imports outside façade/internal bridges',
+    pattern: /\$shared\/nostr\/(cached-query|client|query|publish-signed)(?:\.js)?/g,
+    allowedFiles: [
+      'src/shared/auftakt/resonote.ts',
+      'src/shared/nostr/cached-query.svelte.ts',
+      'src/shared/nostr/cached-query.test.ts',
+      'src/shared/nostr/relays-config.ts',
+      'src/shared/nostr/relays-config.test.ts',
+      'src/shared/nostr/user-relays.test.ts'
+    ]
   }
 ];
 

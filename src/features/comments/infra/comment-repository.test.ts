@@ -1,13 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getEventsDBMock, logErrorMock, logInfoMock } = vi.hoisted(() => ({
-  getEventsDBMock: vi.fn(),
+const {
+  readCommentEventsByTagMock,
+  storeCommentEventMock,
+  deleteCommentEventsByIdsMock,
+  logErrorMock,
+  logInfoMock
+} = vi.hoisted(() => ({
+  readCommentEventsByTagMock: vi.fn(),
+  storeCommentEventMock: vi.fn(),
+  deleteCommentEventsByIdsMock: vi.fn(),
   logErrorMock: vi.fn(),
   logInfoMock: vi.fn()
 }));
 
 vi.mock('$shared/auftakt/resonote.js', () => ({
-  openEventsDb: getEventsDBMock
+  readCommentEventsByTag: readCommentEventsByTagMock,
+  storeCommentEvent: storeCommentEventMock,
+  deleteCommentEventsByIds: deleteCommentEventsByIdsMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -19,9 +29,9 @@ vi.mock('$shared/utils/logger.js', () => ({
   })
 }));
 
-import type { CachedEvent, EventsDB } from './comment-repository.js';
+import type { CachedEvent } from './comment-repository.js';
 import {
-  getCommentRepository,
+  cacheCommentEvent,
   materializeDeletedIds,
   purgeDeletedFromCache,
   restoreFromCache
@@ -38,89 +48,63 @@ function makeEvent(overrides: Partial<CachedEvent> = {}): CachedEvent {
   };
 }
 
-function makeDb(overrides: Partial<EventsDB> = {}): EventsDB {
-  return {
-    getByTagValue: vi.fn(async () => []),
-    put: vi.fn(),
-    deleteByIds: vi.fn(async () => {}),
-    ...overrides
-  };
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('getCommentRepository', () => {
-  it('returns the EventsDB instance from getEventsDB', async () => {
-    const fakeDb = makeDb();
-    getEventsDBMock.mockResolvedValue(fakeDb);
+describe('cacheCommentEvent', () => {
+  it('stores events through the façade helper', async () => {
+    const event = makeEvent();
+    storeCommentEventMock.mockResolvedValue(true);
 
-    const result = await getCommentRepository();
+    const result = await cacheCommentEvent(event);
 
-    expect(getEventsDBMock).toHaveBeenCalledOnce();
-    expect(result).toBe(fakeDb);
+    expect(storeCommentEventMock).toHaveBeenCalledWith(event);
+    expect(result).toBe(true);
   });
 });
 
 describe('restoreFromCache', () => {
-  it('returns events from db.getByTagValue', async () => {
+  it('returns events from the façade helper', async () => {
     const events = [makeEvent({ id: 'ev-1' }), makeEvent({ id: 'ev-2' })];
-    const db = makeDb({ getByTagValue: vi.fn(async () => events) });
+    readCommentEventsByTagMock.mockResolvedValue(events);
 
-    const result = await restoreFromCache(db, 'spotify:track:abc');
+    const result = await restoreFromCache('spotify:track:abc');
 
-    expect(db.getByTagValue).toHaveBeenCalledWith('spotify:track:abc');
+    expect(readCommentEventsByTagMock).toHaveBeenCalledWith('spotify:track:abc');
     expect(result).toEqual(events);
   });
 
-  it('returns [] when db.getByTagValue throws', async () => {
-    const db = makeDb({
-      getByTagValue: vi.fn(async () => {
-        throw new Error('db error');
-      })
-    });
+  it('returns [] when the façade helper throws', async () => {
+    readCommentEventsByTagMock.mockRejectedValue(new Error('db error'));
 
-    const result = await restoreFromCache(db, 'spotify:track:abc');
+    const result = await restoreFromCache('spotify:track:abc');
 
     expect(result).toEqual([]);
     expect(logErrorMock).toHaveBeenCalled();
   });
-
-  it('passes the tagQuery argument to db.getByTagValue', async () => {
-    const db = makeDb();
-    await restoreFromCache(db, 'youtube:video:xyz');
-    expect(db.getByTagValue).toHaveBeenCalledWith('youtube:video:xyz');
-  });
 });
 
 describe('purgeDeletedFromCache', () => {
-  it('calls db.deleteByIds with provided ids', async () => {
-    const db = makeDb();
-    await purgeDeletedFromCache(db, ['id-1', 'id-2']);
-    expect(db.deleteByIds).toHaveBeenCalledWith(['id-1', 'id-2']);
+  it('calls deleteCommentEventsByIds with provided ids', async () => {
+    await purgeDeletedFromCache(['id-1', 'id-2']);
+    expect(deleteCommentEventsByIdsMock).toHaveBeenCalledWith(['id-1', 'id-2']);
   });
 
-  it('does not call db.deleteByIds when ids is empty', async () => {
-    const db = makeDb();
-    await purgeDeletedFromCache(db, []);
-    expect(db.deleteByIds).not.toHaveBeenCalled();
+  it('does not call deleteCommentEventsByIds when ids is empty', async () => {
+    await purgeDeletedFromCache([]);
+    expect(deleteCommentEventsByIdsMock).not.toHaveBeenCalled();
   });
 
   it('logs info after successful purge', async () => {
-    const db = makeDb();
-    await purgeDeletedFromCache(db, ['id-1']);
+    await purgeDeletedFromCache(['id-1']);
     expect(logInfoMock).toHaveBeenCalled();
   });
 
-  it('handles db.deleteByIds errors gracefully', async () => {
-    const db = makeDb({
-      deleteByIds: vi.fn(async () => {
-        throw new Error('delete error');
-      })
-    });
+  it('handles deleteCommentEventsByIds errors gracefully', async () => {
+    deleteCommentEventsByIdsMock.mockRejectedValue(new Error('delete error'));
 
-    await expect(purgeDeletedFromCache(db, ['id-1'])).resolves.toBeUndefined();
+    await expect(purgeDeletedFromCache(['id-1'])).resolves.toBeUndefined();
     expect(logErrorMock).toHaveBeenCalled();
   });
 });

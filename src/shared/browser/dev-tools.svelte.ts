@@ -1,4 +1,4 @@
-import { openEventsDb } from '$shared/auftakt/resonote.js';
+import { clearStoredEvents, countStoredEventsByKinds } from '$shared/auftakt/resonote.js';
 export interface DbStats {
   total: number;
   byKind: { kind: number; count: number }[];
@@ -9,14 +9,13 @@ const EVENTS_DB_NAME = 'resonote-events';
 
 export async function loadDbStats(): Promise<DbStats> {
   try {
-    const db = await openEventsDb();
+    const counts = await countStoredEventsByKinds(TRACKED_KINDS);
     const byKind: { kind: number; count: number }[] = [];
     let total = 0;
-    for (const kind of TRACKED_KINDS) {
-      const events = await db.getAllByKind(kind);
-      if (events.length > 0) {
-        byKind.push({ kind, count: events.length });
-        total += events.length;
+    for (const { kind, count } of counts) {
+      if (count > 0) {
+        byKind.push({ kind, count });
+        total += count;
       }
     }
     return { total, byKind };
@@ -26,8 +25,7 @@ export async function loadDbStats(): Promise<DbStats> {
 }
 
 export async function clearIndexedDB(): Promise<void> {
-  const db = await openEventsDb();
-  await db.clearAll();
+  await clearStoredEvents();
 }
 
 export function clearLocalStorage(key: string): void {

@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { fetchRelayListEventsMock, snapshotRelayStatusesMock, publishRelayListMock } = vi.hoisted(
+const { fetchRelayListSourcesMock, snapshotRelayStatusesMock, publishRelayListMock } = vi.hoisted(
   () => ({
-    fetchRelayListEventsMock: vi.fn(),
+    fetchRelayListSourcesMock: vi.fn(),
     snapshotRelayStatusesMock: vi.fn(),
     publishRelayListMock: vi.fn(async () => ['wss://relay.example.com'])
   })
 );
 
 vi.mock('$shared/auftakt/resonote.js', () => ({
-  fetchRelayListEvents: fetchRelayListEventsMock,
+  fetchRelayListSources: fetchRelayListSourcesMock,
   observeRelayStatuses: vi.fn(),
   snapshotRelayStatuses: snapshotRelayStatusesMock
 }));
@@ -59,7 +59,7 @@ describe('fetchRelayList', () => {
   });
 
   it('returns kind10002 entries when relay list events contain relay tags', async () => {
-    fetchRelayListEventsMock.mockResolvedValueOnce({
+    fetchRelayListSourcesMock.mockResolvedValueOnce({
       relayListEvents: [{ created_at: 1000, tags: [['r', 'wss://relay.example.com']] }],
       followListEvents: []
     });
@@ -72,8 +72,44 @@ describe('fetchRelayList', () => {
     });
   });
 
+  it('uses the newest kind10002 relay-list event by created_at on the read path', async () => {
+    fetchRelayListSourcesMock.mockResolvedValueOnce({
+      relayListEvents: [
+        { created_at: 1000, tags: [['r', 'wss://older.relay.com']] },
+        { created_at: 2000, tags: [['r', 'wss://newer.relay.com']] }
+      ],
+      followListEvents: []
+    });
+
+    const result = await fetchRelayList(PUBKEY);
+
+    expect(result).toEqual({
+      source: 'kind10002',
+      entries: [{ url: 'wss://newer.relay.com', read: true, write: true }]
+    });
+  });
+
+  it('keeps kind10002 as the consumed read source when kind3 also exists', async () => {
+    fetchRelayListSourcesMock.mockResolvedValueOnce({
+      relayListEvents: [{ created_at: 1000, tags: [['r', 'wss://primary.relay.com']] }],
+      followListEvents: [
+        {
+          created_at: 2000,
+          content: JSON.stringify({ 'wss://fallback.relay.com': { read: true, write: true } })
+        }
+      ]
+    });
+
+    const result = await fetchRelayList(PUBKEY);
+
+    expect(result).toEqual({
+      source: 'kind10002',
+      entries: [{ url: 'wss://primary.relay.com', read: true, write: true }]
+    });
+  });
+
   it('falls back to kind3 entries when kind10002 is empty', async () => {
-    fetchRelayListEventsMock.mockResolvedValueOnce({
+    fetchRelayListSourcesMock.mockResolvedValueOnce({
       relayListEvents: [{ created_at: 1000, tags: [] }],
       followListEvents: [
         {
@@ -90,7 +126,7 @@ describe('fetchRelayList', () => {
   });
 
   it('returns none when both event groups are empty', async () => {
-    fetchRelayListEventsMock.mockResolvedValueOnce({ relayListEvents: [], followListEvents: [] });
+    fetchRelayListSourcesMock.mockResolvedValueOnce({ relayListEvents: [], followListEvents: [] });
 
     await expect(fetchRelayList(PUBKEY)).resolves.toEqual({ entries: [], source: 'none' });
   });

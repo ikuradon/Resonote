@@ -37,6 +37,11 @@ describe('@auftakt/resonote public api contract', () => {
     const mod = await import('@auftakt/resonote');
     const exportNames = Object.keys(mod);
 
+    expect(exportNames).toContain('createResonoteCoordinator');
+    expect(exportNames).toContain('registerPlugin');
+    expect(exportNames).toContain('RESONOTE_COORDINATOR_PLUGIN_API_VERSION');
+    expect(exportNames).not.toContain('ResonoteRuntime');
+
     const forbidden = [
       /^createRxBackwardReq$/,
       /^createRxForwardReq$/,
@@ -68,6 +73,8 @@ describe('@auftakt/resonote public api contract', () => {
     const exportNames = Object.keys(mod);
     const source = readFileSync(packageIndexPath, 'utf8');
 
+    expect(source).toMatch(/\bResonoteCoordinator\b/);
+    expect(source).toMatch(/\bcreateResonoteCoordinator\b/);
     expect(exportNames).not.toContain('repairEventsFromRelay');
     expect(exportNames).not.toContain('fetchBackwardEvents');
     expect(exportNames).not.toContain('fetchBackwardFirst');
@@ -75,5 +82,20 @@ describe('@auftakt/resonote public api contract', () => {
     expect(source).not.toMatch(/\brepairEventsFromRelay\b/);
     expect(source).not.toMatch(/\bRelayRepairOptions\b/);
     expect(source).not.toMatch(/\bRelayRepairResult\b/);
+    expect(source).not.toMatch(/\bcreatePluginRegistrationApi\b/);
+    expect(source).not.toMatch(/\bcommitPluginRegistrations\b/);
+  });
+
+  it('exports projection metadata as data-only package surface', async () => {
+    const mod = await import('@auftakt/resonote');
+
+    expect(mod.resonoteTimelineProjection).toMatchObject({
+      name: 'resonote.timeline',
+      sourceKinds: [1, 1111, 7, 17]
+    });
+    expect(mod.resonoteTimelineProjection.sorts).toEqual([
+      { key: 'created_at', pushdownSupported: true },
+      { key: mod.RESONOTE_PLAY_POSITION_SORT, pushdownSupported: false }
+    ]);
   });
 });

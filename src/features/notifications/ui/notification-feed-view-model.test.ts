@@ -2,24 +2,24 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Notification } from '../domain/notification-model.js';
 
-const { fetchProfilesMock, cachedFetchByIdMock, getLastReadMock, markAllAsReadMock } = vi.hoisted(
-  () => ({
-    fetchProfilesMock: vi.fn(),
-    cachedFetchByIdMock: vi.fn(async () => null),
-    getLastReadMock: vi.fn(() => 0),
-    markAllAsReadMock: vi.fn()
-  })
-);
+const {
+  fetchProfilesMock,
+  fetchNotificationTargetPreviewMock,
+  getLastReadMock,
+  markAllAsReadMock
+} = vi.hoisted(() => ({
+  fetchProfilesMock: vi.fn(),
+  fetchNotificationTargetPreviewMock: vi.fn(async () => null),
+  getLastReadMock: vi.fn(() => 0),
+  markAllAsReadMock: vi.fn()
+}));
 
 vi.mock('$shared/browser/profile.js', () => ({
   fetchProfiles: fetchProfilesMock
 }));
 
 vi.mock('$shared/auftakt/resonote.js', () => ({
-  cachedFetchById: async () => ({
-    event: await cachedFetchByIdMock(),
-    settlement: { phase: 'settled', provenance: 'none', reason: 'settled-miss' } as const
-  })
+  fetchNotificationTargetPreview: fetchNotificationTargetPreviewMock
 }));
 
 vi.mock('./notifications-view-model.svelte.js', () => ({
@@ -47,7 +47,7 @@ function makeNotif(partial: Partial<Notification> & Pick<Notification, 'id'>): N
 describe('createNotificationFeedViewModel', () => {
   beforeEach(() => {
     fetchProfilesMock.mockClear();
-    cachedFetchByIdMock.mockClear();
+    fetchNotificationTargetPreviewMock.mockClear();
     getLastReadMock.mockReturnValue(0);
     markAllAsReadMock.mockClear();
   });
@@ -203,32 +203,19 @@ describe('createNotificationFeedViewModel', () => {
         targetIds: ['target-1'],
         currentTargetTexts: new Map(),
         targetPreviewLength: 10,
-        fetchById: async () => ({
-          event: {
-            id: 'target-1',
-            pubkey: 'author-1',
-            content: '0123456789abcdef',
-            created_at: 1,
-            tags: [],
-            kind: 1111
-          },
-          settlement: { phase: 'settled', provenance: 'store', reason: 'cache-hit' }
-        })
+        fetchPreview: async () => '0123456789abcdef'
       });
 
       expect(next.get('target-1')).toBe('012345678…');
     });
 
-    it('treats settled miss without event as non-fatal no-preview', async () => {
+    it('treats missing event as non-fatal no-preview', async () => {
       const onFetchError = vi.fn();
       const next = await loadNotificationTargetPreviews({
         targetIds: ['target-1'],
         currentTargetTexts: new Map(),
         targetPreviewLength: 40,
-        fetchById: async () => ({
-          event: null,
-          settlement: { phase: 'settled', provenance: 'none', reason: 'settled-miss' }
-        }),
+        fetchPreview: async () => null,
         onFetchError
       });
 
@@ -244,7 +231,7 @@ describe('createNotificationFeedViewModel', () => {
         targetIds: ['target-1'],
         currentTargetTexts: new Map(),
         targetPreviewLength: 40,
-        fetchById: async () => {
+        fetchPreview: async () => {
           throw fetchError;
         },
         onFetchError

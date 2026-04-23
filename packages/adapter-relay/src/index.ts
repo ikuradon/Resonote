@@ -9,6 +9,11 @@ import {
   type SessionObservation,
   verifier
 } from '@auftakt/core';
+import {
+  buildRequestExecutionPlan,
+  type OptimizedLogicalRequestPlan,
+  type RequestOptimizerCapabilities
+} from '@auftakt/timeline';
 import type { Event as NostrEvent, EventParameters, Filter } from 'nostr-typedef';
 import { distinct, Observable, Subject } from 'rxjs';
 
@@ -99,6 +104,7 @@ export interface SignedEventShape extends UnsignedEvent {
 export interface RelayRequest {
   readonly mode: 'backward' | 'forward';
   readonly requestKey?: RequestKey;
+  readonly coalescingScope?: string;
   emit(input: Filter | Filter[] | Record<string, unknown> | Array<Record<string, unknown>>): void;
   over(): void;
   readonly filters: Filter[];
@@ -108,6 +114,7 @@ export interface RelayRequest {
 
 export interface CreateRelayRequestOptions {
   readonly requestKey?: RequestKey;
+  readonly coalescingScope?: string;
 }
 
 class MutableRelayRequest implements RelayRequest {
@@ -117,7 +124,8 @@ class MutableRelayRequest implements RelayRequest {
 
   constructor(
     readonly mode: 'backward' | 'forward',
-    readonly requestKey?: RequestKey
+    readonly requestKey?: RequestKey,
+    readonly coalescingScope?: string
   ) {}
 
   emit(input: Filter | Filter[] | Record<string, unknown> | Array<Record<string, unknown>>): void {
@@ -241,9 +249,42 @@ export interface RxNostr {
 export interface CreateRelaySessionOptions {
   readonly defaultRelays: readonly string[];
   readonly eoseTimeout?: number;
+  readonly requestOptimizer?: RelayRequestOptimizerOptions;
 }
 
 export type CreateRxNostrSessionOptions = CreateRelaySessionOptions;
+
+export interface RelayRequestOptimizerOptions {
+  readonly defaultMaxFiltersPerRequest?: number;
+  readonly relayMaxFiltersPerRequest?: Record<string, number | undefined>;
+}
+
+interface RelayRequestObserver {
+  next(packet: EventPacket): void;
+  error(error: unknown): void;
+  complete(): void;
+}
+
+interface RelayRequestConsumer {
+  readonly requestKey: RequestKey;
+  readonly observer: RelayRequestObserver;
+  currentGroupKey: string | null;
+}
+
+interface ActiveRequestGroup {
+  readonly groupKey: string;
+  readonly mode: 'backward' | 'forward';
+  readonly relayUrls: string[];
+  readonly plansByRelay: Map<string, OptimizedLogicalRequestPlan>;
+  readonly consumers: Set<RelayRequestConsumer>;
+  consumerCount: number;
+  readonly requestKeys: Set<RequestKey>;
+  readonly pendingSubIds: Set<string>;
+  readonly transportSubIds: Map<string, Map<string, string>>;
+  readonly cleanup: Array<() => void>;
+  started: boolean;
+  finished: boolean;
+}
 
 class RelaySession implements RxNostr {
   private readonly defaultRelays = new Map<string, DefaultRelayConfig>();
@@ -251,25 +292,18 @@ class RelaySession implements RxNostr {
   private readonly messages = new Subject<{ from: string; message: unknown }>();
   private readonly states = new Subject<ConnectionStatePacket>();
   private readonly sessionStates = new Subject<SessionObservation>();
-  private readonly replayRecords = new Map<
-    RequestKey,
-    {
-      mode: 'backward' | 'forward';
-      relayUrls: string[];
-      getFilters: () => Filter[];
-      replay: (relayUrl: string) => Promise<void>;
-    }
-  >();
-  private readonly requestToSubIds = new Map<RequestKey, Set<string>>();
-  private readonly subIdToRequestKey = new Map<string, RequestKey>();
-  private readonly relayRequestKeys = new Map<string, Set<RequestKey>>();
-  private readonly relayNeedsReplay = new Map<string, Set<RequestKey>>();
+  private readonly requestGroups = new Map<string, ActiveRequestGroup>();
+  private readonly groupToSubIds = new Map<string, Set<string>>();
+  private readonly subIdToGroupKey = new Map<string, string>();
+  private readonly relayGroupKeys = new Map<string, Set<string>>();
+  private readonly relayNeedsReplay = new Map<string, Set<string>>();
   private readonly relayObservations = new Map<string, RelayObservation>();
   private disposed = false;
 
   constructor(
     private readonly eoseTimeout: number,
-    defaultRelays: readonly string[]
+    defaultRelays: readonly string[],
+    private readonly requestOptimizer: RelayRequestOptimizerOptions
   ) {
     this.setDefaultRelays([...defaultRelays]);
   }
@@ -334,64 +368,46 @@ class RelaySession implements RxNostr {
         );
         return;
       }
+
       const relayUrls = this.resolveReadRelays(options?.on);
-      const pendingRelays = new Set<string>();
-      const transportSubIds = new Map<string, string>();
+      const consumer: RelayRequestConsumer = {
+        requestKey,
+        observer,
+        currentGroupKey: null
+      };
       let currentFilters: Filter[] = [];
       let started = false;
       let forwardFlushQueued = false;
-      let finished = false;
+      let disposed = false;
 
-      const completeIfDone = () => {
-        if (finished || req.mode !== 'backward') return;
-        if (pendingRelays.size === 0) {
-          finished = true;
-          observer.complete();
+      const syncConsumerGroup = () => {
+        if (disposed) return;
+        if (currentFilters.length === 0) {
+          this.detachConsumer(consumer);
+          return;
         }
-      };
 
-      const sendReqToRelay = async (url: string): Promise<void> => {
-        try {
-          pendingRelays.add(url);
-          const relay = this.getConnection(url);
-          const previousSubId = transportSubIds.get(url);
-          if (previousSubId) {
-            this.untrackSubId(previousSubId);
-          }
+        const group = this.getOrCreateRequestGroup({
+          requestKey,
+          coalescingScope: req.coalescingScope,
+          mode: req.mode,
+          relayUrls,
+          filters: currentFilters
+        });
 
-          const subId = createSubId();
-          transportSubIds.set(url, subId);
-          this.trackRequestTransport(requestKey, subId, url);
-          await relay.send(['REQ', subId, ...currentFilters]);
-        } catch {
-          pendingRelays.delete(url);
-          completeIfDone();
+        if (consumer.currentGroupKey === group.groupKey) return;
+
+        this.detachConsumer(consumer);
+        if (!group.consumers.has(consumer)) {
+          group.consumers.add(consumer);
+          group.consumerCount += 1;
         }
-      };
+        group.requestKeys.add(requestKey);
+        consumer.currentGroupKey = group.groupKey;
 
-      const replayRelay = async (url: string): Promise<void> => {
-        if (currentFilters.length === 0) return;
-        await sendReqToRelay(url);
-      };
-
-      this.registerReplayRecord(requestKey, {
-        mode: req.mode,
-        relayUrls,
-        getFilters: () => currentFilters,
-        replay: replayRelay
-      });
-
-      const sendCurrentReq = () => {
-        if (currentFilters.length === 0) return;
-        for (const url of relayUrls) {
-          void sendReqToRelay(url);
-        }
-        if (req.mode === 'backward') {
-          const timer = setTimeout(() => {
-            for (const url of relayUrls) pendingRelays.delete(url);
-            completeIfDone();
-          }, this.eoseTimeout);
-          cleanup.push(() => clearTimeout(timer));
+        if (!group.started) {
+          group.started = true;
+          this.startRequestGroup(group);
         }
       };
 
@@ -400,7 +416,7 @@ class RelaySession implements RxNostr {
         forwardFlushQueued = true;
         queueMicrotask(() => {
           forwardFlushQueued = false;
-          sendCurrentReq();
+          syncConsumerGroup();
         });
       };
 
@@ -409,88 +425,263 @@ class RelaySession implements RxNostr {
         if (req.mode === 'backward') {
           if (!started && req.closed) {
             started = true;
-            sendCurrentReq();
+            syncConsumerGroup();
           }
           return;
         }
         scheduleForwardFlush();
       };
 
-      const cleanup: Array<() => void> = [];
+      const off = req.onChange(handleReqChange);
+      handleReqChange();
 
-      const messageSub = this.messages.subscribe(({ from, message }) => {
-        if (!relayUrls.includes(from) || !Array.isArray(message)) return;
-        const [type, incomingSubId] = message as [string, string, ...unknown[]];
-        if (this.subIdToRequestKey.get(incomingSubId) !== requestKey) return;
-        if (transportSubIds.get(from) !== incomingSubId) return;
+      return () => {
+        disposed = true;
+        off();
+        this.detachConsumer(consumer);
+      };
+    });
+  }
 
-        if (type === 'EVENT') {
-          const event = (message as [string, string, NostrEvent])[2];
-          observer.next({ from, event });
-          return;
+  private getOrCreateRequestGroup(input: {
+    requestKey: RequestKey;
+    coalescingScope?: string;
+    mode: 'backward' | 'forward';
+    relayUrls: string[];
+    filters: Filter[];
+  }): ActiveRequestGroup {
+    const overlay = {
+      relays: input.relayUrls,
+      includeDefaultReadRelays: false
+    };
+    const plansByRelay = new Map<string, OptimizedLogicalRequestPlan>();
+    const basePlan = buildRequestExecutionPlan({
+      requestKey: input.requestKey,
+      coalescingScope: input.coalescingScope,
+      mode: input.mode,
+      filters: input.filters,
+      overlay
+    });
+
+    for (const relayUrl of input.relayUrls) {
+      plansByRelay.set(
+        relayUrl,
+        buildRequestExecutionPlan(
+          {
+            requestKey: input.requestKey,
+            coalescingScope: input.coalescingScope,
+            mode: input.mode,
+            filters: input.filters,
+            overlay
+          },
+          this.resolveRequestOptimizerCapabilities(relayUrl)
+        )
+      );
+    }
+
+    const existing = this.requestGroups.get(basePlan.logicalKey);
+    if (existing) {
+      existing.requestKeys.add(input.requestKey);
+      return existing;
+    }
+
+    const group: ActiveRequestGroup = {
+      groupKey: basePlan.logicalKey,
+      mode: input.mode,
+      relayUrls: [...input.relayUrls],
+      plansByRelay,
+      consumers: new Set(),
+      consumerCount: 0,
+      requestKeys: new Set([input.requestKey]),
+      pendingSubIds: new Set(),
+      transportSubIds: new Map(),
+      cleanup: [],
+      started: false,
+      finished: false
+    };
+
+    const messageSub = this.messages.subscribe(({ from, message }) => {
+      if (!group.relayUrls.includes(from) || !Array.isArray(message)) return;
+      const [type, incomingSubId] = message as [string, string, ...unknown[]];
+      if (this.subIdToGroupKey.get(incomingSubId) !== group.groupKey) return;
+      if (!this.groupOwnsRelaySubId(group, from, incomingSubId)) return;
+
+      if (type === 'EVENT') {
+        const event = (message as [string, string, NostrEvent])[2];
+        for (const consumer of group.consumers) {
+          consumer.observer.next({ from, event });
         }
+        return;
+      }
 
-        if (type === 'EOSE' && req.mode === 'backward') {
-          pendingRelays.delete(from);
-          completeIfDone();
-        }
+      if ((type === 'EOSE' || type === 'CLOSED') && group.mode === 'backward') {
+        group.pendingSubIds.delete(incomingSubId);
+        this.untrackSubId(incomingSubId);
+        this.completeBackwardGroupIfDone(group);
+      }
+    });
+    group.cleanup.push(() => messageSub.unsubscribe());
 
-        if (type === 'CLOSED' && req.mode === 'backward') {
-          pendingRelays.delete(from);
-          completeIfDone();
-        }
-      });
-      cleanup.push(() => messageSub.unsubscribe());
+    const stateSub = this.states.subscribe((packet) => {
+      if (!group.relayUrls.includes(packet.from)) return;
 
-      const stateSub = this.states.subscribe((packet) => {
-        if (!relayUrls.includes(packet.from)) return;
-        if (req.mode === 'backward') {
-          if (
-            (packet.state === 'backoff' ||
-              packet.state === 'closed' ||
-              packet.state === 'degraded') &&
-            pendingRelays.has(packet.from)
-          ) {
-            pendingRelays.delete(packet.from);
-            completeIfDone();
-          }
-          return;
-        }
-
+      if (group.mode === 'backward') {
         if (
           packet.state === 'backoff' ||
           packet.state === 'closed' ||
           packet.state === 'degraded'
         ) {
-          this.markRelayNeedsReplay(packet.from, requestKey);
-          void this.getConnection(packet.from)
-            .connect()
-            .catch(() => {});
-          return;
+          this.dropRelayPendingSubIds(group, packet.from);
+          this.completeBackwardGroupIfDone(group);
         }
+        return;
+      }
 
-        if (packet.state === 'open') {
-          void this.restoreRelayStreams(packet.from);
-        }
-      });
-      cleanup.push(() => stateSub.unsubscribe());
+      if (packet.state === 'backoff' || packet.state === 'closed' || packet.state === 'degraded') {
+        this.markRelayNeedsReplay(packet.from, group.groupKey);
+        void this.getConnection(packet.from)
+          .connect()
+          .catch(() => {});
+        return;
+      }
 
-      const off = req.onChange(handleReqChange);
-      cleanup.push(off);
-      handleReqChange();
-
-      return () => {
-        for (const stop of cleanup.splice(0)) stop();
-        for (const [url, subId] of transportSubIds.entries()) {
-          const relay = this.connections.get(url);
-          if (relay) {
-            void relay.send(['CLOSE', subId]).catch(() => {});
-          }
-          this.untrackSubId(subId);
-        }
-        this.unregisterReplayRecord(requestKey);
-      };
+      if (packet.state === 'open') {
+        void this.restoreRelayStreams(packet.from);
+      }
     });
+    group.cleanup.push(() => stateSub.unsubscribe());
+
+    this.registerReplayRecord(group);
+    return group;
+  }
+
+  private resolveRequestOptimizerCapabilities(relayUrl: string): RequestOptimizerCapabilities {
+    const relaySpecific = this.requestOptimizer.relayMaxFiltersPerRequest?.[relayUrl];
+    return {
+      maxFiltersPerShard: relaySpecific ?? this.requestOptimizer.defaultMaxFiltersPerRequest
+    };
+  }
+
+  private startRequestGroup(group: ActiveRequestGroup): void {
+    if (group.mode === 'backward') {
+      const timer = setTimeout(() => {
+        group.pendingSubIds.clear();
+        this.completeBackwardGroupIfDone(group);
+      }, this.eoseTimeout);
+      group.cleanup.push(() => clearTimeout(timer));
+
+      if (group.relayUrls.length === 0) {
+        this.completeBackwardGroupIfDone(group);
+        return;
+      }
+    }
+
+    for (const relayUrl of group.relayUrls) {
+      void this.sendGroupToRelay(group, relayUrl);
+    }
+  }
+
+  private async sendGroupToRelay(group: ActiveRequestGroup, relayUrl: string): Promise<void> {
+    const plan = group.plansByRelay.get(relayUrl);
+    if (!plan || plan.shards.length === 0) {
+      this.dropRelayPendingSubIds(group, relayUrl);
+      this.completeBackwardGroupIfDone(group);
+      return;
+    }
+
+    try {
+      await this.closeRelayTransport(group, relayUrl);
+      const relay = this.getConnection(relayUrl);
+      const shardSubIds = new Map<string, string>();
+      group.transportSubIds.set(relayUrl, shardSubIds);
+
+      for (const shard of plan.shards) {
+        const subId = createSubId();
+        shardSubIds.set(shard.shardKey, subId);
+        this.trackRequestTransport(group.groupKey, subId, relayUrl);
+        if (group.mode === 'backward') {
+          group.pendingSubIds.add(subId);
+        }
+        await relay.send(['REQ', subId, ...shard.filters]);
+      }
+    } catch {
+      this.dropRelayPendingSubIds(group, relayUrl);
+      this.completeBackwardGroupIfDone(group);
+    }
+  }
+
+  private async closeRelayTransport(group: ActiveRequestGroup, relayUrl: string): Promise<void> {
+    const relaySubIds = group.transportSubIds.get(relayUrl);
+    if (!relaySubIds) return;
+
+    group.transportSubIds.delete(relayUrl);
+    for (const subId of relaySubIds.values()) {
+      group.pendingSubIds.delete(subId);
+      this.untrackSubId(subId);
+    }
+  }
+
+  private groupOwnsRelaySubId(group: ActiveRequestGroup, relayUrl: string, subId: string): boolean {
+    return [...(group.transportSubIds.get(relayUrl)?.values() ?? [])].includes(subId);
+  }
+
+  private dropRelayPendingSubIds(group: ActiveRequestGroup, relayUrl: string): void {
+    const relaySubIds = group.transportSubIds.get(relayUrl);
+    if (!relaySubIds) return;
+
+    for (const subId of relaySubIds.values()) {
+      group.pendingSubIds.delete(subId);
+      this.untrackSubId(subId);
+    }
+  }
+
+  private completeBackwardGroupIfDone(group: ActiveRequestGroup): void {
+    if (group.mode !== 'backward' || group.finished || group.pendingSubIds.size > 0) return;
+
+    group.finished = true;
+    group.consumerCount = 0;
+    for (const consumer of group.consumers) {
+      consumer.currentGroupKey = null;
+      consumer.observer.complete();
+    }
+    this.teardownRequestGroup(group.groupKey, false);
+  }
+
+  private detachConsumer(consumer: RelayRequestConsumer): void {
+    const groupKey = consumer.currentGroupKey;
+    consumer.currentGroupKey = null;
+    if (!groupKey) return;
+
+    const group = this.requestGroups.get(groupKey);
+    if (!group) return;
+
+    if (group.consumers.delete(consumer)) {
+      group.consumerCount = Math.max(0, group.consumerCount - 1);
+    }
+    if (group.consumerCount === 0) {
+      this.teardownRequestGroup(group.groupKey, true);
+    }
+  }
+
+  private teardownRequestGroup(groupKey: string, closeTransport: boolean): void {
+    const group = this.requestGroups.get(groupKey);
+    if (!group) return;
+
+    for (const stop of group.cleanup.splice(0)) stop();
+
+    for (const [relayUrl, relaySubIds] of group.transportSubIds.entries()) {
+      const relay = closeTransport ? this.connections.get(relayUrl) : undefined;
+      for (const subId of relaySubIds.values()) {
+        if (relay) {
+          void relay.send(['CLOSE', subId]).catch(() => {});
+        }
+        this.untrackSubId(subId);
+      }
+    }
+
+    group.transportSubIds.clear();
+    group.pendingSubIds.clear();
+    this.unregisterReplayRecord(groupKey);
   }
 
   async requestNegentropySync(
@@ -691,6 +882,10 @@ class RelaySession implements RxNostr {
     if (this.disposed) return;
     this.disposed = true;
 
+    for (const group of [...this.requestGroups.values()]) {
+      this.teardownRequestGroup(group.groupKey, false);
+    }
+
     for (const relayUrl of this.connections.keys()) {
       this.updateRelayObservation(relayUrl, 'closed', 'disposed');
     }
@@ -698,10 +893,10 @@ class RelaySession implements RxNostr {
     this.sessionStates.next(this.getSessionObservation());
     for (const connection of this.connections.values()) connection.close();
     this.connections.clear();
-    this.replayRecords.clear();
-    this.requestToSubIds.clear();
-    this.subIdToRequestKey.clear();
-    this.relayRequestKeys.clear();
+    this.requestGroups.clear();
+    this.groupToSubIds.clear();
+    this.subIdToGroupKey.clear();
+    this.relayGroupKeys.clear();
     this.relayNeedsReplay.clear();
     this.messages.complete();
     this.states.complete();
@@ -762,73 +957,65 @@ class RelaySession implements RxNostr {
     }
   }
 
-  private registerReplayRecord(
-    requestKey: RequestKey,
-    record: {
-      mode: 'backward' | 'forward';
-      relayUrls: string[];
-      getFilters: () => Filter[];
-      replay: (relayUrl: string) => Promise<void>;
-    }
-  ): void {
-    this.replayRecords.set(requestKey, record);
-    for (const relayUrl of record.relayUrls) {
-      const set = this.relayRequestKeys.get(relayUrl) ?? new Set<RequestKey>();
-      set.add(requestKey);
-      this.relayRequestKeys.set(relayUrl, set);
+  private registerReplayRecord(group: ActiveRequestGroup): void {
+    this.requestGroups.set(group.groupKey, group);
+    for (const relayUrl of group.relayUrls) {
+      const set = this.relayGroupKeys.get(relayUrl) ?? new Set<string>();
+      set.add(group.groupKey);
+      this.relayGroupKeys.set(relayUrl, set);
     }
   }
 
-  private unregisterReplayRecord(requestKey: RequestKey): void {
-    const record = this.replayRecords.get(requestKey);
-    if (!record) return;
-    this.replayRecords.delete(requestKey);
+  private unregisterReplayRecord(groupKey: string): void {
+    const group = this.requestGroups.get(groupKey);
+    if (!group) return;
+    this.requestGroups.delete(groupKey);
 
-    for (const relayUrl of record.relayUrls) {
-      const set = this.relayRequestKeys.get(relayUrl);
+    for (const relayUrl of group.relayUrls) {
+      const set = this.relayGroupKeys.get(relayUrl);
       if (!set) continue;
-      set.delete(requestKey);
-      if (set.size === 0) this.relayRequestKeys.delete(relayUrl);
+      set.delete(groupKey);
+      if (set.size === 0) this.relayGroupKeys.delete(relayUrl);
     }
 
     for (const set of this.relayNeedsReplay.values()) {
-      set.delete(requestKey);
+      set.delete(groupKey);
     }
 
-    const subIds = this.requestToSubIds.get(requestKey);
+    const subIds = this.groupToSubIds.get(groupKey);
     if (!subIds) return;
     for (const subId of subIds) {
-      this.subIdToRequestKey.delete(subId);
+      this.subIdToGroupKey.delete(subId);
     }
-    this.requestToSubIds.delete(requestKey);
+    this.groupToSubIds.delete(groupKey);
   }
 
-  private trackRequestTransport(requestKey: RequestKey, subId: string, relayUrl: string): void {
-    const subIds = this.requestToSubIds.get(requestKey) ?? new Set<string>();
+  private trackRequestTransport(groupKey: string, subId: string, relayUrl: string): void {
+    const subIds = this.groupToSubIds.get(groupKey) ?? new Set<string>();
     subIds.add(subId);
-    this.requestToSubIds.set(requestKey, subIds);
-    this.subIdToRequestKey.set(subId, requestKey);
+    this.groupToSubIds.set(groupKey, subIds);
+    this.subIdToGroupKey.set(subId, groupKey);
 
-    const relaySet = this.relayRequestKeys.get(relayUrl) ?? new Set<RequestKey>();
-    relaySet.add(requestKey);
-    this.relayRequestKeys.set(relayUrl, relaySet);
+    const relaySet = this.relayGroupKeys.get(relayUrl) ?? new Set<string>();
+    relaySet.add(groupKey);
+    this.relayGroupKeys.set(relayUrl, relaySet);
   }
 
   private untrackSubId(subId: string): void {
-    const requestKey = this.subIdToRequestKey.get(subId);
-    if (!requestKey) return;
-    this.subIdToRequestKey.delete(subId);
-    const subIds = this.requestToSubIds.get(requestKey);
+    const groupKey = this.subIdToGroupKey.get(subId);
+    if (!groupKey) return;
+    this.subIdToGroupKey.delete(subId);
+    const subIds = this.groupToSubIds.get(groupKey);
     if (!subIds) return;
     subIds.delete(subId);
     if (subIds.size === 0) {
-      this.requestToSubIds.delete(requestKey);
+      this.groupToSubIds.delete(groupKey);
     }
   }
 
-  private markRelayNeedsReplay(relayUrl: string, requestKey: RequestKey): void {
-    const set = this.relayNeedsReplay.get(relayUrl) ?? new Set<RequestKey>();
-    set.add(requestKey);
+  private markRelayNeedsReplay(relayUrl: string, groupKey: string): void {
+    const set = this.relayNeedsReplay.get(relayUrl) ?? new Set<string>();
+    set.add(groupKey);
     this.relayNeedsReplay.set(relayUrl, set);
   }
 
@@ -836,17 +1023,17 @@ class RelaySession implements RxNostr {
     const pending = this.relayNeedsReplay.get(relayUrl);
     if (!pending || pending.size === 0) return;
     this.updateRelayObservation(relayUrl, 'replaying', 'replay-started');
-    const requestKeys = [...pending];
+    const groupKeys = [...pending];
     this.relayNeedsReplay.delete(relayUrl);
 
     try {
       await Promise.all(
-        requestKeys.map(async (requestKey) => {
-          const record = this.replayRecords.get(requestKey);
-          if (!record || record.mode !== 'forward') return;
-          if (!record.relayUrls.includes(relayUrl)) return;
-          if (record.getFilters().length === 0) return;
-          await record.replay(relayUrl);
+        groupKeys.map(async (groupKey) => {
+          const group = this.requestGroups.get(groupKey);
+          if (!group || group.mode !== 'forward') return;
+          if (!group.relayUrls.includes(relayUrl)) return;
+          if ((group.plansByRelay.get(relayUrl)?.shards.length ?? 0) === 0) return;
+          await this.sendGroupToRelay(group, relayUrl);
         })
       );
       this.updateRelayObservation(relayUrl, 'open', 'replay-finished');
@@ -943,7 +1130,11 @@ class RelaySession implements RxNostr {
 }
 
 export function createRelaySession(options: CreateRelaySessionOptions): RxNostr {
-  return new RelaySession(options.eoseTimeout ?? 10_000, options.defaultRelays);
+  return new RelaySession(
+    options.eoseTimeout ?? 10_000,
+    options.defaultRelays,
+    options.requestOptimizer ?? {}
+  );
 }
 
 export function createRxNostrSession(options: CreateRxNostrSessionOptions): RxNostr {
@@ -951,11 +1142,11 @@ export function createRxNostrSession(options: CreateRxNostrSessionOptions): RxNo
 }
 
 export function createBackwardReq(options?: CreateRelayRequestOptions): RelayRequest {
-  return new MutableRelayRequest('backward', options?.requestKey);
+  return new MutableRelayRequest('backward', options?.requestKey, options?.coalescingScope);
 }
 
 export function createForwardReq(options?: CreateRelayRequestOptions): RelayRequest {
-  return new MutableRelayRequest('forward', options?.requestKey);
+  return new MutableRelayRequest('forward', options?.requestKey, options?.coalescingScope);
 }
 
 export function createRxBackwardReq(options?: CreateRelayRequestOptions): RelayRequest {
