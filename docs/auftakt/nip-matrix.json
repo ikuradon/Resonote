@@ -1,0 +1,825 @@
+{
+  "sourceUrl": "https://github.com/nostr-protocol/nips",
+  "sourceDate": "2026-04-24",
+  "entries": [
+    {
+      "nip": "01",
+      "level": "internal",
+      "status": "partial",
+      "owner": "packages/core/src/relay-session.ts",
+      "proof": "packages/core/src/relay-session.contract.test.ts",
+      "priority": "P0",
+      "scopeNotes": "Basic relay protocol, event validation, REQ/EVENT/EOSE/OK handling"
+    },
+    {
+      "nip": "02",
+      "level": "public",
+      "status": "partial",
+      "owner": "packages/resonote/src/runtime.ts",
+      "proof": "packages/resonote/src/built-in-plugins.contract.test.ts",
+      "priority": "P0",
+      "scopeNotes": "Follow-list reads used by Resonote flows"
+    },
+    {
+      "nip": "03",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "OpenTimestamps attestations not required by current client runtime"
+    },
+    {
+      "nip": "04",
+      "level": "scoped-out",
+      "status": "deprecated",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Deprecated encrypted DM; prefer NIP-17/44/59"
+    },
+    {
+      "nip": "05",
+      "level": "public",
+      "status": "not-started",
+      "owner": "src/shared/nostr",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P1",
+      "scopeNotes": "NIP-05 identity resolution remains app-facing work"
+    },
+    {
+      "nip": "06",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Seed phrase key derivation is signer-owned, not coordinator-owned"
+    },
+    {
+      "nip": "07",
+      "level": "public",
+      "status": "partial",
+      "owner": "src/shared/nostr/client.ts",
+      "proof": "src/shared/nostr/client.test.ts",
+      "priority": "P0",
+      "scopeNotes": "window.nostr signer bridge"
+    },
+    {
+      "nip": "08",
+      "level": "scoped-out",
+      "status": "deprecated",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Deprecated mentions convention; prefer NIP-27"
+    },
+    {
+      "nip": "09",
+      "level": "internal",
+      "status": "implemented",
+      "owner": "packages/adapter-dexie/src/index.ts",
+      "proof": "packages/adapter-dexie/src/materialization.contract.test.ts",
+      "priority": "P0",
+      "scopeNotes": "kind:5 deletion materialization and visibility suppression"
+    },
+    {
+      "nip": "10",
+      "level": "public",
+      "status": "partial",
+      "owner": "packages/resonote/src/runtime.ts",
+      "proof": "packages/resonote/src/built-in-plugins.contract.test.ts",
+      "priority": "P0",
+      "scopeNotes": "Text note thread/comment reads via coordinator flows"
+    },
+    {
+      "nip": "11",
+      "level": "internal",
+      "status": "partial",
+      "owner": "packages/core/src/request-planning.ts",
+      "proof": "packages/core/src/request-planning.contract.test.ts",
+      "priority": "P0",
+      "scopeNotes": "Relay capability limits represented in request plans"
+    },
+    {
+      "nip": "13",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Proof-of-work validation not required for current read pipeline"
+    },
+    {
+      "nip": "14",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Subject tag presentation is client/plugin layer work"
+    },
+    {
+      "nip": "15",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Marketplace domain is outside Resonote scope"
+    },
+    {
+      "nip": "17",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P2",
+      "scopeNotes": "Private DMs require encrypted-event pipeline"
+    },
+    {
+      "nip": "18",
+      "level": "public",
+      "status": "partial",
+      "owner": "packages/resonote/src/plugins/built-in-plugins.ts",
+      "proof": "packages/resonote/src/built-in-plugins.contract.test.ts",
+      "priority": "P1",
+      "scopeNotes": "Repost relay hints tracked as infrastructure; full UI model pending"
+    },
+    {
+      "nip": "19",
+      "level": "public",
+      "status": "partial",
+      "owner": "packages/core/src/vocabulary.ts",
+      "proof": "packages/core/src/public-api.contract.test.ts",
+      "priority": "P0",
+      "scopeNotes": "Entity vocabulary exists; complete parser coverage pending"
+    },
+    {
+      "nip": "21",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P2",
+      "scopeNotes": "nostr: URI handling belongs app routing layer"
+    },
+    {
+      "nip": "22",
+      "level": "public",
+      "status": "partial",
+      "owner": "packages/resonote/src/runtime.ts",
+      "proof": "packages/resonote/src/built-in-plugins.contract.test.ts",
+      "priority": "P0",
+      "scopeNotes": "Comment filters and flows are coordinator-mediated"
+    },
+    {
+      "nip": "23",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P2",
+      "scopeNotes": "Long-form rendering and indexing pending"
+    },
+    {
+      "nip": "24",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Extra metadata fields require profile model coverage"
+    },
+    {
+      "nip": "25",
+      "level": "public",
+      "status": "partial",
+      "owner": "packages/resonote/src/runtime.ts",
+      "proof": "packages/resonote/src/built-in-plugins.contract.test.ts",
+      "priority": "P1",
+      "scopeNotes": "Reaction flow/hints partially covered"
+    },
+    {
+      "nip": "26",
+      "level": "scoped-out",
+      "status": "unrecommended",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Delegated signing is unrecommended and signer-owned"
+    },
+    {
+      "nip": "27",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P2",
+      "scopeNotes": "Text note references parsing pending"
+    },
+    {
+      "nip": "28",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Public chat domain outside current client scope"
+    },
+    {
+      "nip": "29",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Relay groups outside current scope"
+    },
+    {
+      "nip": "30",
+      "level": "public",
+      "status": "partial",
+      "owner": "packages/resonote/src/plugins/built-in-plugins.ts",
+      "proof": "packages/resonote/src/built-in-plugins.contract.test.ts",
+      "priority": "P1",
+      "scopeNotes": "Custom emoji catalog read model"
+    },
+    {
+      "nip": "31",
+      "level": "internal",
+      "status": "partial",
+      "owner": "packages/core/src/vocabulary.ts",
+      "proof": "packages/core/src/public-api.contract.test.ts",
+      "priority": "P2",
+      "scopeNotes": "Unknown events are storable; dedicated handling pending"
+    },
+    {
+      "nip": "32",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Labeling model pending"
+    },
+    {
+      "nip": "34",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Git collaboration domain outside Resonote"
+    },
+    {
+      "nip": "35",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Torrent domain outside Resonote"
+    },
+    {
+      "nip": "36",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P2",
+      "scopeNotes": "Sensitive content moderation pending"
+    },
+    {
+      "nip": "37",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P2",
+      "scopeNotes": "Draft event handling pending"
+    },
+    {
+      "nip": "38",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "User status read model pending"
+    },
+    {
+      "nip": "39",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "External identity parsing pending"
+    },
+    {
+      "nip": "40",
+      "level": "internal",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P2",
+      "scopeNotes": "Expiration timestamp compaction pending"
+    },
+    {
+      "nip": "42",
+      "level": "internal",
+      "status": "not-started",
+      "owner": "packages/core/src/relay-session.ts",
+      "proof": "packages/core/src/relay-session.contract.test.ts",
+      "priority": "P1",
+      "scopeNotes": "AUTH handling not yet implemented"
+    },
+    {
+      "nip": "43",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Relay access management outside current scope"
+    },
+    {
+      "nip": "44",
+      "level": "internal",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P1",
+      "scopeNotes": "Encrypted payload primitives pending; no decryption in compaction"
+    },
+    {
+      "nip": "45",
+      "level": "internal",
+      "status": "not-started",
+      "owner": "packages/core/src/relay-session.ts",
+      "proof": "packages/core/src/relay-session.contract.test.ts",
+      "priority": "P2",
+      "scopeNotes": "COUNT support pending"
+    },
+    {
+      "nip": "46",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P2",
+      "scopeNotes": "Remote signing pending"
+    },
+    {
+      "nip": "47",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Wallet connect outside current scope"
+    },
+    {
+      "nip": "48",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Proxy tags pending"
+    },
+    {
+      "nip": "49",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Private key encryption belongs signer/key management"
+    },
+    {
+      "nip": "50",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P2",
+      "scopeNotes": "Search capability pending"
+    },
+    {
+      "nip": "51",
+      "level": "public",
+      "status": "partial",
+      "owner": "packages/resonote/src/runtime.ts",
+      "proof": "packages/resonote/src/built-in-plugins.contract.test.ts",
+      "priority": "P1",
+      "scopeNotes": "Lists used for relay lists, emoji lists, bookmarks"
+    },
+    {
+      "nip": "52",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Calendar events outside current scope"
+    },
+    {
+      "nip": "53",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Live activities outside current scope"
+    },
+    {
+      "nip": "54",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Wiki domain outside current scope"
+    },
+    {
+      "nip": "55",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P2",
+      "scopeNotes": "Android signer integration pending"
+    },
+    {
+      "nip": "56",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P2",
+      "scopeNotes": "Reporting model pending"
+    },
+    {
+      "nip": "57",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Zaps are outside current scope"
+    },
+    {
+      "nip": "58",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Badges pending"
+    },
+    {
+      "nip": "59",
+      "level": "internal",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P1",
+      "scopeNotes": "Gift wrap required for private messaging support"
+    },
+    {
+      "nip": "5A",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Static websites outside current scope"
+    },
+    {
+      "nip": "60",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Cashu wallet outside current scope"
+    },
+    {
+      "nip": "61",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Nutzaps outside current scope"
+    },
+    {
+      "nip": "62",
+      "level": "internal",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P2",
+      "scopeNotes": "Request to vanish retention handling pending"
+    },
+    {
+      "nip": "64",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Chess domain outside current scope"
+    },
+    {
+      "nip": "65",
+      "level": "internal",
+      "status": "partial",
+      "owner": "packages/resonote/src/plugins/built-in-plugins.ts",
+      "proof": "packages/resonote/src/built-in-plugins.contract.test.ts",
+      "priority": "P0",
+      "scopeNotes": "Relay list metadata used for hints/outbox"
+    },
+    {
+      "nip": "66",
+      "level": "internal",
+      "status": "partial",
+      "owner": "packages/resonote/src/plugins/built-in-plugins.ts",
+      "proof": "packages/resonote/src/built-in-plugins.contract.test.ts",
+      "priority": "P1",
+      "scopeNotes": "Relay metrics read model seeded"
+    },
+    {
+      "nip": "68",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Picture-first feeds pending"
+    },
+    {
+      "nip": "69",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "P2P order events outside current scope"
+    },
+    {
+      "nip": "70",
+      "level": "internal",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P1",
+      "scopeNotes": "Protected event validation policy pending"
+    },
+    {
+      "nip": "71",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Video events outside current scope"
+    },
+    {
+      "nip": "72",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Moderated communities pending"
+    },
+    {
+      "nip": "73",
+      "level": "public",
+      "status": "partial",
+      "owner": "src/shared/content",
+      "proof": "src/shared/content",
+      "priority": "P1",
+      "scopeNotes": "External content IDs are app content-provider owned"
+    },
+    {
+      "nip": "75",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Zap goals outside current scope"
+    },
+    {
+      "nip": "77",
+      "level": "internal",
+      "status": "partial",
+      "owner": "packages/resonote/src/relay-gateway.ts",
+      "proof": "packages/resonote/src/relay-gateway.contract.test.ts",
+      "priority": "P0",
+      "scopeNotes": "Negentropy-first verification with REQ fallback"
+    },
+    {
+      "nip": "78",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P2",
+      "scopeNotes": "Application-specific data pending"
+    },
+    {
+      "nip": "7D",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P2",
+      "scopeNotes": "Threads model pending"
+    },
+    {
+      "nip": "84",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Highlights pending"
+    },
+    {
+      "nip": "85",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Trusted assertions pending"
+    },
+    {
+      "nip": "86",
+      "level": "internal",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Relay management API outside current client runtime"
+    },
+    {
+      "nip": "87",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Ecash mint discoverability outside current scope"
+    },
+    {
+      "nip": "88",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Polls pending"
+    },
+    {
+      "nip": "89",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Recommended handlers pending"
+    },
+    {
+      "nip": "90",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Data vending machines outside current scope"
+    },
+    {
+      "nip": "92",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Media attachments pending"
+    },
+    {
+      "nip": "94",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "File metadata pending"
+    },
+    {
+      "nip": "96",
+      "level": "scoped-out",
+      "status": "deprecated",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Deprecated HTTP file storage; Blossom supersedes"
+    },
+    {
+      "nip": "98",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P2",
+      "scopeNotes": "HTTP auth pending"
+    },
+    {
+      "nip": "99",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Classified listings outside current scope"
+    },
+    {
+      "nip": "A0",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Voice messages pending"
+    },
+    {
+      "nip": "A4",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Public messages pending"
+    },
+    {
+      "nip": "B0",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P2",
+      "scopeNotes": "Web bookmarks pending; Resonote bookmark flow partly separate"
+    },
+    {
+      "nip": "B7",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Blossom upload/storage outside current core runtime"
+    },
+    {
+      "nip": "BE",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "BLE protocol outside browser client scope"
+    },
+    {
+      "nip": "C0",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Code snippets pending"
+    },
+    {
+      "nip": "C7",
+      "level": "public",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Chats pending"
+    },
+    {
+      "nip": "EE",
+      "level": "scoped-out",
+      "status": "unrecommended",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Superseded E2EE messaging spec; not implemented"
+    }
+  ]
+}
