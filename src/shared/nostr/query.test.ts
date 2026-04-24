@@ -16,9 +16,13 @@ const { createRxBackwardReqMock, getRxNostrMock, subscribeMock } = vi.hoisted(()
   subscribeMock: vi.fn<(callbacks: SubscribeCallbacks) => { unsubscribe(): void }>()
 }));
 
-vi.mock('@auftakt/adapter-relay', () => ({
-  createRxBackwardReq: createRxBackwardReqMock
-}));
+vi.mock('@auftakt/core', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    createRxBackwardReq: createRxBackwardReqMock
+  };
+});
 
 vi.mock('./client.js', () => ({
   getRxNostr: getRxNostrMock

@@ -1,4 +1,4 @@
-import { createRxNostrSession, nip07Signer, type RxNostr } from '@auftakt/adapter-relay';
+import { createRxNostrSession, nip07Signer, type RxNostr } from '@auftakt/core';
 import {
   normalizeRelayObservationPacket,
   normalizeRelayObservationSnapshot,
@@ -75,7 +75,7 @@ export async function fetchLatestEvent(
   pubkey: string,
   kind: number
 ): Promise<{ tags: string[][]; content: string; created_at: number } | null> {
-  const { createRxBackwardReq } = await import('@auftakt/adapter-relay');
+  const { createRxBackwardReq } = await import('@auftakt/core');
   const instance = await getRxNostr();
 
   return new Promise<{ tags: string[][]; content: string; created_at: number } | null>(

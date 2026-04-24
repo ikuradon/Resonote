@@ -7,12 +7,16 @@ let subscribeFn: (observer: {
   error?: (err: unknown) => void;
 }) => { unsubscribe: () => void };
 
-vi.mock('@auftakt/adapter-relay', () => ({
-  createRxBackwardReq: () => ({
-    emit: vi.fn(),
-    over: vi.fn()
-  })
-}));
+vi.mock('@auftakt/core', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    createRxBackwardReq: () => ({
+      emit: vi.fn(),
+      over: vi.fn()
+    })
+  };
+});
 
 vi.mock('$shared/nostr/client.js', () => ({
   setDefaultRelays: mockSetDefaultRelays,

@@ -1,5 +1,5 @@
-import { createRxBackwardReq } from '@auftakt/adapter-relay';
 import type { ReadSettlement, StoredEvent } from '@auftakt/core';
+import { createRxBackwardReq } from '@auftakt/core';
 import {
   cachedFetchById as cachedFetchByIdHelper,
   invalidateFetchByIdCache as invalidateFetchByIdCacheHelper,

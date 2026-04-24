@@ -76,7 +76,6 @@
   },
   "dependencies": {
     "@auftakt/adapter-indexeddb": "workspace:*",
-    "@auftakt/adapter-relay": "workspace:*",
     "@auftakt/core": "workspace:*",
     "@auftakt/resonote": "workspace:*",
     "@auftakt/timeline": "workspace:*",

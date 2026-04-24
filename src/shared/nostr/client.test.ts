@@ -30,17 +30,21 @@ const mockRxNostr = {
   dispose: vi.fn()
 };
 
-vi.mock('@auftakt/adapter-relay', () => ({
-  createRxNostrSession: vi.fn(({ defaultRelays }: { defaultRelays: string[] }) => {
-    mockRxNostr.setDefaultRelays(defaultRelays);
-    return mockRxNostr;
-  }),
-  nip07Signer: vi.fn(() => 'mock-signer'),
-  createRxBackwardReq: vi.fn(() => ({
-    emit: vi.fn(),
-    over: vi.fn()
-  }))
-}));
+vi.mock('@auftakt/core', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    createRxNostrSession: vi.fn(({ defaultRelays }: { defaultRelays: string[] }) => {
+      mockRxNostr.setDefaultRelays(defaultRelays);
+      return mockRxNostr;
+    }),
+    nip07Signer: vi.fn(() => 'mock-signer'),
+    createRxBackwardReq: vi.fn(() => ({
+      emit: vi.fn(),
+      over: vi.fn()
+    }))
+  };
+});
 
 vi.mock('$shared/nostr/relays.js', () => ({
   DEFAULT_RELAYS: ['wss://relay1.test', 'wss://relay2.test']

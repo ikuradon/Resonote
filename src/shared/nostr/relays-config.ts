@@ -12,7 +12,7 @@ export { DEFAULT_RELAYS };
 export async function applyUserRelays(pubkey: string): Promise<string[]> {
   log.info('Fetching user relay list (kind:10002)', { pubkey: shortHex(pubkey) });
   const [{ createRxBackwardReq }, { getRxNostr, setDefaultRelays }] = await Promise.all([
-    import('@auftakt/adapter-relay'),
+    import('@auftakt/core'),
     import('$shared/nostr/client.js')
   ]);
   const rxNostr = await getRxNostr();

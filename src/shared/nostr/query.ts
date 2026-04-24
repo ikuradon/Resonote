@@ -22,7 +22,7 @@ export async function fetchBackwardEvents<TEvent>(
   options?: FetchBackwardOptions
 ): Promise<TEvent[]> {
   const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
-    import('@auftakt/adapter-relay'),
+    import('@auftakt/core'),
     import('./client.js')
   ]);
   const rxNostr = await getRxNostr();

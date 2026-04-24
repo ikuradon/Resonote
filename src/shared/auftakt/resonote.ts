@@ -1,5 +1,5 @@
-import { createRxBackwardReq, createRxForwardReq, uniq, verifier } from '@auftakt/adapter-relay';
 import type { StoredEvent } from '@auftakt/core';
+import { createRxBackwardReq, createRxForwardReq, uniq, verifier } from '@auftakt/core';
 import {
   buildCommentContentFilters as buildCommentContentFiltersImpl,
   cachedFetchById as cachedFetchByIdHelper,

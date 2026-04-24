@@ -16,12 +16,16 @@ const { dbGetByIdMock, dbGetByPubkeyAndKindMock, subscribeMock } = vi.hoisted(()
   })
 }));
 
-vi.mock('@auftakt/adapter-relay', () => ({
-  createRxBackwardReq: () => ({
-    emit: vi.fn(),
-    over: vi.fn()
-  })
-}));
+vi.mock('@auftakt/core', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    createRxBackwardReq: () => ({
+      emit: vi.fn(),
+      over: vi.fn()
+    })
+  };
+});
 
 vi.mock('$shared/nostr/event-db.js', () => ({
   getEventsDB: async () => ({
