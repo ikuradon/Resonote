@@ -18,6 +18,13 @@ export interface DexieMaterializationResult {
   }[];
 }
 
+export interface RelayHintInput {
+  readonly eventId: string;
+  readonly relayUrl: string;
+  readonly source: 'seen' | 'hinted' | 'published' | 'repaired';
+  readonly lastSeenAt: number;
+}
+
 const DELETION_KIND = 5;
 
 export class DexieEventStore {
@@ -94,6 +101,26 @@ export class DexieEventStore {
   async getReplaceableHead(pubkey: string, kind: number, dTag = ''): Promise<NostrEvent | null> {
     const head = await this.db.replaceable_heads.get(`${pubkey}:${kind}:${dTag}`);
     return head ? this.getById(head.event_id) : null;
+  }
+
+  async recordRelayHint(input: RelayHintInput): Promise<void> {
+    await this.db.event_relay_hints.put({
+      key: `${input.eventId}:${input.relayUrl}:${input.source}`,
+      event_id: input.eventId,
+      relay_url: input.relayUrl,
+      source: input.source,
+      last_seen_at: input.lastSeenAt
+    });
+  }
+
+  async getRelayHints(eventId: string): Promise<RelayHintInput[]> {
+    const rows = await this.db.event_relay_hints.where('event_id').equals(eventId).toArray();
+    return rows.map((row) => ({
+      eventId: row.event_id,
+      relayUrl: row.relay_url,
+      source: row.source as RelayHintInput['source'],
+      lastSeenAt: row.last_seen_at
+    }));
   }
 
   private async applyDeletion(event: NostrEvent): Promise<DexieMaterializationResult> {
