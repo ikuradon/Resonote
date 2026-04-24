@@ -2,6 +2,8 @@ import { defineProjection } from '@auftakt/core';
 import { createResonoteCoordinator, registerPlugin } from '@auftakt/resonote';
 import { describe, expect, it } from 'vitest';
 
+import { COMMENTS_FLOW, CONTENT_RESOLUTION_FLOW } from './plugins/resonote-flows.js';
+
 function createTestCoordinator({
   getById = async () => null,
   putWithReconcile = async () => ({ stored: true, emissions: [] }),
@@ -92,7 +94,7 @@ describe('@auftakt/resonote built-in plugins', () => {
       name: 'duplicate-comments',
       apiVersion: 'v1',
       setup(api) {
-        api.registerFlow('commentsFlow', { id: 'duplicate' });
+        api.registerFlow(COMMENTS_FLOW, { id: 'duplicate' });
       }
     });
 
@@ -116,7 +118,7 @@ describe('@auftakt/resonote built-in plugins', () => {
       name: 'duplicate-content-resolution',
       apiVersion: 'v1',
       setup(api) {
-        api.registerFlow('contentResolutionFlow', { id: 'duplicate' });
+        api.registerFlow(CONTENT_RESOLUTION_FLOW, { id: 'duplicate' });
       }
     });
 
@@ -129,7 +131,9 @@ describe('@auftakt/resonote built-in plugins', () => {
       'Read model already registered: emojiCatalog'
     );
     expect(duplicateCommentsFlow.enabled).toBe(false);
-    expect(duplicateCommentsFlow.error?.message).toContain('Flow already registered: commentsFlow');
+    expect(duplicateCommentsFlow.error?.message).toContain(
+      'Flow already registered: resonoteCommentsFlow'
+    );
     expect(duplicateNotificationsFlow.enabled).toBe(false);
     expect(duplicateNotificationsFlow.error?.message).toContain(
       'Flow already registered: notificationsFlow'
@@ -140,8 +144,13 @@ describe('@auftakt/resonote built-in plugins', () => {
     );
     expect(duplicateContentResolutionFlow.enabled).toBe(false);
     expect(duplicateContentResolutionFlow.error?.message).toContain(
-      'Flow already registered: contentResolutionFlow'
+      'Flow already registered: resonoteContentResolution'
     );
+  });
+
+  it('keeps Resonote-only flow constants outside generic built-ins', () => {
+    expect(COMMENTS_FLOW).toBe('resonoteCommentsFlow');
+    expect(CONTENT_RESOLUTION_FLOW).toBe('resonoteContentResolution');
   });
 
   it('keeps app-facing by-id reads coordinator-mediated', async () => {

@@ -52,12 +52,8 @@ import { Observable } from 'rxjs';
 import { createEventCoordinator } from './event-coordinator.js';
 import { ingestRelayEvent } from './event-ingress.js';
 import {
-  COMMENTS_FLOW,
   type CommentsFlow,
-  CONTENT_RESOLUTION_FLOW,
   type ContentResolutionFlow,
-  createCommentsFlowPlugin,
-  createContentResolutionFlowPlugin,
   createEmojiCatalogPlugin,
   createNotificationsFlowPlugin,
   createRelayListFlowPlugin,
@@ -68,6 +64,12 @@ import {
   RELAY_LIST_FLOW,
   type RelayListFlow
 } from './plugins/built-in-plugins.js';
+import {
+  COMMENTS_FLOW,
+  CONTENT_RESOLUTION_FLOW,
+  createResonoteCommentsFlowPlugin,
+  createResonoteContentResolutionFlowPlugin
+} from './plugins/resonote-flows.js';
 import { createTimelinePlugin } from './plugins/timeline-plugin.js';
 
 export type { CommentSubscriptionRefs, SubscriptionHandle };
@@ -1552,7 +1554,7 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
         return categories;
       }
     }),
-    createCommentsFlowPlugin({
+    createResonoteCommentsFlowPlugin({
       loadCommentSubscriptionDeps: () => loadEventSubscriptionDeps(registrySessionRuntime),
       buildCommentContentFilters,
       startCommentSubscription,
@@ -1573,7 +1575,7 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
         return { relayListEvents: relayListEvents ?? [], followListEvents: followListEvents ?? [] };
       }
     }),
-    createContentResolutionFlowPlugin({
+    createResonoteContentResolutionFlowPlugin({
       searchBookmarkDTagEvent: async (pubkey, normalizedUrl) => {
         const eventsDB = await runtime.getEventsDB();
         const cached = await eventsDB.getByReplaceKey(pubkey, 39701, normalizedUrl);

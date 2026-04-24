@@ -10,10 +10,8 @@ import type {
 } from '../runtime.js';
 
 export const EMOJI_CATALOG_READ_MODEL = 'emojiCatalog';
-export const COMMENTS_FLOW = 'commentsFlow';
 export const NOTIFICATIONS_FLOW = 'notificationsFlow';
 export const RELAY_LIST_FLOW = 'relayListFlow';
-export const CONTENT_RESOLUTION_FLOW = 'contentResolutionFlow';
 
 export interface EmojiCatalogReadModel {
   fetchCustomEmojiSources(pubkey: string): Promise<{
@@ -123,16 +121,6 @@ export function createEmojiCatalogPlugin(
   };
 }
 
-export function createCommentsFlowPlugin(flow: CommentsFlow): ResonoteCoordinatorPlugin {
-  return {
-    name: 'commentsFlowPlugin',
-    apiVersion: 'v1',
-    setup(api) {
-      api.registerFlow(COMMENTS_FLOW, flow);
-    }
-  };
-}
-
 export function createNotificationsFlowPlugin(flow: NotificationsFlow): ResonoteCoordinatorPlugin {
   return {
     name: 'notificationsFlowPlugin',
@@ -149,18 +137,6 @@ export function createRelayListFlowPlugin(flow: RelayListFlow): ResonoteCoordina
     apiVersion: 'v1',
     setup(api) {
       api.registerFlow(RELAY_LIST_FLOW, flow);
-    }
-  };
-}
-
-export function createContentResolutionFlowPlugin(
-  flow: ContentResolutionFlow
-): ResonoteCoordinatorPlugin {
-  return {
-    name: 'contentResolutionFlowPlugin',
-    apiVersion: 'v1',
-    setup(api) {
-      api.registerFlow(CONTENT_RESOLUTION_FLOW, flow);
     }
   };
 }
