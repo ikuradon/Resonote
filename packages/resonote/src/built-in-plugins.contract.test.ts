@@ -1,7 +1,8 @@
 import { defineProjection } from '@auftakt/core';
 import { createResonoteCoordinator, registerPlugin } from '@auftakt/resonote';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
+import { createRelayMetricsPlugin } from './plugins/built-in-plugins.js';
 import { COMMENTS_FLOW, CONTENT_RESOLUTION_FLOW } from './plugins/resonote-flows.js';
 
 function createTestCoordinator({
@@ -151,6 +152,26 @@ describe('@auftakt/resonote built-in plugins', () => {
   it('keeps Resonote-only flow constants outside generic built-ins', () => {
     expect(COMMENTS_FLOW).toBe('resonoteCommentsFlow');
     expect(CONTENT_RESOLUTION_FLOW).toBe('resonoteContentResolution');
+  });
+
+  it('registers relay metrics as a read-only model', () => {
+    const model = {
+      snapshot: vi.fn(() => [{ relayUrl: 'wss://relay.example', score: 1 }])
+    };
+    const plugin = createRelayMetricsPlugin(model);
+    const registered: Record<string, unknown> = {};
+
+    plugin.setup({
+      apiVersion: 'v1',
+      registerProjection: vi.fn(),
+      registerFlow: vi.fn(),
+      registerReadModel(name, value) {
+        registered[name] = value;
+      }
+    });
+
+    expect(registered.relayMetrics).toBe(model);
+    expect(Object.keys(model)).toEqual(['snapshot']);
   });
 
   it('keeps app-facing by-id reads coordinator-mediated', async () => {

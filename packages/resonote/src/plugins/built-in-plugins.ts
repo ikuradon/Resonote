@@ -10,6 +10,7 @@ import type {
 } from '../runtime.js';
 
 export const EMOJI_CATALOG_READ_MODEL = 'emojiCatalog';
+export const RELAY_METRICS_READ_MODEL = 'relayMetrics';
 export const NOTIFICATIONS_FLOW = 'notificationsFlow';
 export const RELAY_LIST_FLOW = 'relayListFlow';
 
@@ -19,6 +20,10 @@ export interface EmojiCatalogReadModel {
     setEvents: StoredEvent[];
   }>;
   fetchCustomEmojiCategories(pubkey: string): Promise<EmojiCategory[]>;
+}
+
+export interface RelayMetricsReadModel {
+  snapshot(): Array<{ relayUrl: string; score: number }>;
 }
 
 export interface CommentsFlow {
@@ -117,6 +122,16 @@ export function createEmojiCatalogPlugin(
     apiVersion: 'v1',
     setup(api) {
       api.registerReadModel(EMOJI_CATALOG_READ_MODEL, readModel);
+    }
+  };
+}
+
+export function createRelayMetricsPlugin(model: RelayMetricsReadModel): ResonoteCoordinatorPlugin {
+  return {
+    name: 'relayMetricsPlugin',
+    apiVersion: 'v1',
+    setup(api) {
+      api.registerReadModel(RELAY_METRICS_READ_MODEL, model);
     }
   };
 }
