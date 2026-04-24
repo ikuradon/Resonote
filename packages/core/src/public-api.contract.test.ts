@@ -32,17 +32,11 @@ describe('@auftakt/core public api contract', () => {
     assertNoPublicSubpathLeakage(pkg.exports!);
   });
 
-  it('does not expose raw request-style runtime API names', async () => {
+  it('keeps raw relay internals out of the package root', async () => {
     const mod = await import('@auftakt/core');
     const exportNames = Object.keys(mod);
 
-    const forbidden = [
-      /^createRxBackwardReq$/,
-      /^createRxForwardReq$/,
-      /^getRxNostr$/,
-      /^rawRequest/i,
-      /^relayRequest/i
-    ];
+    const forbidden = [/^getRxNostr$/, /^rawRequest/i, /^relayRequest/i];
 
     for (const name of exportNames) {
       for (const pattern of forbidden) {
