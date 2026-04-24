@@ -1,6 +1,6 @@
 import { createRxBackwardReq } from '@auftakt/core';
-import { fetchBackwardEvents as fetchBackwardEventsHelper } from '@auftakt/resonote/compat-query';
 
+import { fetchBackwardEvents as fetchBackwardEventsHelper } from '../../../packages/resonote/src/runtime.js';
 import { getRxNostr } from './client.js';
 
 type Filter = Record<string, unknown>;
