@@ -5,7 +5,7 @@ import {
   buildRequestExecutionPlan,
   type OptimizedLogicalRequestPlan,
   type RequestOptimizerCapabilities
-} from './request-planning.js';
+} from './relay-request.js';
 import type {
   AggregateSessionReason,
   AggregateSessionState,

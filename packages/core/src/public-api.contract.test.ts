@@ -44,4 +44,20 @@ describe('@auftakt/core public api contract', () => {
       }
     }
   });
+
+  it('exposes the expected package-root names explicitly', async () => {
+    const mod = await import('@auftakt/core');
+
+    expect(mod).toEqual(
+      expect.objectContaining({
+        buildRequestExecutionPlan: expect.any(Function),
+        createRuntimeRequestKey: expect.any(Function),
+        createRxNostrSession: expect.any(Function),
+        filterNegentropyEventRefs: expect.any(Function),
+        reconcileReplayRepairSubjects: expect.any(Function),
+        reduceReadSettlement: expect.any(Function),
+        validateRelayEvent: expect.any(Function)
+      })
+    );
+  });
 });
