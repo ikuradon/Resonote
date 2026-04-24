@@ -1,5 +1,7 @@
 import { reduceReadSettlement, type StoredEvent } from '@auftakt/core';
 
+import { createHotEventIndex, type HotEventIndex } from './hot-event-index.js';
+
 export type ReadPolicy = 'cacheOnly' | 'localFirst' | 'relayConfirmed' | 'repair';
 
 export interface EventCoordinatorStore {
@@ -24,10 +26,16 @@ export interface EventCoordinatorReadResult {
 }
 
 export function createEventCoordinator(deps: {
+  readonly hotIndex?: HotEventIndex;
   readonly store: EventCoordinatorStore;
   readonly relay: EventCoordinatorRelay;
 }) {
+  const hotIndex = deps.hotIndex ?? createHotEventIndex();
+
   return {
+    applyLocalEvent(event: StoredEvent): void {
+      hotIndex.applyVisible(event);
+    },
     async read(
       filter: Record<string, unknown>,
       options: EventCoordinatorReadOptions
@@ -36,9 +44,15 @@ export function createEventCoordinator(deps: {
       const ids = Array.isArray(filter.ids)
         ? filter.ids.filter((id): id is string => typeof id === 'string')
         : [];
-      const local = (await Promise.all(ids.map((id) => deps.store.getById(id)))).filter(
-        (event): event is StoredEvent => Boolean(event)
-      );
+      const hotHits = ids
+        .map((id) => hotIndex.getById(id))
+        .filter((event): event is StoredEvent => Boolean(event));
+      const hotHitIds = new Set(hotHits.map((event) => event.id));
+      const missingIds = ids.filter((id) => !hotHitIds.has(id));
+      const durableHits = (
+        await Promise.all(missingIds.map((id) => deps.store.getById(id)))
+      ).filter((event): event is StoredEvent => Boolean(event));
+      const local = [...hotHits, ...durableHits];
 
       if (options.policy !== 'cacheOnly') {
         void deps.relay.verify(filters, { reason: options.policy });

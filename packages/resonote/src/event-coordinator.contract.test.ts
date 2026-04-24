@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createEventCoordinator } from './event-coordinator.js';
+import { createHotEventIndex } from './hot-event-index.js';
 
 describe('EventCoordinator read policy', () => {
   it('returns local hit immediately and schedules remote verification for localFirst', async () => {
@@ -75,5 +76,27 @@ describe('EventCoordinator read policy', () => {
     expect(verify).toHaveBeenCalledWith([{ authors: ['alice'], kinds: [0], limit: 1 }], {
       reason: 'localFirst'
     });
+  });
+
+  it('serves by-id reads from hot index before durable store', async () => {
+    const storeGet = vi.fn(async () => null);
+    const coordinator = createEventCoordinator({
+      hotIndex: createHotEventIndex(),
+      store: { getById: storeGet, putWithReconcile: vi.fn() },
+      relay: { verify: vi.fn(async () => []) }
+    });
+    coordinator.applyLocalEvent({
+      id: 'hot',
+      pubkey: 'p1',
+      created_at: 1,
+      kind: 1,
+      tags: [],
+      content: ''
+    });
+
+    const result = await coordinator.read({ ids: ['hot'] }, { policy: 'cacheOnly' });
+
+    expect(result.events).toEqual([expect.objectContaining({ id: 'hot' })]);
+    expect(storeGet).not.toHaveBeenCalled();
   });
 });
