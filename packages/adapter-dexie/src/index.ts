@@ -1,6 +1,11 @@
 import type { Event as NostrEvent } from 'nostr-typedef';
 
-import type { DexieEventRecord, DexieQuarantineRecord } from './schema.js';
+import { buildProtectedCompactionEventIds } from './maintenance.js';
+import type {
+  DexieEventRecord,
+  DexiePendingPublishRecord,
+  DexieQuarantineRecord
+} from './schema.js';
 import { AuftaktDexieDatabase } from './schema.js';
 
 export const AUFTAKT_DEXIE_ADAPTER_VERSION = 1;
@@ -30,6 +35,15 @@ export interface MigrationStateInput {
   readonly sourceDbName: string;
   readonly migratedRows: number;
   readonly dexieOnlyWrites: boolean;
+}
+
+export interface CompactionOptions {
+  readonly targetRows: number;
+  readonly reason: string;
+}
+
+export interface CompactionResult {
+  readonly removedEventIds: readonly string[];
 }
 
 const DELETION_KIND = 5;
@@ -143,6 +157,47 @@ export class DexieEventStore {
   async canRollbackMigration(): Promise<boolean> {
     const state = await this.db.migration_state.get('current');
     return Boolean(state && !state.dexie_only_writes);
+  }
+
+  async putPendingPublish(record: DexiePendingPublishRecord): Promise<void> {
+    await this.db.transaction(
+      'rw',
+      this.db.pending_publishes,
+      this.db.migration_state,
+      async () => {
+        await this.db.pending_publishes.put(record);
+        await this.db.migration_state.update('current', { dexie_only_writes: true });
+      }
+    );
+  }
+
+  async getPendingPublishes(): Promise<DexiePendingPublishRecord[]> {
+    return this.db.pending_publishes.toArray();
+  }
+
+  async compact(options: CompactionOptions): Promise<CompactionResult> {
+    if (options.targetRows <= 0) return { removedEventIds: [] };
+
+    const [deletionIndex, pendingPublishes, events] = await Promise.all([
+      this.db.deletion_index.toArray(),
+      this.db.pending_publishes.toArray(),
+      this.db.events.toArray()
+    ]);
+    const protectedIds = buildProtectedCompactionEventIds({ deletionIndex, pendingPublishes });
+    const removableIds = events
+      .filter((event) => event.kind !== DELETION_KIND && !protectedIds.has(event.id))
+      .sort((left, right) => left.created_at - right.created_at || left.id.localeCompare(right.id))
+      .slice(0, options.targetRows)
+      .map((event) => event.id);
+
+    await this.db.transaction('rw', this.db.events, this.db.event_tags, async () => {
+      await this.db.events.bulkDelete(removableIds);
+      await Promise.all(
+        removableIds.map((eventId) => this.db.event_tags.where('event_id').equals(eventId).delete())
+      );
+    });
+
+    return { removedEventIds: removableIds };
   }
 
   private async applyDeletion(event: NostrEvent): Promise<DexieMaterializationResult> {
