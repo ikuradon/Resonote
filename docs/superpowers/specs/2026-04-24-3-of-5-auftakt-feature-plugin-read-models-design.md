@@ -2,7 +2,8 @@
 
 ## Status
 
-Follow-up design spec 3 of 5 for the Auftakt full redesign.
+Draft follow-up design spec 3 of 5 for the Auftakt full redesign. Pending
+brainstorming approval.
 
 Depends on:
 
