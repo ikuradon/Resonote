@@ -2,8 +2,7 @@
 
 ## Status
 
-Draft follow-up design spec 4 of 5 for the Auftakt full redesign. Pending
-brainstorming approval.
+Approved follow-up design spec 4 of 5 for the Auftakt full redesign.
 
 Depends on:
 
@@ -26,6 +25,7 @@ This spec covers:
 - Public/internal/non-goal NIP categories.
 - Package ownership.
 - Proof requirements.
+- Full official NIP inventory classification.
 - Missing implementation tracking.
 
 This spec excludes:
@@ -77,9 +77,12 @@ No NIP claim can have an owner of "docs only".
 
 ## Initial Matrix Policy
 
-The existing matrix in `docs/auftakt/status-verification.md` is retained as an
-input, but it must be regenerated after Specs 1-3 land. Transitional wrappers do
-not count as final proof.
+The official `nostr-protocol/nips` README is the source of truth for the NIP
+inventory. The matrix must record the source URL and regeneration date.
+
+The existing matrix in `docs/auftakt/status-verification.md` is retained as a
+historical input, but it must be regenerated after Specs 1-3 land. Transitional
+wrappers do not count as final proof.
 
 Mandatory matrix fields:
 
@@ -90,6 +93,9 @@ Mandatory matrix fields:
 - proof anchor
 - scope notes
 - unsupported behavior
+- priority bucket
+- source URL
+- source date
 
 ## Proof Requirements
 
@@ -102,26 +108,142 @@ Each supported NIP needs one or more proof anchors:
 
 Docs must link proof anchors by file path.
 
-## High-Priority NIPs
+## Full Inventory Policy
 
-The first compliance pass must cover:
+Every NIP listed in the official README must be classified before implementation
+planning is considered complete. Classification is not the same as
+implementation. Unsupported, deferred, and not-applicable NIPs are valid only
+when the matrix records the reason.
 
-- NIP-01: event, filter, REQ/EVENT/EOSE/OK semantics
-- NIP-02: contact list behavior
-- NIP-05: profile verification
-- NIP-07: browser signer integration
-- NIP-09: deletion event and visibility semantics
-- NIP-10: reply/thread tags
-- NIP-11: bounded relay metadata/capability usage
-- NIP-19: route decoding and entity resolution
+Official source:
+
+- https://github.com/nostr-protocol/nips
+- https://raw.githubusercontent.com/nostr-protocol/nips/master/README.md
+
+Priority buckets:
+
+- `P0`: Auftakt/Resonote foundation. Implementation and proof are required
+  unless a later approved scope decision explicitly downgrades the NIP.
+- `P1`: built-in or optional plugin plan. The matrix must define owner and
+  planned support boundary.
+- `P2`: classified but deferred, not-supported, or not-applicable by default.
+  The matrix must record why.
+- `compatibility-only`: supported only for bounded compatibility. Do not build
+  new primary surfaces on these NIPs.
+
+## P0 Foundation Inventory
+
+P0 NIPs:
+
+- NIP-01: basic protocol flow
+- NIP-02: follow list
+- NIP-05: DNS identifier mapping
+- NIP-07: browser signer capability
+- NIP-09: deletion request
+- NIP-10: text notes and threads
+- NIP-11: relay information document
+- NIP-18: reposts
+- NIP-19: bech32 entities
+- NIP-21: `nostr:` URI scheme
 - NIP-22: comments
+- NIP-24: extra metadata fields and tags
 - NIP-25: reactions
-- NIP-44: encrypted private mute compatibility
-- NIP-65: relay list
+- NIP-27: text note references
+- NIP-30: custom emoji
+- NIP-31: unknown events
+- NIP-36: sensitive content
+- NIP-39: external identities in profiles
+- NIP-40: expiration timestamp
+- NIP-42: relay authentication
+- NIP-44: encrypted payloads
+- NIP-45: count
+- NIP-48: proxy tags
+- NIP-49: private key encryption
+- NIP-50: search
+- NIP-51: lists
+- NIP-56: reporting
+- NIP-57: zaps
+- NIP-65: relay list metadata
+- NIP-66: relay discovery and liveness monitoring
+- NIP-70: protected events
 - NIP-73: external content ids
-- NIP-77: negentropy internal support
+- NIP-77: negentropy
+- NIP-78: application-specific data
+- NIP-89: recommended application handlers
+- NIP-92: media attachments
+- NIP-94: file metadata
+- NIP-98: HTTP auth
+- NIP-B0: web bookmarks
+- NIP-B7: Blossom
 
-Other NIPs are classified in the matrix before implementation is planned.
+## P1 Plugin / Optional Inventory
+
+P1 NIPs:
+
+- NIP-14: subject tag
+- NIP-17: private direct messages
+- NIP-23: long-form content
+- NIP-28: public chat
+- NIP-29: relay-based groups
+- NIP-32: labeling
+- NIP-37: draft events
+- NIP-38: user statuses
+- NIP-46: remote signing
+- NIP-47: wallet connect
+- NIP-52: calendar events
+- NIP-53: live activities
+- NIP-58: badges
+- NIP-59: gift wrap
+- NIP-68: picture-first feeds
+- NIP-71: video events
+- NIP-7D: threads
+- NIP-84: highlights
+- NIP-88: polls
+- NIP-A0: voice messages
+- NIP-A4: public messages
+- NIP-C7: chats
+
+## P2 Deferred / Not-Applicable Inventory
+
+P2 NIPs:
+
+- NIP-03: OpenTimestamps attestations
+- NIP-06: mnemonic seed key derivation
+- NIP-13: proof of work
+- NIP-15: marketplace
+- NIP-34: git collaboration
+- NIP-35: torrents
+- NIP-43: relay access metadata and requests
+- NIP-54: wiki
+- NIP-55: Android signer
+- NIP-5A: pubkey static websites
+- NIP-60: Cashu wallet
+- NIP-61: Nutzaps
+- NIP-62: request to vanish
+- NIP-64: chess
+- NIP-69: peer-to-peer order events
+- NIP-72: moderated communities
+- NIP-75: zap goals
+- NIP-85: trusted assertions
+- NIP-86: relay management API
+- NIP-87: ecash mint discoverability
+- NIP-90: data vending machines
+- NIP-99: classified listings
+- NIP-BE: BLE communications
+- NIP-C0: code snippets
+
+## Compatibility-Only / Unrecommended Inventory
+
+Compatibility-only NIPs:
+
+- NIP-04: encrypted direct message. Deprecated in favor of NIP-17.
+- NIP-08: mentions. Deprecated in favor of NIP-27.
+- NIP-26: delegated event signing. Officially unrecommended.
+- NIP-96: HTTP file storage integration. Replaced by Blossom direction.
+- NIP-EE: E2EE messaging using MLS. Superseded by Marmot per official README.
+
+Compatibility-only means no new primary runtime surface is built on the NIP.
+Existing import, fallback, or migration behavior must stay bounded and tested.
 
 ## Verification
 
