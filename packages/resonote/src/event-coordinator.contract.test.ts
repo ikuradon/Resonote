@@ -43,4 +43,20 @@ describe('EventCoordinator read policy', () => {
     await coordinator.read({ ids: ['missing'] }, { policy: 'cacheOnly' });
     expect(verify).not.toHaveBeenCalled();
   });
+
+  it('uses cacheOnly only when explicitly requested', async () => {
+    const verify = vi.fn(async () => []);
+    const coordinator = createEventCoordinator({
+      store: {
+        getById: vi.fn(async () => null),
+        putWithReconcile: vi.fn()
+      },
+      relay: { verify }
+    });
+
+    await coordinator.read({ ids: ['e1'] }, { policy: 'localFirst' });
+    await coordinator.read({ ids: ['e1'] }, { policy: 'cacheOnly' });
+
+    expect(verify).toHaveBeenCalledTimes(1);
+  });
 });
