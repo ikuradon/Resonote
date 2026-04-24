@@ -31,6 +31,11 @@ export interface EventCoordinatorReadResult {
   readonly settlement: ReturnType<typeof reduceReadSettlement>;
 }
 
+export interface EventCoordinatorMaterializeResult {
+  readonly stored: boolean;
+  readonly durability: 'durable' | 'degraded';
+}
+
 export function createEventCoordinator(deps: {
   readonly hotIndex?: HotEventIndex;
   readonly store: EventCoordinatorStore;
@@ -42,21 +47,26 @@ export function createEventCoordinator(deps: {
     applyLocalEvent(event: StoredEvent): void {
       hotIndex.applyVisible(event);
     },
-    async materializeFromRelay(event: StoredEvent, relayUrl: string): Promise<boolean> {
-      const result = await deps.store.putWithReconcile(event);
+    async materializeFromRelay(
+      event: StoredEvent,
+      relayUrl: string
+    ): Promise<EventCoordinatorMaterializeResult> {
+      let result: unknown;
+      try {
+        result = await deps.store.putWithReconcile(event);
+      } catch {
+        hotIndex.applyVisible(event);
+        hotIndex.applyRelayHint(buildSeenHint(event.id, relayUrl));
+        return { stored: false, durability: 'degraded' };
+      }
       const stored = (result as { stored?: boolean } | undefined)?.stored !== false;
-      if (!stored) return false;
+      if (!stored) return { stored: false, durability: 'durable' };
 
       hotIndex.applyVisible(event);
-      const hint = {
-        eventId: event.id,
-        relayUrl,
-        source: 'seen' as const,
-        lastSeenAt: Math.floor(Date.now() / 1000)
-      };
+      const hint = buildSeenHint(event.id, relayUrl);
       hotIndex.applyRelayHint(hint);
       await deps.store.recordRelayHint?.(hint);
-      return true;
+      return { stored: true, durability: 'durable' };
     },
     async read(
       filter: Record<string, unknown>,
@@ -91,5 +101,14 @@ export function createEventCoordinator(deps: {
         })
       };
     }
+  };
+}
+
+function buildSeenHint(eventId: string, relayUrl: string) {
+  return {
+    eventId,
+    relayUrl,
+    source: 'seen' as const,
+    lastSeenAt: Math.floor(Date.now() / 1000)
   };
 }
