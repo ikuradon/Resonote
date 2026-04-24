@@ -2,8 +2,7 @@
 
 ## Status
 
-Draft follow-up design spec 5 of 5 for the Auftakt full redesign. Pending
-brainstorming approval.
+Approved follow-up design spec 5 of 5 for the Auftakt full redesign.
 
 Depends on:
 
@@ -56,6 +55,11 @@ Failed migration must not delete the old database. The app starts in degraded
 storage mode or continues with the old adapter when compatibility mode is still
 available.
 
+Migration also creates `pending_publishes` and `event_relay_hints`. Pending
+publishes must be preserved when legacy data exists. Relay hints that cannot be
+derived from the legacy store start empty and are rebuilt by remote verification,
+repair, publish OK packets, and future relay observations.
+
 ## Quota Handling
 
 The storage layer reports quota state:
@@ -82,15 +86,27 @@ Retention classes from highest to lowest:
 1. pending publishes
 2. deletion index and kind:5 events
 3. locally-authored events
-4. replaceable heads for current user and follows
-5. active timeline/comment windows
-6. relay-list and profile metadata
-7. projection rows that can be rebuilt
-8. old raw payloads outside active windows
-9. failed/quarantined relay events
+4. event relay hints for active/local/published events
+5. replaceable heads for current user and follows
+6. P0 NIP semantic indexes and metadata
+7. active timeline/comment windows
+8. relay-list and profile metadata
+9. private/encrypted/draft data protected by user intent or key availability
+10. projection rows that can be rebuilt
+11. old raw payloads outside active windows
+12. failed/quarantined relay events
 
 Compaction cannot remove deletion index rows unless the corresponding kind:5
 event is also intentionally removed by an explicit user action or future policy.
+Compaction must not remove the only data needed to enforce deletion visibility.
+
+`replaceable_heads` are rebuildable from events, but they are retention-protected
+under quota pressure because local-first profile, relay-list, list, and metadata
+reads depend on them.
+
+Data required to preserve P0 NIP semantics from Spec 4 is retention-protected.
+If quota pressure requires removing payloads, the store must keep the minimal
+metadata and indexes required to keep those semantics correct.
 
 ## Payload Compaction
 
@@ -106,6 +122,11 @@ Compaction options:
 Compaction must be idempotent. It must run in bounded chunks and yield to
 foreground coordinator work.
 
+Private, encrypted, wallet, draft, and identity-adjacent data require stricter
+rules than ordinary public relay data. Compaction must respect user intent, key
+availability, and privacy policy before removing data related to encrypted
+payloads, private messages, drafts, key material, wallets, or private app data.
+
 ## Maintenance Scheduler
 
 Maintenance jobs:
@@ -117,6 +138,7 @@ Maintenance jobs:
 - compaction
 - retention trim
 - sync cursor cleanup
+- relay hint rebuild
 
 Scheduling rules:
 
@@ -133,7 +155,10 @@ When Dexie is unavailable:
 - coordinator continues with `HotEventIndex` when possible
 - `cacheOnly` reads can return memory results only
 - `localFirst` settlement marks durability degraded
-- relay repair may run but durable write failures are surfaced
+- `localFirst` still attempts remote verification through Spec 2 when relay
+  access is available
+- relay repair may run but durable write failures are surfaced and cannot become
+  durable settlement
 - publishing requires durable pending state unless the caller explicitly accepts
   volatile publish
 
@@ -148,7 +173,9 @@ Adapter tests:
 - replaceable head rebuild
 - tag index rebuild
 - projection rebuild
+- event relay hint preservation and rebuild
 - quota critical compaction order
+- P0 semantic index retention
 
 Coordinator tests:
 
@@ -156,6 +183,8 @@ Coordinator tests:
 - high-priority deletion write retry
 - pending publish retention
 - compaction does not resurrect tombstoned events
+- localFirst remote verification in degraded storage mode
+- private/encrypted data is not compacted without an approved policy
 
 E2E tests:
 
@@ -163,6 +192,7 @@ E2E tests:
 - simulated quota failure
 - offline publish during storage warning
 - deletion survives restart and compaction
+- reply/repost/reaction relay hints survive migration or rebuild after repair
 
 Completion gate:
 
