@@ -29,6 +29,7 @@ This spec covers:
 - Request descriptor normalization.
 - Relay capability-aware planning.
 - Adaptive difference checks, filter batching, and shard sizing.
+- NIP-11-aware REQ and command queueing.
 - Duplicate request coalescing.
 - Reconnect replay.
 - Negentropy-first verification and ordinary REQ fallback.
@@ -83,6 +84,7 @@ Capabilities are learned from:
 
 The planner stores capabilities per relay:
 
+- max concurrent subscriptions
 - max filters per REQ
 - max ids/authors per filter
 - negentropy support
@@ -91,6 +93,11 @@ The planner stores capabilities per relay:
 - duplicate delivery rate
 
 Unknown capabilities use conservative defaults.
+
+NIP-11 capability fetch is best-effort but capability use is mandatory once
+known. A relay that reports `max_subscriptions` or `max_filters` must be planned
+through those limits. A relay that omits metadata uses conservative defaults and
+can be tightened by observed `CLOSED` or timeout behavior.
 
 ## Planning Rules
 
@@ -130,6 +137,10 @@ Difference check strategy:
 
 Batching:
 
+- queue REQ, EVENT, CLOSE, AUTH, and NEG-* commands while a relay is connecting
+  or replaying
+- never exceed known `max_subscriptions`; excess logical requests wait in a
+  per-relay fair queue
 - group authors and ids up to relay capability limits for fallback REQ and
   missing-id fetches
 - shard filters deterministically
@@ -200,6 +211,8 @@ Core tests:
 - logicalKey coalescing
 - shard determinism
 - relay capability fallback
+- NIP-11 max_subscriptions queueing
+- NIP-11 max_filters shard sizing
 - negentropy-first strategy selection
 
 Resonote tests:
@@ -208,6 +221,7 @@ Resonote tests:
 - cacheOnly is the only policy that skips remote verification
 - partial coverage emits local data and verifies relay delta
 - duplicate consumers share one transport request
+- queued commands flush in order after reconnect
 - reconnect replay reuses descriptors
 - negentropy unsupported relay falls back to REQ
 - negentropy-supported relay fetches only remote-only ids by ordinary REQ

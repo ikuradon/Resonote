@@ -75,8 +75,9 @@ passes intent to the coordinator. The coordinator owns four internal layers:
 - `RelayGateway`: real relay REQ, EVENT, EOSE, OK, negentropy, reconnect, and
   publish transport.
 - `HotEventIndex`: memory indexes for hot reads and subscription matching.
-- `Materializer`: validation, reconcile, deletion, replaceable handling,
-  projection updates, and durable write scheduling.
+- `Materializer`: signature-verified validation, reconcile, deletion,
+  replaceable handling, projection updates, quarantine decisions, and durable
+  write scheduling.
 - `DexieEventStore`: canonical durable store and query adapter.
 
 The coordinator is the only truth manager. Dexie is the durable source of truth,
@@ -124,10 +125,13 @@ Read flow:
 3. Dexie fills local gaps.
 4. RelayGateway issues the missing equivalent query when policy requires relay
    repair.
-5. Relay events enter `Materializer.apply(event)`.
-6. The materializer updates hot indexes, deletion visibility, replaceable heads,
+5. Relay events enter the coordinator ingress verification gate.
+6. Events that fail shape validation, id recomputation, or signature
+   verification are quarantined and never emitted.
+7. Verified relay events enter `Materializer.apply(event)`.
+8. The materializer updates hot indexes, deletion visibility, replaceable heads,
    projections, and durable write queues.
-7. Only materialized visible results are emitted to read waiters and
+9. Only materialized visible results are emitted to read waiters and
    subscribers.
 
 Subscription flow:
@@ -135,7 +139,7 @@ Subscription flow:
 1. Emit a local snapshot from `HotEventIndex` and Dexie.
 2. Backfill missing windows from relays.
 3. Subscribe to live relay streams.
-4. Materialize every live event before emission.
+4. Verify and materialize every live event before emission.
 5. Reconnect replay regenerates active request descriptors and relies on
    idempotent materialization for duplicate suppression.
 
@@ -199,9 +203,16 @@ The new durable adapter is `@auftakt/adapter-dexie`. Proposed tables:
 - `pending_publishes`
   - primary key: `id`
   - indexes: `created_at`, `status`
+- `quarantine`
+  - primary key: `[event_id+relay_url+reason]`
+  - indexes: `event_id`, `relay_url`, `reason`, `created_at`
 
 The adapter exposes an `EventStoreAdapter` interface so implementation can be
 tested and replaced without changing coordinator consumers.
+
+The `quarantine` table stores invalid relay input diagnostics only. Quarantined
+events are not visible events, do not update projections, and do not contribute
+to local negentropy refs.
 
 `event_relay_hints` is coordinator/storage infrastructure, not a feature plugin.
 It records where an event was seen, hinted, repaired, or successfully published.
@@ -267,6 +278,17 @@ Dexie write failure is severity-based:
 Materializer failure never leaks a raw relay event to consumers. Failed events
 are quarantined/logged and excluded from API results.
 
+Ingress verification failure is not best-effort. A relay EVENT must pass:
+
+- NIP-01 event shape validation
+- event id recomputation
+- Schnorr signature verification
+- policy checks for protected or expiration-sensitive events when enabled
+
+Only after these checks can the materializer update `HotEventIndex`, Dexie, or
+subscriber state. A temporary verifier failure reports degraded relay/security
+settlement instead of emitting the raw event.
+
 Migration failure must not silently destroy the old IndexedDB data. The app must
 either keep using the old adapter in compatibility mode or fail startup with a
 clear degraded storage state.
@@ -284,6 +306,7 @@ Adapter tests:
 
 - Dexie schema migration
 - bulk materialization
+- quarantine table writes for invalid relay events
 - deletion index `[target_id+pubkey]`
 - late target suppression
 - replaceable head update
@@ -293,6 +316,7 @@ Coordinator tests:
 
 - read policy behavior
 - relay event materializes before emit
+- invalid signature never reaches any public read/subscription API
 - subscription backfill plus live flow
 - reconnect replay idempotency
 - offline pending publish durability

@@ -1,5 +1,10 @@
 # Auftakt NIP Compliance Verification Artifact
 
+> Note: This document verifies the current scoped facade/spec contract. It does
+> not prove the stricter coordinator-owned local-first redesign target. For that
+> audit, see
+> `docs/auftakt/2026-04-24-strict-redesign-integrated-audit.md`.
+
 このドキュメントは、Auftakt 仕様書 §14 の **scoped/canonical matrix semantics**
 に対する verification companion である。公開 claim は README / 仕様書 /
 本ドキュメントで同一の matrix semantics を使う。

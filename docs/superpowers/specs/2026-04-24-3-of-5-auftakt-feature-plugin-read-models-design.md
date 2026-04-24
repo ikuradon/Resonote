@@ -125,12 +125,19 @@ Coordinator/storage concerns, not plugins:
 - `relayHintIndex`
 - `eventRelayPresence`
 - `authorRelayAffinity`
+- `cryptoVerificationGate`
+- `quarantine`
 
 These are maintained by the coordinator/materializer and durable store from Spec
 1. They are used as inputs for reply/repost/reaction relay hints,
 nevent/naddr resolution, outbox/inbox routing, relay repair, and relay quality
 scoring. UI can read them through an optional read model, but plugin code does
 not own their writes.
+
+An optional `relayMetricsModel` may expose read-only relay quality and liveness
+data to features. It must not write relay hints, mutate capability records, or
+decide event visibility. Signature verification and quarantine are hard
+coordinator ingress concerns, never plugins.
 
 ## Projections
 
@@ -209,6 +216,8 @@ Feature tests:
 - relay-list kind:10002 over kind:3 fallback
 - content bookmark lookup through coordinator
 - relay hint index is read-only from plugin APIs
+- relay metrics model is read-only and cannot mutate routing indexes
+- plugins cannot bypass crypto verification or quarantine
 - Resonote-only flows compose generic read models without leaking into generic
   plugin contracts
 

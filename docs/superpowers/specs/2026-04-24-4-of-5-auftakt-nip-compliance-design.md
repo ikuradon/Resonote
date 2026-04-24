@@ -80,6 +80,11 @@ No NIP claim can have an owner of "docs only".
 The official `nostr-protocol/nips` README is the source of truth for the NIP
 inventory. The matrix must record the source URL and regeneration date.
 
+The matrix is generated or checked by a repository script. The script compares
+the current matrix against the official README inventory and fails CI when a NIP
+is added, removed, renamed, or newly marked unrecommended without a local
+classification update.
+
 The existing matrix in `docs/auftakt/status-verification.md` is retained as a
 historical input, but it must be regenerated after Specs 1-3 land. Transitional
 wrappers do not count as final proof.
@@ -250,6 +255,7 @@ Existing import, fallback, or migration behavior must stay bounded and tested.
 Commands:
 
 ```bash
+pnpm run check:auftakt:nips
 pnpm run test:auftakt:core
 pnpm run test:auftakt:storage
 pnpm run test:auftakt:resonote
@@ -261,6 +267,7 @@ pnpm run check:auftakt-migration -- --proof
 Docs checks:
 
 - no broad "full NIP support" wording without matrix scope
+- official NIP inventory diff is empty or intentionally classified
 - every implemented/partial claim has a proof anchor
 - every public claim has an app or E2E proof when user-facing
 - every internal-only claim is absent from public product claims

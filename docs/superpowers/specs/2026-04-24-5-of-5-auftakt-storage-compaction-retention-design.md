@@ -50,10 +50,17 @@ Migration is additive and reversible during rollout:
 5. Verify counts and critical indexes.
 6. Mark Dexie store active.
 7. Keep old database until the next successful startup.
+8. Record migration version, source DB name, migrated row counts, and rollback
+   eligibility.
 
 Failed migration must not delete the old database. The app starts in degraded
 storage mode or continues with the old adapter when compatibility mode is still
 available.
+
+Rollback is allowed only before new writes become Dexie-only. Once the
+coordinator has accepted Dexie-only pending publishes, deletion index rows, or
+relay hints, rollback must either replay those rows into the compatibility store
+or remain on Dexie with a degraded warning.
 
 Migration also creates `pending_publishes` and `event_relay_hints`. Pending
 publishes must be preserved when legacy data exists. Relay hints that cannot be
@@ -127,6 +134,10 @@ rules than ordinary public relay data. Compaction must respect user intent, key
 availability, and privacy policy before removing data related to encrypted
 payloads, private messages, drafts, key material, wallets, or private app data.
 
+Encrypted/private payloads must not be decrypted for compaction or projection
+purposes. Retention decisions operate on event metadata, kind, tags, local user
+intent, and key availability only.
+
 ## Maintenance Scheduler
 
 Maintenance jobs:
@@ -169,6 +180,8 @@ No API should silently claim durable settlement when storage is unavailable.
 Adapter tests:
 
 - migration from current `adapter-indexeddb` shape
+- migration rollback before Dexie-only writes
+- migration refusal after non-replayed Dexie-only writes
 - deletion index preservation
 - replaceable head rebuild
 - tag index rebuild
@@ -185,6 +198,7 @@ Coordinator tests:
 - compaction does not resurrect tombstoned events
 - localFirst remote verification in degraded storage mode
 - private/encrypted data is not compacted without an approved policy
+- encrypted/private payload compaction does not require decryption
 
 E2E tests:
 
