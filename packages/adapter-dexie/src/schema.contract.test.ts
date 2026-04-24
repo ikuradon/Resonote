@@ -13,6 +13,7 @@ describe('DexieEventStore schema', () => {
       'event_relay_hints',
       'event_tags',
       'events',
+      'migration_state',
       'pending_publishes',
       'projections',
       'quarantine',

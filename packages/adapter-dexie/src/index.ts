@@ -25,6 +25,13 @@ export interface RelayHintInput {
   readonly lastSeenAt: number;
 }
 
+export interface MigrationStateInput {
+  readonly version: number;
+  readonly sourceDbName: string;
+  readonly migratedRows: number;
+  readonly dexieOnlyWrites: boolean;
+}
+
 const DELETION_KIND = 5;
 
 export class DexieEventStore {
@@ -121,6 +128,21 @@ export class DexieEventStore {
       source: row.source as RelayHintInput['source'],
       lastSeenAt: row.last_seen_at
     }));
+  }
+
+  async recordMigrationState(input: MigrationStateInput): Promise<void> {
+    await this.db.migration_state.put({
+      key: 'current',
+      version: input.version,
+      source_db_name: input.sourceDbName,
+      migrated_rows: input.migratedRows,
+      dexie_only_writes: input.dexieOnlyWrites
+    });
+  }
+
+  async canRollbackMigration(): Promise<boolean> {
+    const state = await this.db.migration_state.get('current');
+    return Boolean(state && !state.dexie_only_writes);
   }
 
   private async applyDeletion(event: NostrEvent): Promise<DexieMaterializationResult> {

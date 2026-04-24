@@ -69,6 +69,14 @@ export interface DexieProjectionRecord {
   readonly value: unknown;
 }
 
+export interface DexieMigrationStateRecord {
+  readonly key: string;
+  readonly version: number;
+  readonly source_db_name: string;
+  readonly migrated_rows: number;
+  readonly dexie_only_writes: boolean;
+}
+
 export class AuftaktDexieDatabase extends Dexie {
   events!: Table<DexieEventRecord, string>;
   event_tags!: Table<DexieEventTagRecord, string>;
@@ -78,6 +86,7 @@ export class AuftaktDexieDatabase extends Dexie {
   sync_cursors!: Table<DexieSyncCursorRecord, string>;
   pending_publishes!: Table<DexiePendingPublishRecord, string>;
   projections!: Table<DexieProjectionRecord, string>;
+  migration_state!: Table<DexieMigrationStateRecord, string>;
   quarantine!: Table<DexieQuarantineRecord, string>;
 
   constructor(name: string) {
@@ -91,6 +100,7 @@ export class AuftaktDexieDatabase extends Dexie {
       sync_cursors: 'key,relay,request_key,updated_at',
       pending_publishes: 'id,created_at,status',
       projections: 'key,[projection+sort_key]',
+      migration_state: 'key,version,source_db_name,dexie_only_writes',
       quarantine: 'key,event_id,relay_url,reason,created_at'
     });
   }
