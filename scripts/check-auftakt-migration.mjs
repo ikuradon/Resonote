@@ -126,9 +126,16 @@ const semanticGuardPolicies = [
     description: 'raw negentropy protocol literals',
     pattern: /NEG-(OPEN|MSG|CLOSE)/g,
     allowedFiles: [
-      'packages/adapter-relay/src/index.ts',
-      'packages/adapter-relay/src/request-replay.contract.test.ts'
+      'packages/core/src/relay-session.ts',
+      'packages/core/src/relay-session.contract.test.ts',
+      'packages/core/src/negentropy-transport.contract.test.ts'
     ]
+  },
+  {
+    name: 'obsolete-auftakt-package-import',
+    description: 'deleted Auftakt package imports',
+    pattern: /@auftakt\/(timeline|adapter-relay)/g,
+    allowedFiles: []
   },
   {
     name: 'direct-shared-nostr-consumer-import',

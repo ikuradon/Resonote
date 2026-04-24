@@ -46,8 +46,10 @@ export function walk(dir, options = {}) {
   const files = [];
 
   for (const entry of entries) {
+    if (entry === 'node_modules') continue;
     const path = join(dir, entry);
-    const stat = statSync(path);
+    const stat = statSync(path, { throwIfNoEntry: false });
+    if (!stat) continue;
     if (stat.isDirectory()) {
       files.push(...walk(path, options));
       continue;
