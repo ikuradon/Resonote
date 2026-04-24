@@ -1,0 +1,14 @@
+{
+  "name": "@auftakt/adapter-dexie",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@auftakt/core": "workspace:*",
+    "dexie": "^4.2.1",
+    "nostr-typedef": "^0.13.0"
+  }
+}

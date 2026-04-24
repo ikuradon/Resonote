@@ -55,6 +55,28 @@ function createTestCoordinator() {
 }
 
 describe('@auftakt/resonote plugin isolation', () => {
+  it('does not expose raw relay or raw storage handles to plugins', async () => {
+    const observedKeys: string[][] = [];
+    const coordinator = createTestCoordinator();
+
+    await coordinator.registerPlugin({
+      name: 'inspectPluginApi',
+      apiVersion: 'v1',
+      setup(api) {
+        observedKeys.push(Object.keys(api).sort());
+      }
+    });
+
+    expect(observedKeys[0]).toEqual([
+      'apiVersion',
+      'registerFlow',
+      'registerProjection',
+      'registerReadModel'
+    ]);
+    expect(observedKeys[0]).not.toContain('getRxNostr');
+    expect(observedKeys[0]).not.toContain('getEventsDB');
+  });
+
   it('disables a throwing plugin without crashing later registrations', async () => {
     const coordinator = createTestCoordinator();
 

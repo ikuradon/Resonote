@@ -49,13 +49,11 @@ import {
 import type { EventParameters } from 'nostr-typedef';
 import { Observable } from 'rxjs';
 
+import { createEventCoordinator } from './event-coordinator.js';
+import { ingestRelayEvent } from './event-ingress.js';
 import {
-  COMMENTS_FLOW,
   type CommentsFlow,
-  CONTENT_RESOLUTION_FLOW,
   type ContentResolutionFlow,
-  createCommentsFlowPlugin,
-  createContentResolutionFlowPlugin,
   createEmojiCatalogPlugin,
   createNotificationsFlowPlugin,
   createRelayListFlowPlugin,
@@ -66,6 +64,12 @@ import {
   RELAY_LIST_FLOW,
   type RelayListFlow
 } from './plugins/built-in-plugins.js';
+import {
+  COMMENTS_FLOW,
+  CONTENT_RESOLUTION_FLOW,
+  createResonoteCommentsFlowPlugin,
+  createResonoteContentResolutionFlowPlugin
+} from './plugins/resonote-flows.js';
 import { createTimelinePlugin } from './plugins/timeline-plugin.js';
 
 export type { CommentSubscriptionRefs, SubscriptionHandle };
@@ -674,8 +678,15 @@ function createLatestReadDriver<TEvent extends StoredEvent>(
         next: (packet) => {
           void (async () => {
             if (state.destroyed) return;
-            const incoming = packet.event as TEvent;
-            const accepted = await materializeIncomingEvent(runtime, incoming);
+            const result = await ingestRelayEvent({
+              relayUrl: typeof packet.from === 'string' ? packet.from : '',
+              event: packet.event,
+              materialize: (event) => materializeIncomingEvent(runtime, event),
+              quarantine: async () => {}
+            });
+            if (!result.ok) return;
+            const incoming = result.event as TEvent;
+            const accepted = result.stored;
             if (!accepted || state.destroyed) return;
             if (state.event === null || incoming.created_at > state.event.created_at) {
               state.event = incoming;
@@ -728,163 +739,164 @@ async function performCachedFetchById(
 ): Promise<SettledReadResult<StoredEvent>> {
   const state = getCachedFetchState(runtime);
 
-  if (state.cache.has(eventId)) {
-    const cached = state.cache.get(eventId) ?? null;
-    if (cached !== null) {
-      return {
-        event: cached,
-        settlement: reduceReadSettlement({
-          localSettled: true,
-          relaySettled: false,
-          relayRequired: false,
-          localHitProvenance: 'memory'
-        })
-      };
-    }
-
-    const ts = state.nullCacheTimestamps.get(eventId);
-    if (ts !== undefined && Date.now() - ts < NULL_CACHE_TTL_MS) {
-      return {
-        event: null,
-        settlement: reduceReadSettlement({
-          localSettled: true,
-          relaySettled: false,
-          relayRequired: false,
-          nullTtlHit: true
-        })
-      };
-    }
-
-    state.cache.delete(eventId);
-    state.nullCacheTimestamps.delete(eventId);
-  }
-
   const pending = state.inflight.get(eventId);
   if (pending) return pending;
 
-  const promise = (async () => {
-    try {
-      const db = await runtime.getEventsDB();
-      const event = await db.getById(eventId);
-      if (event) {
-        const invalidated = state.invalidatedDuringFetch.delete(eventId);
-        if (!invalidated) {
-          state.cache.set(eventId, event);
-          state.nullCacheTimestamps.delete(eventId);
-        }
-        return {
-          event,
-          settlement: reduceReadSettlement({
-            localSettled: true,
-            relaySettled: false,
-            relayRequired: false,
-            localHitProvenance: 'store',
-            invalidatedDuringFetch: invalidated
-          })
-        } satisfies SettledReadResult<StoredEvent>;
-      }
-    } catch {
-      // DB not available
-    }
-
-    try {
-      const rxNostr = await runtime.getRxNostr();
-      const fetchOnce = async (): Promise<StoredEvent | null> => {
-        return new Promise<StoredEvent | null>((resolve) => {
-          const requestKey = createRuntimeRequestKey({
-            mode: 'backward',
-            filters: [{ ids: [eventId] }],
-            scope: 'resonote:coordinator:cachedFetchById'
-          });
-          const req = runtime.createRxBackwardReq({ requestKey });
-          let found: StoredEvent | null = null;
-          const pendingMaterializations = new Set<Promise<void>>();
-          const sub = rxNostr.use(req).subscribe({
-            next: (packet) => {
-              const task = (async () => {
-                const accepted = await materializeIncomingEvent(runtime, packet.event);
-                if (accepted) {
-                  found = packet.event;
-                }
-              })();
-              pendingMaterializations.add(task);
-              void task.finally(() => {
-                pendingMaterializations.delete(task);
-              });
-            },
-            complete: () => {
-              clearTimeout(timeout);
-              sub.unsubscribe();
-              void Promise.allSettled([...pendingMaterializations]).then(() => resolve(found));
-            },
-            error: () => {
-              clearTimeout(timeout);
-              sub.unsubscribe();
-              void Promise.allSettled([...pendingMaterializations]).then(() => resolve(found));
-            }
-          });
-          const timeout = setTimeout(() => {
-            sub.unsubscribe();
-            void Promise.allSettled([...pendingMaterializations]).then(() => resolve(found));
-          }, 5_000);
-
-          req.emit({ ids: [eventId] });
-          req.over();
-        });
-      };
-
-      let result = await fetchOnce();
-      if (result === null) {
-        await new Promise((resolve) => setTimeout(resolve, 150));
-        result = await fetchOnce();
-      }
-
-      const invalidated = state.invalidatedDuringFetch.delete(eventId);
-      if (!invalidated) {
-        state.cache.set(eventId, result);
-        if (result) {
-          state.nullCacheTimestamps.delete(eventId);
-        } else {
-          state.nullCacheTimestamps.set(eventId, Date.now());
-        }
-      }
-
-      return {
-        event: result,
-        settlement: reduceReadSettlement({
-          localSettled: true,
-          relaySettled: true,
-          relayRequired: true,
-          localHitProvenance: null,
-          relayHit: result !== null,
-          invalidatedDuringFetch: invalidated
-        })
-      } satisfies SettledReadResult<StoredEvent>;
-    } catch {
-      const invalidated = state.invalidatedDuringFetch.delete(eventId);
-      if (!invalidated) {
-        state.cache.set(eventId, null);
-        state.nullCacheTimestamps.set(eventId, Date.now());
-      }
-      return {
-        event: null,
-        settlement: reduceReadSettlement({
-          localSettled: true,
-          relaySettled: true,
-          relayRequired: true,
-          localHitProvenance: null,
-          relayHit: false,
-          invalidatedDuringFetch: invalidated
-        })
-      } satisfies SettledReadResult<StoredEvent>;
-    }
-  })();
+  const promise = coordinatorFetchById(runtime, state, eventId);
 
   state.inflight.set(eventId, promise);
   try {
     return await promise;
   } finally {
     state.inflight.delete(eventId);
+  }
+}
+
+async function coordinatorFetchById(
+  runtime: CoordinatorReadRuntime,
+  state: CachedFetchState,
+  eventId: string
+): Promise<SettledReadResult<StoredEvent>> {
+  let invalidated = false;
+  const coordinator = createEventCoordinator({
+    store: {
+      getById: async (id) => {
+        const cached = readCachedById(state, id);
+        if (cached.hit) return cached.event;
+
+        try {
+          const db = await runtime.getEventsDB();
+          const event = await db.getById(id);
+          invalidated = state.invalidatedDuringFetch.delete(id);
+          if (!invalidated && event) {
+            state.cache.set(id, event);
+            state.nullCacheTimestamps.delete(id);
+          }
+          return event;
+        } catch {
+          return null;
+        }
+      },
+      putWithReconcile: async (event) => materializeIncomingEvent(runtime, event)
+    },
+    relay: {
+      verify: async (filters) => verifyByIdFilters(runtime, state, filters)
+    }
+  });
+
+  const result = await coordinator.read({ ids: [eventId] }, { policy: 'localFirst' });
+  return {
+    event: result.events[0] ?? null,
+    settlement: invalidated
+      ? reduceReadSettlement({
+          localSettled: true,
+          relaySettled: false,
+          relayRequired: true,
+          invalidatedDuringFetch: true
+        })
+      : result.settlement
+  };
+}
+
+function readCachedById(
+  state: CachedFetchState,
+  eventId: string
+): { readonly hit: true; readonly event: StoredEvent | null } | { readonly hit: false } {
+  if (!state.cache.has(eventId)) return { hit: false };
+
+  const cached = state.cache.get(eventId) ?? null;
+  if (cached !== null) return { hit: true, event: cached };
+
+  const ts = state.nullCacheTimestamps.get(eventId);
+  if (ts !== undefined && Date.now() - ts < NULL_CACHE_TTL_MS) {
+    return { hit: true, event: null };
+  }
+
+  state.cache.delete(eventId);
+  state.nullCacheTimestamps.delete(eventId);
+  return { hit: false };
+}
+
+async function verifyByIdFilters(
+  runtime: CoordinatorReadRuntime,
+  state: CachedFetchState,
+  filters: readonly Record<string, unknown>[]
+): Promise<StoredEvent[]> {
+  const ids = filters.flatMap((filter) =>
+    Array.isArray(filter.ids) ? filter.ids.filter((id): id is string => typeof id === 'string') : []
+  );
+  const results = await Promise.all(
+    ids.map((id) => fetchAndCacheByIdFromRelay(runtime, state, id))
+  );
+  return results.filter((event): event is StoredEvent => Boolean(event));
+}
+
+async function fetchAndCacheByIdFromRelay(
+  runtime: CoordinatorReadRuntime,
+  state: CachedFetchState,
+  eventId: string
+): Promise<StoredEvent | null> {
+  try {
+    const rxNostr = await runtime.getRxNostr();
+    const event = await new Promise<StoredEvent | null>((resolve) => {
+      const requestKey = createRuntimeRequestKey({
+        mode: 'backward',
+        filters: [{ ids: [eventId] }],
+        scope: 'resonote:coordinator:cachedFetchById'
+      });
+      const req = runtime.createRxBackwardReq({ requestKey });
+      let found: StoredEvent | null = null;
+      const pendingMaterializations = new Set<Promise<void>>();
+      const sub = rxNostr.use(req).subscribe({
+        next: (packet) => {
+          const task = (async () => {
+            const result = await ingestRelayEvent({
+              relayUrl: typeof packet.from === 'string' ? packet.from : '',
+              event: packet.event,
+              materialize: (incoming) => materializeIncomingEvent(runtime, incoming),
+              quarantine: async () => {}
+            });
+            if (result.ok && result.stored) {
+              found = result.event;
+            }
+          })();
+          pendingMaterializations.add(task);
+          void task.finally(() => {
+            pendingMaterializations.delete(task);
+          });
+        },
+        complete: () => {
+          clearTimeout(timeout);
+          sub.unsubscribe();
+          void Promise.allSettled([...pendingMaterializations]).then(() => resolve(found));
+        },
+        error: () => {
+          clearTimeout(timeout);
+          sub.unsubscribe();
+          void Promise.allSettled([...pendingMaterializations]).then(() => resolve(found));
+        }
+      });
+      const timeout = setTimeout(() => {
+        sub.unsubscribe();
+        void Promise.allSettled([...pendingMaterializations]).then(() => resolve(found));
+      }, 5_000);
+
+      req.emit({ ids: [eventId] });
+      req.over();
+    });
+
+    const invalidated = state.invalidatedDuringFetch.delete(eventId);
+    if (!invalidated) {
+      state.cache.set(eventId, event);
+      if (event) {
+        state.nullCacheTimestamps.delete(eventId);
+      } else {
+        state.nullCacheTimestamps.set(eventId, Date.now());
+      }
+    }
+    return event;
+  } catch {
+    return null;
   }
 }
 
@@ -1217,7 +1229,7 @@ interface NegentropySessionRuntime {
     options?: { on?: { relays?: readonly string[]; defaultReadRelays?: boolean } }
   ): {
     subscribe(observer: {
-      next?: (packet: { event: StoredEvent }) => void;
+      next?: (packet: { event: unknown; from?: string }) => void;
       complete?: () => void;
       error?: (error: unknown) => void;
     }): { unsubscribe(): void };
@@ -1542,7 +1554,7 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
         return categories;
       }
     }),
-    createCommentsFlowPlugin({
+    createResonoteCommentsFlowPlugin({
       loadCommentSubscriptionDeps: () => loadEventSubscriptionDeps(registrySessionRuntime),
       buildCommentContentFilters,
       startCommentSubscription,
@@ -1563,7 +1575,7 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
         return { relayListEvents: relayListEvents ?? [], followListEvents: followListEvents ?? [] };
       }
     }),
-    createContentResolutionFlowPlugin({
+    createResonoteContentResolutionFlowPlugin({
       searchBookmarkDTagEvent: async (pubkey, normalizedUrl) => {
         const eventsDB = await runtime.getEventsDB();
         const cached = await eventsDB.getByReplaceKey(pubkey, 39701, normalizedUrl);

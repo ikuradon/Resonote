@@ -1,8 +1,7 @@
-import { createRuntimeRequestKey } from '@auftakt/core';
+import { createRxBackwardReq } from '@auftakt/core';
 
-import { createLogger } from '$shared/utils/logger.js';
-
-const log = createLogger('nostr:query');
+import { fetchBackwardEvents as fetchBackwardEventsHelper } from '../../../packages/resonote/src/runtime.js';
+import { getRxNostr } from './client.js';
 
 type Filter = Record<string, unknown>;
 
@@ -21,69 +20,7 @@ export async function fetchBackwardEvents<TEvent>(
   filters: readonly Filter[],
   options?: FetchBackwardOptions
 ): Promise<TEvent[]> {
-  const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
-    import('@auftakt/core'),
-    import('./client.js')
-  ]);
-  const rxNostr = await getRxNostr();
-  const requestKey = createRuntimeRequestKey({
-    mode: 'backward',
-    filters,
-    overlay: options?.overlay,
-    scope: 'shared:nostr:query:fetchBackwardEvents'
-  });
-  const req = createRxBackwardReq({ requestKey });
-  const events: TEvent[] = [];
-
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const timeout = setTimeout(() => settleResolve(), options?.timeoutMs ?? 10_000);
-    const useOptions =
-      options?.overlay && options.overlay.relays.length > 0
-        ? {
-            on: {
-              relays: options.overlay.relays,
-              defaultReadRelays: options.overlay.includeDefaultReadRelays ?? true
-            }
-          }
-        : undefined;
-
-    const sub = rxNostr.use(req, useOptions).subscribe({
-      next: (packet) => {
-        events.push(packet.event as TEvent);
-      },
-      complete: () => settleResolve(),
-      error: (error) => {
-        log.warn('Backward fetch errored', error);
-        if (options?.rejectOnError) {
-          settleReject(error);
-          return;
-        }
-        settleResolve();
-      }
-    });
-
-    for (const filter of filters) {
-      req.emit(filter as never);
-    }
-    req.over();
-
-    function settleResolve() {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      sub.unsubscribe();
-      resolve(events);
-    }
-
-    function settleReject(error: unknown) {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      sub.unsubscribe();
-      reject(error);
-    }
-  });
+  return fetchBackwardEventsHelper<TEvent>({ getRxNostr, createRxBackwardReq }, filters, options);
 }
 
 export async function fetchBackwardFirst<TEvent>(

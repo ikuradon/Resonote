@@ -30,7 +30,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000
   },
   test: {
-    include: ['src/**/*.test.ts', 'packages/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'packages/**/*.test.ts', 'scripts/**/*.test.ts'],
     passWithNoTests: true,
     reporters: ['default', 'junit'],
     outputFile: { junit: 'test-results/junit.xml' },

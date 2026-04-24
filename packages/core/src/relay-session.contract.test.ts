@@ -146,6 +146,26 @@ describe('relay replay request identity contract', () => {
     session.dispose();
   });
 
+  it('queues REQ commands while relay is reconnecting and flushes after open', async () => {
+    const session = createRxNostrSession({ defaultRelays: [RELAY_URL], eoseTimeout: 100 });
+    const req = createRxBackwardReq({ requestKey: 'rq:v1:contract-queued-req' as RequestKey });
+    const sub = session.use(req).subscribe({});
+
+    req.emit({ kinds: [1] });
+    req.over();
+
+    await waitUntil(() => FakeWebSocket.instances.length > 0);
+    const socket = latestSocket();
+    expect(socket.sent).toEqual([]);
+
+    socket.open();
+    await waitUntil(() => socket.sent.length > 0);
+    expect(socket.sent[0]).toEqual(expect.arrayContaining(['REQ']));
+
+    sub.unsubscribe();
+    session.dispose();
+  });
+
   it('unsubscribe removes replay record and stops restoration', async () => {
     const session = createRxNostrSession({ defaultRelays: [RELAY_URL], eoseTimeout: 100 });
     const req = createRxForwardReq({ requestKey: 'rq:v1:contract-unsubscribe' as RequestKey });

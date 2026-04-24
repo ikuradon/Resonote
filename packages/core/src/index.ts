@@ -1,4 +1,5 @@
 export * from './crypto.js';
+export * from './event-validation.js';
 export * from './negentropy.js';
 export * from './reconcile.js';
 export * from './relay-observation.js';
