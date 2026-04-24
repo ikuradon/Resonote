@@ -157,6 +157,9 @@ Dexie is not the hot read path. The coordinator keeps memory indexes:
 - `tagIndex`: `tagName:value -> ids`
 - `timelineWindows`
 - `deletionIndex`: `target_id + pubkey`
+- `relayHintsByEventId`
+- `eventsByRelay`
+- `authorRelayAffinity`
 - `pendingWrites`
 
 Normal relay events update `HotEventIndex` synchronously and enter a batched
@@ -190,12 +193,20 @@ The new durable adapter is `@auftakt/adapter-dexie`. Proposed tables:
 - `sync_cursors`
   - primary key: `[relay+request_key]`
   - indexes: `relay`, `request_key`, `updated_at`
+- `event_relay_hints`
+  - primary key: `[event_id+relay_url+source]`
+  - indexes: `event_id`, `relay_url`, `[event_id+source]`, `last_seen_at`
 - `pending_publishes`
   - primary key: `id`
   - indexes: `created_at`, `status`
 
 The adapter exposes an `EventStoreAdapter` interface so implementation can be
 tested and replaced without changing coordinator consumers.
+
+`event_relay_hints` is coordinator/storage infrastructure, not a feature plugin.
+It records where an event was seen, hinted, repaired, or successfully published.
+Reply, repost, reaction, nevent/naddr resolution, outbox routing, and relay
+repair can use it as relay selection input.
 
 ## kind:5 / Deletion Semantics
 

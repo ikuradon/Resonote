@@ -2,8 +2,7 @@
 
 ## Status
 
-Draft follow-up design spec 3 of 5 for the Auftakt full redesign. Pending
-brainstorming approval.
+Approved follow-up design spec 3 of 5 for the Auftakt full redesign.
 
 Depends on:
 
@@ -18,8 +17,9 @@ legacy query helpers, facade convenience functions, and direct browser storage
 reads.
 
 The target is an NDK-like ergonomic API without leaking relay, storage, or
-transport details. Timeline, emoji, comments, notifications, relay-list, and
-Resonote-specific flows should be plugins over coordinator primitives.
+transport details. Generic Nostr read models become coordinator plugins.
+Resonote-only flows stay in `@auftakt/resonote`, and relay intelligence that
+affects routing or publish hints stays in coordinator/storage infrastructure.
 
 ## Scope
 
@@ -28,6 +28,8 @@ This spec covers:
 - Plugin API shape.
 - Projection and read-model registration.
 - Built-in feature plugin ownership.
+- Separation between generic plugins, Resonote-only flows, and coordinator
+  storage concerns.
 - Feature-facing coordinator APIs.
 - Migration away from legacy helper surfaces.
 - Isolation and test contracts.
@@ -63,26 +65,72 @@ IDs.
 
 ## Built-In Plugins
 
-Built-in plugin ownership:
+Generic built-in plugin ownership:
 
 - `timeline`
   - timeline windows, pagination cursors, sort projections, replay repair hooks
 - `emojiCatalog`
   - kind:10030 and kind:30030 source resolution, shortcode indexing
-- `commentsFlow`
-  - kind:1111 backfill/live subscriptions, deletion reconcile, merge of extra
-    tag filters
+- `commentThreadModel`
+  - generic comment/reply graph, thread projection, kind:1111 backfill/live
+    subscriptions, deletion visibility
 - `notificationsFlow`
   - mention/follow comment streams, batching, local-first notification preview
 - `relayListFlow`
   - kind:10002 and kind:3 fallback semantics
-- `contentResolutionFlow`
-  - bookmark and external content event lookup
+- `nostrEntityResolution`
+  - NIP-19, nevent/naddr relay hints, author/kind lookup, entity fetch policy
 - `wotFlow`
   - follow graph traversal and bounded repair
+- `socialGraphSafety`
+  - mute users, words, threads, kinds, reports, blocks, imposter/spam ranking
+- `listsCollections`
+  - NIP-51 list read/write helpers for mute lists, pins, bookmarks, custom
+    lists, and followed hashtags
+- `searchDiscovery`
+  - NIP-50 search, hashtag feeds, explore feeds, popular relay/feed discovery
+- `engagementPayments`
+  - reactions, reposts, zap receipts, wallet/NWC-facing runtime hooks
+- `mediaAttachments`
+  - media metadata, upload provider integration, galleries, content-warning
+    visibility
+- `accountIdentity`
+  - multi-account/read-only session policy, signer capability, NIP-05/NIP-07/
+    NIP-46 identity surfaces
+
+Optional generic built-ins:
+
+- `longformLiveSpecialKinds`
+  - long-form articles, polls, live streams, calendar, marketplace,
+    communities, and channels
 
 Each built-in plugin owns its feature read model and exposes one high-level
 operation surface to `@auftakt/resonote`.
+
+Resonote-only flows:
+
+- `resonoteCommentsFlow`
+  - Resonote content-page comment filters, content id mapping, and UI-specific
+    merged comment streams
+- `resonoteContentResolution`
+  - podcast episode GUID lookup, external URL bookmark d-tag resolution, and
+    Resonote content provider normalization
+- Resonote-specific timeline/content projections
+
+These flows live in `@auftakt/resonote`. They can compose generic read models,
+but they are not generic Auftakt plugin contracts.
+
+Coordinator/storage concerns, not plugins:
+
+- `relayHintIndex`
+- `eventRelayPresence`
+- `authorRelayAffinity`
+
+These are maintained by the coordinator/materializer and durable store from Spec
+1. They are used as inputs for reply/repost/reaction relay hints,
+nevent/naddr resolution, outbox/inbox routing, relay repair, and relay quality
+scoring. UI can read them through an optional read model, but plugin code does
+not own their writes.
 
 ## Projections
 
@@ -160,6 +208,9 @@ Feature tests:
 - notification preview local-first fallback
 - relay-list kind:10002 over kind:3 fallback
 - content bookmark lookup through coordinator
+- relay hint index is read-only from plugin APIs
+- Resonote-only flows compose generic read models without leaking into generic
+  plugin contracts
 
 App regression:
 
