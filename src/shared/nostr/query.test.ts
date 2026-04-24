@@ -73,7 +73,7 @@ describe('fetchBackwardEvents', () => {
       requestKey: createRuntimeRequestKey({
         mode: 'backward',
         filters: [{ authors: ['pk1'], kinds: [0] }],
-        scope: 'shared:nostr:query:fetchBackwardEvents'
+        scope: 'resonote:coordinator:fetchBackwardEvents'
       })
     });
   });

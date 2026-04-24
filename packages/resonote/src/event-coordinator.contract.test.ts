@@ -59,4 +59,21 @@ describe('EventCoordinator read policy', () => {
 
     expect(verify).toHaveBeenCalledTimes(1);
   });
+
+  it('schedules verification for latest replaceable reads', async () => {
+    const verify = vi.fn(async () => []);
+    const coordinator = createEventCoordinator({
+      store: {
+        getById: vi.fn(async () => null),
+        putWithReconcile: vi.fn()
+      },
+      relay: { verify }
+    });
+
+    await coordinator.read({ authors: ['alice'], kinds: [0], limit: 1 }, { policy: 'localFirst' });
+
+    expect(verify).toHaveBeenCalledWith([{ authors: ['alice'], kinds: [0], limit: 1 }], {
+      reason: 'localFirst'
+    });
+  });
 });
