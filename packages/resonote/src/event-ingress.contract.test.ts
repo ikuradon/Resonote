@@ -23,4 +23,25 @@ describe('ingestRelayEvent', () => {
       rawEvent: { id: 'bad' }
     });
   });
+
+  it('returns false from materialization when validation fails', async () => {
+    const materialized: unknown[] = [];
+    const quarantined: unknown[] = [];
+
+    const result = await ingestRelayEvent({
+      relayUrl: 'wss://relay.example',
+      event: { id: 'bad' },
+      materialize: async (event) => {
+        materialized.push(event);
+        return true;
+      },
+      quarantine: (record) => {
+        quarantined.push(record);
+      }
+    });
+
+    expect(result.ok).toBe(false);
+    expect(materialized).toEqual([]);
+    expect(quarantined).toHaveLength(1);
+  });
 });

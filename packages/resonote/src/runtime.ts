@@ -49,6 +49,7 @@ import {
 import type { EventParameters } from 'nostr-typedef';
 import { Observable } from 'rxjs';
 
+import { ingestRelayEvent } from './event-ingress.js';
 import {
   COMMENTS_FLOW,
   type CommentsFlow,
@@ -674,8 +675,15 @@ function createLatestReadDriver<TEvent extends StoredEvent>(
         next: (packet) => {
           void (async () => {
             if (state.destroyed) return;
-            const incoming = packet.event as TEvent;
-            const accepted = await materializeIncomingEvent(runtime, incoming);
+            const result = await ingestRelayEvent({
+              relayUrl: typeof packet.from === 'string' ? packet.from : '',
+              event: packet.event,
+              materialize: (event) => materializeIncomingEvent(runtime, event),
+              quarantine: async () => {}
+            });
+            if (!result.ok) return;
+            const incoming = result.event as TEvent;
+            const accepted = result.stored;
             if (!accepted || state.destroyed) return;
             if (state.event === null || incoming.created_at > state.event.created_at) {
               state.event = incoming;
@@ -802,9 +810,14 @@ async function performCachedFetchById(
           const sub = rxNostr.use(req).subscribe({
             next: (packet) => {
               const task = (async () => {
-                const accepted = await materializeIncomingEvent(runtime, packet.event);
-                if (accepted) {
-                  found = packet.event;
+                const result = await ingestRelayEvent({
+                  relayUrl: typeof packet.from === 'string' ? packet.from : '',
+                  event: packet.event,
+                  materialize: (event) => materializeIncomingEvent(runtime, event),
+                  quarantine: async () => {}
+                });
+                if (result.ok && result.stored) {
+                  found = result.event;
                 }
               })();
               pendingMaterializations.add(task);
@@ -1217,7 +1230,7 @@ interface NegentropySessionRuntime {
     options?: { on?: { relays?: readonly string[]; defaultReadRelays?: boolean } }
   ): {
     subscribe(observer: {
-      next?: (packet: { event: StoredEvent }) => void;
+      next?: (packet: { event: unknown; from?: string }) => void;
       complete?: () => void;
       error?: (error: unknown) => void;
     }): { unsubscribe(): void };
