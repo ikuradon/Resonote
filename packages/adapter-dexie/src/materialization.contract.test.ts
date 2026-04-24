@@ -57,3 +57,56 @@ describe('Dexie deletion materialization', () => {
     await expect(store.getById('target')).resolves.toBeNull();
   });
 });
+
+describe('Dexie replaceable materialization', () => {
+  it('keeps newest replaceable head by pubkey and kind', async () => {
+    const store = await createDexieEventStore({ dbName: 'auftakt-dexie-replaceable' });
+    await store.putWithReconcile({
+      id: 'old',
+      pubkey: 'alice',
+      created_at: 1,
+      kind: 0,
+      tags: [],
+      content: 'old',
+      sig: 'sig'
+    });
+    await store.putWithReconcile({
+      id: 'new',
+      pubkey: 'alice',
+      created_at: 2,
+      kind: 0,
+      tags: [],
+      content: 'new',
+      sig: 'sig'
+    });
+
+    await expect(store.getReplaceableHead('alice', 0, '')).resolves.toMatchObject({ id: 'new' });
+    await expect(store.getById('old')).resolves.toBeNull();
+  });
+
+  it('keeps newest parameterized replaceable head by d tag', async () => {
+    const store = await createDexieEventStore({ dbName: 'auftakt-dexie-addressable' });
+    await store.putWithReconcile({
+      id: 'old',
+      pubkey: 'alice',
+      created_at: 1,
+      kind: 30030,
+      tags: [['d', 'emoji']],
+      content: 'old',
+      sig: 'sig'
+    });
+    await store.putWithReconcile({
+      id: 'new',
+      pubkey: 'alice',
+      created_at: 2,
+      kind: 30030,
+      tags: [['d', 'emoji']],
+      content: 'new',
+      sig: 'sig'
+    });
+
+    await expect(store.getReplaceableHead('alice', 30030, 'emoji')).resolves.toMatchObject({
+      id: 'new'
+    });
+  });
+});

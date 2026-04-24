@@ -41,6 +41,9 @@ export class DexieEventStore {
         emissions: [{ subjectId: event.id, state: 'deleted', reason: 'tombstoned' }]
       };
     }
+    if (isReplaceable(event.kind) || isParameterizedReplaceable(event.kind)) {
+      return this.applyReplaceable(event);
+    }
     await this.putEvent(event);
     return {
       stored: true,
@@ -88,6 +91,11 @@ export class DexieEventStore {
     return Boolean(await this.db.deletion_index.get(`${id}:${pubkey}`));
   }
 
+  async getReplaceableHead(pubkey: string, kind: number, dTag = ''): Promise<NostrEvent | null> {
+    const head = await this.db.replaceable_heads.get(`${pubkey}:${kind}:${dTag}`);
+    return head ? this.getById(head.event_id) : null;
+  }
+
   private async applyDeletion(event: NostrEvent): Promise<DexieMaterializationResult> {
     const targets = deletionTargets(event);
     await this.db.transaction(
@@ -116,6 +124,50 @@ export class DexieEventStore {
     return {
       stored: true,
       emissions: targets.map((id) => ({ subjectId: id, state: 'deleted', reason: 'tombstoned' }))
+    };
+  }
+
+  private async applyReplaceable(event: NostrEvent): Promise<DexieMaterializationResult> {
+    const dTag = isParameterizedReplaceable(event.kind) ? getDTag(event.tags) : '';
+    const key = `${event.pubkey}:${event.kind}:${dTag}`;
+    const current = await this.db.replaceable_heads.get(key);
+    if (current && current.created_at >= event.created_at) {
+      return {
+        stored: false,
+        emissions: [{ subjectId: event.id, state: 'shadowed', reason: 'ignored-older' }]
+      };
+    }
+
+    await this.db.transaction(
+      'rw',
+      this.db.events,
+      this.db.event_tags,
+      this.db.replaceable_heads,
+      async () => {
+        if (current) {
+          await this.db.events.delete(current.event_id);
+          await this.db.event_tags.where('event_id').equals(current.event_id).delete();
+        }
+        await writeEventRecord(this.db, event);
+        await this.db.replaceable_heads.put({
+          key,
+          event_id: event.id,
+          pubkey: event.pubkey,
+          kind: event.kind,
+          d_tag: dTag,
+          created_at: event.created_at
+        });
+      }
+    );
+    return {
+      stored: true,
+      emissions: [
+        {
+          subjectId: event.id,
+          state: 'confirmed',
+          reason: current ? 'replaced-winner' : 'accepted-new'
+        }
+      ]
     };
   }
 }
@@ -159,6 +211,14 @@ function deletionTargets(event: Pick<NostrEvent, 'tags'>): string[] {
         .map((tag) => tag[1])
     )
   ];
+}
+
+function isReplaceable(kind: number): boolean {
+  return kind === 0 || kind === 3 || (kind >= 10000 && kind <= 19999);
+}
+
+function isParameterizedReplaceable(kind: number): boolean {
+  return kind >= 30000 && kind <= 39999;
 }
 
 function getDTag(tags: string[][]): string {
