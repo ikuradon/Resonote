@@ -1,4 +1,4 @@
-import { paginateTimelineWindow } from '@auftakt/timeline';
+import { paginateTimelineWindow } from '@auftakt/core';
 
 import { fetchProfileCommentEvents } from '$shared/auftakt/resonote.js';
 import { createLogger } from '$shared/utils/logger.js';

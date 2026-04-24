@@ -1,5 +1,5 @@
 import { finalizeEvent, generateSecretKey, getPublicKey } from '@auftakt/core';
-import { createRuntimeRequestKey } from '@auftakt/timeline';
+import { createRuntimeRequestKey } from '@auftakt/core';
 import { type EventSigner, MockPool, type MockRelay } from '@ikuradon/tsunagiya';
 import { EventBuilder, waitFor } from '@ikuradon/tsunagiya/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

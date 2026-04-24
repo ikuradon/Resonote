@@ -1,4 +1,4 @@
-import { createRuntimeRequestKey } from '@auftakt/timeline';
+import { createRuntimeRequestKey } from '@auftakt/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 interface SubscribeCallbacks {

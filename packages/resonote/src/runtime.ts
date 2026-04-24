@@ -44,7 +44,8 @@ import {
   startMergedLiveSubscription,
   subscribeDualFilterStreams,
   type SubscriptionHandle,
-  type SubscriptionLike} from '@auftakt/timeline';
+  type SubscriptionLike
+} from '@auftakt/core';
 import type { EventParameters } from 'nostr-typedef';
 import { Observable } from 'rxjs';
 

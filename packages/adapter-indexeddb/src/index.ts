@@ -13,7 +13,7 @@ import {
   type ReconcileEmission,
   reconcileReplaceableCandidates,
   type ReplaceableCandidate
-} from '@auftakt/timeline';
+} from '@auftakt/core';
 import { type IDBPDatabase, openDB } from 'idb';
 import type { Event as NostrEvent } from 'nostr-typedef';
 

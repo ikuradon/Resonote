@@ -1,4 +1,4 @@
-import { createRuntimeRequestKey } from '@auftakt/timeline';
+import { createRuntimeRequestKey } from '@auftakt/core';
 
 import { createLogger } from '$shared/utils/logger.js';
 

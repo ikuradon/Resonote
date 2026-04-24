@@ -7,7 +7,6 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@auftakt/core": "workspace:*",
-    "@auftakt/timeline": "workspace:*"
+    "@auftakt/core": "workspace:*"
   }
 }

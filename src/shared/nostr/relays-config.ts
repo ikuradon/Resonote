@@ -1,4 +1,4 @@
-import { createRuntimeRequestKey } from '@auftakt/timeline';
+import { createRuntimeRequestKey } from '@auftakt/core';
 
 import { parseRelayTags } from '$features/relays/domain/relay-model.js';
 import { RELAY_LIST_KIND } from '$shared/nostr/events.js';

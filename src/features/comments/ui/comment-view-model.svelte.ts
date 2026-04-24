@@ -8,7 +8,7 @@
  * - Expose a clean API for route components
  */
 
-import { reconcileDeletionSubjects, reconcileReplayRepairSubjects } from '@auftakt/timeline';
+import { reconcileDeletionSubjects, reconcileReplayRepairSubjects } from '@auftakt/core';
 
 import { fetchNostrEventById, invalidateFetchByIdCache } from '$shared/auftakt/resonote.js';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';

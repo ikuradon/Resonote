@@ -6,7 +6,7 @@ import {
   type RelayObservationRuntime,
   type RelayObservationSnapshot
 } from '@auftakt/core';
-import { createRuntimeRequestKey } from '@auftakt/timeline';
+import { createRuntimeRequestKey } from '@auftakt/core';
 import type { EventParameters } from 'nostr-typedef';
 
 import { DEFAULT_RELAYS } from '$shared/nostr/relays.js';

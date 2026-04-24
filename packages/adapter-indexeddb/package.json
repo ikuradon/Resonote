@@ -7,7 +7,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@auftakt/timeline": "workspace:*",
+    "@auftakt/core": "workspace:*",
     "idb": "^8.0.3",
     "nostr-typedef": "^0.13.0"
   }

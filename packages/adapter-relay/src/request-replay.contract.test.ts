@@ -1,5 +1,5 @@
 import type { RequestKey } from '@auftakt/core';
-import { createRuntimeRequestKey, REPAIR_REQUEST_COALESCING_SCOPE } from '@auftakt/timeline';
+import { createRuntimeRequestKey, REPAIR_REQUEST_COALESCING_SCOPE } from '@auftakt/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createRxBackwardReq, createRxForwardReq, createRxNostrSession } from './index.js';

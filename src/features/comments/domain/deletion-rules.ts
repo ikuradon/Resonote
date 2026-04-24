@@ -8,7 +8,7 @@ import {
   type DeletionReconcileResult,
   reconcileDeletionTargets as reconcileDeletionTargetsImpl,
   verifyDeletionTargets as verifyDeletionTargetsImpl
-} from '@auftakt/timeline';
+} from '@auftakt/core';
 
 /**
  * Verify deletion targets against known event pubkeys (NIP-09 author check).

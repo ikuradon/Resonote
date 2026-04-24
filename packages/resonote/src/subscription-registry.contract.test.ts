@@ -1,5 +1,5 @@
 import type { RequestKey, StoredEvent } from '@auftakt/core';
-import { createRuntimeRequestKey, REPAIR_REQUEST_COALESCING_SCOPE } from '@auftakt/timeline';
+import { createRuntimeRequestKey, REPAIR_REQUEST_COALESCING_SCOPE } from '@auftakt/core';
 import { Observable } from 'rxjs';
 import { describe, expect, it } from 'vitest';
 

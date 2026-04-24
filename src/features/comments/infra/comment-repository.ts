@@ -3,13 +3,14 @@
  * Encapsulates all IndexedDB operations related to comments.
  */
 
-import type { ReconcileEmission } from '@auftakt/timeline';
+import type { ReconcileEmission } from '@auftakt/core';
 
 import {
   type CommentCacheEvent,
   deleteCommentEventsByIds,
   readCommentEventsByTag,
-  storeCommentEvent} from '$shared/auftakt/resonote.js';
+  storeCommentEvent
+} from '$shared/auftakt/resonote.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('comment-repo');

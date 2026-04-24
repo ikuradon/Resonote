@@ -25,4 +25,4 @@
 
 - Do not import package internals via deep paths from app code.
 - Do not move app/feature business logic into packages unless it is genuinely shared runtime logic.
-- Do not let adapters invent vocabulary that belongs in `@auftakt/core` or `@auftakt/timeline`.
+- Do not let adapters invent vocabulary that belongs in `@auftakt/core` or `@auftakt/core`.

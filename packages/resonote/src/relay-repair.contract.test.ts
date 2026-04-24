@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 
 import { createIndexedDbEventStore } from '@auftakt/adapter-indexeddb';
 import type { RequestKey, StoredEvent } from '@auftakt/core';
-import { createRuntimeRequestKey } from '@auftakt/timeline';
+import { createRuntimeRequestKey } from '@auftakt/core';
 import { describe, expect, it } from 'vitest';
 
 import { repairEventsFromRelay, type ResonoteRuntime } from './runtime.js';

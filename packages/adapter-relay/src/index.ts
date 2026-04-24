@@ -13,7 +13,7 @@ import {
   buildRequestExecutionPlan,
   type OptimizedLogicalRequestPlan,
   type RequestOptimizerCapabilities
-} from '@auftakt/timeline';
+} from '@auftakt/core';
 import type { Event as NostrEvent, EventParameters, Filter } from 'nostr-typedef';
 import { distinct, Observable, Subject } from 'rxjs';
 

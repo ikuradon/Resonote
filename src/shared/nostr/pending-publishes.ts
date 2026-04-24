@@ -2,7 +2,7 @@ import {
   type OfflineDeliveryDecision,
   type ReconcileEmission,
   reconcileOfflineDelivery
-} from '@auftakt/timeline';
+} from '@auftakt/core';
 import { type IDBPDatabase, openDB } from 'idb';
 
 const DEFAULT_DB_NAME = 'resonote-pending-publishes';
