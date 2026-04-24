@@ -315,9 +315,35 @@ pnpm run check
 pnpm run build
 ```
 
-## Follow-Up Specs
+## Spec Sequence
 
-1. REQ optimizer and relay repair expansion.
-2. Feature plugin migration.
-3. Scoped NIP compliance matrix and implementation roadmap.
-4. Storage compaction and retention policy.
+The full redesign is split into five ordered specs. The filename prefix is part
+of the contract so implementation plans can preserve order.
+
+1. `2026-04-24-1-of-5-auftakt-coordinator-local-first-pipeline-design.md`
+   - Owns the coordinator, hot index, materializer, Dexie store, API boundary,
+     and kind:5 deletion index.
+   - This spec must land first because the remaining specs depend on a single
+     event ingress and egress path.
+2. `2026-04-24-2-of-5-auftakt-req-optimizer-relay-repair-design.md`
+   - Extends request planning with relay capability awareness, adaptive
+     batching, shard sizing, duplicate query coalescing, reconnect replay, and
+     negentropy repair.
+   - Depends on Spec 1 so optimized relay results always enter through the
+     materializer.
+3. `2026-04-24-3-of-5-auftakt-feature-plugin-read-models-design.md`
+   - Moves timeline, emoji catalog, comments, notifications, relay-list, and
+     Resonote flow construction onto coordinator plugins and projection/read
+     model contracts.
+   - Depends on Spec 1 for durable projection storage and Spec 2 for efficient
+     backfill/live subscriptions.
+4. `2026-04-24-4-of-5-auftakt-nip-compliance-design.md`
+   - Defines the scoped public/internal NIP matrix, compliance proofs, missing
+     NIP work, and package ownership for each NIP.
+   - Depends on Specs 1-3 so compliance claims are based on final runtime paths
+     rather than transitional wrappers.
+5. `2026-04-24-5-of-5-auftakt-storage-compaction-retention-design.md`
+   - Defines durable storage migration, payload compaction, retention policies,
+     quota handling, degraded storage mode, and long-term maintenance jobs.
+   - Comes last because it must preserve the semantics and public claims from
+     Specs 1-4.
