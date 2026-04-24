@@ -74,6 +74,7 @@ export interface RequestExecutionPlanOptions extends RuntimeRequestDescriptorOpt
 
 export interface RequestOptimizerCapabilities {
   readonly maxFiltersPerShard?: number | null;
+  readonly maxSubscriptions?: number | null;
 }
 
 export interface OptimizedRequestShard {
@@ -87,6 +88,7 @@ export interface OptimizedLogicalRequestPlan {
   readonly requestKey: RequestKey;
   readonly logicalKey: string;
   readonly shards: readonly OptimizedRequestShard[];
+  readonly capabilities: RequestOptimizerCapabilities;
 }
 
 const REQUEST_KEY_VERSION = 'v1';
@@ -635,7 +637,11 @@ export function buildRequestExecutionPlan(
     descriptor,
     requestKey,
     logicalKey,
-    shards
+    shards,
+    capabilities: {
+      maxFiltersPerShard: capabilities.maxFiltersPerShard ?? null,
+      maxSubscriptions: capabilities.maxSubscriptions ?? null
+    }
   };
 }
 

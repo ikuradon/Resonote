@@ -74,6 +74,20 @@ describe('request optimizer contract', () => {
     );
   });
 
+  it('shards filters by relay max_filters capability', () => {
+    const plan = buildRequestExecutionPlan(
+      {
+        mode: 'backward',
+        filters: [{ ids: ['a'] }, { ids: ['b'] }, { ids: ['c'] }],
+        overlay: { relays: ['wss://relay.example'] }
+      },
+      { maxFiltersPerShard: 2, maxSubscriptions: 1 }
+    );
+
+    expect(plan.shards).toHaveLength(2);
+    expect(plan.capabilities.maxSubscriptions).toBe(1);
+  });
+
   it('keeps app request coalescing stable across different request scopes', () => {
     const left = buildRequestExecutionPlan({
       requestKey: 'rq:v1:scoped-app-left' as RequestKey,
