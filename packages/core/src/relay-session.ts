@@ -158,6 +158,7 @@ class MutableRelayRequest implements RelayRequest {
 class RelaySocket {
   private ws: WebSocket | undefined;
   private connectPromise: Promise<WebSocket> | undefined;
+  private readonly queue: unknown[] = [];
   state: RelayConnectionState = 'idle';
 
   constructor(
@@ -180,6 +181,7 @@ class RelaySocket {
         this.ws = ws;
         this.connectPromise = undefined;
         this.setState('open');
+        this.flushQueue();
         resolve(ws);
       });
 
@@ -211,8 +213,12 @@ class RelaySocket {
   }
 
   async send(payload: unknown): Promise<void> {
-    const ws = await this.connect();
-    ws.send(JSON.stringify(payload));
+    if (this.ws?.readyState !== WebSocket.OPEN) {
+      this.queue.push(payload);
+      await this.connect();
+      return;
+    }
+    this.ws.send(JSON.stringify(payload));
   }
 
   close(): void {
@@ -220,6 +226,13 @@ class RelaySocket {
     this.ws = undefined;
     this.connectPromise = undefined;
     this.setState('closed');
+  }
+
+  private flushQueue(): void {
+    if (this.ws?.readyState !== WebSocket.OPEN) return;
+    for (const payload of this.queue.splice(0)) {
+      this.ws.send(JSON.stringify(payload));
+    }
   }
 
   private setState(next: RelayConnectionState): void {
