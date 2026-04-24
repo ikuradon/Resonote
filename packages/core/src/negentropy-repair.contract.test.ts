@@ -24,7 +24,7 @@ function makeEvent(
   };
 }
 
-describe('@auftakt/timeline negentropy repair contract', () => {
+describe('@auftakt/core negentropy repair contract', () => {
   it('creates a dedicated request key scope for negentropy repair fetches', () => {
     const filters = [{ kinds: [1], authors: ['pubkey-a'] }];
     const appRequestKey = createRuntimeRequestKey({

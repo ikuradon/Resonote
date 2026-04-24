@@ -8,7 +8,7 @@ import {
   reconcileOfflineDelivery,
   reconcileReplaceableCandidates,
   reconcileReplayRepairSubjects
-} from '@auftakt/timeline';
+} from '@auftakt/core';
 import { describe, expect, it } from 'vitest';
 
 describe('reconcile reason/state contract', () => {

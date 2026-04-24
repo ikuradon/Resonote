@@ -1,4 +1,4 @@
-import { createRuntimeRequestKey } from '@auftakt/timeline';
+import { createRuntimeRequestKey } from '@auftakt/core';
 import { describe, expect, it } from 'vitest';
 
 describe('request key contract', () => {

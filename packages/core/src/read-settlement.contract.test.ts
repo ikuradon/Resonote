@@ -1,4 +1,4 @@
-import { reduceReadSettlement } from '@auftakt/timeline';
+import { reduceReadSettlement } from '@auftakt/core';
 import { describe, expect, it } from 'vitest';
 
 describe('read settlement contract', () => {
