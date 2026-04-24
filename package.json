@@ -17,6 +17,7 @@
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "check:structure": "node scripts/check-structure.mjs",
     "check:auftakt-migration": "node scripts/check-auftakt-migration.mjs",
+    "check:auftakt:nips": "node --experimental-strip-types scripts/check-auftakt-nips.ts",
     "test:auftakt:core": "vitest run packages/core/src/",
     "test:auftakt:storage": "vitest run packages/adapter-indexeddb/src/",
     "test:auftakt:resonote": "vitest run packages/resonote/src/",

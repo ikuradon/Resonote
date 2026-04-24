@@ -4,6 +4,9 @@
 に対する verification companion である。公開 claim は README / 仕様書 /
 本ドキュメントで同一の matrix semantics を使う。
 
+The strict redesign matrix is checked by `pnpm run check:auftakt:nips` using
+`docs/auftakt/nips-inventory.json` and `docs/auftakt/nip-matrix.json`.
+
 ## Canonical NIP Compliance Matrix
 
 | NIP    | Target Level  | Current Status                                   | Canonical Owner                                                       | Proof / Test Anchor                                                                                                                                 | Scope Notes                                                                                                                                                                                                           |
