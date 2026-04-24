@@ -9,6 +9,17 @@ export interface CreateDexieEventStoreOptions {
   readonly dbName: string;
 }
 
+export interface DexieMaterializationResult {
+  readonly stored: boolean;
+  readonly emissions: readonly {
+    readonly subjectId: string;
+    readonly state: string;
+    readonly reason: string;
+  }[];
+}
+
+const DELETION_KIND = 5;
+
 export class DexieEventStore {
   constructor(readonly db: AuftaktDexieDatabase) {}
 
@@ -17,26 +28,24 @@ export class DexieEventStore {
   }
 
   async putEvent(event: NostrEvent): Promise<void> {
-    const record = {
-      ...event,
-      d_tag: getDTag(event.tags),
-      tag_values: getTagValues(event.tags)
-    };
     await this.db.transaction('rw', this.db.events, this.db.event_tags, async () => {
-      await this.db.events.put(record);
-      await this.db.event_tags.where('event_id').equals(event.id).delete();
-      await this.db.event_tags.bulkPut(
-        record.tag_values.map((tagValue) => {
-          const parsed = parseTagValue(tagValue);
-          return {
-            key: `${event.id}:${tagValue}`,
-            event_id: event.id,
-            tag: parsed.tag,
-            value: parsed.value
-          };
-        })
-      );
+      await writeEventRecord(this.db, event);
     });
+  }
+
+  async putWithReconcile(event: NostrEvent): Promise<DexieMaterializationResult> {
+    if (event.kind === DELETION_KIND) return this.applyDeletion(event);
+    if (await this.isDeleted(event.id, event.pubkey)) {
+      return {
+        stored: false,
+        emissions: [{ subjectId: event.id, state: 'deleted', reason: 'tombstoned' }]
+      };
+    }
+    await this.putEvent(event);
+    return {
+      stored: true,
+      emissions: [{ subjectId: event.id, state: 'confirmed', reason: 'accepted-new' }]
+    };
   }
 
   async getById(id: string): Promise<NostrEvent | null> {
@@ -74,6 +83,41 @@ export class DexieEventStore {
   async listQuarantine(): Promise<DexieQuarantineRecord[]> {
     return this.db.quarantine.toArray();
   }
+
+  async isDeleted(id: string, pubkey: string): Promise<boolean> {
+    return Boolean(await this.db.deletion_index.get(`${id}:${pubkey}`));
+  }
+
+  private async applyDeletion(event: NostrEvent): Promise<DexieMaterializationResult> {
+    const targets = deletionTargets(event);
+    await this.db.transaction(
+      'rw',
+      this.db.events,
+      this.db.event_tags,
+      this.db.deletion_index,
+      async () => {
+        await writeEventRecord(this.db, event);
+        for (const targetId of targets) {
+          await this.db.deletion_index.put({
+            key: `${targetId}:${event.pubkey}`,
+            target_id: targetId,
+            pubkey: event.pubkey,
+            deletion_id: event.id,
+            created_at: event.created_at
+          });
+          const target = await this.db.events.get(targetId);
+          if (target?.pubkey === event.pubkey) {
+            await this.db.events.delete(targetId);
+            await this.db.event_tags.where('event_id').equals(targetId).delete();
+          }
+        }
+      }
+    );
+    return {
+      stored: true,
+      emissions: targets.map((id) => ({ subjectId: id, state: 'deleted', reason: 'tombstoned' }))
+    };
+  }
 }
 
 export async function createDexieEventStore(
@@ -85,6 +129,37 @@ export async function createDexieEventStore(
 }
 
 export * from './schema.js';
+
+async function writeEventRecord(db: AuftaktDexieDatabase, event: NostrEvent): Promise<void> {
+  const record = {
+    ...event,
+    d_tag: getDTag(event.tags),
+    tag_values: getTagValues(event.tags)
+  };
+  await db.events.put(record);
+  await db.event_tags.where('event_id').equals(event.id).delete();
+  await db.event_tags.bulkPut(
+    record.tag_values.map((tagValue) => {
+      const parsed = parseTagValue(tagValue);
+      return {
+        key: `${event.id}:${tagValue}`,
+        event_id: event.id,
+        tag: parsed.tag,
+        value: parsed.value
+      };
+    })
+  );
+}
+
+function deletionTargets(event: Pick<NostrEvent, 'tags'>): string[] {
+  return [
+    ...new Set(
+      event.tags
+        .filter((tag): tag is [string, string, ...string[]] => tag[0] === 'e' && Boolean(tag[1]))
+        .map((tag) => tag[1])
+    )
+  ];
+}
 
 function getDTag(tags: string[][]): string {
   return tags.find((tag) => tag[0] === 'd')?.[1] ?? '';
