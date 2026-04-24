@@ -99,4 +99,35 @@ describe('EventCoordinator read policy', () => {
     expect(result.events).toEqual([expect.objectContaining({ id: 'hot' })]);
     expect(storeGet).not.toHaveBeenCalled();
   });
+
+  it('records relay hint when a relay event materializes', async () => {
+    const recordRelayHint = vi.fn(async () => {});
+    const coordinator = createEventCoordinator({
+      store: {
+        getById: vi.fn(async () => null),
+        putWithReconcile: vi.fn(async () => ({ stored: true })),
+        recordRelayHint
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+
+    await coordinator.materializeFromRelay(
+      {
+        id: 'e1',
+        pubkey: 'p1',
+        created_at: 1,
+        kind: 1,
+        tags: [],
+        content: ''
+      },
+      'wss://relay.example'
+    );
+
+    expect(recordRelayHint).toHaveBeenCalledWith({
+      eventId: 'e1',
+      relayUrl: 'wss://relay.example',
+      source: 'seen',
+      lastSeenAt: expect.any(Number)
+    });
+  });
 });

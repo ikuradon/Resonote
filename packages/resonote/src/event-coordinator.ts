@@ -7,6 +7,12 @@ export type ReadPolicy = 'cacheOnly' | 'localFirst' | 'relayConfirmed' | 'repair
 export interface EventCoordinatorStore {
   getById(id: string): Promise<StoredEvent | null>;
   putWithReconcile(event: StoredEvent): Promise<unknown>;
+  recordRelayHint?(hint: {
+    readonly eventId: string;
+    readonly relayUrl: string;
+    readonly source: 'seen' | 'hinted' | 'published' | 'repaired';
+    readonly lastSeenAt: number;
+  }): Promise<void>;
 }
 
 export interface EventCoordinatorRelay {
@@ -35,6 +41,22 @@ export function createEventCoordinator(deps: {
   return {
     applyLocalEvent(event: StoredEvent): void {
       hotIndex.applyVisible(event);
+    },
+    async materializeFromRelay(event: StoredEvent, relayUrl: string): Promise<boolean> {
+      const result = await deps.store.putWithReconcile(event);
+      const stored = (result as { stored?: boolean } | undefined)?.stored !== false;
+      if (!stored) return false;
+
+      hotIndex.applyVisible(event);
+      const hint = {
+        eventId: event.id,
+        relayUrl,
+        source: 'seen' as const,
+        lastSeenAt: Math.floor(Date.now() / 1000)
+      };
+      hotIndex.applyRelayHint(hint);
+      await deps.store.recordRelayHint?.(hint);
+      return true;
     },
     async read(
       filter: Record<string, unknown>,
