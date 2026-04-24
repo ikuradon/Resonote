@@ -2,17 +2,15 @@
 
 ## OVERVIEW
 
-`packages/` holds private internal packages for Auftakt contracts, planners, runtime facades, and adapters.
+`packages/` holds private internal packages for Auftakt core runtime contracts, the Resonote runtime facade, and storage adapters.
 
 ## WHERE TO LOOK
 
-| Package              | Role                    | Notes                                       |
-| -------------------- | ----------------------- | ------------------------------------------- |
-| `core/`              | vocabulary only         | types, enums, contract tests                |
-| `timeline/`          | planners/reducers       | requestKey, settlement, reconcile decisions |
-| `resonote/`          | app-facing runtime      | high-level reads/subscriptions              |
-| `adapter-relay/`     | relay transport/session | request replay + connection state           |
-| `adapter-indexeddb/` | storage/materializer    | IndexedDB apply + reconcile materialization |
+| Package              | Role                                 | Notes                                       |
+| -------------------- | ------------------------------------ | ------------------------------------------- |
+| `core/`              | Auftakt runtime foundation           | vocabulary, planning, relay session         |
+| `resonote/`          | Resonote app-specific runtime facade | coordinator, plugins, feature-facing flows  |
+| `adapter-indexeddb/` | storage/materializer adapter         | IndexedDB apply + reconcile materialization |
 
 ## CONVENTIONS
 
@@ -25,4 +23,4 @@
 
 - Do not import package internals via deep paths from app code.
 - Do not move app/feature business logic into packages unless it is genuinely shared runtime logic.
-- Do not let adapters invent vocabulary that belongs in `@auftakt/core` or `@auftakt/core`.
+- Do not let adapters invent vocabulary that belongs in `@auftakt/core`.

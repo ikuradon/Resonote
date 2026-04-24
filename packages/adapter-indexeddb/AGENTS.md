@@ -12,7 +12,7 @@ Storage/materializer adapter for IndexedDB-backed event persistence and reconcil
 ## CONVENTIONS
 
 - Owns IndexedDB shape and apply/remove mechanics.
-- Reconcile vocabulary comes from core/timeline; this package materializes outcomes.
+- Reconcile vocabulary comes from `@auftakt/core`; this package materializes outcomes.
 - Keep persistence deterministic and side-effect scope narrow.
 
 ## ANTI-PATTERNS

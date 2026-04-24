@@ -15,18 +15,12 @@ importers:
       '@auftakt/adapter-indexeddb':
         specifier: workspace:*
         version: link:packages/adapter-indexeddb
-      '@auftakt/adapter-relay':
-        specifier: workspace:*
-        version: link:packages/adapter-relay
       '@auftakt/core':
         specifier: workspace:*
         version: link:packages/core
       '@auftakt/resonote':
         specifier: workspace:*
         version: link:packages/resonote
-      '@auftakt/timeline':
-        specifier: workspace:*
-        version: link:packages/timeline
       '@hono/zod-validator':
         specifier: ^0.7.6
         version: 0.7.6(hono@4.12.9)(zod@4.3.6)
@@ -157,21 +151,15 @@ importers:
 
   packages/adapter-indexeddb:
     dependencies:
+      '@auftakt/core':
+        specifier: workspace:*
+        version: link:../core
       idb:
         specifier: ^8.0.3
         version: 8.0.3
       nostr-typedef:
         specifier: ^0.13.0
         version: 0.13.0
-
-  packages/adapter-relay:
-    dependencies:
-      '@auftakt/core':
-        specifier: workspace:*
-        version: link:../core
-      rxjs:
-        specifier: ^7.8.2
-        version: 7.8.2
 
   packages/core:
     dependencies:
@@ -187,17 +175,11 @@ importers:
       nostr-typedef:
         specifier: ^0.13.0
         version: 0.13.0
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
 
   packages/resonote:
-    dependencies:
-      '@auftakt/core':
-        specifier: workspace:*
-        version: link:../core
-      '@auftakt/timeline':
-        specifier: workspace:*
-        version: link:../timeline
-
-  packages/timeline:
     dependencies:
       '@auftakt/core':
         specifier: workspace:*

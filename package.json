@@ -78,7 +78,6 @@
     "@auftakt/adapter-indexeddb": "workspace:*",
     "@auftakt/core": "workspace:*",
     "@auftakt/resonote": "workspace:*",
-    "@auftakt/timeline": "workspace:*",
     "@hono/zod-validator": "^0.7.6",
     "@ikuradon/emoji-kitchen-mart": "^7.0.0",
     "@ikuradon/emoji-kitchen-mart-data": "^2.0.0",
