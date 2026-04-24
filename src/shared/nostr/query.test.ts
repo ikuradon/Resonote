@@ -18,10 +18,9 @@ const { createRxBackwardReqMock, getRxNostrMock, subscribeMock } = vi.hoisted(()
 
 vi.mock('@auftakt/core', async (importOriginal) => {
   const actual = await importOriginal();
-  return {
-    ...actual,
+  return Object.assign({}, actual, {
     createRxBackwardReq: createRxBackwardReqMock
-  };
+  });
 });
 
 vi.mock('./client.js', () => ({
@@ -48,7 +47,13 @@ describe('fetchBackwardEvents', () => {
     subscribeMock.mockImplementation((callbacks) => {
       void Promise.resolve().then(() => {
         callbacks.next?.({
-          event: { id: 'evt-1', pubkey: 'pk1', created_at: 1, content: 'hello', tags: [] }
+          event: {
+            id: 'evt-1',
+            pubkey: 'pk1',
+            created_at: 1,
+            content: 'hello',
+            tags: []
+          }
         });
         callbacks.error?.(new Error('relay error'));
       });
@@ -56,7 +61,13 @@ describe('fetchBackwardEvents', () => {
     });
 
     await expect(fetchBackwardEvents([{ authors: ['pk1'], kinds: [0] }])).resolves.toEqual([
-      { id: 'evt-1', pubkey: 'pk1', created_at: 1, content: 'hello', tags: [] }
+      {
+        id: 'evt-1',
+        pubkey: 'pk1',
+        created_at: 1,
+        content: 'hello',
+        tags: []
+      }
     ]);
     expect(createRxBackwardReqMock).toHaveBeenCalledWith({
       requestKey: createRuntimeRequestKey({
@@ -71,7 +82,13 @@ describe('fetchBackwardEvents', () => {
     subscribeMock.mockImplementation((callbacks) => {
       void Promise.resolve().then(() => {
         callbacks.next?.({
-          event: { id: 'evt-1', pubkey: 'pk1', created_at: 1, content: 'hello', tags: [] }
+          event: {
+            id: 'evt-1',
+            pubkey: 'pk1',
+            created_at: 1,
+            content: 'hello',
+            tags: []
+          }
         });
         callbacks.error?.(new Error('relay error'));
       });
@@ -79,7 +96,9 @@ describe('fetchBackwardEvents', () => {
     });
 
     await expect(
-      fetchBackwardEvents([{ authors: ['pk1'], kinds: [0] }], { rejectOnError: true })
+      fetchBackwardEvents([{ authors: ['pk1'], kinds: [0] }], {
+        rejectOnError: true
+      })
     ).rejects.toThrow('relay error');
   });
 });

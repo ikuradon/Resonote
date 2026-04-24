@@ -10,7 +10,7 @@ import type {
   AggregateSessionReason,
   AggregateSessionState,
   NegentropyTransportResult,
-  RelayConnectionState as CoreRelayConnectionState,
+  RelayConnectionState,
   RelayObservation,
   RelayObservationReason,
   RequestKey,
@@ -30,8 +30,6 @@ export interface RelayStatus {
   reason: RelayObservationReason;
   aggregate: SessionObservation;
 }
-
-export type RelayConnectionState = CoreRelayConnectionState;
 
 export interface ConnectionStatePacket {
   from: string;
@@ -326,7 +324,9 @@ class RelaySession implements RxNostr {
     }
 
     this.defaultRelays.clear();
-    for (const [url, config] of next.entries()) this.defaultRelays.set(url, config);
+    for (const [url, config] of next.entries()) {
+      this.defaultRelays.set(url, config);
+    }
   }
 
   getRelayStatus(url: string): RelayStatus | undefined {
@@ -821,7 +821,12 @@ class RelaySession implements RxNostr {
           const relay = this.getConnection(url);
           void relay.send(['EVENT', event]).catch(() => {
             if (pendingRelays.delete(url)) {
-              observer.next({ from: url, eventId, ok: false, done: pendingRelays.size === 0 });
+              observer.next({
+                from: url,
+                eventId,
+                ok: false,
+                done: pendingRelays.size === 0
+              });
               finish();
             }
           });
@@ -931,9 +936,13 @@ class RelaySession implements RxNostr {
 
     const relays = [...this.relayObservations.values()];
     if (relays.length === 0) return 'booting';
-    if (relays.some((relay) => relay.connection === 'replaying')) return 'replaying';
+    if (relays.some((relay) => relay.connection === 'replaying')) {
+      return 'replaying';
+    }
     if (relays.some((relay) => relay.connection === 'open')) return 'live';
-    if (relays.some((relay) => relay.connection === 'connecting')) return 'connecting';
+    if (relays.some((relay) => relay.connection === 'connecting')) {
+      return 'connecting';
+    }
     return 'degraded';
   }
 
@@ -1030,7 +1039,9 @@ class RelaySession implements RxNostr {
           const group = this.requestGroups.get(groupKey);
           if (!group || group.mode !== 'forward') return;
           if (!group.relayUrls.includes(relayUrl)) return;
-          if ((group.plansByRelay.get(relayUrl)?.shards.length ?? 0) === 0) return;
+          if ((group.plansByRelay.get(relayUrl)?.shards.length ?? 0) === 0) {
+            return;
+          }
           await this.sendGroupToRelay(group, relayUrl);
         })
       );

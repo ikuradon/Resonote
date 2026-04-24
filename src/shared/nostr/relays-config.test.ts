@@ -9,13 +9,12 @@ let subscribeFn: (observer: {
 
 vi.mock('@auftakt/core', async (importOriginal) => {
   const actual = await importOriginal();
-  return {
-    ...actual,
+  return Object.assign({}, actual, {
     createRxBackwardReq: () => ({
       emit: vi.fn(),
       over: vi.fn()
     })
-  };
+  });
 });
 
 vi.mock('$shared/nostr/client.js', () => ({

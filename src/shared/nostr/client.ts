@@ -23,7 +23,10 @@ export async function getRxNostr(): Promise<RxNostr> {
 
   log.info('Initializing RxNostr...');
 
-  rxNostr = createRxNostrSession({ defaultRelays: DEFAULT_RELAYS, eoseTimeout: 10_000 });
+  rxNostr = createRxNostrSession({
+    defaultRelays: DEFAULT_RELAYS,
+    eoseTimeout: 10_000
+  });
   log.info('RxNostr initialized', { relays: DEFAULT_RELAYS });
   initPromise = Promise.resolve(rxNostr);
 
@@ -138,27 +141,31 @@ export async function setDefaultRelays(urls: string[]): Promise<void> {
 
 function createRelayObservationRuntime(instance: RxNostr): RelayObservationRuntime {
   return {
-    getRelayConnectionState(url: string): RelayObservationSnapshot | null {
+    getRelayConnectionState(url: string): Promise<RelayObservationSnapshot | null> {
       const status = instance.getRelayStatus(url);
-      if (!status) return null;
-      return normalizeRelayObservationSnapshot({
-        url,
-        connection: status.connection,
-        reason: status.reason,
-        aggregate: status.aggregate
-      });
+      if (!status) return Promise.resolve(null);
+      return Promise.resolve(
+        normalizeRelayObservationSnapshot({
+          url,
+          connection: status.connection,
+          reason: status.reason,
+          aggregate: status.aggregate
+        })
+      );
     },
-    observeRelayConnectionStates(onPacket: (packet: RelayObservationPacket) => void): {
+    observeRelayConnectionStates(onPacket: (packet: RelayObservationPacket) => void): Promise<{
       unsubscribe(): void;
-    } {
-      return instance.createConnectionStateObservable().subscribe((packet) =>
-        onPacket(
-          normalizeRelayObservationPacket({
-            from: packet.from,
-            state: packet.state,
-            reason: packet.reason,
-            aggregate: packet.aggregate
-          })
+    }> {
+      return Promise.resolve(
+        instance.createConnectionStateObservable().subscribe((packet) =>
+          onPacket(
+            normalizeRelayObservationPacket({
+              from: packet.from,
+              state: packet.state,
+              reason: packet.reason,
+              aggregate: packet.aggregate
+            })
+          )
         )
       );
     }

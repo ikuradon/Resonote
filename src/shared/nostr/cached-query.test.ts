@@ -18,13 +18,12 @@ const { dbGetByIdMock, dbGetByPubkeyAndKindMock, subscribeMock } = vi.hoisted(()
 
 vi.mock('@auftakt/core', async (importOriginal) => {
   const actual = await importOriginal();
-  return {
-    ...actual,
+  return Object.assign({}, actual, {
     createRxBackwardReq: () => ({
       emit: vi.fn(),
       over: vi.fn()
     })
-  };
+  });
 });
 
 vi.mock('$shared/nostr/event-db.js', () => ({
@@ -125,7 +124,11 @@ describe('cachedFetchById', () => {
 
     // After TTL (30s): retries
     dateSpy.mockReturnValue(now + 31_000);
-    dbGetByIdMock.mockResolvedValueOnce({ id: 'e3', content: 'found', kind: 1 });
+    dbGetByIdMock.mockResolvedValueOnce({
+      id: 'e3',
+      content: 'found',
+      kind: 1
+    });
     const result3 = await cachedFetchById('event-3');
     expect(result3.event).toEqual(expect.objectContaining({ content: 'found', kind: 1 }));
   });
@@ -217,7 +220,11 @@ describe('invalidatedDuringFetch race condition', () => {
     expect(result.settlement.reason).toBe('invalidated-during-fetch');
 
     // But result must NOT be cached: next call should hit DB again
-    dbGetByIdMock.mockResolvedValueOnce({ id: 'race-db', content: 'fresh', kind: 1111 });
+    dbGetByIdMock.mockResolvedValueOnce({
+      id: 'race-db',
+      content: 'fresh',
+      kind: 1111
+    });
     const result2 = await cachedFetchById('race-db');
     expect(result2.event).toEqual(expect.objectContaining({ content: 'fresh' }));
     // DB was called again (not served from cache)
@@ -231,7 +238,11 @@ describe('invalidatedDuringFetch race condition', () => {
     // This tests the relay path for the invalidation contract.
     // The in-flight race (invalidation called WHILE relay is pending) is covered
     // by the DB test above using the same invalidatedDuringFetch mechanism.
-    const relayEvent = { id: 'race-relay2', content: 'relay-result', kind: 1111 };
+    const relayEvent = {
+      id: 'race-relay2',
+      content: 'relay-result',
+      kind: 1111
+    };
 
     subscribeMock.mockImplementation((callbacks: SubscribeCallbacks) => {
       void Promise.resolve().then(() => {
@@ -255,7 +266,11 @@ describe('invalidatedDuringFetch race condition', () => {
 
     // Next fetch must NOT serve the stale cached relay result
     const callsBefore = dbGetByIdMock.mock.calls.length;
-    dbGetByIdMock.mockResolvedValueOnce({ id: 'race-relay2', content: 'updated', kind: 1111 });
+    dbGetByIdMock.mockResolvedValueOnce({
+      id: 'race-relay2',
+      content: 'updated',
+      kind: 1111
+    });
     subscribeMock.mockImplementation((callbacks: SubscribeCallbacks) => {
       void Promise.resolve().then(() => callbacks.complete?.());
       return { unsubscribe: vi.fn() };
@@ -282,7 +297,11 @@ describe('invalidatedDuringFetch race condition', () => {
 
     // Next call should re-fetch, not use the invalidated null cache
     const callsBefore = dbGetByIdMock.mock.calls.length;
-    dbGetByIdMock.mockResolvedValueOnce({ id: 'ttl-invalidate', content: 'found', kind: 1111 });
+    dbGetByIdMock.mockResolvedValueOnce({
+      id: 'ttl-invalidate',
+      content: 'found',
+      kind: 1111
+    });
     const result2 = await cachedFetchById('ttl-invalidate');
     expect(result2.event).toEqual(expect.objectContaining({ content: 'found' }));
     expect(dbGetByIdMock.mock.calls.length).toBeGreaterThan(callsBefore);
@@ -309,7 +328,11 @@ describe('invalidateFetchByIdCache', () => {
     invalidateFetchByIdCache('event-5');
 
     // Next call should hit DB again
-    dbGetByIdMock.mockResolvedValueOnce({ id: 'e5', content: 'refreshed', kind: 1 });
+    dbGetByIdMock.mockResolvedValueOnce({
+      id: 'e5',
+      content: 'refreshed',
+      kind: 1
+    });
     const result = await cachedFetchById('event-5');
     expect(result.event).toEqual(expect.objectContaining({ content: 'refreshed' }));
     expect(dbGetByIdMock).toHaveBeenCalledTimes(2);
@@ -330,7 +353,11 @@ describe('invalidateFetchByIdCache', () => {
 
     // Invalidate forces re-fetch even within TTL
     invalidateFetchByIdCache('event-6');
-    dbGetByIdMock.mockResolvedValueOnce({ id: 'e6', content: 'found', kind: 1 });
+    dbGetByIdMock.mockResolvedValueOnce({
+      id: 'e6',
+      content: 'found',
+      kind: 1
+    });
     const result = await cachedFetchById('event-6');
     expect(result.event).toEqual(expect.objectContaining({ content: 'found' }));
     expect(dbGetByIdMock.mock.calls.length).toBeGreaterThan(callsBefore);

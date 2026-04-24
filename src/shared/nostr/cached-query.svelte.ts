@@ -3,6 +3,7 @@ import { createRxBackwardReq } from '@auftakt/core';
 import {
   cachedFetchById as cachedFetchByIdHelper,
   invalidateFetchByIdCache as invalidateFetchByIdCacheHelper,
+  type LatestReadDriver,
   useCachedLatest as useCachedLatestHelper
 } from '@auftakt/resonote';
 
@@ -109,7 +110,7 @@ export function useCachedLatest(
     throw new Error('kind is required');
   }
 
-  const driver = useCachedLatestHelper(runtime, pubkey, kind);
+  const driver = useCachedLatestHelper<LatestReadDriver<CachedEvent>>(runtime, pubkey, kind);
   const initial = driver.getSnapshot();
   let event = $state<CachedEvent | null>(initial.event);
   let settlement = $state<ReadSettlement>(initial.settlement);

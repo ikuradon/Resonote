@@ -32,8 +32,7 @@ const mockRxNostr = {
 
 vi.mock('@auftakt/core', async (importOriginal) => {
   const actual = await importOriginal();
-  return {
-    ...actual,
+  return Object.assign({}, actual, {
     createRxNostrSession: vi.fn(({ defaultRelays }: { defaultRelays: string[] }) => {
       mockRxNostr.setDefaultRelays(defaultRelays);
       return mockRxNostr;
@@ -43,7 +42,7 @@ vi.mock('@auftakt/core', async (importOriginal) => {
       emit: vi.fn(),
       over: vi.fn()
     }))
-  };
+  });
 });
 
 vi.mock('$shared/nostr/relays.js', () => ({
@@ -200,7 +199,12 @@ describe('castSigned', () => {
     });
 
     await expect(
-      castSigned({ kind: 1, content: 'test', tags: [] }, { successThreshold: 0.5 })
+      castSigned(
+        { kind: 1, content: 'test', tags: [] },
+        {
+          successThreshold: 0.5
+        }
+      )
     ).resolves.toBeUndefined();
   });
 
@@ -227,8 +231,12 @@ describe('fetchLatestEvent', () => {
 
     useSubscribeMock.mockImplementation((callbacks: UseCallbacks) => {
       void Promise.resolve().then(() => {
-        callbacks.next?.({ event: { created_at: 1, tags: [], content: 'old' } });
-        callbacks.next?.({ event: { created_at: 2, tags: [], content: 'new' } });
+        callbacks.next?.({
+          event: { created_at: 1, tags: [], content: 'old' }
+        });
+        callbacks.next?.({
+          event: { created_at: 2, tags: [], content: 'new' }
+        });
         callbacks.complete?.();
       });
       return { unsubscribe: vi.fn() };
@@ -259,7 +267,9 @@ describe('fetchLatestEvent', () => {
 
     useSubscribeMock.mockImplementation((callbacks: UseCallbacks) => {
       void Promise.resolve().then(() => {
-        callbacks.next?.({ event: { created_at: 2, tags: [], content: 'new' } });
+        callbacks.next?.({
+          event: { created_at: 2, tags: [], content: 'new' }
+        });
         callbacks.error?.();
       });
       return { unsubscribe: vi.fn() };
@@ -298,7 +308,11 @@ describe('fetchLatestEvent', () => {
 
     const promise = fetchLatestEvent('pubkey', 1);
     await vi.advanceTimersByTimeAsync(10_001);
-    await expect(promise).resolves.toEqual({ created_at: 2, tags: [], content: 'new' });
+    await expect(promise).resolves.toEqual({
+      created_at: 2,
+      tags: [],
+      content: 'new'
+    });
   });
 
   it('resolves with null on timeout when no events received', async () => {
@@ -319,8 +333,12 @@ describe('fetchLatestEvent', () => {
 
     useSubscribeMock.mockImplementation((callbacks: UseCallbacks) => {
       void Promise.resolve().then(() => {
-        callbacks.next?.({ event: { created_at: 5, tags: [], content: 'newer' } });
-        callbacks.next?.({ event: { created_at: 3, tags: [], content: 'older' } });
+        callbacks.next?.({
+          event: { created_at: 5, tags: [], content: 'newer' }
+        });
+        callbacks.next?.({
+          event: { created_at: 3, tags: [], content: 'older' }
+        });
         callbacks.complete?.();
       });
       return { unsubscribe: vi.fn() };

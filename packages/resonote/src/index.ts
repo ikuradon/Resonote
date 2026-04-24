@@ -3,12 +3,14 @@ export {
   RESONOTE_PLAY_POSITION_SORT,
   type ResonoteTimelineEvent,
   resonoteTimelineProjection,
-  sortResonoteTimelineByPlayPosition} from './plugins/timeline-plugin.js';
+  sortResonoteTimelineByPlayPosition
+} from './plugins/timeline-plugin.js';
 export type {
   CommentFilterKinds,
   CommentSubscriptionRefs,
   DeletionEvent,
   EmojiCategory,
+  LatestReadDriver,
   PendingDrainResult,
   ResonoteCoordinator,
   ResonoteCoordinatorPlugin,
