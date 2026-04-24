@@ -1,0 +1,1 @@
+export const AUFTAKT_DEXIE_ADAPTER_VERSION = 1;
