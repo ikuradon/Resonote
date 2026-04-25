@@ -205,6 +205,8 @@ façade である。
 | `fetchCustomEmojiCategories`     | `pubkey`                            | `Promise<EmojiCategory[]>`         | emoji categories fetch     |
 | `fetchProfileCommentEvents`      | `pubkey, until?, limit?`            | `Promise<...>`                     | profile comment read       |
 | `fetchNostrEventById`            | `eventId, relayHints`               | `Promise<T \| null>`               | relay-hinted event fetch   |
+| `fetchBackwardEvents`            | `filters, options?`                 | `Promise<T[]>`                     | coordinator backward read  |
+| `fetchBackwardFirst`             | `filters, options?`                 | `Promise<T \| null>`               | first backward read        |
 | `loadCommentSubscriptionDeps`    | なし                                | `Promise<CommentSubscriptionRefs>` | comments subscription deps |
 | `buildCommentContentFilters`     | `idValue, kinds`                    | `Filter[]`                         | comments filter build      |
 | `startCommentSubscription`       | refs + filters + handlers           | `SubscriptionHandle`               | comments stream            |
@@ -252,6 +254,15 @@ replaceable / latest-event 系の監視用 read API。
 #### `readLatestEvent(pubkey: string, kind: number)`
 
 単発の最新イベント読み出し API。
+
+#### `fetchBackwardEvents(filters, options?): Promise<T[]>`
+
+互換 bridge と上位 read model 用の汎用 backward read API。relay から得た候補は
+coordinator-owned ingress/materialization を経由してから結果として返す。
+
+#### `fetchBackwardFirst(filters, options?): Promise<T | null>`
+
+`fetchBackwardEvents()` と同じ coordinator-mediated read 経路で最初の結果だけを返す。
 
 ---
 

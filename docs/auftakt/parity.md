@@ -22,6 +22,8 @@
 | `searchBookmarkDTagEvent`        | `documented`               | Yes     | -                                        | -           |
 | `searchEpisodeBookmarkByGuid`    | `documented`               | Yes     | -                                        | -           |
 | `fetchNostrEventById`            | `documented`               | Yes     | -                                        | -           |
+| `fetchBackwardEvents`            | `documented`               | Yes     | -                                        | -           |
+| `fetchBackwardFirst`             | `documented`               | Yes     | -                                        | -           |
 | `fetchNotificationTargetPreview` | `undocumented-but-allowed` | No      | `notification-feed fallback absorption`  | `allowlist` |
 | `loadCommentSubscriptionDeps`    | `documented`               | Yes     | -                                        | -           |
 | `buildCommentContentFilters`     | `documented`               | Yes     | -                                        | -           |
@@ -61,7 +63,7 @@
 
 ## 3. Missing Surfaces
 
-- **Spec §6 Documented APIs missing from code**: None. All 28 APIs are present in `src/shared/auftakt/resonote.ts`.
+- **Spec §6 Documented APIs missing from code**: None. All 29 APIs are present in `src/shared/auftakt/resonote.ts`.
 - **Code Exports missing from Spec §6**:
   - `fetchProfileMetadataSources` (Value)
   - `fetchNotificationTargetPreview` (Value)
