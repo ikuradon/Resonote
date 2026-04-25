@@ -6,14 +6,14 @@ Nostr helper/bridge zone. Runtime adapter modules と、まだ retire-ready 状�
 
 ## WHERE TO LOOK
 
-- Read helpers: `cached-query.svelte.ts`, `cached-query.ts`, `query.ts`
+- Read helpers: `query.ts`
 - Runtime client: `client.ts`, `relays-config.ts`, `user-relays.ts`
 - Event/data helpers: `events.ts`, `event-db.ts`, `content-link.ts`, `nip19-decode.ts`
 
 ## CONVENTIONS
 
 - `gateway.ts` is retired. Do not reintroduce it.
-- `cached-query.ts` and `user-relays.ts` are legacy aliases only; prefer app-facing access through `src/shared/auftakt/resonote.ts` or the direct bridge they alias.
+- `user-relays.ts` is a legacy alias only; prefer app-facing access through `src/shared/auftakt/resonote.ts` or the direct bridge it aliases.
 - `user-relays.test.ts` is the only intentional test-only legacy alias coverage left in this directory.
 - Canonical read semantics are `ReadSettlement`-driven; avoid reintroducing ad-hoc flags in new surfaces.
 

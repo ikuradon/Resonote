@@ -20,6 +20,6 @@ Most complex slice in the repo: subscriptions, merge/reconcile, deletion visibil
 
 ## ANTI-PATTERNS
 
-- No direct `$shared/nostr/gateway.js` or `$shared/nostr/cached-query.js` imports.
+- No direct `$shared/nostr/gateway.js` imports or retired cached read bridge imports.
 - No business logic moved back into `CommentCard`/`CommentList` helpers.
 - No second copy of delete/reaction state mapping outside domain/timeline logic.

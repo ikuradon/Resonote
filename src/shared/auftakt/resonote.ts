@@ -35,7 +35,7 @@ import {
   invalidateFetchByIdCache as invalidateFetchByIdCacheImpl,
   useCachedLatest as useCachedLatestImpl,
   type UseCachedLatestResult
-} from '$shared/nostr/cached-query.svelte.js';
+} from '$shared/auftakt/cached-read.svelte.js';
 import {
   castSigned as castSignedImpl,
   fetchLatestEvent as fetchLatestEventImpl,
