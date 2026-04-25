@@ -17,7 +17,8 @@ import { buildProtectedCompactionEventIds } from './maintenance.js';
 import type {
   DexieEventRecord,
   DexiePendingPublishRecord,
-  DexieQuarantineRecord
+  DexieQuarantineRecord,
+  DexieRelayCapabilityRecord
 } from './schema.js';
 import { AuftaktDexieDatabase } from './schema.js';
 
@@ -39,6 +40,21 @@ export interface RelayHintInput {
   readonly relayUrl: string;
   readonly source: 'seen' | 'hinted' | 'published' | 'repaired';
   readonly lastSeenAt: number;
+}
+
+export interface RelayCapabilityRecordInput {
+  readonly relayUrl: string;
+  readonly nip11Status: 'unknown' | 'ok' | 'failed';
+  readonly nip11CheckedAt: number | null;
+  readonly nip11ExpiresAt: number | null;
+  readonly supportedNips: readonly number[];
+  readonly nip11MaxFilters: number | null;
+  readonly nip11MaxSubscriptions: number | null;
+  readonly learnedMaxFilters: number | null;
+  readonly learnedMaxSubscriptions: number | null;
+  readonly learnedAt: number | null;
+  readonly learnedReason: string | null;
+  readonly updatedAt: number;
 }
 
 export interface MigrationStateInput {
@@ -300,6 +316,42 @@ export class DexieEventStore {
     }));
   }
 
+  async putRelayCapability(input: RelayCapabilityRecordInput): Promise<void> {
+    const existing = await this.db.relay_capabilities.get(input.relayUrl);
+    const preservedLearned = {
+      learnedMaxFilters: input.learnedMaxFilters ?? existing?.learned_max_filters ?? null,
+      learnedMaxSubscriptions:
+        input.learnedMaxSubscriptions ?? existing?.learned_max_subscriptions ?? null,
+      learnedAt: input.learnedAt ?? existing?.learned_at ?? null,
+      learnedReason: input.learnedReason ?? existing?.learned_reason ?? null
+    };
+
+    await this.db.relay_capabilities.put({
+      relay_url: input.relayUrl,
+      nip11_status: input.nip11Status,
+      nip11_checked_at: input.nip11CheckedAt,
+      nip11_expires_at: input.nip11ExpiresAt,
+      supported_nips: [...input.supportedNips],
+      nip11_max_filters: input.nip11MaxFilters,
+      nip11_max_subscriptions: input.nip11MaxSubscriptions,
+      learned_max_filters: preservedLearned.learnedMaxFilters,
+      learned_max_subscriptions: preservedLearned.learnedMaxSubscriptions,
+      learned_at: preservedLearned.learnedAt,
+      learned_reason: preservedLearned.learnedReason,
+      updated_at: input.updatedAt
+    });
+  }
+
+  async getRelayCapability(relayUrl: string): Promise<RelayCapabilityRecordInput | null> {
+    const record = await this.db.relay_capabilities.get(relayUrl);
+    return record ? toRelayCapabilityInput(record) : null;
+  }
+
+  async listRelayCapabilities(): Promise<RelayCapabilityRecordInput[]> {
+    const records = await this.db.relay_capabilities.toArray();
+    return records.map(toRelayCapabilityInput);
+  }
+
   async recordMigrationState(input: MigrationStateInput): Promise<void> {
     await this.db.migration_state.put({
       key: 'current',
@@ -487,6 +539,23 @@ export async function createDexieEventStore(
 }
 
 export * from './schema.js';
+
+function toRelayCapabilityInput(record: DexieRelayCapabilityRecord): RelayCapabilityRecordInput {
+  return {
+    relayUrl: record.relay_url,
+    nip11Status: record.nip11_status as RelayCapabilityRecordInput['nip11Status'],
+    nip11CheckedAt: record.nip11_checked_at,
+    nip11ExpiresAt: record.nip11_expires_at,
+    supportedNips: [...record.supported_nips],
+    nip11MaxFilters: record.nip11_max_filters,
+    nip11MaxSubscriptions: record.nip11_max_subscriptions,
+    learnedMaxFilters: record.learned_max_filters,
+    learnedMaxSubscriptions: record.learned_max_subscriptions,
+    learnedAt: record.learned_at,
+    learnedReason: record.learned_reason,
+    updatedAt: record.updated_at
+  };
+}
 
 function sortEventsDesc<TEvent extends Pick<NostrEvent, 'created_at' | 'id'>>(
   events: readonly TEvent[]

@@ -48,6 +48,21 @@ export interface DexieRelayHintRecord {
   readonly last_seen_at: number;
 }
 
+export interface DexieRelayCapabilityRecord {
+  readonly relay_url: string;
+  readonly nip11_status: string;
+  readonly nip11_checked_at: number | null;
+  readonly nip11_expires_at: number | null;
+  readonly supported_nips: number[];
+  readonly nip11_max_filters: number | null;
+  readonly nip11_max_subscriptions: number | null;
+  readonly learned_max_filters: number | null;
+  readonly learned_max_subscriptions: number | null;
+  readonly learned_at: number | null;
+  readonly learned_reason: string | null;
+  readonly updated_at: number;
+}
+
 export interface DexieSyncCursorRecord {
   readonly key: string;
   readonly relay: string;
@@ -83,6 +98,7 @@ export class AuftaktDexieDatabase extends Dexie {
   deletion_index!: Table<DexieDeletionIndexRecord, string>;
   replaceable_heads!: Table<DexieReplaceableHeadRecord, string>;
   event_relay_hints!: Table<DexieRelayHintRecord, string>;
+  relay_capabilities!: Table<DexieRelayCapabilityRecord, string>;
   sync_cursors!: Table<DexieSyncCursorRecord, string>;
   pending_publishes!: Table<DexiePendingPublishRecord, string>;
   projections!: Table<DexieProjectionRecord, string>;
@@ -91,7 +107,7 @@ export class AuftaktDexieDatabase extends Dexie {
 
   constructor(name: string) {
     super(name);
-    this.version(1).stores({
+    const versionOneStores = {
       events: 'id,[pubkey+kind],[pubkey+kind+d_tag],[kind+created_at],[created_at+id],*tag_values',
       event_tags: 'key,event_id,[tag+value]',
       deletion_index: 'key,deletion_id,created_at,target_id,pubkey',
@@ -102,6 +118,11 @@ export class AuftaktDexieDatabase extends Dexie {
       projections: 'key,[projection+sort_key]',
       migration_state: 'key,version,source_db_name,dexie_only_writes',
       quarantine: 'key,event_id,relay_url,reason,created_at'
+    };
+    this.version(1).stores(versionOneStores);
+    this.version(2).stores({
+      ...versionOneStores,
+      relay_capabilities: 'relay_url,nip11_status,nip11_expires_at,learned_at,updated_at'
     });
   }
 }

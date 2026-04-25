@@ -17,6 +17,7 @@ describe('DexieEventStore schema', () => {
       'pending_publishes',
       'projections',
       'quarantine',
+      'relay_capabilities',
       'replaceable_heads',
       'sync_cursors'
     ]);
