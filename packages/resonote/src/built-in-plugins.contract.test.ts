@@ -10,18 +10,14 @@ const RELAY_SECRET_KEY = new Uint8Array(32).fill(7);
 function createTestCoordinator({
   getById = async () => null,
   putWithReconcile = async () => ({ stored: true, emissions: [] }),
-  fetchBackwardFirst = async () => null,
   relayEvents = []
 }: {
   getById?: (id: string) => Promise<unknown>;
   putWithReconcile?: (event: unknown) => Promise<{ stored: boolean; emissions: unknown[] }>;
-  fetchBackwardFirst?: () => Promise<unknown>;
   relayEvents?: unknown[];
 } = {}) {
   return createResonoteCoordinator({
     runtime: {
-      fetchBackwardEvents: async () => [],
-      fetchBackwardFirst: async () => fetchBackwardFirst(),
       fetchLatestEvent: async () => null,
       getEventsDB: async () => ({
         getByPubkeyAndKind: async () => null,
@@ -227,12 +223,6 @@ describe('@auftakt/resonote built-in plugins', () => {
     const materialized: unknown[] = [];
     const coordinator = createResonoteCoordinator({
       runtime: {
-        fetchBackwardEvents: async () => {
-          throw new Error('raw fetchBackwardEvents bypassed coordinator');
-        },
-        fetchBackwardFirst: async () => {
-          throw new Error('raw fetchBackwardFirst bypassed coordinator');
-        },
         fetchLatestEvent: async () => null,
         getEventsDB: async () => ({
           getByPubkeyAndKind: async () => null,

@@ -112,12 +112,6 @@ async function createRuntimeFixture(options: {
   };
 
   const runtime: ResonoteRuntime = {
-    async fetchBackwardEvents() {
-      return [];
-    },
-    async fetchBackwardFirst() {
-      return null;
-    },
     async fetchLatestEvent() {
       return null;
     },

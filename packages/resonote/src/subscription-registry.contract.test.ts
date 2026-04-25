@@ -96,12 +96,6 @@ function waitFor(predicate: () => boolean, timeoutMs = 1_000): Promise<void> {
 function createFixture() {
   const rawSession = new FakeRawSession();
   const runtime: ResonoteRuntime = {
-    async fetchBackwardEvents() {
-      return [];
-    },
-    async fetchBackwardFirst() {
-      return null;
-    },
     async fetchLatestEvent() {
       return null;
     },

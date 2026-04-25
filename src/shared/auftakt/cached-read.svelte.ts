@@ -41,6 +41,8 @@ export interface CachedReadRuntime {
   getEventsDB(): Promise<{
     getById(id: string): Promise<StoredEvent | null>;
     getByPubkeyAndKind(pubkey: string, kind: number): Promise<StoredEvent | null>;
+    getAllByKind(kind: number): Promise<StoredEvent[]>;
+    getByTagValue(tagQuery: string, kind?: number): Promise<StoredEvent[]>;
     listNegentropyEventRefs(): Promise<NegentropyEventRef[]>;
     put(event: StoredEvent): Promise<unknown>;
     putQuarantine?(record: unknown): Promise<void>;

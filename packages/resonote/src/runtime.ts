@@ -45,7 +45,8 @@ import {
   subscribeDualFilterStreams,
   type SubscriptionHandle,
   type SubscriptionLike,
-  validateRelayEvent} from '@auftakt/core';
+  validateRelayEvent
+} from '@auftakt/core';
 import type { EventParameters } from 'nostr-typedef';
 import { Observable } from 'rxjs';
 
@@ -1248,14 +1249,6 @@ export interface RelayStatusRuntime {
 }
 
 export interface ResonoteRuntime {
-  fetchBackwardEvents<TEvent>(
-    filters: readonly Record<string, unknown>[],
-    options?: FetchBackwardOptions
-  ): Promise<TEvent[]>;
-  fetchBackwardFirst<TEvent>(
-    filters: readonly Record<string, unknown>[],
-    options?: FetchBackwardOptions
-  ): Promise<TEvent | null>;
   fetchLatestEvent(
     pubkey: string,
     kind: number

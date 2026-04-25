@@ -15,8 +15,6 @@ const packageIndexPath = resolve(currentDir, 'index.ts');
 function createTestCoordinator() {
   return createResonoteCoordinator({
     runtime: {
-      fetchBackwardEvents: async () => [],
-      fetchBackwardFirst: async () => null,
       fetchLatestEvent: async () => null,
       getEventsDB: async () => ({
         getByPubkeyAndKind: async () => null,

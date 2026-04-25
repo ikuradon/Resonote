@@ -5,7 +5,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createResonoteCoordinator,
   type ResonoteRuntime,
-  startCommentSubscription} from './runtime.js';
+  startCommentSubscription
+} from './runtime.js';
 
 const RELAY_SECRET_KEY = new Uint8Array(32).fill(9);
 
@@ -85,12 +86,6 @@ function createCoordinatorFixture() {
   const materialized: StoredEvent[] = [];
   const quarantined: unknown[] = [];
   const runtime: ResonoteRuntime = {
-    async fetchBackwardEvents() {
-      return [];
-    },
-    async fetchBackwardFirst() {
-      return null;
-    },
     async fetchLatestEvent() {
       return null;
     },

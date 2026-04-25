@@ -64,10 +64,6 @@ interface WotResult {
 }
 
 const runtime: ResonoteRuntime = {
-  fetchBackwardEvents: () =>
-    Promise.reject(new Error('Use the Auftakt coordinator backward read facade')),
-  fetchBackwardFirst: () =>
-    Promise.reject(new Error('Use the Auftakt coordinator backward read facade')),
   fetchLatestEvent: (pubkey, kind) => fetchLatestEventImpl(pubkey, kind),
   getEventsDB: () => getEventsDB(),
   getRxNostr: () => getRxNostr(),
