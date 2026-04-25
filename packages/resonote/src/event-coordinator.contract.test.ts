@@ -271,4 +271,91 @@ describe('EventCoordinator read policy', () => {
       reason: 'settled-miss'
     });
   });
+
+  it('reads multiple filters from durable local visibility before relay verification', async () => {
+    const store = {
+      getById: vi.fn(async (id: string) =>
+        id === 'by-id'
+          ? {
+              id: 'by-id',
+              pubkey: 'alice',
+              created_at: 2,
+              kind: 1,
+              tags: [['e', 'root']],
+              content: 'id hit'
+            }
+          : null
+      ),
+      getAllByKind: vi.fn(async (kind: number) =>
+        kind === 1111
+          ? [
+              {
+                id: 'comment',
+                pubkey: 'bob',
+                created_at: 3,
+                kind: 1111,
+                tags: [['e', 'root']],
+                content: 'tag hit'
+              }
+            ]
+          : []
+      ),
+      putWithReconcile: vi.fn(async () => ({ stored: true }))
+    };
+    const verify = vi.fn(async () => []);
+    const coordinator = createEventCoordinator({
+      store,
+      relay: { verify }
+    });
+
+    const result = await coordinator.read([{ ids: ['by-id'] }, { kinds: [1111], '#e': ['root'] }], {
+      policy: 'localFirst'
+    });
+
+    expect(result.events.map((event) => event.id).sort()).toEqual(['by-id', 'comment']);
+    expect(store.getById).toHaveBeenCalledWith('by-id');
+    expect(store.getAllByKind).toHaveBeenCalledWith(1111);
+    expect(verify).toHaveBeenCalledWith([{ ids: ['by-id'] }, { kinds: [1111], '#e': ['root'] }], {
+      reason: 'localFirst'
+    });
+  });
+
+  it('materializes relay candidates through the coordinator before read visibility', async () => {
+    const remote = {
+      id: 'remote',
+      pubkey: 'alice',
+      created_at: 4,
+      kind: 1,
+      tags: [],
+      content: 'accepted'
+    };
+    const putWithReconcile = vi.fn(async () => ({ stored: true }));
+    const recordRelayHint = vi.fn(async () => {});
+    const coordinator = createEventCoordinator({
+      relayGateway: {
+        verify: vi.fn(async () => ({
+          strategy: 'fallback-req' as const,
+          candidates: [{ event: { raw: 'relay' }, relayUrl: 'wss://relay.example' }]
+        }))
+      },
+      ingestRelayCandidate: vi.fn(async () => ({ ok: true as const, event: remote })),
+      store: {
+        getById: vi.fn(async () => null),
+        putWithReconcile,
+        recordRelayHint
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+
+    const result = await coordinator.read({ ids: ['remote'] }, { policy: 'relayConfirmed' });
+
+    expect(result.events).toEqual([remote]);
+    expect(putWithReconcile).toHaveBeenCalledWith(remote);
+    expect(recordRelayHint).toHaveBeenCalledWith({
+      eventId: 'remote',
+      relayUrl: 'wss://relay.example',
+      source: 'seen',
+      lastSeenAt: expect.any(Number)
+    });
+  });
 });

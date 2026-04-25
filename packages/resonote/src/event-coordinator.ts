@@ -7,6 +7,8 @@ export type ReadPolicy = 'cacheOnly' | 'localFirst' | 'relayConfirmed' | 'repair
 
 export interface EventCoordinatorStore {
   getById(id: string): Promise<StoredEvent | null>;
+  getAllByKind?(kind: number): Promise<StoredEvent[]>;
+  getByTagValue?(tagQuery: string, kind?: number): Promise<StoredEvent[]>;
   putWithReconcile(event: StoredEvent): Promise<unknown>;
   recordRelayHint?(hint: {
     readonly eventId: string;
@@ -75,106 +77,189 @@ export function createEventCoordinator(deps: {
   const hotIndex = deps.hotIndex ?? createHotEventIndex();
   const materializerQueue = deps.materializerQueue ?? createMaterializerQueue();
 
+  async function materialize(
+    event: StoredEvent,
+    relayUrl: string
+  ): Promise<EventCoordinatorMaterializeResult> {
+    let materializeResult: EventCoordinatorMaterializeResult = {
+      stored: false,
+      durability: 'durable'
+    };
+
+    materializerQueue.enqueue({
+      priority: event.kind === 5 ? 'critical' : 'normal',
+      async run() {
+        let result: unknown;
+        try {
+          result = await deps.store.putWithReconcile(event);
+        } catch {
+          hotIndex.applyVisible(event);
+          hotIndex.applyRelayHint(buildSeenHint(event.id, relayUrl));
+          materializeResult = { stored: false, durability: 'degraded' };
+          return;
+        }
+        const stored = (result as { stored?: boolean } | undefined)?.stored !== false;
+        if (!stored) {
+          materializeResult = { stored: false, durability: 'durable' };
+          return;
+        }
+
+        hotIndex.applyVisible(event);
+        const hint = buildSeenHint(event.id, relayUrl);
+        hotIndex.applyRelayHint(hint);
+        await deps.store.recordRelayHint?.(hint);
+        materializeResult = { stored: true, durability: 'durable' };
+      }
+    });
+
+    await materializerQueue.drain();
+    return materializeResult;
+  }
+
+  async function read(
+    filterOrFilters: Record<string, unknown> | readonly Record<string, unknown>[],
+    options: EventCoordinatorReadOptions
+  ): Promise<EventCoordinatorReadResult> {
+    const filters = Array.isArray(filterOrFilters) ? [...filterOrFilters] : [filterOrFilters];
+    const local = await readLocalVisibleEvents(filters, hotIndex, deps.store);
+    const relayEvents: StoredEvent[] = [];
+    let relaySettled = options.policy === 'cacheOnly';
+
+    if (options.policy !== 'cacheOnly') {
+      if (deps.relayGateway) {
+        const result = await deps.relayGateway.verify(filters, { reason: options.policy });
+        for (const candidate of result.candidates) {
+          const accepted = deps.ingestRelayCandidate
+            ? await deps.ingestRelayCandidate(candidate)
+            : { ok: false as const };
+          if (!accepted.ok) continue;
+          const materialized = await materialize(accepted.event, candidate.relayUrl);
+          if (materialized.stored || materialized.durability === 'degraded') {
+            relayEvents.push(accepted.event);
+          }
+        }
+        relaySettled = true;
+      } else {
+        void deps.relay.verify(filters, { reason: options.policy });
+      }
+    }
+
+    const events = mergeEventsById(local, relayEvents);
+
+    return {
+      events,
+      settlement: reduceReadSettlement({
+        localSettled: true,
+        relaySettled,
+        relayRequired: options.policy !== 'cacheOnly',
+        localHitProvenance: local.length > 0 ? 'store' : null,
+        relayHit: relayEvents.length > 0
+      })
+    };
+  }
+
   return {
     applyLocalEvent(event: StoredEvent): void {
       hotIndex.applyVisible(event);
     },
-    async materializeFromRelay(
-      event: StoredEvent,
-      relayUrl: string
-    ): Promise<EventCoordinatorMaterializeResult> {
-      let materializeResult: EventCoordinatorMaterializeResult = {
-        stored: false,
-        durability: 'durable'
-      };
-
-      materializerQueue.enqueue({
-        priority: event.kind === 5 ? 'critical' : 'normal',
-        async run() {
-          let result: unknown;
-          try {
-            result = await deps.store.putWithReconcile(event);
-          } catch {
-            hotIndex.applyVisible(event);
-            hotIndex.applyRelayHint(buildSeenHint(event.id, relayUrl));
-            materializeResult = { stored: false, durability: 'degraded' };
-            return;
-          }
-          const stored = (result as { stored?: boolean } | undefined)?.stored !== false;
-          if (!stored) {
-            materializeResult = { stored: false, durability: 'durable' };
-            return;
-          }
-
-          hotIndex.applyVisible(event);
-          const hint = buildSeenHint(event.id, relayUrl);
-          hotIndex.applyRelayHint(hint);
-          await deps.store.recordRelayHint?.(hint);
-          materializeResult = { stored: true, durability: 'durable' };
-        }
-      });
-
-      await materializerQueue.drain();
-      return materializeResult;
-    },
-    async read(
-      filter: Record<string, unknown>,
-      options: EventCoordinatorReadOptions
-    ): Promise<EventCoordinatorReadResult> {
-      const filters = [filter];
-      const ids = Array.isArray(filter.ids)
-        ? filter.ids.filter((id): id is string => typeof id === 'string')
-        : [];
-      const hotHits = ids
-        .map((id) => hotIndex.getById(id))
-        .filter((event): event is StoredEvent => Boolean(event));
-      const hotHitIds = new Set(hotHits.map((event) => event.id));
-      const missingIds = ids.filter((id) => !hotHitIds.has(id));
-      const durableHits = (
-        await Promise.all(missingIds.map((id) => deps.store.getById(id)))
-      ).filter((event): event is StoredEvent => Boolean(event));
-      const local = [...hotHits, ...durableHits];
-      let relayEvents: readonly StoredEvent[] = [];
-      let relaySettled = options.policy === 'cacheOnly';
-
-      if (options.policy !== 'cacheOnly') {
-        if (deps.relayGateway) {
-          const result = await deps.relayGateway.verify(filters, { reason: options.policy });
-          const acceptedEvents: StoredEvent[] = [];
-
-          if (deps.ingestRelayCandidate) {
-            for (const candidate of result.candidates) {
-              const accepted = await deps.ingestRelayCandidate(candidate);
-              if (accepted.ok) {
-                acceptedEvents.push(accepted.event);
-              }
-            }
-          }
-
-          relayEvents = acceptedEvents;
-          relaySettled = true;
-          for (const event of relayEvents) {
-            hotIndex.applyVisible(event);
-          }
-        } else {
-          void deps.relay.verify(filters, { reason: options.policy });
-        }
-      }
-
-      const events = mergeEventsById(local, relayEvents);
-
-      return {
-        events,
-        settlement: reduceReadSettlement({
-          localSettled: true,
-          relaySettled,
-          relayRequired: options.policy !== 'cacheOnly',
-          localHitProvenance: local.length > 0 ? 'store' : null,
-          relayHit: relayEvents.length > 0
-        })
-      };
-    }
+    materialize,
+    materializeFromRelay: materialize,
+    read
   };
+}
+
+async function readLocalVisibleEvents(
+  filters: readonly Record<string, unknown>[],
+  hotIndex: HotEventIndex,
+  store: EventCoordinatorStore
+): Promise<StoredEvent[]> {
+  const events = new Map<string, StoredEvent>();
+
+  for (const filter of filters) {
+    for (const event of await readLocalVisibleFilter(filter, hotIndex, store)) {
+      if (eventMatchesFilter(event, filter)) events.set(event.id, event);
+    }
+  }
+
+  return [...events.values()];
+}
+
+async function readLocalVisibleFilter(
+  filter: Record<string, unknown>,
+  hotIndex: HotEventIndex,
+  store: EventCoordinatorStore
+): Promise<StoredEvent[]> {
+  const ids = readStringArray(filter.ids);
+  if (ids.length > 0) {
+    const hotHits = ids
+      .map((id) => hotIndex.getById(id))
+      .filter((event): event is StoredEvent => Boolean(event));
+    const hotHitIds = new Set(hotHits.map((event) => event.id));
+    const durableHits = (
+      await Promise.all(ids.filter((id) => !hotHitIds.has(id)).map((id) => store.getById(id)))
+    ).filter((event): event is StoredEvent => Boolean(event));
+    return [...hotHits, ...durableHits];
+  }
+
+  const tagFilters = Object.entries(filter).filter(
+    ([key, value]) => key.startsWith('#') && readStringArray(value).length > 0
+  );
+  if (tagFilters.length > 0 && store.getByTagValue) {
+    const kinds = readNumberArray(filter.kinds);
+    const [tagKey, tagValues] = tagFilters[0]!;
+    const tagName = tagKey.slice(1);
+    const events = await Promise.all(
+      readStringArray(tagValues).flatMap((tagValue) => {
+        if (kinds.length === 0) return [store.getByTagValue?.(`${tagName}:${tagValue}`)];
+        return kinds.map((kind) => store.getByTagValue?.(`${tagName}:${tagValue}`, kind));
+      })
+    );
+    return events.flatMap((entry) => entry ?? []);
+  }
+
+  const kinds = readNumberArray(filter.kinds);
+  if (kinds.length > 0 && store.getAllByKind) {
+    const events = await Promise.all(kinds.map((kind) => store.getAllByKind?.(kind)));
+    return events.flatMap((entry) => entry ?? []);
+  }
+
+  return [];
+}
+
+function eventMatchesFilter(event: StoredEvent, filter: Record<string, unknown>): boolean {
+  const ids = readStringArray(filter.ids);
+  if (ids.length > 0 && !ids.includes(event.id)) return false;
+
+  const authors = readStringArray(filter.authors);
+  if (authors.length > 0 && !authors.includes(event.pubkey)) return false;
+
+  const kinds = readNumberArray(filter.kinds);
+  if (kinds.length > 0 && !kinds.includes(event.kind)) return false;
+
+  for (const [key, value] of Object.entries(filter)) {
+    if (!key.startsWith('#')) continue;
+    const expected = readStringArray(value);
+    if (expected.length === 0) continue;
+    const tagName = key.slice(1);
+    const actual = event.tags
+      .filter((tag) => tag[0] === tagName && typeof tag[1] === 'string')
+      .map((tag) => tag[1]);
+    if (!expected.some((entry) => actual.includes(entry))) return false;
+  }
+
+  return true;
+}
+
+function readStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === 'string')
+    : [];
+}
+
+function readNumberArray(value: unknown): number[] {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is number => typeof entry === 'number')
+    : [];
 }
 
 function mergeEventsById(
