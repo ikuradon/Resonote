@@ -64,10 +64,38 @@ export interface EventCoordinatorMaterializeResult {
   readonly durability: 'durable' | 'degraded';
 }
 
+export interface EventCoordinatorSubscriptionHandle {
+  unsubscribe(): void;
+}
+
+export interface EventCoordinatorVisiblePacket<TEvent extends StoredEvent = StoredEvent> {
+  readonly event: TEvent;
+  readonly relayHint?: string;
+}
+
+export interface EventCoordinatorSubscriptionHandlers<TEvent extends StoredEvent = StoredEvent> {
+  readonly onEvent: (packet: EventCoordinatorVisiblePacket<TEvent>) => void | Promise<void>;
+  readonly onComplete?: () => void;
+  readonly onError?: (error: unknown) => void;
+}
+
+export interface EventCoordinatorTransport {
+  subscribe(
+    filters: readonly Record<string, unknown>[],
+    options: { readonly policy: ReadPolicy },
+    handlers: {
+      readonly onCandidate: (candidate: EventCoordinatorRelayCandidate) => void | Promise<void>;
+      readonly onComplete?: () => void;
+      readonly onError?: (error: unknown) => void;
+    }
+  ): EventCoordinatorSubscriptionHandle;
+}
+
 export function createEventCoordinator(deps: {
   readonly hotIndex?: HotEventIndex;
   readonly materializerQueue?: EventCoordinatorMaterializerQueue;
   readonly relayGateway?: EventCoordinatorRelayGateway;
+  readonly transport?: EventCoordinatorTransport;
   readonly ingestRelayCandidate?: (
     candidate: EventCoordinatorRelayCandidate
   ) => Promise<EventCoordinatorIngressResult>;
@@ -158,13 +186,46 @@ export function createEventCoordinator(deps: {
     };
   }
 
+  function subscribe<TEvent extends StoredEvent = StoredEvent>(
+    filters: readonly Record<string, unknown>[],
+    options: EventCoordinatorReadOptions,
+    handlers: EventCoordinatorSubscriptionHandlers<TEvent>
+  ): EventCoordinatorSubscriptionHandle {
+    if (!deps.transport) {
+      queueMicrotask(() => {
+        handlers.onComplete?.();
+      });
+      return { unsubscribe() {} };
+    }
+
+    return deps.transport.subscribe(filters, options, {
+      onCandidate: async (candidate) => {
+        const accepted = deps.ingestRelayCandidate
+          ? await deps.ingestRelayCandidate(candidate)
+          : { ok: false as const };
+        if (!accepted.ok) return;
+
+        const materialized = await materialize(accepted.event, candidate.relayUrl);
+        if (!materialized.stored && materialized.durability !== 'degraded') return;
+
+        await handlers.onEvent({
+          event: accepted.event as TEvent,
+          relayHint: candidate.relayUrl || undefined
+        });
+      },
+      onComplete: handlers.onComplete,
+      onError: handlers.onError
+    });
+  }
+
   return {
     applyLocalEvent(event: StoredEvent): void {
       hotIndex.applyVisible(event);
     },
     materialize,
     materializeFromRelay: materialize,
-    read
+    read,
+    subscribe
   };
 }
 

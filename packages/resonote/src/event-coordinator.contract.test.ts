@@ -358,4 +358,68 @@ describe('EventCoordinator read policy', () => {
       lastSeenAt: expect.any(Number)
     });
   });
+
+  it('subscribes through relay candidates but emits only accepted visible events', async () => {
+    const accepted = {
+      id: 'visible',
+      pubkey: 'alice',
+      created_at: 10,
+      kind: 1,
+      tags: [],
+      content: 'visible'
+    };
+    const onEvent = vi.fn();
+    const onComplete = vi.fn();
+    let candidateHandler:
+      | ((candidate: { event: unknown; relayUrl: string }) => Promise<void> | void)
+      | undefined;
+    const coordinator = createEventCoordinator({
+      transport: {
+        subscribe: vi.fn((_filters, _options, handlers) => {
+          candidateHandler = handlers.onCandidate;
+          return { unsubscribe: vi.fn() };
+        })
+      },
+      ingestRelayCandidate: vi.fn(async () => ({ ok: true as const, event: accepted })),
+      store: {
+        getById: vi.fn(async () => null),
+        putWithReconcile: vi.fn(async () => ({ stored: true }))
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+
+    coordinator.subscribe([{ kinds: [1] }], { policy: 'localFirst' }, { onEvent, onComplete });
+    await candidateHandler?.({ event: { raw: true }, relayUrl: 'wss://relay.example' });
+
+    expect(onEvent).toHaveBeenCalledWith({
+      event: accepted,
+      relayHint: 'wss://relay.example'
+    });
+  });
+
+  it('drops rejected subscription candidates before consumer callbacks', async () => {
+    const onEvent = vi.fn();
+    let candidateHandler:
+      | ((candidate: { event: unknown; relayUrl: string }) => Promise<void> | void)
+      | undefined;
+    const coordinator = createEventCoordinator({
+      transport: {
+        subscribe: vi.fn((_filters, _options, handlers) => {
+          candidateHandler = handlers.onCandidate;
+          return { unsubscribe: vi.fn() };
+        })
+      },
+      ingestRelayCandidate: vi.fn(async () => ({ ok: false as const })),
+      store: {
+        getById: vi.fn(async () => null),
+        putWithReconcile: vi.fn(async () => ({ stored: true }))
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+
+    coordinator.subscribe([{ kinds: [1] }], { policy: 'localFirst' }, { onEvent });
+    await candidateHandler?.({ event: { malformed: true }, relayUrl: 'wss://relay.example' });
+
+    expect(onEvent).not.toHaveBeenCalled();
+  });
 });
