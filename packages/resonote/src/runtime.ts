@@ -5,6 +5,11 @@ import type {
   ProjectionDefinition,
   ReadSettlement,
   ReadSettlementLocalProvenance,
+  RelayCapabilityLearningEvent,
+  RelayCapabilityPacket,
+  RelayCapabilityRecord,
+  RelayCapabilitySnapshot,
+  RelayExecutionCapability,
   RelayObservationPacket,
   RelayObservationRuntime,
   RelayObservationSnapshot,
@@ -73,9 +78,17 @@ import {
   createResonoteContentResolutionFlowPlugin
 } from './plugins/resonote-flows.js';
 import { createTimelinePlugin } from './plugins/timeline-plugin.js';
+import {
+  createRelayCapabilityRegistry,
+  fetchNip11RelayInformation,
+  type RelayCapabilityRegistry,
+  type RelayCapabilityStore,
+  type RelayInformationDocument
+} from './relay-capability-registry.js';
 import { createRelayGateway } from './relay-gateway.js';
 
 export type { CommentSubscriptionRefs, SubscriptionHandle };
+export type { RelayCapabilityPacket, RelayCapabilitySnapshot } from '@auftakt/core';
 
 type RuntimeFilter = Record<string, unknown>;
 
@@ -118,6 +131,9 @@ interface CoordinatorReadRuntime {
       stored: boolean;
       emissions: ReconcileEmission[];
     }>;
+    getRelayCapability?(relayUrl: string): Promise<RelayCapabilityRecord | null>;
+    listRelayCapabilities?(): Promise<RelayCapabilityRecord[]>;
+    putRelayCapability?(record: RelayCapabilityRecord): Promise<void>;
   }>;
   getRxNostr(): Promise<NegentropySessionRuntime>;
   createRxBackwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): {
@@ -215,6 +231,7 @@ const subscriptionRegistries = new WeakMap<
 >();
 
 const unsupportedNegentropyRelaysByRuntime = new WeakMap<object, Set<string>>();
+const capabilitySubscribedSessions = new WeakSet<object>();
 
 function isRegistryManagedRelayRequest(
   value: RelayRequestLike
@@ -410,12 +427,16 @@ class CoordinatorSubscriptionRegistry {
   }
 
   private ensureEntryStarted(entry: SharedSubscriptionEntry): void {
-    if (entry.starting || entry.transportSubscription || entry.completed) return;
+    if (entry.starting || entry.transportSubscription || entry.completed) {
+      return;
+    }
     entry.starting = true;
 
     void this.getRawSession()
       .then((session) => {
-        if (!this.entries.has(entry.entryKey) || entry.consumerCount === 0) return;
+        if (!this.entries.has(entry.entryKey) || entry.consumerCount === 0) {
+          return;
+        }
 
         entry.transportSubscription = session
           .use(entry.transportRequest, entry.useOptions)
@@ -1025,9 +1046,16 @@ async function coordinatorFetchById(
     requestNegentropySync: async ({ relayUrl, filter, initialMessageHex }) => {
       const session = (await runtime.getRxNostr()) as Partial<NegentropySessionRuntime>;
       if (typeof session.requestNegentropySync !== 'function') {
-        return { capability: 'unsupported' as const, reason: 'missing-negentropy' };
+        return {
+          capability: 'unsupported' as const,
+          reason: 'missing-negentropy'
+        };
       }
-      return session.requestNegentropySync({ relayUrl, filter, initialMessageHex });
+      return session.requestNegentropySync({
+        relayUrl,
+        filter,
+        initialMessageHex
+      });
     },
     fetchByReq: async (filters, options) =>
       fetchRelayCandidateEventsFromRelay(
@@ -1091,7 +1119,12 @@ async function coordinatorFetchById(
     }
   });
 
-  const result = await coordinator.read({ ids: [eventId] }, { policy: 'localFirst' });
+  const result = await coordinator.read(
+    { ids: [eventId] },
+    {
+      policy: 'localFirst'
+    }
+  );
   if (invalidated) {
     state.cache.delete(eventId);
     state.nullCacheTimestamps.delete(eventId);
@@ -1112,7 +1145,11 @@ async function coordinatorFetchById(
 function readCachedById(
   state: CachedFetchState,
   eventId: string
-): { readonly hit: true; readonly event: StoredEvent | null } | { readonly hit: false } {
+):
+  | { readonly hit: true; readonly event: StoredEvent | null }
+  | {
+      readonly hit: false;
+    } {
   if (!state.cache.has(eventId)) return { hit: false };
 
   const cached = state.cache.get(eventId) ?? null;
@@ -1278,6 +1315,9 @@ export interface ResonoteRuntime {
       stored: boolean;
       emissions: ReconcileEmission[];
     }>;
+    getRelayCapability?(relayUrl: string): Promise<RelayCapabilityRecord | null>;
+    listRelayCapabilities?(): Promise<RelayCapabilityRecord[]>;
+    putRelayCapability?(record: RelayCapabilityRecord): Promise<void>;
   }>;
   getRxNostr(): Promise<unknown>;
   createRxBackwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): unknown;
@@ -1288,6 +1328,10 @@ export interface ResonoteRuntime {
   observeRelayConnectionStates(onPacket: (packet: RelayObservationPacket) => void): Promise<{
     unsubscribe(): void;
   }>;
+}
+
+export interface RelayCapabilityRuntime {
+  fetchRelayInformation?(relayUrl: string): Promise<RelayInformationDocument>;
 }
 
 export type ResonoteCoordinatorPluginApiVersion = 'v1';
@@ -1404,6 +1448,10 @@ export interface ResonoteCoordinator<TResult = unknown, TLatestResult = unknown>
   observeRelayStatuses(
     onPacket: (packet: RelayObservationPacket) => void
   ): ReturnType<typeof observeRelayStatusesImpl>;
+  snapshotRelayCapabilities(urls: readonly string[]): Promise<RelayCapabilitySnapshot[]>;
+  observeRelayCapabilities(
+    onPacket: (packet: RelayCapabilityPacket) => void
+  ): Promise<{ unsubscribe(): void }>;
   fetchRelayListEvents(
     pubkey: string,
     relayListKind: number,
@@ -1439,6 +1487,7 @@ export interface CreateResonoteCoordinatorOptions<TResult, TLatestResult> {
   readonly publishTransportRuntime: Pick<PublishRuntime, 'castSigned' | 'observePublishAcks'>;
   readonly pendingPublishQueueRuntime: PendingPublishQueueRuntime;
   readonly relayStatusRuntime: RelayStatusRuntime;
+  readonly relayCapabilityRuntime?: RelayCapabilityRuntime;
 }
 
 export interface PublishRuntime {
@@ -1513,7 +1562,9 @@ interface NegentropySessionRuntime {
       emit(input: unknown): void;
       over(): void;
     },
-    options?: { on?: { relays?: readonly string[]; defaultReadRelays?: boolean } }
+    options?: {
+      on?: { relays?: readonly string[]; defaultReadRelays?: boolean };
+    }
   ): {
     subscribe(observer: {
       next?: (packet: { event: unknown; from?: string }) => void;
@@ -1653,13 +1704,108 @@ function getRegisteredFlow<TFlow>(registry: NamedRegistrationRegistry, name: str
   return registration.value as TFlow;
 }
 
+interface RelayCapabilitySession {
+  setRelayCapabilities(capabilities: Record<string, RelayExecutionCapability | undefined>): void;
+  setRelayCapabilityLearningHandler(
+    handler: ((event: RelayCapabilityLearningEvent) => void) | null
+  ): void;
+  createRelayCapabilityObservable(): {
+    subscribe(observer: { next?: (packet: RelayCapabilityPacket) => void }): {
+      unsubscribe(): void;
+    };
+  };
+}
+
+function createMemoryRelayCapabilityStore(): RelayCapabilityStore {
+  const records = new Map<string, RelayCapabilityRecord>();
+
+  return {
+    async getRelayCapability(relayUrl) {
+      return records.get(relayUrl) ?? null;
+    },
+    async listRelayCapabilities() {
+      return [...records.values()];
+    },
+    async putRelayCapability(record) {
+      const existing = records.get(record.relayUrl);
+      records.set(record.relayUrl, {
+        ...record,
+        learnedMaxFilters: record.learnedMaxFilters ?? existing?.learnedMaxFilters ?? null,
+        learnedMaxSubscriptions:
+          record.learnedMaxSubscriptions ?? existing?.learnedMaxSubscriptions ?? null,
+        learnedAt: record.learnedAt ?? existing?.learnedAt ?? null,
+        learnedReason: record.learnedReason ?? existing?.learnedReason ?? null
+      });
+    }
+  };
+}
+
+async function openRelayCapabilityStore(
+  runtime: ResonoteRuntime,
+  fallbackStore: RelayCapabilityStore
+): Promise<RelayCapabilityStore> {
+  const eventsDb = await runtime.getEventsDB();
+  if (
+    typeof eventsDb.getRelayCapability === 'function' &&
+    typeof eventsDb.listRelayCapabilities === 'function' &&
+    typeof eventsDb.putRelayCapability === 'function'
+  ) {
+    return {
+      getRelayCapability: eventsDb.getRelayCapability.bind(eventsDb),
+      listRelayCapabilities: eventsDb.listRelayCapabilities.bind(eventsDb),
+      putRelayCapability: eventsDb.putRelayCapability.bind(eventsDb)
+    };
+  }
+
+  return fallbackStore;
+}
+
+async function applyRelayCapabilitiesToRuntime(
+  runtime: ResonoteRuntime,
+  registry: RelayCapabilityRegistry,
+  urls: readonly string[]
+): Promise<void> {
+  const session = await runtime.getRxNostr();
+  if (typeof session !== 'object' || session === null) return;
+
+  const capabilitySession = session as Partial<RelayCapabilitySession>;
+  capabilitySession.setRelayCapabilities?.(await registry.getExecutionCapabilities(urls));
+
+  if (capabilitySubscribedSessions.has(session)) {
+    return;
+  }
+
+  capabilitySubscribedSessions.add(session);
+  capabilitySession.setRelayCapabilityLearningHandler?.((event) => {
+    void registry
+      .recordLearned(event)
+      .then(async () => {
+        capabilitySession.setRelayCapabilities?.(
+          await registry.getExecutionCapabilities([event.relayUrl])
+        );
+      })
+      .catch(() => {});
+  });
+
+  const observable = capabilitySession.createRelayCapabilityObservable?.();
+  observable?.subscribe({
+    next: (packet) => {
+      registry.setRuntimeState(packet.from, {
+        queueDepth: packet.capability.queueDepth,
+        activeSubscriptions: packet.capability.activeSubscriptions
+      });
+    }
+  });
+}
+
 export function createResonoteCoordinator<TResult, TLatestResult>({
   runtime,
   cachedFetchByIdRuntime,
   cachedLatestRuntime,
   publishTransportRuntime,
   pendingPublishQueueRuntime,
-  relayStatusRuntime
+  relayStatusRuntime,
+  relayCapabilityRuntime
 }: CreateResonoteCoordinatorOptions<TResult, TLatestResult>): ResonoteCoordinator<
   TResult,
   TLatestResult
@@ -1697,6 +1843,12 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
   const projectionRegistry = createProjectionRegistry();
   const readModelRegistry = createNamedRegistrationRegistry('Read model');
   const flowRegistry = createNamedRegistrationRegistry('Flow');
+  const memoryRelayCapabilityStore = createMemoryRelayCapabilityStore();
+  const relayCapabilityRegistry = createRelayCapabilityRegistry({
+    openStore: () => openRelayCapabilityStore(runtime, memoryRelayCapabilityStore),
+    fetchRelayInformation:
+      relayCapabilityRuntime?.fetchRelayInformation ?? fetchNip11RelayInformation
+  });
 
   const registerPlugin = async (
     plugin: ResonoteCoordinatorPlugin
@@ -1804,7 +1956,9 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
     const fetchedEvents =
       missingFilters.length === 0
         ? []
-        : await queryRuntime.fetchBackwardEvents<StoredEvent>(missingFilters, { timeoutMs: 5_000 });
+        : await queryRuntime.fetchBackwardEvents<StoredEvent>(missingFilters, {
+            timeoutMs: 5_000
+          });
 
     await Promise.all(fetchedEvents.map((event) => cacheEvent(eventsDB, event)));
 
@@ -1884,7 +2038,10 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
           pubkey,
           [relayListKind, followKind]
         );
-        return { relayListEvents: relayListEvents ?? [], followListEvents: followListEvents ?? [] };
+        return {
+          relayListEvents: relayListEvents ?? [],
+          followListEvents: followListEvents ?? []
+        };
       }
     }),
     createResonoteContentResolutionFlowPlugin({
@@ -1894,7 +2051,14 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
         if (cached && hasBookmarkDTagPayload(cached.tags)) return cached;
 
         const event = await queryRuntime.fetchBackwardFirst<StoredEvent>(
-          [{ kinds: [39701], authors: [pubkey], '#d': [normalizedUrl], limit: 1 }],
+          [
+            {
+              kinds: [39701],
+              authors: [pubkey],
+              '#d': [normalizedUrl],
+              limit: 1
+            }
+          ],
           { timeoutMs: 5_000 }
         );
 
@@ -1908,7 +2072,14 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
         if (cachedMatch) return cachedMatch;
 
         const event = await queryRuntime.fetchBackwardFirst<StoredEvent>(
-          [{ kinds: [39701], authors: [pubkey], '#i': [`podcast:item:guid:${guid}`], limit: 1 }],
+          [
+            {
+              kinds: [39701],
+              authors: [pubkey],
+              '#i': [`podcast:item:guid:${guid}`],
+              limit: 1
+            }
+          ],
           { timeoutMs: 5_000 }
         );
 
@@ -1972,7 +2143,11 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       await retryQueuedSignedPublishes(publishTransportRuntime, pendingPublishQueueRuntime);
     },
     fetchLatestEvent: (pubkey, kind) => relayStatusRuntime.fetchLatestEvent(pubkey, kind),
-    setDefaultRelays: (urls) => relayStatusRuntime.setDefaultRelays(urls),
+    setDefaultRelays: async (urls) => {
+      await relayCapabilityRegistry.prefetchDefaultRelays(urls);
+      await applyRelayCapabilitiesToRuntime(runtime, relayCapabilityRegistry, urls);
+      await relayStatusRuntime.setDefaultRelays(urls);
+    },
     getRelayConnectionState: async (url) => {
       const [snapshot] = await snapshotRelayStatusesImpl(relayObservationRuntime, [url]);
       return snapshot ?? null;
@@ -2059,6 +2234,8 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       ).subscribeNotificationStreams(options, handlers),
     snapshotRelayStatuses: (urls) => snapshotRelayStatusesImpl(relayObservationRuntime, urls),
     observeRelayStatuses: (onPacket) => observeRelayStatusesImpl(relayObservationRuntime, onPacket),
+    snapshotRelayCapabilities: (urls) => relayCapabilityRegistry.snapshot(urls),
+    observeRelayCapabilities: (onPacket) => relayCapabilityRegistry.observe(onPacket),
     fetchRelayListEvents: (pubkey, relayListKind, followKind) =>
       getRegisteredFlow<RelayListFlow>(flowRegistry, RELAY_LIST_FLOW).fetchRelayListEvents(
         pubkey,
@@ -2150,6 +2327,20 @@ export async function observeRelayConnectionStates(
   onPacket: (packet: RelayObservationPacket) => void
 ): Promise<{ unsubscribe(): void }> {
   return coordinator.observeRelayConnectionStates(onPacket);
+}
+
+export async function snapshotRelayCapabilities(
+  coordinator: Pick<ResonoteCoordinator, 'snapshotRelayCapabilities'>,
+  urls: readonly string[]
+): Promise<RelayCapabilitySnapshot[]> {
+  return coordinator.snapshotRelayCapabilities(urls);
+}
+
+export async function observeRelayCapabilities(
+  coordinator: Pick<ResonoteCoordinator, 'observeRelayCapabilities'>,
+  onPacket: (packet: RelayCapabilityPacket) => void
+): Promise<{ unsubscribe(): void }> {
+  return coordinator.observeRelayCapabilities(onPacket);
 }
 
 export async function fetchBackwardEvents<TEvent>(
@@ -2683,7 +2874,9 @@ export async function fetchProfileCommentEvents(
   const filter = until
     ? { kinds: [1111], authors: [pubkey], limit, until }
     : { kinds: [1111], authors: [pubkey], limit };
-  return runtime.fetchBackwardEvents<ProfileCommentEvent>([filter], { rejectOnError: true });
+  return runtime.fetchBackwardEvents<ProfileCommentEvent>([filter], {
+    rejectOnError: true
+  });
 }
 
 export async function fetchFollowListSnapshot(
@@ -2725,7 +2918,12 @@ export async function fetchProfileMetadataSources(
   );
 
   if (unresolvedPubkeys.length === 0) {
-    return { cachedEvents, fetchedEvents, fallbackEvents: [], unresolvedPubkeys };
+    return {
+      cachedEvents,
+      fetchedEvents,
+      fallbackEvents: [],
+      unresolvedPubkeys
+    };
   }
 
   const fallbackResults = await Promise.all(
@@ -2849,7 +3047,9 @@ export async function fetchCustomEmojiSources(
   const fetchedEvents =
     missingFilters.length === 0
       ? []
-      : await runtime.fetchBackwardEvents<StoredEvent>(missingFilters, { timeoutMs: 5_000 });
+      : await runtime.fetchBackwardEvents<StoredEvent>(missingFilters, {
+          timeoutMs: 5_000
+        });
 
   await Promise.all(fetchedEvents.map((event) => cacheEvent(eventsDB, event)));
 
@@ -2917,7 +3117,14 @@ export async function searchEpisodeBookmarkByGuid(
   if (cachedMatch) return cachedMatch;
 
   const event = await runtime.fetchBackwardFirst<StoredEvent>(
-    [{ kinds: [39701], authors: [pubkey], '#i': [`podcast:item:guid:${guid}`], limit: 1 }],
+    [
+      {
+        kinds: [39701],
+        authors: [pubkey],
+        '#i': [`podcast:item:guid:${guid}`],
+        limit: 1
+      }
+    ],
     { timeoutMs: 5_000 }
   );
 
@@ -3123,7 +3330,10 @@ export async function fetchRelayListEvents(
     relayListKind,
     followKind
   ]);
-  return { relayListEvents: relayListEvents ?? [], followListEvents: followListEvents ?? [] };
+  return {
+    relayListEvents: relayListEvents ?? [],
+    followListEvents: followListEvents ?? []
+  };
 }
 
 export async function fetchRelayListSources(
