@@ -188,37 +188,39 @@ façade である。
 
 ### 6.1 API サマリ
 
-| API                              | 入力                                | 出力                               | 役割                       |
-| -------------------------------- | ----------------------------------- | ---------------------------------- | -------------------------- |
-| `cachedFetchById`                | `eventId: string`                   | `Promise<CachedFetchByIdResult>`   | by-id canonical read       |
-| `invalidateFetchByIdCache`       | `eventId: string`                   | `void`                             | by-id cache invalidation   |
-| `useCachedLatest`                | `pubkey: string, kind: number`      | `UseCachedLatestResult`            | latest-event reactive read |
-| `readLatestEvent`                | `pubkey: string, kind: number`      | `Promise<Event \| null>`           | 単発 latest read           |
-| `setPreferredRelays`             | `urls: string[]`                    | `Promise<void>`                    | preferred relay 更新       |
-| `publishSignedEvent`             | `EventParameters`                   | `Promise<void>`                    | 単一 publish               |
-| `publishSignedEvents`            | `EventParameters[]`                 | `Promise<void>`                    | 複数 publish               |
-| `retryQueuedPublishes`           | なし                                | `Promise<void>`                    | pending publish retry      |
-| `verifySignedEvent`              | `unknown`                           | `Promise<boolean>`                 | signature verification     |
-| `fetchProfileMetadataEvents`     | `pubkeys: readonly string[]`        | `Promise<...>`                     | kind:0 metadata fetch      |
-| `fetchFollowListSnapshot`        | `pubkey, followKind?`               | `Promise<...>`                     | follow list snapshot       |
-| `fetchCustomEmojiSources`        | `pubkey`                            | `Promise<...>`                     | emoji source fetch         |
-| `fetchCustomEmojiCategories`     | `pubkey`                            | `Promise<EmojiCategory[]>`         | emoji categories fetch     |
-| `fetchProfileCommentEvents`      | `pubkey, until?, limit?`            | `Promise<...>`                     | profile comment read       |
-| `fetchNostrEventById`            | `eventId, relayHints`               | `Promise<T \| null>`               | relay-hinted event fetch   |
-| `fetchBackwardEvents`            | `filters, options?`                 | `Promise<T[]>`                     | coordinator backward read  |
-| `fetchBackwardFirst`             | `filters, options?`                 | `Promise<T \| null>`               | first backward read        |
-| `loadCommentSubscriptionDeps`    | なし                                | `Promise<CommentSubscriptionRefs>` | comments subscription deps |
-| `buildCommentContentFilters`     | `idValue, kinds`                    | `Filter[]`                         | comments filter build      |
-| `startCommentSubscription`       | refs + filters + handlers           | `SubscriptionHandle`               | comments stream            |
-| `startMergedCommentSubscription` | refs + filters + handlers           | `SubscriptionHandle`               | merged comments stream     |
-| `startCommentDeletionReconcile`  | refs + cachedIds + handlers         | `SubscriptionHandle`               | deletion reconcile         |
-| `subscribeNotificationStreams`   | options + handlers                  | `Promise<...>`                     | notification streams       |
-| `snapshotRelayStatuses`          | `urls`                              | `Promise<...>`                     | relay status snapshot      |
-| `observeRelayStatuses`           | `onPacket`                          | `Promise<...>`                     | relay status observe       |
-| `fetchRelayListEvents`           | `pubkey, relayListKind, followKind` | `Promise<...>`                     | relay list fetch           |
-| `fetchWot`                       | `pubkey + callbacks + extractor`    | `Promise<WotResult>`               | Web of Trust fetch         |
-| `searchBookmarkDTagEvent`        | `pubkey, normalizedUrl`             | `Promise<...>`                     | bookmark search            |
-| `searchEpisodeBookmarkByGuid`    | `pubkey, guid`                      | `Promise<...>`                     | episode bookmark search    |
+| API                              | 入力                                | 出力                                 | 役割                       |
+| -------------------------------- | ----------------------------------- | ------------------------------------ | -------------------------- |
+| `cachedFetchById`                | `eventId: string`                   | `Promise<CachedFetchByIdResult>`     | by-id canonical read       |
+| `invalidateFetchByIdCache`       | `eventId: string`                   | `void`                               | by-id cache invalidation   |
+| `useCachedLatest`                | `pubkey: string, kind: number`      | `UseCachedLatestResult`              | latest-event reactive read |
+| `readLatestEvent`                | `pubkey: string, kind: number`      | `Promise<Event \| null>`             | 単発 latest read           |
+| `setPreferredRelays`             | `urls: string[]`                    | `Promise<void>`                      | preferred relay 更新       |
+| `publishSignedEvent`             | `EventParameters`                   | `Promise<void>`                      | 単一 publish               |
+| `publishSignedEvents`            | `EventParameters[]`                 | `Promise<void>`                      | 複数 publish               |
+| `retryQueuedPublishes`           | なし                                | `Promise<void>`                      | pending publish retry      |
+| `verifySignedEvent`              | `unknown`                           | `Promise<boolean>`                   | signature verification     |
+| `fetchProfileMetadataEvents`     | `pubkeys: readonly string[]`        | `Promise<...>`                       | kind:0 metadata fetch      |
+| `fetchFollowListSnapshot`        | `pubkey, followKind?`               | `Promise<...>`                       | follow list snapshot       |
+| `fetchCustomEmojiSources`        | `pubkey`                            | `Promise<...>`                       | emoji source fetch         |
+| `fetchCustomEmojiCategories`     | `pubkey`                            | `Promise<EmojiCategory[]>`           | emoji categories fetch     |
+| `fetchProfileCommentEvents`      | `pubkey, until?, limit?`            | `Promise<...>`                       | profile comment read       |
+| `fetchNostrEventById`            | `eventId, relayHints`               | `Promise<T \| null>`                 | relay-hinted event fetch   |
+| `fetchBackwardEvents`            | `filters, options?`                 | `Promise<T[]>`                       | coordinator backward read  |
+| `fetchBackwardFirst`             | `filters, options?`                 | `Promise<T \| null>`                 | first backward read        |
+| `loadCommentSubscriptionDeps`    | なし                                | `Promise<CommentSubscriptionRefs>`   | comments subscription deps |
+| `buildCommentContentFilters`     | `idValue, kinds`                    | `Filter[]`                           | comments filter build      |
+| `startCommentSubscription`       | refs + filters + handlers           | `SubscriptionHandle`                 | comments stream            |
+| `startMergedCommentSubscription` | refs + filters + handlers           | `SubscriptionHandle`                 | merged comments stream     |
+| `startCommentDeletionReconcile`  | refs + cachedIds + handlers         | `SubscriptionHandle`                 | deletion reconcile         |
+| `subscribeNotificationStreams`   | options + handlers                  | `Promise<...>`                       | notification streams       |
+| `snapshotRelayStatuses`          | `urls`                              | `Promise<...>`                       | relay status snapshot      |
+| `observeRelayStatuses`           | `onPacket`                          | `Promise<...>`                       | relay status observe       |
+| `snapshotRelayCapabilities`      | `urls`                              | `Promise<RelayCapabilitySnapshot[]>` | relay capability snapshot  |
+| `observeRelayCapabilities`       | `onPacket`                          | `Promise<...>`                       | relay capability observe   |
+| `fetchRelayListEvents`           | `pubkey, relayListKind, followKind` | `Promise<...>`                       | relay list fetch           |
+| `fetchWot`                       | `pubkey + callbacks + extractor`    | `Promise<WotResult>`                 | Web of Trust fetch         |
+| `searchBookmarkDTagEvent`        | `pubkey, normalizedUrl`             | `Promise<...>`                       | bookmark search            |
+| `searchEpisodeBookmarkByGuid`    | `pubkey, guid`                      | `Promise<...>`                       | episode bookmark search    |
 
 ### 6.2 Read API
 

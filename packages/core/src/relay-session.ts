@@ -12,6 +12,7 @@ import {
 } from './relay-capability.js';
 import {
   buildRequestExecutionPlan,
+  type Filter as RequestFilter,
   type OptimizedLogicalRequestPlan,
   type RequestOptimizerCapabilities
 } from './relay-request.js';
@@ -300,7 +301,7 @@ interface RelayRequestConsumer {
 
 interface QueuedRelayShard {
   readonly shardKey: string;
-  readonly filters: readonly Filter[];
+  readonly filters: readonly RequestFilter[];
 }
 
 interface ActiveRequestGroup {

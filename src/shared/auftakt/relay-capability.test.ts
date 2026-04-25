@@ -16,7 +16,7 @@ const {
 });
 
 vi.mock('@auftakt/resonote', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = (await importOriginal());
   return {
     ...actual,
     createResonoteCoordinator: createResonoteCoordinatorMock,

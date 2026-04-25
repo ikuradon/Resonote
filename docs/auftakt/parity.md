@@ -34,6 +34,8 @@
 | `subscribeNotificationStreams`   | `documented`               | Yes     | -                                        | -           |
 | `snapshotRelayStatuses`          | `documented`               | Yes     | -                                        | -           |
 | `observeRelayStatuses`           | `documented`               | Yes     | -                                        | -           |
+| `snapshotRelayCapabilities`      | `documented`               | Yes     | -                                        | -           |
+| `observeRelayCapabilities`       | `documented`               | Yes     | -                                        | -           |
 | `fetchRelayListEvents`           | `documented`               | Yes     | -                                        | -           |
 | `fetchRelayListSources`          | `undocumented-but-allowed` | No      | `relays.svelte.ts fallback absorption`   | `allowlist` |
 | `clearStoredEvents`              | `undocumented-but-allowed` | No      | `storage maintenance`                    | `allowlist` |
@@ -58,12 +60,14 @@
 | `CommentSubscriptionRefs` | `supporting-only`       | No      | Return type for `loadCommentSubscriptionDeps`          |
 | `DeletionEvent`           | `supporting-only`       | No      | Callback parameter for `startCommentDeletionReconcile` |
 | `EmojiCategory`           | `documented in spec §6` | Yes     | Return type for `fetchCustomEmojiCategories`           |
+| `RelayCapabilityPacket`   | `documented in spec §6` | Yes     | Packet type for `observeRelayCapabilities`             |
+| `RelayCapabilitySnapshot` | `documented in spec §6` | Yes     | Return type for `snapshotRelayCapabilities`            |
 | `SubscriptionHandle`      | `supporting-only`       | No      | Return type for subscription starters                  |
 | `UseCachedLatestResult`   | `documented in spec §6` | Yes     | Return type for `useCachedLatest`                      |
 
 ## 3. Missing Surfaces
 
-- **Spec §6 Documented APIs missing from code**: None. All 29 APIs are present in `src/shared/auftakt/resonote.ts`.
+- **Spec §6 Documented APIs missing from code**: None. All 31 APIs are present in `src/shared/auftakt/resonote.ts`.
 - **Code Exports missing from Spec §6**:
   - `fetchProfileMetadataSources` (Value)
   - `fetchNotificationTargetPreview` (Value)
