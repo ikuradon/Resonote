@@ -18,7 +18,7 @@ const sendSubscribeMock = vi.fn<(callbacks: SendCallbacks) => { unsubscribe: () 
 const useSubscribeMock = vi.fn<(callbacks: UseCallbacks) => { unsubscribe: () => void }>(() => ({
   unsubscribe: vi.fn()
 }));
-const fetchBackwardFirstMock = vi.fn();
+const fetchMaterializedLatestEventMock = vi.fn();
 
 const mockRxNostr = {
   setDefaultRelays: vi.fn(),
@@ -58,8 +58,8 @@ vi.mock('$shared/nostr/event-db.js', () => ({
   getEventsDB: async () => ({ put: vi.fn() })
 }));
 
-vi.mock('$shared/nostr/query.js', () => ({
-  fetchBackwardFirst: fetchBackwardFirstMock
+vi.mock('$shared/nostr/materialized-latest.js', () => ({
+  fetchMaterializedLatestEvent: fetchMaterializedLatestEventMock
 }));
 
 beforeEach(() => {
@@ -230,12 +230,11 @@ describe('castSigned', () => {
 });
 
 describe('fetchLatestEvent', () => {
-  it('delegates to the materialized backward query helper', async () => {
-    fetchBackwardFirstMock.mockResolvedValueOnce({
+  it('delegates to the materialized latest bridge', async () => {
+    fetchMaterializedLatestEventMock.mockResolvedValueOnce({
       created_at: 2,
       tags: [['r', 'wss://relay.example']],
-      content: 'new',
-      id: 'event-id'
+      content: 'new'
     });
     const { fetchLatestEvent } = await import('./client.js');
 
@@ -244,20 +243,14 @@ describe('fetchLatestEvent', () => {
       tags: [['r', 'wss://relay.example']],
       content: 'new'
     });
-    expect(fetchBackwardFirstMock).toHaveBeenCalledWith(
-      [{ kinds: [1], authors: ['pubkey'], limit: 1 }],
-      { timeoutMs: 10_000 }
-    );
+    expect(fetchMaterializedLatestEventMock).toHaveBeenCalledWith('pubkey', 1);
   });
 
   it('returns null when the materialized query misses', async () => {
-    fetchBackwardFirstMock.mockResolvedValueOnce(null);
+    fetchMaterializedLatestEventMock.mockResolvedValueOnce(null);
     const { fetchLatestEvent } = await import('./client.js');
 
     await expect(fetchLatestEvent('pubkey', 1)).resolves.toBeNull();
-    expect(fetchBackwardFirstMock).toHaveBeenCalledWith(
-      [{ kinds: [1], authors: ['pubkey'], limit: 1 }],
-      { timeoutMs: 10_000 }
-    );
+    expect(fetchMaterializedLatestEventMock).toHaveBeenCalledWith('pubkey', 1);
   });
 });

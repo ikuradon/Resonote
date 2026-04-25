@@ -8,6 +8,7 @@ import {
 } from '@auftakt/core';
 import type { EventParameters } from 'nostr-typedef';
 
+import { fetchMaterializedLatestEvent } from '$shared/nostr/materialized-latest.js';
 import { DEFAULT_RELAYS } from '$shared/nostr/relays.js';
 import { createLogger } from '$shared/utils/logger.js';
 
@@ -96,13 +97,7 @@ export async function fetchLatestEvent(
   pubkey: string,
   kind: number
 ): Promise<{ tags: string[][]; content: string; created_at: number } | null> {
-  const { fetchBackwardFirst } = await import('$shared/nostr/query.js');
-  const event = await fetchBackwardFirst<{
-    tags: string[][];
-    content: string;
-    created_at: number;
-  }>([{ kinds: [kind], authors: [pubkey], limit: 1 }], { timeoutMs: 10_000 });
-  return event ? { tags: event.tags, content: event.content, created_at: event.created_at } : null;
+  return fetchMaterializedLatestEvent(pubkey, kind);
 }
 
 export async function setDefaultRelays(urls: string[]): Promise<void> {

@@ -37,6 +37,16 @@ export const nostrOwnershipMatrix = {
     owner: 'shared/nostr adapter runtime',
     disposition: 'migrate toward package/runtime-owned session facade'
   },
+  'src/shared/nostr/materialized-latest.test.ts': {
+    classification: 'app-owned',
+    owner: 'app test harness',
+    disposition: 'retain as regression coverage for materialized latest-event bridge'
+  },
+  'src/shared/nostr/materialized-latest.ts': {
+    classification: 'adapter-specific',
+    owner: 'shared/nostr read/query adapter',
+    disposition: 'retain as internal bridge from shared client wrapper to materialized query path'
+  },
   'src/shared/nostr/content-link.test.ts': {
     classification: 'app-owned',
     owner: 'app test harness',

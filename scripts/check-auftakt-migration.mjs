@@ -145,6 +145,8 @@ const semanticGuardPolicies = [
       'src/shared/auftakt/resonote.ts',
       'src/shared/nostr/cached-query.svelte.ts',
       'src/shared/nostr/cached-query.test.ts',
+      'src/shared/nostr/materialized-latest.ts',
+      'src/shared/nostr/materialized-latest.test.ts',
       'src/shared/nostr/relays-config.ts',
       'src/shared/nostr/relays-config.test.ts',
       'src/shared/nostr/user-relays.test.ts'
