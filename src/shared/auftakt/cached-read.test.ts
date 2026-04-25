@@ -50,13 +50,51 @@ vi.mock('$shared/utils/logger.js', () => ({
 import { finalizeEvent } from '@auftakt/core';
 
 import {
-  cachedFetchById,
-  invalidateFetchByIdCache,
-  resetFetchByIdCache,
-  useCachedLatest
-} from './cached-query.svelte.js';
+  cachedFetchById as cachedFetchByIdWithRuntime,
+  type CachedReadRuntime,
+  invalidateFetchByIdCache as invalidateFetchByIdCacheWithRuntime,
+  useCachedLatest as useCachedLatestWithRuntime
+} from './cached-read.svelte.js';
 
 const RELAY_SECRET_KEY = new Uint8Array(32).fill(1);
+
+function createCachedReadRuntime(): CachedReadRuntime {
+  return {
+    getEventsDB: async () => ({
+      getById: dbGetByIdMock,
+      getByPubkeyAndKind: dbGetByPubkeyAndKindMock,
+      listNegentropyEventRefs: vi.fn(async () => []),
+      put: vi.fn(async () => true)
+    }),
+    getRxNostr: async () => ({
+      use: () => ({
+        subscribe: subscribeMock
+      })
+    }),
+    createRxBackwardReq: () => ({
+      emit: vi.fn(),
+      over: vi.fn()
+    })
+  } as unknown as CachedReadRuntime;
+}
+
+let cachedReadRuntime = createCachedReadRuntime();
+
+function resetRuntime(): void {
+  cachedReadRuntime = createCachedReadRuntime();
+}
+
+async function cachedFetchById(eventId: string) {
+  return cachedFetchByIdWithRuntime(cachedReadRuntime, eventId);
+}
+
+function invalidateFetchByIdCache(eventId: string): void {
+  invalidateFetchByIdCacheWithRuntime(cachedReadRuntime, eventId);
+}
+
+function useCachedLatest(pubkey: string, kind: number) {
+  return useCachedLatestWithRuntime(cachedReadRuntime, pubkey, kind);
+}
 
 function signedRelayEvent(overrides: {
   content: string;
@@ -78,7 +116,7 @@ function signedRelayEvent(overrides: {
 describe('cachedFetchById', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    resetFetchByIdCache();
+    resetRuntime();
     dbGetByIdMock.mockClear();
     dbGetByIdMock.mockResolvedValue(null);
     subscribeMock.mockClear();
@@ -209,7 +247,7 @@ describe('cachedFetchById', () => {
 describe('invalidatedDuringFetch race condition', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    resetFetchByIdCache();
+    resetRuntime();
     // mockReset clears call history AND any pending mockResolvedValueOnce queues,
     // preventing cross-test pollution when a prior test leaves unconsumed mocks.
     dbGetByIdMock.mockReset();
@@ -334,7 +372,7 @@ describe('invalidatedDuringFetch race condition', () => {
 describe('invalidateFetchByIdCache', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    resetFetchByIdCache();
+    resetRuntime();
     dbGetByIdMock.mockClear();
     dbGetByIdMock.mockResolvedValue(null);
   });
@@ -403,7 +441,7 @@ describe('useCachedLatest', () => {
   let activeResult: ReturnType<typeof useCachedLatest> | undefined;
 
   beforeEach(async () => {
-    resetFetchByIdCache();
+    resetRuntime();
     // Drain any leaked async chains from previous tests before resetting mocks
     await new Promise((r) => setTimeout(r, 50));
     dbGetByPubkeyAndKindMock.mockClear();
