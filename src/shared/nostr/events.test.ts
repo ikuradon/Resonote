@@ -12,7 +12,6 @@ import {
   buildShare,
   COMMENT_KIND,
   extractDeletionTargets,
-  extractHashtags,
   formatPosition,
   parsePosition
 } from './events.js';
@@ -176,32 +175,6 @@ describe('parsePosition', () => {
     expect(parsePosition('')).toBeNull();
     expect(parsePosition('1:5')).toBeNull();
     expect(parsePosition('1:005')).toBeNull();
-  });
-});
-
-describe('extractHashtags', () => {
-  it('should extract a single hashtag', () => {
-    expect(extractHashtags('hello #world')).toEqual(['world']);
-  });
-
-  it('should extract multiple hashtags and deduplicate', () => {
-    expect(extractHashtags('#foo #bar #Foo')).toEqual(['foo', 'bar']);
-  });
-
-  it('should extract Japanese hashtags', () => {
-    expect(extractHashtags('#音楽 #ロック')).toEqual(['音楽', 'ロック']);
-  });
-
-  it('should ignore # in the middle of a word', () => {
-    expect(extractHashtags('c#sharp')).toEqual([]);
-  });
-
-  it('should return empty array for no hashtags', () => {
-    expect(extractHashtags('no hashtags here')).toEqual([]);
-  });
-
-  it('should handle hashtag at start of string', () => {
-    expect(extractHashtags('#first word')).toEqual(['first']);
   });
 });
 
@@ -569,28 +542,6 @@ describe('parsePosition', () => {
 
   it('should handle large values', () => {
     expect(parsePosition('86400')).toBe(86400000);
-  });
-});
-
-describe('extractHashtags', () => {
-  it('should extract hashtags from content', () => {
-    expect(extractHashtags('hello #world #music')).toEqual(['world', 'music']);
-  });
-
-  it('should deduplicate hashtags (case-insensitive)', () => {
-    expect(extractHashtags('#Music #music #MUSIC')).toEqual(['music']);
-  });
-
-  it('should support Japanese characters', () => {
-    expect(extractHashtags('#音楽 #テスト')).toEqual(['音楽', 'テスト']);
-  });
-
-  it('should return empty array when no hashtags', () => {
-    expect(extractHashtags('no hashtags here')).toEqual([]);
-  });
-
-  it('should ignore # in URLs', () => {
-    expect(extractHashtags('visit https://example.com#section')).toEqual([]);
   });
 });
 

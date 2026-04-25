@@ -615,6 +615,21 @@ async function materializeIncomingEvent(
   }
 }
 
+function toStoredEvent(event: unknown): StoredEvent | null {
+  const candidate = event as Partial<StoredEvent>;
+  if (
+    typeof candidate.id === 'string' &&
+    typeof candidate.pubkey === 'string' &&
+    typeof candidate.content === 'string' &&
+    typeof candidate.created_at === 'number' &&
+    Array.isArray(candidate.tags) &&
+    typeof candidate.kind === 'number'
+  ) {
+    return candidate as StoredEvent;
+  }
+  return null;
+}
+
 function createLatestReadDriver<TEvent extends StoredEvent>(
   runtime: CoordinatorReadRuntime,
   pubkey: string,
@@ -685,7 +700,7 @@ function createLatestReadDriver<TEvent extends StoredEvent>(
               quarantine: async () => {}
             });
             if (!result.ok) return;
-            const incoming = result.event as TEvent;
+            const incoming = result.event as unknown as TEvent;
             const accepted = result.stored;
             if (!accepted || state.destroyed) return;
             if (state.event === null || incoming.created_at > state.event.created_at) {
@@ -2068,7 +2083,8 @@ async function fetchRepairEventsFromRelay(
       })
       .subscribe({
         next: (packet) => {
-          events.set(packet.event.id, packet.event);
+          const event = toStoredEvent(packet.event);
+          if (event) events.set(event.id, event);
         },
         complete: () => finish(),
         error: () => finish()

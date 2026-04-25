@@ -1,5 +1,5 @@
 import { schnorr } from '@noble/curves/secp256k1';
-import { sha256 } from '@noble/hashes/sha256';
+import { sha256 } from '@noble/hashes/sha2';
 import { bytesToHex } from '@noble/hashes/utils';
 import type { Event as NostrEvent } from 'nostr-typedef';
 

@@ -1,60 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  addEmojiTag,
-  extractShortcode,
-  isEmojiTag,
-  isShortcode,
-  parseEmojiContent
-} from '$shared/utils/emoji.js';
-
-describe('parseEmojiContent', () => {
-  it('should return a text segment when there are no emoji tags', () => {
-    expect(parseEmojiContent('hello world', [])).toEqual([{ type: 'text', value: 'hello world' }]);
-  });
-
-  it('should replace matching shortcodes with emoji segments', () => {
-    expect(
-      parseEmojiContent('hello :sushi: world', [
-        ['emoji', 'sushi', 'https://example.com/sushi.png']
-      ])
-    ).toEqual([
-      { type: 'text', value: 'hello ' },
-      { type: 'emoji', shortcode: 'sushi', url: 'https://example.com/sushi.png' },
-      { type: 'text', value: ' world' }
-    ]);
-  });
-
-  it('should handle multiple emoji shortcodes', () => {
-    expect(
-      parseEmojiContent(':a: and :b:', [
-        ['emoji', 'a', 'https://example.com/a.png'],
-        ['emoji', 'b', 'https://example.com/b.png']
-      ])
-    ).toEqual([
-      { type: 'emoji', shortcode: 'a', url: 'https://example.com/a.png' },
-      { type: 'text', value: ' and ' },
-      { type: 'emoji', shortcode: 'b', url: 'https://example.com/b.png' }
-    ]);
-  });
-
-  it('should keep content as text when shortcode tags are missing', () => {
-    expect(
-      parseEmojiContent('hello :unknown: world', [
-        ['emoji', 'sushi', 'https://example.com/sushi.png']
-      ])
-    ).toEqual([{ type: 'text', value: 'hello :unknown: world' }]);
-  });
-
-  it('should ignore malformed or unsafe emoji tags', () => {
-    expect(parseEmojiContent(':sushi:', [['emoji', 'sushi']])).toEqual([
-      { type: 'text', value: ':sushi:' }
-    ]);
-    expect(parseEmojiContent(':evil:', [['emoji', 'evil', 'javascript:alert(1)']])).toEqual([
-      { type: 'text', value: ':evil:' }
-    ]);
-  });
-});
+import { addEmojiTag, extractShortcode, isEmojiTag, isShortcode } from '$shared/utils/emoji.js';
 
 describe('isEmojiTag', () => {
   it('should recognize valid emoji tags', () => {

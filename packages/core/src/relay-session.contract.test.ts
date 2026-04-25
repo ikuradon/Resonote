@@ -15,7 +15,12 @@ class FakeWebSocket {
   static instances: FakeWebSocket[] = [];
 
   readonly sent: unknown[] = [];
-  readonly listeners: Record<string, Listener[]> = { open: [], message: [], error: [], close: [] };
+  readonly listeners: Record<string, Listener[]> = {
+    open: [],
+    message: [],
+    error: [],
+    close: []
+  };
   readyState = FakeWebSocket.CONNECTING;
 
   constructor(readonly url: string) {
@@ -95,8 +100,13 @@ describe('relay replay request identity contract', () => {
   });
 
   it('reconnect replays forward streams by logical requestKey', async () => {
-    const session = createRxNostrSession({ defaultRelays: [RELAY_URL], eoseTimeout: 100 });
-    const req = createRxForwardReq({ requestKey: 'rq:v1:contract-reconnect' as RequestKey });
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
+    const req = createRxForwardReq({
+      requestKey: 'rq:v1:contract-reconnect' as RequestKey
+    });
     const received: string[] = [];
 
     const sub = session.use(req).subscribe({
@@ -147,8 +157,13 @@ describe('relay replay request identity contract', () => {
   });
 
   it('queues REQ commands while relay is reconnecting and flushes after open', async () => {
-    const session = createRxNostrSession({ defaultRelays: [RELAY_URL], eoseTimeout: 100 });
-    const req = createRxBackwardReq({ requestKey: 'rq:v1:contract-queued-req' as RequestKey });
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
+    const req = createRxBackwardReq({
+      requestKey: 'rq:v1:contract-queued-req' as RequestKey
+    });
     const sub = session.use(req).subscribe({});
 
     req.emit({ kinds: [1] });
@@ -167,8 +182,13 @@ describe('relay replay request identity contract', () => {
   });
 
   it('unsubscribe removes replay record and stops restoration', async () => {
-    const session = createRxNostrSession({ defaultRelays: [RELAY_URL], eoseTimeout: 100 });
-    const req = createRxForwardReq({ requestKey: 'rq:v1:contract-unsubscribe' as RequestKey });
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
+    const req = createRxForwardReq({
+      requestKey: 'rq:v1:contract-unsubscribe' as RequestKey
+    });
     const sub = session.use(req).subscribe({});
 
     req.emit({ kinds: [1], authors: ['pubkey-a'] });
@@ -189,8 +209,13 @@ describe('relay replay request identity contract', () => {
   });
 
   it('completes backward requests after relay EOSE closes the pending subscription', async () => {
-    const session = createRxNostrSession({ defaultRelays: [RELAY_URL], eoseTimeout: 100 });
-    const req = createRxBackwardReq({ requestKey: 'rq:v1:contract-backward-eose' as RequestKey });
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
+    const req = createRxBackwardReq({
+      requestKey: 'rq:v1:contract-backward-eose' as RequestKey
+    });
     let completed = false;
 
     const sub = session.use(req).subscribe({
@@ -220,7 +245,10 @@ describe('relay replay request identity contract', () => {
   });
 
   it('surfaces relay OK acknowledgements for published events', async () => {
-    const session = createRxNostrSession({ defaultRelays: [RELAY_URL], eoseTimeout: 100 });
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
     const packets: Array<{
       from: string;
       eventId: string;
@@ -275,15 +303,19 @@ describe('relay replay request identity contract', () => {
       defaultRelays: [RELAY_URL, RELAY_B_URL],
       eoseTimeout: 100
     });
-    const req = createRxForwardReq({ requestKey: 'rq:v1:contract-degraded-relay' as RequestKey });
+    const req = createRxForwardReq({
+      requestKey: 'rq:v1:contract-degraded-relay' as RequestKey
+    });
     const statePackets: Array<{ from: string; state: string; aggregate: string }> = [];
 
-    const stateSub = session.createConnectionStateObservable().subscribe((packet) => {
-      statePackets.push({
-        from: packet.from,
-        state: packet.state,
-        aggregate: packet.aggregate.state
-      });
+    const stateSub = session.createConnectionStateObservable().subscribe({
+      next: (packet) => {
+        statePackets.push({
+          from: packet.from,
+          state: packet.state,
+          aggregate: packet.aggregate.state
+        });
+      }
     });
     const sub = session.use(req).subscribe({});
 
@@ -292,7 +324,9 @@ describe('relay replay request identity contract', () => {
     await waitUntil(() => FakeWebSocket.instances.length >= 2);
     const socketA = FakeWebSocket.instances.find((socket) => socket.url === RELAY_URL);
     const socketB = FakeWebSocket.instances.find((socket) => socket.url === RELAY_B_URL);
-    if (!socketA || !socketB) throw new Error('missing sockets for both relays');
+    if (!socketA || !socketB) {
+      throw new Error('missing sockets for both relays');
+    }
 
     socketA.open();
     socketB.open();
@@ -322,12 +356,19 @@ describe('relay replay request identity contract', () => {
   });
 
   it('aggregate session becomes degraded when all relays disconnect', async () => {
-    const session = createRxNostrSession({ defaultRelays: [RELAY_URL], eoseTimeout: 100 });
-    const req = createRxForwardReq({ requestKey: 'rq:v1:contract-all-disconnect' as RequestKey });
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
+    const req = createRxForwardReq({
+      requestKey: 'rq:v1:contract-all-disconnect' as RequestKey
+    });
     const states: string[] = [];
 
-    const stateSub = session.createConnectionStateObservable().subscribe((packet) => {
-      states.push(packet.aggregate.state);
+    const stateSub = session.createConnectionStateObservable().subscribe({
+      next: (packet) => {
+        states.push(packet.aggregate.state);
+      }
     });
     const sub = session.use(req).subscribe({});
 
@@ -349,19 +390,24 @@ describe('relay replay request identity contract', () => {
   });
 
   it('reconnect emits replaying -> live transition in typed observation', async () => {
-    const session = createRxNostrSession({ defaultRelays: [RELAY_URL], eoseTimeout: 100 });
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
     const req = createRxForwardReq({
       requestKey: 'rq:v1:contract-replay-observation' as RequestKey
     });
     const states: Array<{ relay: string; state: string; aggregate: string; reason: string }> = [];
 
-    const stateSub = session.createConnectionStateObservable().subscribe((packet) => {
-      states.push({
-        relay: packet.from,
-        state: packet.state,
-        aggregate: packet.aggregate.state,
-        reason: packet.reason
-      });
+    const stateSub = session.createConnectionStateObservable().subscribe({
+      next: (packet) => {
+        states.push({
+          relay: packet.from,
+          state: packet.state,
+          aggregate: packet.aggregate.state,
+          reason: packet.reason
+        });
+      }
     });
     const sub = session.use(req).subscribe({});
 
@@ -402,7 +448,10 @@ describe('relay replay request identity contract', () => {
       kinds: [1],
       authors: ['pubkey-a', 'pubkey-b']
     };
-    const session = createRxNostrSession({ defaultRelays: [RELAY_URL], eoseTimeout: 100 });
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
     const leftReq = createRxForwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'forward',
@@ -433,7 +482,11 @@ describe('relay replay request identity contract', () => {
     expect(socket.sent[0]).toEqual([
       'REQ',
       expect.stringMatching(/^auftakt-/),
-      { '#e': ['event-a', 'event-b'], authors: ['pubkey-a', 'pubkey-b'], kinds: [1] }
+      {
+        '#e': ['event-a', 'event-b'],
+        authors: ['pubkey-a', 'pubkey-b'],
+        kinds: [1]
+      }
     ]);
 
     leftSub.unsubscribe();
@@ -471,7 +524,9 @@ describe('relay replay request identity contract', () => {
     await waitUntil(() => FakeWebSocket.instances.length >= 2);
     const socketA = FakeWebSocket.instances.find((socket) => socket.url === RELAY_URL);
     const socketB = FakeWebSocket.instances.find((socket) => socket.url === RELAY_B_URL);
-    if (!socketA || !socketB) throw new Error('missing sockets for both relays');
+    if (!socketA || !socketB) {
+      throw new Error('missing sockets for both relays');
+    }
 
     socketA.open();
     socketB.open();
@@ -528,7 +583,9 @@ describe('relay replay request identity contract', () => {
     await waitUntil(() => FakeWebSocket.instances.length >= 2);
     const socketA = FakeWebSocket.instances.find((socket) => socket.url === RELAY_URL);
     const socketB = FakeWebSocket.instances.find((socket) => socket.url === RELAY_B_URL);
-    if (!socketA || !socketB) throw new Error('missing sockets for both relays');
+    if (!socketA || !socketB) {
+      throw new Error('missing sockets for both relays');
+    }
 
     socketA.open();
     socketB.open();
@@ -562,7 +619,10 @@ describe('relay replay request identity contract', () => {
   it('reconnect replays one shared logical group without duplicate outbound REQs', async () => {
     const leftFilter = { authors: ['pubkey-a', 'pubkey-b'], kinds: [1] };
     const rightFilter = { kinds: [1], authors: ['pubkey-b', 'pubkey-a'] };
-    const session = createRxNostrSession({ defaultRelays: [RELAY_URL], eoseTimeout: 100 });
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
     const leftReq = createRxForwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'forward',
@@ -609,7 +669,10 @@ describe('relay replay request identity contract', () => {
   it('reconnect replays one shared logical group once per reconnect cycle', async () => {
     const leftFilter = { authors: ['pubkey-a', 'pubkey-b'], kinds: [1] };
     const rightFilter = { kinds: [1], authors: ['pubkey-b', 'pubkey-a'] };
-    const session = createRxNostrSession({ defaultRelays: [RELAY_URL], eoseTimeout: 100 });
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
     const leftReq = createRxForwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'forward',
@@ -669,7 +732,10 @@ describe('relay replay request identity contract', () => {
         defaultReadRelays: false
       }
     };
-    const session = createRxNostrSession({ defaultRelays: [RELAY_URL], eoseTimeout: 100 });
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
     const appReq = createRxBackwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'backward',
@@ -721,7 +787,10 @@ describe('relay replay request identity contract', () => {
   it('keeps shared transport active until the final logical consumer detaches', async () => {
     const leftFilter = { authors: ['pubkey-a', 'pubkey-b'], kinds: [1] };
     const rightFilter = { kinds: [1], authors: ['pubkey-b', 'pubkey-a'] };
-    const session = createRxNostrSession({ defaultRelays: [RELAY_URL], eoseTimeout: 100 });
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
     const leftReq = createRxForwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'forward',
@@ -762,8 +831,13 @@ describe('relay replay request identity contract', () => {
   });
 
   it('dispose is represented as runtime-owned aggregate transition', async () => {
-    const session = createRxNostrSession({ defaultRelays: [RELAY_URL], eoseTimeout: 100 });
-    const req = createRxForwardReq({ requestKey: 'rq:v1:contract-disposed' as RequestKey });
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
+    const req = createRxForwardReq({
+      requestKey: 'rq:v1:contract-disposed' as RequestKey
+    });
     const sub = session.use(req).subscribe({});
 
     req.emit({ kinds: [1], authors: ['pubkey-a'] });
@@ -780,7 +854,10 @@ describe('relay replay request identity contract', () => {
   });
 
   it('uses a dedicated negentropy subscription namespace and reports unsupported relays', async () => {
-    const session = createRxNostrSession({ defaultRelays: [RELAY_URL], eoseTimeout: 100 });
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
 
     const pending = session.requestNegentropySync({
       relayUrl: RELAY_URL,
@@ -814,7 +891,10 @@ describe('relay replay request identity contract', () => {
   });
 
   it('reports failed negentropy sync on timeout and closes the dedicated negentropy subscription', async () => {
-    const session = createRxNostrSession({ defaultRelays: [RELAY_URL], eoseTimeout: 100 });
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
 
     const pending = session.requestNegentropySync({
       relayUrl: RELAY_URL,
@@ -844,7 +924,10 @@ describe('relay replay request identity contract', () => {
   });
 
   it('rejects requests that omit canonical requestKey instead of inventing a legacy fallback', async () => {
-    const session = createRxNostrSession({ defaultRelays: [RELAY_URL], eoseTimeout: 100 });
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
     const req = createRxForwardReq();
 
     await expect(

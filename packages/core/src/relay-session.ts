@@ -511,53 +511,61 @@ class RelaySession implements RxNostr {
       finished: false
     };
 
-    const messageSub = this.messages.subscribe(({ from, message }) => {
-      if (!group.relayUrls.includes(from) || !Array.isArray(message)) return;
-      const [type, incomingSubId] = message as [string, string, ...unknown[]];
-      if (this.subIdToGroupKey.get(incomingSubId) !== group.groupKey) return;
-      if (!this.groupOwnsRelaySubId(group, from, incomingSubId)) return;
+    const messageSub = this.messages.subscribe({
+      next: ({ from, message }) => {
+        if (!group.relayUrls.includes(from) || !Array.isArray(message)) return;
+        const [type, incomingSubId] = message as [string, string, ...unknown[]];
+        if (this.subIdToGroupKey.get(incomingSubId) !== group.groupKey) return;
+        if (!this.groupOwnsRelaySubId(group, from, incomingSubId)) return;
 
-      if (type === 'EVENT') {
-        const event = (message as [string, string, NostrEvent])[2];
-        for (const consumer of group.consumers) {
-          consumer.observer.next({ from, event });
+        if (type === 'EVENT') {
+          const event = (message as [string, string, NostrEvent])[2];
+          for (const consumer of group.consumers) {
+            consumer.observer.next({ from, event });
+          }
+          return;
         }
-        return;
-      }
 
-      if ((type === 'EOSE' || type === 'CLOSED') && group.mode === 'backward') {
-        group.pendingSubIds.delete(incomingSubId);
-        this.untrackSubId(incomingSubId);
-        this.completeBackwardGroupIfDone(group);
+        if ((type === 'EOSE' || type === 'CLOSED') && group.mode === 'backward') {
+          group.pendingSubIds.delete(incomingSubId);
+          this.untrackSubId(incomingSubId);
+          this.completeBackwardGroupIfDone(group);
+        }
       }
     });
     group.cleanup.push(() => messageSub.unsubscribe());
 
-    const stateSub = this.states.subscribe((packet) => {
-      if (!group.relayUrls.includes(packet.from)) return;
+    const stateSub = this.states.subscribe({
+      next: (packet) => {
+        if (!group.relayUrls.includes(packet.from)) return;
 
-      if (group.mode === 'backward') {
+        if (group.mode === 'backward') {
+          if (
+            packet.state === 'backoff' ||
+            packet.state === 'closed' ||
+            packet.state === 'degraded'
+          ) {
+            this.dropRelayPendingSubIds(group, packet.from);
+            this.completeBackwardGroupIfDone(group);
+          }
+          return;
+        }
+
         if (
           packet.state === 'backoff' ||
           packet.state === 'closed' ||
           packet.state === 'degraded'
         ) {
-          this.dropRelayPendingSubIds(group, packet.from);
-          this.completeBackwardGroupIfDone(group);
+          this.markRelayNeedsReplay(packet.from, group.groupKey);
+          void this.getConnection(packet.from)
+            .connect()
+            .catch(() => {});
+          return;
         }
-        return;
-      }
 
-      if (packet.state === 'backoff' || packet.state === 'closed' || packet.state === 'degraded') {
-        this.markRelayNeedsReplay(packet.from, group.groupKey);
-        void this.getConnection(packet.from)
-          .connect()
-          .catch(() => {});
-        return;
-      }
-
-      if (packet.state === 'open') {
-        void this.restoreRelayStreams(packet.from);
+        if (packet.state === 'open') {
+          void this.restoreRelayStreams(packet.from);
+        }
       }
     });
     group.cleanup.push(() => stateSub.unsubscribe());
@@ -723,39 +731,43 @@ class RelaySession implements RxNostr {
         resolve(result);
       };
 
-      const messageSub = this.messages.subscribe(({ from, message }) => {
-        if (from !== options.relayUrl || !Array.isArray(message)) return;
-        const [type, incomingSubId] = message as [string, string, ...unknown[]];
-        if (incomingSubId !== subId) return;
+      const messageSub = this.messages.subscribe({
+        next: ({ from, message }) => {
+          if (from !== options.relayUrl || !Array.isArray(message)) return;
+          const [type, incomingSubId] = message as [string, string, ...unknown[]];
+          if (incomingSubId !== subId) return;
 
-        if (type === 'NEG-MSG' && typeof message[2] === 'string') {
-          finish({
-            capability: 'supported',
-            messageHex: message[2]
-          });
-          return;
-        }
+          if (type === 'NEG-MSG' && typeof message[2] === 'string') {
+            finish({
+              capability: 'supported',
+              messageHex: message[2]
+            });
+            return;
+          }
 
-        if (type === 'NEG-ERR') {
-          finish({
-            capability: 'unsupported',
-            reason: typeof message[2] === 'string' ? message[2] : 'relay-error'
-          });
+          if (type === 'NEG-ERR') {
+            finish({
+              capability: 'unsupported',
+              reason: typeof message[2] === 'string' ? message[2] : 'relay-error'
+            });
+          }
         }
       });
       cleanup.push(() => messageSub.unsubscribe());
 
-      const stateSub = this.states.subscribe((packet) => {
-        if (packet.from !== options.relayUrl) return;
-        if (
-          packet.state === 'backoff' ||
-          packet.state === 'closed' ||
-          packet.state === 'degraded'
-        ) {
-          finish({
-            capability: 'failed',
-            reason: `relay-${packet.state}`
-          });
+      const stateSub = this.states.subscribe({
+        next: (packet) => {
+          if (packet.from !== options.relayUrl) return;
+          if (
+            packet.state === 'backoff' ||
+            packet.state === 'closed' ||
+            packet.state === 'degraded'
+          ) {
+            finish({
+              capability: 'failed',
+              reason: `relay-${packet.state}`
+            });
+          }
         }
       });
       cleanup.push(() => stateSub.unsubscribe());
@@ -794,37 +806,41 @@ class RelaySession implements RxNostr {
         const event = await this.signEvent(params, options?.signer);
         eventId = event.id;
 
-        const messageSub = this.messages.subscribe(({ from, message }) => {
-          if (!relayUrls.includes(from) || !Array.isArray(message)) return;
-          if (message[0] !== 'OK' || message[1] !== eventId) return;
-          pendingRelays.delete(from);
-          observer.next({
-            from,
-            eventId,
-            ok: Boolean(message[2]),
-            notice: typeof message[3] === 'string' ? message[3] : undefined,
-            done: pendingRelays.size === 0
-          });
-          finish();
-        });
-        cleanup.push(() => messageSub.unsubscribe());
-
-        const stateSub = this.states.subscribe((packet) => {
-          if (!relayUrls.includes(packet.from)) return;
-          if (
-            (packet.state === 'backoff' ||
-              packet.state === 'closed' ||
-              packet.state === 'degraded') &&
-            pendingRelays.has(packet.from)
-          ) {
-            pendingRelays.delete(packet.from);
+        const messageSub = this.messages.subscribe({
+          next: ({ from, message }) => {
+            if (!relayUrls.includes(from) || !Array.isArray(message)) return;
+            if (message[0] !== 'OK' || message[1] !== eventId) return;
+            pendingRelays.delete(from);
             observer.next({
-              from: packet.from,
+              from,
               eventId,
-              ok: false,
+              ok: Boolean(message[2]),
+              notice: typeof message[3] === 'string' ? message[3] : undefined,
               done: pendingRelays.size === 0
             });
             finish();
+          }
+        });
+        cleanup.push(() => messageSub.unsubscribe());
+
+        const stateSub = this.states.subscribe({
+          next: (packet) => {
+            if (!relayUrls.includes(packet.from)) return;
+            if (
+              (packet.state === 'backoff' ||
+                packet.state === 'closed' ||
+                packet.state === 'degraded') &&
+              pendingRelays.has(packet.from)
+            ) {
+              pendingRelays.delete(packet.from);
+              observer.next({
+                from: packet.from,
+                eventId,
+                ok: false,
+                done: pendingRelays.size === 0
+              });
+              finish();
+            }
           }
         });
         cleanup.push(() => stateSub.unsubscribe());

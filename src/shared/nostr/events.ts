@@ -39,22 +39,6 @@ export function parsePosition(str: string): number | null {
   return null;
 }
 
-const HASHTAG_RE = /(?:^|(?<=\s))#([a-zA-Z0-9_\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]+)/g;
-
-/**
- * @deprecated Use extractContentTags from '$shared/nostr/content-parser.js' instead.
- * Note: unlike extractContentTags, this function does not filter out hex-string or digit-only tags.
- */
-export function extractHashtags(content: string): string[] {
-  const tags = new Set<string>();
-  let match: RegExpExecArray | null;
-  HASHTAG_RE.lastIndex = 0;
-  while ((match = HASHTAG_RE.exec(content)) !== null) {
-    tags.add(match[1].toLowerCase());
-  }
-  return [...tags];
-}
-
 function appendContentTags(tags: string[][], content: string, emojiTags?: string[][]): void {
   if (emojiTags) {
     tags.push(...emojiTags);

@@ -157,16 +157,17 @@ function createRelayObservationRuntime(instance: RxNostr): RelayObservationRunti
       unsubscribe(): void;
     }> {
       return Promise.resolve(
-        instance.createConnectionStateObservable().subscribe((packet) =>
-          onPacket(
-            normalizeRelayObservationPacket({
-              from: packet.from,
-              state: packet.state,
-              reason: packet.reason,
-              aggregate: packet.aggregate
-            })
-          )
-        )
+        instance.createConnectionStateObservable().subscribe({
+          next: (packet) =>
+            onPacket(
+              normalizeRelayObservationPacket({
+                from: packet.from,
+                state: packet.state,
+                reason: packet.reason,
+                aggregate: packet.aggregate
+              })
+            )
+        })
       );
     }
   };
