@@ -1,3 +1,4 @@
+import type * as ResonoteModule from '@auftakt/resonote';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
@@ -16,7 +17,7 @@ const {
 });
 
 vi.mock('@auftakt/resonote', async (importOriginal) => {
-  const actual = (await importOriginal());
+  const actual = await importOriginal<typeof ResonoteModule>();
   return {
     ...actual,
     createResonoteCoordinator: createResonoteCoordinatorMock,
