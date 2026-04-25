@@ -511,8 +511,20 @@ function createRegistryBackedSessionRuntime(
 ): SessionRuntime<StoredEvent> {
   const registry = getCoordinatorSubscriptionRegistry(runtime);
   return {
-    fetchBackwardEvents: (...args) => runtime.fetchBackwardEvents(...args),
-    fetchBackwardFirst: (...args) => runtime.fetchBackwardFirst(...args),
+    fetchBackwardEvents: (filters, options) =>
+      fetchBackwardEventsFromReadRuntime(
+        runtime as unknown as BackwardFetchRuntime,
+        filters,
+        options
+      ),
+    fetchBackwardFirst: async (filters, options) => {
+      const events = await fetchBackwardEventsFromReadRuntime<StoredEvent>(
+        runtime as unknown as BackwardFetchRuntime,
+        filters,
+        options
+      );
+      return events.at(-1) ?? null;
+    },
     fetchLatestEvent: (...args) => runtime.fetchLatestEvent(...args),
     getEventsDB: () => runtime.getEventsDB(),
     getRxNostr: async () => {
@@ -1202,6 +1214,14 @@ interface PendingPluginRegistrations {
 }
 
 export interface ResonoteCoordinator<TResult = unknown, TLatestResult = unknown> {
+  fetchBackwardEvents<TEvent>(
+    filters: readonly Record<string, unknown>[],
+    options?: FetchBackwardOptions
+  ): Promise<TEvent[]>;
+  fetchBackwardFirst<TEvent>(
+    filters: readonly Record<string, unknown>[],
+    options?: FetchBackwardOptions
+  ): Promise<TEvent | null>;
   cachedFetchById(eventId: string): Promise<TResult>;
   invalidateFetchByIdCache(eventId: string): void;
   useCachedLatest(pubkey: string, kind: number): TLatestResult;
@@ -1539,11 +1559,28 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
   TResult,
   TLatestResult
 > {
-  const queryRuntime = runtime as QueryRuntime<StoredEvent>;
+  const coordinatorReadRuntime = runtime as unknown as CoordinatorReadRuntime;
+  const queryRuntime: QueryRuntime<StoredEvent> = {
+    fetchBackwardEvents: (filters, options) =>
+      fetchBackwardEventsFromReadRuntime<StoredEvent>(
+        coordinatorReadRuntime,
+        filters,
+        cloneFetchBackwardOptions(options)
+      ),
+    fetchBackwardFirst: async (filters, options) => {
+      const events = await fetchBackwardEventsFromReadRuntime<StoredEvent>(
+        coordinatorReadRuntime,
+        filters,
+        cloneFetchBackwardOptions(options)
+      );
+      return events.at(-1) ?? null;
+    },
+    fetchLatestEvent: (pubkey, kind) => runtime.fetchLatestEvent(pubkey, kind),
+    getEventsDB: () => runtime.getEventsDB()
+  };
   const sessionRuntime = runtime as unknown as SessionRuntime<StoredEvent>;
   const registrySessionRuntime = createRegistryBackedSessionRuntime(sessionRuntime);
   const relayObservationRuntime = registrySessionRuntime as RelayObservationRuntime;
-  const coordinatorReadRuntime = runtime as unknown as CoordinatorReadRuntime;
   const projectionRegistry = createProjectionRegistry();
   const readModelRegistry = createNamedRegistrationRegistry('Read model');
   const flowRegistry = createNamedRegistrationRegistry('Flow');
@@ -1783,6 +1820,20 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
   };
 
   return {
+    fetchBackwardEvents: (filters, options) =>
+      fetchBackwardEventsFromReadRuntime<never>(
+        coordinatorReadRuntime,
+        filters,
+        cloneFetchBackwardOptions(options)
+      ),
+    fetchBackwardFirst: async (filters, options) => {
+      const events = await fetchBackwardEventsFromReadRuntime<never>(
+        coordinatorReadRuntime,
+        filters,
+        cloneFetchBackwardOptions(options)
+      );
+      return events.at(-1) ?? null;
+    },
     cachedFetchById: (eventId) =>
       cachedFetchByIdRuntime.cachedFetchById(coordinatorReadRuntime, eventId),
     invalidateFetchByIdCache: (eventId) =>
@@ -1850,8 +1901,26 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
         flowRegistry,
         CONTENT_RESOLUTION_FLOW
       ).searchEpisodeBookmarkByGuid(pubkey, guid),
-    fetchNostrEventById: (eventId: string, relayHints: readonly string[]) =>
-      fetchNostrEventById(queryRuntime as QueryRuntimeWithById, eventId, relayHints),
+    fetchNostrEventById: async (eventId: string, relayHints: readonly string[]) => {
+      const eventsDB = await runtime.getEventsDB();
+      const cached = await eventsDB.getById(eventId);
+      if (cached) return cached as never;
+
+      const events = await fetchBackwardEventsFromReadRuntime<StoredEvent>(
+        coordinatorReadRuntime,
+        [{ ids: [eventId] }],
+        relayHints.length > 0
+          ? {
+              overlay: {
+                relays: relayHints,
+                includeDefaultReadRelays: true
+              },
+              timeoutMs: 10_000
+            }
+          : { timeoutMs: 10_000 }
+      );
+      return (events[0] as never) ?? null;
+    },
     fetchNotificationTargetPreview: async (eventId: string) => {
       const direct = await fetchEventById<{ content: string }>(queryRuntime, eventId, []);
       if (direct) return direct.content;

@@ -1,18 +1,22 @@
-import { defineProjection } from '@auftakt/core';
+import { defineProjection, finalizeEvent } from '@auftakt/core';
 import { createResonoteCoordinator, registerPlugin } from '@auftakt/resonote';
 import { describe, expect, it, vi } from 'vitest';
 
 import { createRelayMetricsPlugin } from './plugins/built-in-plugins.js';
 import { COMMENTS_FLOW, CONTENT_RESOLUTION_FLOW } from './plugins/resonote-flows.js';
 
+const RELAY_SECRET_KEY = new Uint8Array(32).fill(7);
+
 function createTestCoordinator({
   getById = async () => null,
   putWithReconcile = async () => ({ stored: true, emissions: [] }),
-  fetchBackwardFirst = async () => null
+  fetchBackwardFirst = async () => null,
+  relayEvents = []
 }: {
   getById?: (id: string) => Promise<unknown>;
   putWithReconcile?: (event: unknown) => Promise<{ stored: boolean; emissions: unknown[] }>;
   fetchBackwardFirst?: () => Promise<unknown>;
+  relayEvents?: unknown[];
 } = {}) {
   return createResonoteCoordinator({
     runtime: {
@@ -34,7 +38,18 @@ function createTestCoordinator({
       }),
       getRxNostr: async () => ({
         use: () => ({
-          subscribe: () => ({ unsubscribe() {} })
+          subscribe: (observer: {
+            next?: (packet: { event: unknown; from?: string }) => void;
+            complete?: () => void;
+          }) => {
+            queueMicrotask(() => {
+              for (const event of relayEvents) {
+                observer.next?.({ event, from: 'wss://relay.example' });
+              }
+              observer.complete?.();
+            });
+            return { unsubscribe() {} };
+          }
         })
       }),
       createRxBackwardReq: () => ({ emit() {}, over() {} }),
@@ -175,17 +190,18 @@ describe('@auftakt/resonote built-in plugins', () => {
   });
 
   it('keeps app-facing by-id reads coordinator-mediated', async () => {
-    const fetchedEvent = {
-      id: 'target-event',
-      pubkey: 'author',
-      kind: 1,
-      content: 'coordinator-owned fetch',
-      tags: [],
-      created_at: 123
-    };
+    const fetchedEvent = finalizeEvent(
+      {
+        kind: 1,
+        content: 'coordinator-owned fetch',
+        tags: [],
+        created_at: 123
+      },
+      RELAY_SECRET_KEY
+    );
     const storedEvents: unknown[] = [];
     const coordinator = createTestCoordinator({
-      fetchBackwardFirst: async () => fetchedEvent,
+      relayEvents: [fetchedEvent],
       putWithReconcile: async (event) => {
         storedEvents.push(event);
         return { stored: true, emissions: [] };
@@ -196,5 +212,88 @@ describe('@auftakt/resonote built-in plugins', () => {
 
     expect(result).toEqual(fetchedEvent);
     expect(storedEvents).toEqual([fetchedEvent]);
+  });
+
+  it('exposes coordinator-owned backward reads that materialize relay events', async () => {
+    const relayEvent = finalizeEvent(
+      {
+        kind: 1,
+        content: 'materialized backward read',
+        tags: [],
+        created_at: 123
+      },
+      RELAY_SECRET_KEY
+    );
+    const materialized: unknown[] = [];
+    const coordinator = createResonoteCoordinator({
+      runtime: {
+        fetchBackwardEvents: async () => {
+          throw new Error('raw fetchBackwardEvents bypassed coordinator');
+        },
+        fetchBackwardFirst: async () => {
+          throw new Error('raw fetchBackwardFirst bypassed coordinator');
+        },
+        fetchLatestEvent: async () => null,
+        getEventsDB: async () => ({
+          getByPubkeyAndKind: async () => null,
+          getManyByPubkeysAndKind: async () => [],
+          getByReplaceKey: async () => null,
+          getByTagValue: async () => [],
+          getById: async () => null,
+          getAllByKind: async () => [],
+          listNegentropyEventRefs: async () => [],
+          deleteByIds: async () => {},
+          clearAll: async () => {},
+          put: async () => true,
+          putWithReconcile: async (event) => {
+            materialized.push(event);
+            return { stored: true, emissions: [] };
+          }
+        }),
+        getRxNostr: async () => ({
+          use: () => ({
+            subscribe: (observer: {
+              next?: (packet: { event: unknown; from?: string }) => void;
+              complete?: () => void;
+            }) => {
+              queueMicrotask(() => {
+                observer.next?.({ event: relayEvent, from: 'wss://relay.example' });
+                observer.complete?.();
+              });
+              return { unsubscribe() {} };
+            }
+          })
+        }),
+        createRxBackwardReq: () => ({ emit() {}, over() {} }),
+        createRxForwardReq: () => ({ emit() {}, over() {} }),
+        uniq: () => ({}) as unknown,
+        merge: () => ({}) as unknown,
+        getRelayConnectionState: async () => null,
+        observeRelayConnectionStates: async () => ({ unsubscribe() {} })
+      },
+      cachedFetchByIdRuntime: {
+        cachedFetchById: async () => ({ event: null, settlement: null }),
+        invalidateFetchByIdCache: () => {}
+      },
+      cachedLatestRuntime: {
+        useCachedLatest: () => null
+      },
+      publishTransportRuntime: {
+        castSigned: async () => {}
+      },
+      pendingPublishQueueRuntime: {
+        addPendingPublish: async () => {},
+        drainPendingPublishes: async () => ({ emissions: [], settledCount: 0, retryingCount: 0 })
+      },
+      relayStatusRuntime: {
+        fetchLatestEvent: async () => null,
+        setDefaultRelays: async () => {}
+      }
+    });
+
+    const events = await coordinator.fetchBackwardEvents<typeof relayEvent>([{ kinds: [1] }]);
+
+    expect(events).toEqual([relayEvent]);
+    expect(materialized).toEqual([relayEvent]);
   });
 });
