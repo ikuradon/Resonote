@@ -26,6 +26,14 @@ const IGNORED_PATH_PARTS = [
 const LEGACY_ADAPTER_SLUG = 'adapter-' + 'indexeddb';
 const LEGACY_ADAPTER_PACKAGE = `@auftakt/${LEGACY_ADAPTER_SLUG}`;
 const LEGACY_ADAPTER_PATH = `packages/${LEGACY_ADAPTER_SLUG}`;
+const REMOVED_RELAY_ADAPTER_SLUG = 'adapter-' + 'relay';
+const REMOVED_PACKAGE_PATTERNS = [
+  `@auftakt/${REMOVED_RELAY_ADAPTER_SLUG}`,
+  LEGACY_ADAPTER_PACKAGE,
+  `packages/${REMOVED_RELAY_ADAPTER_SLUG}`,
+  LEGACY_ADAPTER_PATH
+];
+const ACTIVE_DOC_PATHS = new Set(['README.md', 'CLAUDE.md']);
 
 function addUnique(errors: string[], message: string): void {
   if (!errors.includes(message)) {
@@ -60,6 +68,26 @@ export function checkStrictClosure(files: readonly StrictClosureFile[]): StrictC
     }
     if (isProductionResonoteSource(file.path) && /events\.push\(\s*packet\.event/.test(file.text)) {
       errors.push(`${file.path} exposes raw packet.event to public results`);
+    }
+    if (
+      isProductionResonoteSource(file.path) &&
+      /toStoredEvent\(\s*packet\.event\s*\)/.test(file.text)
+    ) {
+      errors.push(`${file.path} converts raw packet.event without ingress`);
+    }
+    if (
+      file.path === 'packages/resonote/src/relay-gateway.ts' &&
+      file.text
+        .split(/\r?\n/)
+        .some((line) => /\breturn\s+\{[^\n}]*(?:\{|,)\s*events\s*(?::|,|\})/.test(line))
+    ) {
+      errors.push(`${file.path} returns relay gateway events instead of candidates`);
+    }
+    if (
+      ACTIVE_DOC_PATHS.has(file.path) &&
+      REMOVED_PACKAGE_PATTERNS.some((pattern) => file.text.includes(pattern))
+    ) {
+      errors.push(`${file.path} mentions removed Auftakt package boundary`);
     }
     if (file.path === 'src/shared/nostr/pending-publishes.ts' && file.text.includes("from 'idb'")) {
       errors.push('src/shared/nostr/pending-publishes.ts still uses standalone idb storage');

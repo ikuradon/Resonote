@@ -6,13 +6,14 @@ export interface RelayGatewayNegentropyResult {
   readonly reason?: string;
 }
 
-export interface RelayGatewayEvent {
-  readonly id: string;
-  readonly pubkey: string;
-  readonly created_at: number;
-  readonly kind: number;
-  readonly tags: string[][];
-  readonly content: string;
+export interface RelayGatewayCandidate {
+  readonly event: unknown;
+  readonly relayUrl: string;
+}
+
+export interface RelayGatewayResult {
+  readonly strategy: RelayGatewayStrategy;
+  readonly candidates: readonly RelayGatewayCandidate[];
 }
 
 export function createRelayGateway(deps: {
@@ -24,7 +25,7 @@ export function createRelayGateway(deps: {
   fetchByReq(
     filters: readonly Record<string, unknown>[],
     options: { readonly relayUrl: string }
-  ): Promise<readonly RelayGatewayEvent[]>;
+  ): Promise<readonly unknown[]>;
   listLocalRefs(
     filters: readonly Record<string, unknown>[]
   ): Promise<readonly { readonly id: string; readonly created_at: number }[]>;
@@ -33,7 +34,7 @@ export function createRelayGateway(deps: {
     async verify(
       filters: readonly Record<string, unknown>[],
       options: { readonly relayUrl: string }
-    ) {
+    ): Promise<RelayGatewayResult> {
       const localRefs = await deps.listLocalRefs(filters);
       const negentropy = await deps.requestNegentropySync({
         relayUrl: options.relayUrl,
@@ -43,18 +44,25 @@ export function createRelayGateway(deps: {
 
       if (negentropy.capability !== 'supported') {
         const events = await deps.fetchByReq(filters, options);
-        return { strategy: 'fallback-req' as const, events };
+        return { strategy: 'fallback-req', candidates: toCandidates(events, options.relayUrl) };
       }
 
       const remoteOnlyIds = parseRemoteOnlyIds(negentropy.messageHex);
       if (remoteOnlyIds.length > 0) {
         const events = await deps.fetchByReq([{ ids: remoteOnlyIds }], options);
-        return { strategy: 'negentropy' as const, events };
+        return { strategy: 'negentropy', candidates: toCandidates(events, options.relayUrl) };
       }
 
-      return { strategy: 'negentropy' as const, events: [] };
+      return { strategy: 'negentropy', candidates: [] };
     }
   };
+}
+
+function toCandidates(
+  events: readonly unknown[],
+  relayUrl: string
+): readonly RelayGatewayCandidate[] {
+  return events.map((event) => ({ event, relayUrl }));
 }
 
 function parseRemoteOnlyIds(messageHex: string | undefined): string[] {

@@ -174,23 +174,23 @@ describe('EventCoordinator read policy', () => {
   });
 
   it('uses relay gateway for non-cacheOnly reads', async () => {
+    const remote = {
+      id: 'remote',
+      pubkey: 'p1',
+      created_at: 1,
+      kind: 1,
+      tags: [],
+      content: ''
+    };
     const relayGateway = {
       verify: vi.fn(async () => ({
         strategy: 'fallback-req' as const,
-        events: [
-          {
-            id: 'remote',
-            pubkey: 'p1',
-            created_at: 1,
-            kind: 1,
-            tags: [],
-            content: ''
-          }
-        ]
+        candidates: [{ relayUrl: 'wss://relay.example', event: { raw: true } }]
       }))
     };
     const coordinator = createEventCoordinator({
       relayGateway,
+      ingestRelayCandidate: vi.fn(async () => ({ ok: true as const, event: remote })),
       store: {
         getById: vi.fn(async () => null),
         putWithReconcile: vi.fn(async () => ({ stored: true }))
@@ -208,6 +208,67 @@ describe('EventCoordinator read policy', () => {
       phase: 'settled',
       provenance: 'relay',
       reason: 'relay-repair'
+    });
+  });
+
+  it('returns gateway candidates only after ingress accepts them', async () => {
+    const accepted = {
+      id: 'accepted',
+      pubkey: 'p1',
+      created_at: 1,
+      kind: 1,
+      tags: [],
+      content: ''
+    };
+    const ingestRelayCandidate = vi.fn(async () => ({ ok: true as const, event: accepted }));
+    const coordinator = createEventCoordinator({
+      relayGateway: {
+        verify: vi.fn(async () => ({
+          strategy: 'fallback-req' as const,
+          candidates: [{ relayUrl: 'wss://relay.example', event: { raw: true } }]
+        }))
+      },
+      ingestRelayCandidate,
+      store: {
+        getById: vi.fn(async () => null),
+        putWithReconcile: vi.fn(async () => ({ stored: true }))
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+
+    const result = await coordinator.read({ ids: ['accepted'] }, { policy: 'localFirst' });
+
+    expect(ingestRelayCandidate).toHaveBeenCalledWith({
+      relayUrl: 'wss://relay.example',
+      event: { raw: true }
+    });
+    expect(result.events).toEqual([accepted]);
+    expect(result.settlement.provenance).toBe('relay');
+  });
+
+  it('drops gateway candidates rejected by ingress', async () => {
+    const coordinator = createEventCoordinator({
+      relayGateway: {
+        verify: vi.fn(async () => ({
+          strategy: 'fallback-req' as const,
+          candidates: [{ relayUrl: 'wss://relay.example', event: { malformed: true } }]
+        }))
+      },
+      ingestRelayCandidate: vi.fn(async () => ({ ok: false as const })),
+      store: {
+        getById: vi.fn(async () => null),
+        putWithReconcile: vi.fn(async () => ({ stored: true }))
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+
+    const result = await coordinator.read({ ids: ['bad'] }, { policy: 'localFirst' });
+
+    expect(result.events).toEqual([]);
+    expect(result.settlement).toEqual({
+      phase: 'settled',
+      provenance: 'none',
+      reason: 'settled-miss'
     });
   });
 });

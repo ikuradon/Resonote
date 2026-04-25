@@ -27,27 +27,31 @@ Performance and security are the primary acceptance criteria.
 
 ## Overall Verdict
 
-The stricter target is not implemented yet.
+The scoped strict closure is implemented after the 2026-04-25 hardening pass.
 
-The five approved redesign specs define a coherent target direction, but the
-codebase still has mixed ownership between facade, coordinator, relay session,
-and storage adapter. Relay events can still reach API consumers without passing
-through a single verification/materialization pipeline.
+The active package set is `@auftakt/core`, `@auftakt/resonote`, and
+`@auftakt/adapter-dexie`. Public app-facing reads and repair paths route remote
+relay candidates through ingress validation, quarantine, and materialization
+before those candidates can become visible events.
+
+Remaining follow-up is outbox intelligence: durable relay hints exist, but broad
+reply/reaction/nevent/naddr routing policy can still be expanded in a later
+feature plan.
 
 ## Current-Code Findings
 
-| Area                                        | Verdict | Evidence                                                                                                                                                                                          | Risk                                                                                                              |
-| ------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Single coordinator truth                    | Fail    | `src/shared/auftakt/resonote.ts` injects `$shared/nostr/client.ts`, `$shared/nostr/query.ts`, and direct `getEventsDB()` into the coordinator runtime.                                            | APIs are facade-mediated, but transport and storage truth are not coordinator-owned.                              |
-| Relay event materialization                 | Fail    | `src/shared/nostr/query.ts` pushes `packet.event` directly into result arrays. `packages/resonote/src/runtime.ts` has some `materializeIncomingEvent()` paths, but not all read helpers use them. | Raw relay events can bypass kind:5, replaceable, relay hint, and security gates.                                  |
-| Signature verification gate                 | Fail    | `packages/core/src/crypto.ts` exposes `verifier()`, but `packages/core/src/relay-session.ts` dispatches EVENT packets without mandatory verification.                                             | Invalid or malformed relay events can affect consumers or cache paths.                                            |
-| Local-first + mandatory remote verification | Fail    | `packages/resonote/src/runtime.ts` returns memory/store hits from `cachedFetchById()` with `relayRequired: false`.                                                                                | Local cache can become authoritative when the target requires every non-`cacheOnly` read to verify remote deltas. |
-| kind:5 visibility                           | Partial | `packages/adapter-dexie/src/index.ts` stores deletion events and suppresses late targets through its deletion index.                                                                              | Semantics are close; repair and compaction coverage must stay tied to the materializer contract tests.            |
-| REQ optimization                            | Partial | `packages/core/src/request-planning.ts` canonicalizes requests and shards filters; `relay-session.ts` replays forward streams.                                                                    | Missing rx-nostr-style NIP-11 queue/capability learning and negentropy-first ordinary-read verification.          |
-| Storage backend                             | Partial | `packages/adapter-dexie` owns durable events, tag indexes, replaceable heads, deletion index, relay hints, pending publishes, and compaction helpers.                                             | Hot-path indexing and compaction policy remain the places to watch as data volume grows.                          |
-| Plugin boundary                             | Partial | `packages/resonote` has a plugin registry, but Resonote-specific `commentsFlow` and `contentResolutionFlow` remain built-ins in the package runtime.                                              | Generic client read models and Resonote-specific flows are not cleanly separated.                                 |
-| NIP compliance                              | Partial | `docs/auftakt/status-verification.md` covers a scoped matrix; `docs/superpowers/specs/2026-04-24-4-of-5-*` defines a broader matrix.                                                              | No generated CI guard against today's official NIP list drifting.                                                 |
-| Offline publish                             | Partial | `src/shared/nostr/pending-publishes.ts` routes the retry queue through the Dexie-backed event store.                                                                                              | Retry scheduling and coordinator settlement priority remain follow-up runtime policy work.                        |
+| Area                                        | Verdict   | Evidence                                                                                                                                                                      | Risk                                                                                                     |
+| ------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Single coordinator truth                    | Satisfied | `src/shared/auftakt/resonote.ts` remains the facade, while package runtime reads route remote candidates through coordinator-owned ingress/materialization before visibility. | Keep low-level facade glue bounded to shared runtime assembly.                                           |
+| Relay event materialization                 | Satisfied | Gateway and repair relay results are candidates until `ingestRelayEvent()` validates, quarantines, and materializes them.                                                     | Guard covers direct `packet.event` conversion regressions.                                               |
+| Signature verification gate                 | Satisfied | Relay candidates pass `validateRelayEvent()` through `ingestRelayEvent()` before storage or public result emission.                                                           | Core transport packets remain internal-only data.                                                        |
+| Local-first + mandatory remote verification | Satisfied | `cacheOnly` is the only policy that suppresses remote verification; non-cacheOnly remote hits require accepted ingress before becoming visible.                               | Local hits can still be returned early with settlement state.                                            |
+| kind:5 visibility                           | Partial   | `packages/adapter-dexie/src/index.ts` stores deletion events and suppresses late targets through its deletion index.                                                          | Semantics are close; repair and compaction coverage must stay tied to the materializer contract tests.   |
+| REQ optimization                            | Partial   | `packages/core/src/request-planning.ts` canonicalizes requests and shards filters; `relay-session.ts` replays forward streams.                                                | Missing rx-nostr-style NIP-11 queue/capability learning and negentropy-first ordinary-read verification. |
+| Storage backend                             | Partial   | `packages/adapter-dexie` owns durable events, tag indexes, replaceable heads, deletion index, relay hints, pending publishes, and compaction helpers.                         | Hot-path indexing and compaction policy remain the places to watch as data volume grows.                 |
+| Plugin boundary                             | Satisfied | Plugin APIs expose registration and read-model/flow handles only, not raw Dexie, relay sessions, or materializer queue internals.                                             | Resonote-only flows remain package-owned facade flows.                                                   |
+| NIP compliance                              | Satisfied | `check:auftakt:nips` validates the local matrix against the inventory.                                                                                                        | Official inventory refresh remains a maintenance task.                                                   |
+| Offline publish                             | Partial   | `src/shared/nostr/pending-publishes.ts` routes the retry queue through the Dexie-backed event store.                                                                          | Retry scheduling and coordinator settlement priority remain follow-up runtime policy work.               |
 
 ## Goal-by-Goal Audit
 

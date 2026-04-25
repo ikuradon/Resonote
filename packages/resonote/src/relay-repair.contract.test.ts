@@ -2,27 +2,32 @@ import 'fake-indexeddb/auto';
 
 import { createDexieEventStore } from '@auftakt/adapter-dexie';
 import type { RequestKey, StoredEvent } from '@auftakt/core';
-import { createRuntimeRequestKey } from '@auftakt/core';
-import { describe, expect, it } from 'vitest';
+import { createRuntimeRequestKey, finalizeEvent } from '@auftakt/core';
+import { describe, expect, it, vi } from 'vitest';
 
 import { repairEventsFromRelay, type ResonoteRuntime } from './runtime.js';
 
 type FixtureEvent = StoredEvent & { sig: string };
+const fixtureSecret = (() => {
+  const secret = new Uint8Array(32);
+  secret[31] = 1;
+  return secret;
+})();
 
 function hexId(seed: string): string {
   return seed.repeat(64);
 }
 
 function makeEvent(id: string, overrides: Partial<FixtureEvent> = {}): FixtureEvent {
-  return {
-    id,
-    pubkey: overrides.pubkey ?? 'pubkey-a',
-    kind: overrides.kind ?? 1,
-    tags: overrides.tags ?? [['p', 'pubkey-a']],
-    content: overrides.content ?? 'hello',
-    created_at: overrides.created_at ?? 100,
-    sig: overrides.sig ?? 'sig-a'
-  };
+  return finalizeEvent(
+    {
+      kind: overrides.kind ?? 1,
+      tags: overrides.tags ?? [['p', 'pubkey-a']],
+      content: overrides.content ?? `hello:${id.slice(0, 8)}`,
+      created_at: overrides.created_at ?? 100
+    },
+    fixtureSecret
+  ) as FixtureEvent;
 }
 
 function encodeNegentropyIdList(ids: readonly string[]): string {
@@ -49,7 +54,8 @@ async function createRuntimeFixture(options: {
     messageHex?: string;
   };
   fallbackEvents?: FixtureEvent[];
-  relayEventsById?: Record<string, FixtureEvent>;
+  rawFallbackEvents?: unknown[];
+  relayEventsById?: Record<string, unknown>;
 }) {
   const createdRequests: FakeBackwardRequest[] = [];
   const materialized: StoredEvent[] = [];
@@ -72,7 +78,7 @@ async function createRuntimeFixture(options: {
     use(req: FakeBackwardRequest) {
       return {
         subscribe(observer: {
-          next?: (packet: { event: StoredEvent }) => void;
+          next?: (packet: { event: unknown }) => void;
           complete?: () => void;
         }) {
           queueMicrotask(() => {
@@ -82,14 +88,14 @@ async function createRuntimeFixture(options: {
                 : []
             );
 
-            const events: FixtureEvent[] =
+            const events: unknown[] =
               ids.length > 0
-                ? ids.reduce<FixtureEvent[]>((results, id) => {
+                ? ids.reduce<unknown[]>((results, id) => {
                     const event = options.relayEventsById?.[id];
                     if (event) results.push(event);
                     return results;
                   }, [])
-                : [...(options.fallbackEvents ?? [])];
+                : [...(options.rawFallbackEvents ?? options.fallbackEvents ?? [])];
 
             for (const event of events) {
               observer.next?.({ event });
@@ -133,8 +139,9 @@ async function createRuntimeFixture(options: {
         async putWithReconcile(event: StoredEvent) {
           materialized.push(event);
           return eventsDB.putWithReconcile(event as FixtureEvent);
-        }
-      };
+        },
+        putQuarantine: eventsDB.putQuarantine.bind(eventsDB)
+      } as Awaited<ReturnType<typeof createDexieEventStore>>;
     },
     async getRxNostr() {
       return session as unknown;
@@ -224,6 +231,31 @@ describe('@auftakt/resonote relay repair contract', () => {
     expect(fixture.createdRequests).toHaveLength(1);
     expect(fixture.createdRequests[0]?.requestKey).not.toBe(appRequestKey);
     expect(fixture.materialized).toEqual([missingEvent]);
+  });
+
+  it('does not count malformed relay repair candidates as repaired', async () => {
+    const malformedId = hexId('b');
+    const fixture = await createRuntimeFixture({
+      negentropyResult: {
+        capability: 'unsupported',
+        reason: 'unsupported: relay disabled negentropy'
+      },
+      relayEventsById: {
+        [malformedId]: { malformed: true }
+      }
+    });
+    const putWithReconcile = vi.spyOn(fixture.eventsDB, 'putWithReconcile');
+    const putQuarantine = vi.spyOn(fixture.eventsDB, 'putQuarantine');
+
+    const result = await repairEventsFromRelay(fixture.runtime, {
+      filters: [{ ids: [malformedId] }],
+      relayUrl: 'wss://relay.contract.test',
+      timeoutMs: 10
+    });
+
+    expect(result.repairedIds).toEqual([]);
+    expect(putWithReconcile).not.toHaveBeenCalled();
+    expect(putQuarantine).toHaveBeenCalledWith(expect.objectContaining({ reason: 'malformed' }));
   });
 
   it('falls back to canonical backward repair when negentropy payload decode fails', async () => {

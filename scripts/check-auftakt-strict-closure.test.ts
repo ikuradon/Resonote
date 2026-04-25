@@ -5,6 +5,8 @@ import { checkStrictClosure, type StrictClosureFile } from './check-auftakt-stri
 const legacyAdapterSlug = 'adapter-' + 'indexeddb';
 const legacyAdapterPackage = `@auftakt/${legacyAdapterSlug}`;
 const legacyAdapterPath = `packages/${legacyAdapterSlug}`;
+const removedRelayAdapterSlug = 'adapter-' + 'relay';
+const removedRelayAdapterPackage = `@auftakt/${removedRelayAdapterSlug}`;
 
 function file(path: string, text: string): StrictClosureFile {
   return { path, text };
@@ -45,6 +47,58 @@ describe('checkStrictClosure', () => {
     expect(result.errors).toContain(
       'packages/resonote/src/runtime.ts exposes raw packet.event to public results'
     );
+  });
+
+  it('flags packet.event conversion into StoredEvent-like public results', () => {
+    const result = checkStrictClosure([
+      file(
+        'packages/resonote/src/runtime.ts',
+        'const event = toStoredEvent(packet.event); if (event) events.set(event.id, event);'
+      ),
+      file(
+        'packages/resonote/src/materializer-queue.ts',
+        'export function createMaterializerQueue() {}'
+      ),
+      file(
+        'packages/resonote/src/runtime-gateway.ts',
+        'createMaterializerQueue(); createRelayGateway();'
+      )
+    ]);
+
+    expect(result.errors).toContain(
+      'packages/resonote/src/runtime.ts converts raw packet.event without ingress'
+    );
+  });
+
+  it('flags relay gateway public event result naming', () => {
+    const result = checkStrictClosure([
+      file(
+        'packages/resonote/src/relay-gateway.ts',
+        'return { strategy: "fallback-req" as const, events };'
+      ),
+      file(
+        'packages/resonote/src/materializer-queue.ts',
+        'export function createMaterializerQueue() {}'
+      ),
+      file('packages/resonote/src/runtime.ts', 'createMaterializerQueue(); createRelayGateway();')
+    ]);
+
+    expect(result.errors).toContain(
+      'packages/resonote/src/relay-gateway.ts returns relay gateway events instead of candidates'
+    );
+  });
+
+  it('flags active docs that still name removed Auftakt packages', () => {
+    const result = checkStrictClosure([
+      file('README.md', `${removedRelayAdapterPackage} ${legacyAdapterPath}`),
+      file(
+        'packages/resonote/src/materializer-queue.ts',
+        'export function createMaterializerQueue() {}'
+      ),
+      file('packages/resonote/src/runtime.ts', 'createMaterializerQueue(); createRelayGateway();')
+    ]);
+
+    expect(result.errors).toContain('README.md mentions removed Auftakt package boundary');
   });
 
   it('requires queue and gateway production references', () => {

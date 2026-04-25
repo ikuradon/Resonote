@@ -43,7 +43,7 @@ This matches the CI pipeline order. Do not skip any step.
 - **Adapter**: @sveltejs/adapter-cloudflare (SSR + API via hooks.server.ts)
 - **API**: Hono (src/server/api/, SvelteKit hooks.server.ts 経由で `/api/` をハンドル)
 - **Styling**: Tailwind CSS v4 (`@tailwindcss/vite` plugin)
-- **Nostr**: Auftakt relay/session runtime (@auftakt/core + @auftakt/adapter-relay) (verifier/signer)
+- **Nostr**: Auftakt runtime (`@auftakt/core` + `@auftakt/resonote` + `@auftakt/adapter-dexie`) (verifier/signer/storage)
 - **Auth**: @konemono/nostr-login (`init()` + `nlAuth` DOM event)
 - **NIP utils**: @auftakt/core codec/signing helpers
 - **Package manager**: pnpm

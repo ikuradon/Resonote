@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createRelayGateway } from './relay-gateway.js';
 
 describe('RelayGateway verification planner', () => {
-  it('falls back to ordinary REQ when negentropy is unsupported', async () => {
+  it('wraps ordinary REQ fallback results as internal relay candidates', async () => {
     const reqFetch = vi.fn(async () => [
       { id: 'remote', pubkey: 'p1', created_at: 1, kind: 1, tags: [], content: '', sig: 'sig' }
     ]);
@@ -19,11 +19,25 @@ describe('RelayGateway verification planner', () => {
     const result = await gateway.verify([{ kinds: [1] }], { relayUrl: 'wss://relay.example' });
 
     expect(reqFetch).toHaveBeenCalledWith([{ kinds: [1] }], { relayUrl: 'wss://relay.example' });
-    expect(result.events).toHaveLength(1);
     expect(result.strategy).toBe('fallback-req');
+    expect(result).not.toHaveProperty('events');
+    expect(result.candidates).toEqual([
+      {
+        relayUrl: 'wss://relay.example',
+        event: {
+          id: 'remote',
+          pubkey: 'p1',
+          created_at: 1,
+          kind: 1,
+          tags: [],
+          content: '',
+          sig: 'sig'
+        }
+      }
+    ]);
   });
 
-  it('uses ordinary REQ for missing ids found by negentropy', async () => {
+  it('wraps missing ids found by negentropy as internal relay candidates', async () => {
     const fetchByReq = vi.fn(async () => [
       { id: 'missing', pubkey: 'p1', created_at: 1, kind: 1, tags: [], content: '', sig: 'sig' }
     ]);
@@ -36,10 +50,25 @@ describe('RelayGateway verification planner', () => {
       listLocalRefs: vi.fn(async () => [])
     });
 
-    await gateway.verify([{ kinds: [1] }], { relayUrl: 'wss://relay.example' });
+    const result = await gateway.verify([{ kinds: [1] }], { relayUrl: 'wss://relay.example' });
 
     expect(fetchByReq).toHaveBeenCalledWith([{ ids: ['missing'] }], {
       relayUrl: 'wss://relay.example'
     });
+    expect(result).not.toHaveProperty('events');
+    expect(result.candidates).toEqual([
+      {
+        relayUrl: 'wss://relay.example',
+        event: {
+          id: 'missing',
+          pubkey: 'p1',
+          created_at: 1,
+          kind: 1,
+          tags: [],
+          content: '',
+          sig: 'sig'
+        }
+      }
+    ]);
   });
 });

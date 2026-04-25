@@ -651,19 +651,22 @@ async function quarantineRelayEvent(
   }
 }
 
-function toStoredEvent(event: unknown): StoredEvent | null {
-  const candidate = event as Partial<StoredEvent>;
-  if (
-    typeof candidate.id === 'string' &&
-    typeof candidate.pubkey === 'string' &&
-    typeof candidate.content === 'string' &&
-    typeof candidate.created_at === 'number' &&
-    Array.isArray(candidate.tags) &&
-    typeof candidate.kind === 'number'
-  ) {
-    return candidate as StoredEvent;
+async function ingestRelayCandidateForRuntime(
+  runtime: EventMaterializationRuntime,
+  candidate: { readonly event: unknown; readonly relayUrl: string }
+): Promise<{ readonly ok: true; readonly event: StoredEvent } | { readonly ok: false }> {
+  const result = await ingestRelayEvent({
+    relayUrl: candidate.relayUrl,
+    event: candidate.event,
+    materialize: (incoming) => materializeIncomingEvent(runtime, incoming),
+    quarantine: (record) => quarantineRelayEvent(runtime, record)
+  });
+
+  if (!result.ok || !result.stored) {
+    return { ok: false };
   }
-  return null;
+
+  return { ok: true, event: result.event };
 }
 
 function createLatestReadDriver<TEvent extends StoredEvent>(
@@ -837,7 +840,7 @@ async function coordinatorFetchById(
       return session.requestNegentropySync({ relayUrl, filter, initialMessageHex });
     },
     fetchByReq: async (filters, options) =>
-      fetchRepairEventsFromRelay(
+      fetchRelayCandidateEventsFromRelay(
         runtime as ResonoteRuntime,
         filters,
         options.relayUrl,
@@ -860,15 +863,19 @@ async function coordinatorFetchById(
           .filter(([, config]) => config.read)
           .map(([relayUrl]) => relayUrl);
         if (relays.length === 0) {
-          return { events: await verifyByIdFilters(runtime, state, filters) };
+          const events = await verifyByIdFilters(runtime, state, filters);
+          return {
+            candidates: events.map((event) => ({ event, relayUrl: '' }))
+          };
         }
 
         const results = await Promise.all(
           relays.map((relayUrl) => gateway.verify(filters, { relayUrl }))
         );
-        return { events: results.flatMap((result) => result.events as StoredEvent[]) };
+        return { candidates: results.flatMap((result) => result.candidates) };
       }
     },
+    ingestRelayCandidate: (candidate) => ingestRelayCandidateForRuntime(runtime, candidate),
     store: {
       getById: async (id) => {
         const cached = readCachedById(state, id);
@@ -2222,13 +2229,13 @@ function chunkIds(ids: readonly string[], size = 50): RuntimeFilter[] {
   return chunks;
 }
 
-async function fetchRepairEventsFromRelay(
+async function fetchRelayCandidateEventsFromRelay(
   runtime: ResonoteRuntime,
   filters: readonly RuntimeFilter[],
   relayUrl: string,
   timeoutMs: number | undefined,
   scope: string
-): Promise<StoredEvent[]> {
+): Promise<unknown[]> {
   if (filters.length === 0) return [];
 
   const rxNostr = (await runtime.getRxNostr()) as NegentropySessionRuntime;
@@ -2240,9 +2247,9 @@ async function fetchRepairEventsFromRelay(
     over(): void;
   };
 
-  const events = new Map<string, StoredEvent>();
+  const candidates: unknown[] = [];
 
-  return new Promise<StoredEvent[]>((resolve) => {
+  return new Promise<unknown[]>((resolve) => {
     let settled = false;
     const timeout = setTimeout(() => finish(), timeoutMs ?? 10_000);
 
@@ -2255,8 +2262,7 @@ async function fetchRepairEventsFromRelay(
       })
       .subscribe({
         next: (packet) => {
-          const event = toStoredEvent(packet.event);
-          if (event) events.set(event.id, event);
+          candidates.push(packet.event);
         },
         complete: () => finish(),
         error: () => finish()
@@ -2270,23 +2276,35 @@ async function fetchRepairEventsFromRelay(
       settled = true;
       clearTimeout(timeout);
       sub.unsubscribe();
-      resolve([...events.values()]);
+      resolve(candidates);
     }
   });
 }
 
-async function materializeRepairEvents(
+async function materializeRepairCandidates(
   runtime: ResonoteRuntime,
-  events: readonly StoredEvent[]
+  relayUrl: string,
+  candidates: readonly unknown[]
 ): Promise<{ repairedIds: string[]; materializationEmissions: ReconcileEmission[] }> {
-  const eventsDB = await runtime.getEventsDB();
   const repairedIds: string[] = [];
   const materializationEmissions: ReconcileEmission[] = [];
 
-  for (const event of events) {
-    const result = await eventsDB.putWithReconcile(event);
-    materializationEmissions.push(...result.emissions);
-    if (result.stored) repairedIds.push(event.id);
+  for (const candidate of candidates) {
+    const result = await ingestRelayEvent({
+      relayUrl,
+      event: candidate,
+      materialize: async (event) => {
+        const eventsDB = await runtime.getEventsDB();
+        const materialized = await eventsDB.putWithReconcile(event);
+        materializationEmissions.push(...materialized.emissions);
+        return materialized.stored;
+      },
+      quarantine: (record) => quarantineRelayEvent(runtime, record)
+    });
+
+    if (result.ok && result.stored) {
+      repairedIds.push(result.event.id);
+    }
   }
 
   return {
@@ -2300,14 +2318,18 @@ async function fallbackRepairEventsFromRelay(
   options: RelayRepairOptions,
   capability: NegentropyTransportResult['capability']
 ): Promise<RelayRepairResult> {
-  const fallbackEvents = await fetchRepairEventsFromRelay(
+  const fallbackCandidates = await fetchRelayCandidateEventsFromRelay(
     runtime,
     options.filters,
     options.relayUrl,
     options.timeoutMs,
     'timeline:repair:fallback'
   );
-  const materialized = await materializeRepairEvents(runtime, fallbackEvents);
+  const materialized = await materializeRepairCandidates(
+    runtime,
+    options.relayUrl,
+    fallbackCandidates
+  );
 
   return {
     strategy: 'fallback',
@@ -2379,14 +2401,18 @@ export async function repairEventsFromRelay(
     }
   }
 
-  const repairEvents = await fetchRepairEventsFromRelay(
+  const repairCandidates = await fetchRelayCandidateEventsFromRelay(
     runtime,
     chunkIds([...missingIds]),
     options.relayUrl,
     options.timeoutMs,
     'timeline:repair:negentropy:fetch'
   );
-  const materialized = await materializeRepairEvents(runtime, repairEvents);
+  const materialized = await materializeRepairCandidates(
+    runtime,
+    options.relayUrl,
+    repairCandidates
+  );
 
   return {
     strategy: 'negentropy',

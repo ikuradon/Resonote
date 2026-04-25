@@ -29,11 +29,23 @@ export interface EventCoordinatorMaterializerQueue {
   size(): number;
 }
 
+export interface EventCoordinatorRelayCandidate {
+  readonly event: unknown;
+  readonly relayUrl: string;
+}
+
+export type EventCoordinatorIngressResult =
+  | { readonly ok: true; readonly event: StoredEvent }
+  | { readonly ok: false };
+
 export interface EventCoordinatorRelayGateway {
   verify(
     filters: readonly Record<string, unknown>[],
     options: { readonly reason: ReadPolicy }
-  ): Promise<{ readonly events: readonly StoredEvent[] }>;
+  ): Promise<{
+    readonly strategy?: string;
+    readonly candidates: readonly EventCoordinatorRelayCandidate[];
+  }>;
 }
 
 export interface EventCoordinatorReadOptions {
@@ -54,6 +66,9 @@ export function createEventCoordinator(deps: {
   readonly hotIndex?: HotEventIndex;
   readonly materializerQueue?: EventCoordinatorMaterializerQueue;
   readonly relayGateway?: EventCoordinatorRelayGateway;
+  readonly ingestRelayCandidate?: (
+    candidate: EventCoordinatorRelayCandidate
+  ) => Promise<EventCoordinatorIngressResult>;
   readonly store: EventCoordinatorStore;
   readonly relay: EventCoordinatorRelay;
 }) {
@@ -125,7 +140,18 @@ export function createEventCoordinator(deps: {
       if (options.policy !== 'cacheOnly') {
         if (deps.relayGateway) {
           const result = await deps.relayGateway.verify(filters, { reason: options.policy });
-          relayEvents = result.events;
+          const acceptedEvents: StoredEvent[] = [];
+
+          if (deps.ingestRelayCandidate) {
+            for (const candidate of result.candidates) {
+              const accepted = await deps.ingestRelayCandidate(candidate);
+              if (accepted.ok) {
+                acceptedEvents.push(accepted.event);
+              }
+            }
+          }
+
+          relayEvents = acceptedEvents;
           relaySettled = true;
           for (const event of relayEvents) {
             hotIndex.applyVisible(event);
