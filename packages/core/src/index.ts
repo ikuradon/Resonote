@@ -58,6 +58,16 @@ export {
   normalizeRelayCapabilitySnapshot,
   parseRelayLimitClosedReason
 } from './relay-capability.js';
+export type {
+  NormalizedRelayLifecycleOptions,
+  RelayLifecycleMode,
+  RelayLifecycleOptions,
+  RelayLifecyclePolicy,
+  RelayLifecycleRetryOptions,
+  RelayLifecycleRetryPolicy,
+  RelayReconnectStrategy
+} from './relay-lifecycle.js';
+export { calculateRelayReconnectDelay, normalizeRelayLifecycleOptions } from './relay-lifecycle.js';
 export {
   normalizeRelayObservation,
   normalizeRelayObservationPacket,
