@@ -527,6 +527,104 @@ describe('EventCoordinator read policy', () => {
     expect(onEvent).not.toHaveBeenCalled();
   });
 
+  it('emits duplicate subscription candidates once while preserving relay hints', async () => {
+    const accepted = {
+      id: 'visible-once',
+      pubkey: 'alice',
+      created_at: 10,
+      kind: 1,
+      tags: [],
+      content: 'visible'
+    };
+    const onEvent = vi.fn();
+    const recordRelayHint = vi.fn(async () => {});
+    let candidateHandler:
+      | ((candidate: { event: unknown; relayUrl: string }) => Promise<void> | void)
+      | undefined;
+    const coordinator = createEventCoordinator({
+      transport: {
+        subscribe: vi.fn((_filters, _options, handlers) => {
+          candidateHandler = handlers.onCandidate;
+          return { unsubscribe: vi.fn() };
+        })
+      },
+      ingestRelayCandidate: vi.fn(async () => ({ ok: true as const, event: accepted })),
+      store: {
+        getById: vi.fn(async () => null),
+        putWithReconcile: vi.fn(async () => ({ stored: true })),
+        recordRelayHint
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+
+    coordinator.subscribe([{ kinds: [1] }], { policy: 'localFirst' }, { onEvent });
+    await candidateHandler?.({ event: { raw: 'first' }, relayUrl: 'wss://relay-a.example' });
+    await candidateHandler?.({ event: { raw: 'second' }, relayUrl: 'wss://relay-b.example' });
+
+    expect(onEvent).toHaveBeenCalledTimes(1);
+    expect(onEvent).toHaveBeenCalledWith({
+      event: accepted,
+      relayHint: 'wss://relay-a.example'
+    });
+    expect(recordRelayHint).toHaveBeenCalledWith({
+      eventId: 'visible-once',
+      relayUrl: 'wss://relay-a.example',
+      source: 'seen',
+      lastSeenAt: expect.any(Number)
+    });
+    expect(recordRelayHint).toHaveBeenCalledWith({
+      eventId: 'visible-once',
+      relayUrl: 'wss://relay-b.example',
+      source: 'seen',
+      lastSeenAt: expect.any(Number)
+    });
+  });
+
+  it('does not share delivered-id suppression across subscription handles', async () => {
+    const accepted = {
+      id: 'visible-per-handle',
+      pubkey: 'alice',
+      created_at: 11,
+      kind: 1,
+      tags: [],
+      content: 'visible'
+    };
+    const handlersBySubscription: Array<{
+      onCandidate(candidate: { event: unknown; relayUrl: string }): Promise<void> | void;
+    }> = [];
+    const leftOnEvent = vi.fn();
+    const rightOnEvent = vi.fn();
+    const coordinator = createEventCoordinator({
+      transport: {
+        subscribe: vi.fn((_filters, _options, handlers) => {
+          handlersBySubscription.push({ onCandidate: handlers.onCandidate });
+          return { unsubscribe: vi.fn() };
+        })
+      },
+      ingestRelayCandidate: vi.fn(async () => ({ ok: true as const, event: accepted })),
+      store: {
+        getById: vi.fn(async () => null),
+        putWithReconcile: vi.fn(async () => ({ stored: true }))
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+
+    coordinator.subscribe([{ kinds: [1] }], { policy: 'localFirst' }, { onEvent: leftOnEvent });
+    coordinator.subscribe([{ kinds: [1] }], { policy: 'localFirst' }, { onEvent: rightOnEvent });
+
+    await handlersBySubscription[0]?.onCandidate({
+      event: { raw: 'left' },
+      relayUrl: 'wss://relay-a.example'
+    });
+    await handlersBySubscription[1]?.onCandidate({
+      event: { raw: 'right' },
+      relayUrl: 'wss://relay-b.example'
+    });
+
+    expect(leftOnEvent).toHaveBeenCalledTimes(1);
+    expect(rightOnEvent).toHaveBeenCalledTimes(1);
+  });
+
   it('publishes through coordinator transport and records successful relay hints', async () => {
     const event = {
       id: 'published',

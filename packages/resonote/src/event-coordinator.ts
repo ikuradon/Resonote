@@ -274,19 +274,20 @@ export function createEventCoordinator(deps: {
       return { unsubscribe() {} };
     }
 
+    const deliveredEventIds = new Set<string>();
+
     return deps.transport.subscribe(filters, options, {
       onCandidate: async (candidate) => {
-        const accepted = deps.ingestRelayCandidate
-          ? await deps.ingestRelayCandidate(candidate)
-          : { ok: false as const };
-        if (!accepted.ok) return;
+        const acceptedResult = await acceptAndMaterializeCandidate(candidate);
+        if (!acceptedResult.ok) return;
 
-        const materialized = await materialize(accepted.event, candidate.relayUrl);
-        if (!materialized.stored && materialized.durability !== 'degraded') return;
+        const event = acceptedResult.accepted.event;
+        if (deliveredEventIds.has(event.id)) return;
+        deliveredEventIds.add(event.id);
 
         await handlers.onEvent({
-          event: accepted.event as TEvent,
-          relayHint: candidate.relayUrl || undefined
+          event: event as TEvent,
+          relayHint: acceptedResult.accepted.relayUrl || undefined
         });
       },
       onComplete: handlers.onComplete,
