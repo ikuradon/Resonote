@@ -40,6 +40,15 @@ export type EventCoordinatorIngressResult =
   | { readonly ok: true; readonly event: StoredEvent }
   | { readonly ok: false };
 
+interface AcceptedRelayCandidate {
+  readonly event: StoredEvent;
+  readonly relayUrl: string;
+}
+
+type AcceptedRelayCandidateResult =
+  | { readonly ok: true; readonly accepted: AcceptedRelayCandidate }
+  | { readonly ok: false };
+
 export interface EventCoordinatorRelayGateway {
   verify(
     filters: readonly Record<string, unknown>[],
@@ -128,6 +137,54 @@ export function createEventCoordinator(deps: {
 }) {
   const hotIndex = deps.hotIndex ?? createHotEventIndex();
   const materializerQueue = deps.materializerQueue ?? createMaterializerQueue();
+  const inflightAcceptedByEventId = new Map<string, Promise<AcceptedRelayCandidateResult>>();
+
+  async function acceptAndMaterializeCandidate(
+    candidate: EventCoordinatorRelayCandidate
+  ): Promise<AcceptedRelayCandidateResult> {
+    const accepted = deps.ingestRelayCandidate
+      ? await deps.ingestRelayCandidate(candidate)
+      : { ok: false as const };
+    if (!accepted.ok) return { ok: false };
+
+    const existing = inflightAcceptedByEventId.get(accepted.event.id);
+    if (existing) {
+      const result = await existing;
+      if (result.ok) {
+        await recordSeenHint(result.accepted.event.id, candidate.relayUrl);
+      }
+      return result;
+    }
+
+    const task = (async (): Promise<AcceptedRelayCandidateResult> => {
+      const materialized = await materialize(accepted.event, candidate.relayUrl);
+      if (!materialized.stored && materialized.durability !== 'degraded') {
+        return { ok: false };
+      }
+      return {
+        ok: true,
+        accepted: {
+          event: accepted.event,
+          relayUrl: candidate.relayUrl
+        }
+      };
+    })();
+
+    inflightAcceptedByEventId.set(accepted.event.id, task);
+    try {
+      return await task;
+    } finally {
+      if (inflightAcceptedByEventId.get(accepted.event.id) === task) {
+        inflightAcceptedByEventId.delete(accepted.event.id);
+      }
+    }
+  }
+
+  async function recordSeenHint(eventId: string, relayUrl: string): Promise<void> {
+    const hint = buildSeenHint(eventId, relayUrl);
+    hotIndex.applyRelayHint(hint);
+    await deps.store.recordRelayHint?.(hint);
+  }
 
   async function materialize(
     event: StoredEvent,
@@ -146,7 +203,7 @@ export function createEventCoordinator(deps: {
           result = await deps.store.putWithReconcile(event);
         } catch {
           hotIndex.applyVisible(event);
-          hotIndex.applyRelayHint(buildSeenHint(event.id, relayUrl));
+          await recordSeenHint(event.id, relayUrl);
           materializeResult = { stored: false, durability: 'degraded' };
           return;
         }
@@ -157,9 +214,7 @@ export function createEventCoordinator(deps: {
         }
 
         hotIndex.applyVisible(event);
-        const hint = buildSeenHint(event.id, relayUrl);
-        hotIndex.applyRelayHint(hint);
-        await deps.store.recordRelayHint?.(hint);
+        await recordSeenHint(event.id, relayUrl);
         materializeResult = { stored: true, durability: 'durable' };
       }
     });
@@ -180,15 +235,12 @@ export function createEventCoordinator(deps: {
     if (options.policy !== 'cacheOnly') {
       if (deps.relayGateway) {
         const result = await deps.relayGateway.verify(filters, { reason: options.policy });
-        for (const candidate of result.candidates) {
-          const accepted = deps.ingestRelayCandidate
-            ? await deps.ingestRelayCandidate(candidate)
-            : { ok: false as const };
-          if (!accepted.ok) continue;
-          const materialized = await materialize(accepted.event, candidate.relayUrl);
-          if (materialized.stored || materialized.durability === 'degraded') {
-            relayEvents.push(accepted.event);
-          }
+        const acceptedResults = await Promise.all(
+          result.candidates.map((candidate) => acceptAndMaterializeCandidate(candidate))
+        );
+        for (const acceptedResult of acceptedResults) {
+          if (!acceptedResult.ok) continue;
+          relayEvents.push(acceptedResult.accepted.event);
         }
         relaySettled = true;
       } else {

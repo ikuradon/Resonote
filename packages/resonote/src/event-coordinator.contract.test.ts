@@ -359,6 +359,110 @@ describe('EventCoordinator read policy', () => {
     });
   });
 
+  it('coalesces duplicate gateway candidates while materialization is in flight', async () => {
+    const remote = {
+      id: 'dupe',
+      pubkey: 'alice',
+      created_at: 4,
+      kind: 1,
+      tags: [],
+      content: 'accepted'
+    };
+    const releaseMaterialization: Array<() => void> = [];
+    const putWithReconcile = vi.fn(
+      async () =>
+        new Promise<{ stored: true }>((resolve) => {
+          releaseMaterialization.push(() => resolve({ stored: true }));
+        })
+    );
+    const recordRelayHint = vi.fn(async () => {});
+    const ingestRelayCandidate = vi.fn(async () => ({ ok: true as const, event: remote }));
+    const coordinator = createEventCoordinator({
+      relayGateway: {
+        verify: vi.fn(async () => ({
+          strategy: 'fallback-req' as const,
+          candidates: [
+            { event: { raw: 'relay-a' }, relayUrl: 'wss://relay-a.example' },
+            { event: { raw: 'relay-b' }, relayUrl: 'wss://relay-b.example' }
+          ]
+        }))
+      },
+      ingestRelayCandidate,
+      store: {
+        getById: vi.fn(async () => null),
+        putWithReconcile,
+        recordRelayHint
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+
+    const readPromise = coordinator.read({ ids: ['dupe'] }, { policy: 'relayConfirmed' });
+    await vi.waitFor(() => expect(releaseMaterialization).toHaveLength(1));
+    const secondCandidateReachedIngressWhileFirstWasPending =
+      ingestRelayCandidate.mock.calls.length === 2;
+    releaseMaterialization.splice(0).forEach((release) => release());
+    if (!secondCandidateReachedIngressWhileFirstWasPending) {
+      await vi.waitFor(() => expect(releaseMaterialization).toHaveLength(1));
+      releaseMaterialization.splice(0).forEach((release) => release());
+    }
+
+    await expect(readPromise).resolves.toMatchObject({
+      events: [remote]
+    });
+    expect(secondCandidateReachedIngressWhileFirstWasPending).toBe(true);
+    expect(ingestRelayCandidate).toHaveBeenCalledTimes(2);
+    expect(putWithReconcile).toHaveBeenCalledTimes(1);
+    expect(recordRelayHint).toHaveBeenCalledWith({
+      eventId: 'dupe',
+      relayUrl: 'wss://relay-a.example',
+      source: 'seen',
+      lastSeenAt: expect.any(Number)
+    });
+    expect(recordRelayHint).toHaveBeenCalledWith({
+      eventId: 'dupe',
+      relayUrl: 'wss://relay-b.example',
+      source: 'seen',
+      lastSeenAt: expect.any(Number)
+    });
+  });
+
+  it('does not let a rejected duplicate candidate poison a later valid event id', async () => {
+    const remote = {
+      id: 'recovered',
+      pubkey: 'alice',
+      created_at: 5,
+      kind: 1,
+      tags: [],
+      content: 'accepted'
+    };
+    const putWithReconcile = vi.fn(async () => ({ stored: true }));
+    const coordinator = createEventCoordinator({
+      relayGateway: {
+        verify: vi.fn(async () => ({
+          strategy: 'fallback-req' as const,
+          candidates: [
+            { event: { raw: 'bad' }, relayUrl: 'wss://relay-a.example' },
+            { event: { raw: 'good' }, relayUrl: 'wss://relay-b.example' }
+          ]
+        }))
+      },
+      ingestRelayCandidate: vi
+        .fn()
+        .mockResolvedValueOnce({ ok: false as const })
+        .mockResolvedValueOnce({ ok: true as const, event: remote }),
+      store: {
+        getById: vi.fn(async () => null),
+        putWithReconcile
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+
+    const result = await coordinator.read({ ids: ['recovered'] }, { policy: 'relayConfirmed' });
+
+    expect(result.events).toEqual([remote]);
+    expect(putWithReconcile).toHaveBeenCalledTimes(1);
+  });
+
   it('subscribes through relay candidates but emits only accepted visible events', async () => {
     const accepted = {
       id: 'visible',
