@@ -51,6 +51,7 @@ import { Observable } from 'rxjs';
 
 import { createEventCoordinator } from './event-coordinator.js';
 import { ingestRelayEvent } from './event-ingress.js';
+import { createMaterializerQueue } from './materializer-queue.js';
 import {
   type CommentsFlow,
   type ContentResolutionFlow,
@@ -71,6 +72,7 @@ import {
   createResonoteContentResolutionFlowPlugin
 } from './plugins/resonote-flows.js';
 import { createTimelinePlugin } from './plugins/timeline-plugin.js';
+import { createRelayGateway } from './relay-gateway.js';
 
 export type { CommentSubscriptionRefs, SubscriptionHandle };
 
@@ -100,6 +102,7 @@ interface CoordinatorReadRuntime {
   getEventsDB(): Promise<{
     getById(id: string): Promise<StoredEvent | null>;
     getByPubkeyAndKind(pubkey: string, kind: number): Promise<StoredEvent | null>;
+    listNegentropyEventRefs(): Promise<NegentropyEventRef[]>;
     put(event: StoredEvent): Promise<unknown>;
     putWithReconcile?(event: StoredEvent): Promise<{
       stored: boolean;
@@ -144,6 +147,13 @@ interface LatestReadState<TEvent extends StoredEvent = StoredEvent> {
 }
 
 interface BackwardFetchRuntime {
+  getEventsDB?(): Promise<{
+    put(event: StoredEvent): Promise<unknown>;
+    putWithReconcile?(event: StoredEvent): Promise<{
+      stored: boolean;
+      emissions: ReconcileEmission[];
+    }>;
+  }>;
   getRxNostr(): Promise<NegentropySessionRuntime>;
   createRxBackwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): {
     emit(input: unknown): void;
@@ -773,7 +783,66 @@ async function coordinatorFetchById(
   eventId: string
 ): Promise<SettledReadResult<StoredEvent>> {
   let invalidated = false;
+  const cached = readCachedById(state, eventId);
+  if (cached.hit) {
+    return {
+      event: cached.event,
+      settlement:
+        cached.event === null
+          ? reduceReadSettlement({
+              localSettled: true,
+              relaySettled: true,
+              nullTtlHit: true
+            })
+          : reduceReadSettlement({
+              localSettled: true,
+              relaySettled: true,
+              relayRequired: false,
+              localHitProvenance: 'memory'
+            })
+    };
+  }
+  const gateway = createRelayGateway({
+    requestNegentropySync: async ({ relayUrl, filter, initialMessageHex }) => {
+      const session = (await runtime.getRxNostr()) as Partial<NegentropySessionRuntime>;
+      if (typeof session.requestNegentropySync !== 'function') {
+        return { capability: 'unsupported' as const, reason: 'missing-negentropy' };
+      }
+      return session.requestNegentropySync({ relayUrl, filter, initialMessageHex });
+    },
+    fetchByReq: async (filters, options) =>
+      fetchRepairEventsFromRelay(
+        runtime as ResonoteRuntime,
+        filters,
+        options.relayUrl,
+        5_000,
+        'coordinator:gateway'
+      ),
+    listLocalRefs: async (filters) => {
+      const db = await runtime.getEventsDB();
+      return filterNegentropyEventRefs(await db.listNegentropyEventRefs(), filters);
+    }
+  });
   const coordinator = createEventCoordinator({
+    materializerQueue: createMaterializerQueue(),
+    relayGateway: {
+      verify: async (filters) => {
+        const session = (await runtime.getRxNostr()) as Partial<{
+          getDefaultRelays(): Record<string, { read: boolean }>;
+        }>;
+        const relays = Object.entries(session.getDefaultRelays?.() ?? {})
+          .filter(([, config]) => config.read)
+          .map(([relayUrl]) => relayUrl);
+        if (relays.length === 0) {
+          return { events: await verifyByIdFilters(runtime, state, filters) };
+        }
+
+        const results = await Promise.all(
+          relays.map((relayUrl) => gateway.verify(filters, { relayUrl }))
+        );
+        return { events: results.flatMap((result) => result.events as StoredEvent[]) };
+      }
+    },
     store: {
       getById: async (id) => {
         const cached = readCachedById(state, id);
@@ -800,6 +869,10 @@ async function coordinatorFetchById(
   });
 
   const result = await coordinator.read({ ids: [eventId] }, { policy: 'localFirst' });
+  if (invalidated) {
+    state.cache.delete(eventId);
+    state.nullCacheTimestamps.delete(eventId);
+  }
   return {
     event: result.events[0] ?? null,
     settlement: invalidated
@@ -902,10 +975,11 @@ async function fetchAndCacheByIdFromRelay(
 
     const invalidated = state.invalidatedDuringFetch.delete(eventId);
     if (!invalidated) {
-      state.cache.set(eventId, event);
       if (event) {
+        state.cache.set(eventId, event);
         state.nullCacheTimestamps.delete(eventId);
-      } else {
+      } else if (!state.cache.has(eventId) || state.cache.get(eventId) === null) {
+        state.cache.set(eventId, null);
         state.nullCacheTimestamps.set(eventId, Date.now());
       }
     }

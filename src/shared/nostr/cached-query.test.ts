@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 interface SubscribeCallbacks {
-  next?: (packet: { event: Record<string, unknown> }) => void;
+  next?: (packet: { event: unknown }) => void;
   complete?: () => void;
   error?: () => void;
 }
@@ -47,12 +47,33 @@ vi.mock('$shared/utils/logger.js', () => ({
   shortHex: (s: string) => s.slice(0, 8)
 }));
 
+import { finalizeEvent } from '@auftakt/core';
+
 import {
   cachedFetchById,
   invalidateFetchByIdCache,
   resetFetchByIdCache,
   useCachedLatest
 } from './cached-query.svelte.js';
+
+const RELAY_SECRET_KEY = new Uint8Array(32).fill(1);
+
+function signedRelayEvent(overrides: {
+  content: string;
+  kind: number;
+  created_at?: number;
+  tags?: string[][];
+}) {
+  return finalizeEvent(
+    {
+      content: overrides.content,
+      kind: overrides.kind,
+      created_at: overrides.created_at ?? 100,
+      tags: overrides.tags ?? []
+    },
+    RELAY_SECRET_KEY
+  );
+}
 
 describe('cachedFetchById', () => {
   beforeEach(() => {
@@ -134,7 +155,10 @@ describe('cachedFetchById', () => {
   });
 
   it('returns event from relay when DB misses', async () => {
-    const relayEvent = { id: 'relay-e1', content: 'from relay', kind: 1 };
+    const relayEvent = signedRelayEvent({
+      content: 'from relay',
+      kind: 1
+    });
 
     // DB returns null (default), but relay fires next before complete
     subscribeMock.mockImplementation((callbacks: SubscribeCallbacks) => {
@@ -238,11 +262,10 @@ describe('invalidatedDuringFetch race condition', () => {
     // This tests the relay path for the invalidation contract.
     // The in-flight race (invalidation called WHILE relay is pending) is covered
     // by the DB test above using the same invalidatedDuringFetch mechanism.
-    const relayEvent = {
-      id: 'race-relay2',
+    const relayEvent = signedRelayEvent({
       content: 'relay-result',
       kind: 1111
-    };
+    });
 
     subscribeMock.mockImplementation((callbacks: SubscribeCallbacks) => {
       void Promise.resolve().then(() => {
@@ -638,4 +661,14 @@ describe('useCachedLatest', () => {
     // After resolution -- same object reference provides updated values
     expect(activeResult.event).toEqual(expect.objectContaining({ content: 'getter test' }));
   });
+});
+
+it('uses a Dexie-backed event db bridge', async () => {
+  const source = await import('node:fs/promises').then((fs) =>
+    fs.readFile(new URL('./event-db.ts', import.meta.url), 'utf8')
+  );
+  const legacyAdapter = '@auftakt/' + 'adapter-indexeddb';
+
+  expect(source).toContain('@auftakt/adapter-dexie');
+  expect(source).not.toContain(legacyAdapter);
 });

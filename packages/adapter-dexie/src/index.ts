@@ -31,7 +31,7 @@ export interface CreateDexieEventStoreOptions {
 
 export interface DexieMaterializationResult {
   readonly stored: boolean;
-  readonly emissions: readonly ReconcileEmission[];
+  readonly emissions: ReconcileEmission[];
 }
 
 export interface RelayHintInput {
@@ -338,7 +338,7 @@ export class DexieEventStore {
   async drainPendingPublishes(
     deliver: (event: NostrEvent) => Promise<OfflineDeliveryDecision>
   ): Promise<{
-    readonly emissions: readonly ReconcileEmission[];
+    readonly emissions: ReconcileEmission[];
     readonly settledCount: number;
     readonly retryingCount: number;
   }> {

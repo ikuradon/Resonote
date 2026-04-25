@@ -130,4 +130,84 @@ describe('EventCoordinator read policy', () => {
       lastSeenAt: expect.any(Number)
     });
   });
+
+  it('queues relay materialization before writing to the store', async () => {
+    const writes: string[] = [];
+    let queuedTask: { run(): Promise<void> } | null = null;
+    const queue = {
+      enqueue: vi.fn((task: { run(): Promise<void> }) => {
+        writes.push('queued');
+        queuedTask = task;
+      }),
+      drain: vi.fn(async () => {
+        await queuedTask?.run();
+      }),
+      size: vi.fn(() => 0)
+    };
+    const coordinator = createEventCoordinator({
+      materializerQueue: queue,
+      store: {
+        getById: vi.fn(async () => null),
+        putWithReconcile: vi.fn(async () => {
+          writes.push('stored');
+          return { stored: true };
+        })
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+
+    await coordinator.materializeFromRelay(
+      {
+        id: 'queued',
+        pubkey: 'p1',
+        created_at: 1,
+        kind: 1,
+        tags: [],
+        content: ''
+      },
+      'wss://relay.example'
+    );
+
+    expect(queue.enqueue).toHaveBeenCalledWith(expect.objectContaining({ priority: 'normal' }));
+    expect(queue.drain).toHaveBeenCalled();
+    expect(writes).toEqual(['queued', 'stored']);
+  });
+
+  it('uses relay gateway for non-cacheOnly reads', async () => {
+    const relayGateway = {
+      verify: vi.fn(async () => ({
+        strategy: 'fallback-req' as const,
+        events: [
+          {
+            id: 'remote',
+            pubkey: 'p1',
+            created_at: 1,
+            kind: 1,
+            tags: [],
+            content: ''
+          }
+        ]
+      }))
+    };
+    const coordinator = createEventCoordinator({
+      relayGateway,
+      store: {
+        getById: vi.fn(async () => null),
+        putWithReconcile: vi.fn(async () => ({ stored: true }))
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+
+    const result = await coordinator.read({ ids: ['remote'] }, { policy: 'localFirst' });
+
+    expect(relayGateway.verify).toHaveBeenCalledWith([{ ids: ['remote'] }], {
+      reason: 'localFirst'
+    });
+    expect(result.events).toEqual([expect.objectContaining({ id: 'remote' })]);
+    expect(result.settlement).toEqual({
+      phase: 'settled',
+      provenance: 'relay',
+      reason: 'relay-repair'
+    });
+  });
 });

@@ -1,9 +1,10 @@
 import 'fake-indexeddb/auto';
 
-import { openDB } from 'idb';
+import { createDexieEventStore } from '@auftakt/adapter-dexie';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { EventsDB, type NostrEvent } from './event-db.js';
+import type { EventsDB} from './event-db.js';
+import type { NostrEvent } from './event-db.js';
 
 function makeEvent(overrides: Partial<NostrEvent> = {}): NostrEvent {
   return {
@@ -22,17 +23,7 @@ let dbCounter = 0;
 
 async function createTestDB(): Promise<EventsDB> {
   const name = `${DB_NAME}-${dbCounter++}`;
-  const db = await openDB(name, 1, {
-    upgrade(db) {
-      const store = db.createObjectStore('events', { keyPath: 'id' });
-      store.createIndex('pubkey_kind', ['pubkey', 'kind']);
-      store.createIndex('replace_key', ['pubkey', 'kind', 'd_tag']);
-      store.createIndex('kind_created', ['kind', 'created_at']);
-      store.createIndex('tag_values', '_tag_values', { multiEntry: true });
-    }
-  });
-  // Use the EventsDB class with the test db
-  return new EventsDB(db as never);
+  return createDexieEventStore({ dbName: name });
 }
 
 describe('EventsDB', () => {

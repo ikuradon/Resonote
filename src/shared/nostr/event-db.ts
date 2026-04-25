@@ -1,30 +1,23 @@
 import {
-  createIndexedDbEventStore,
-  IndexedDbEventStore,
-  type IndexedDbStoredEvent,
-  type NostrEvent
-} from '@auftakt/adapter-indexeddb';
+  createDexieEventStore,
+  type DexieEventRecord,
+  DexieEventStore} from '@auftakt/adapter-dexie';
+import type { Event as NostrEvent } from 'nostr-typedef';
 
-const DEFAULT_DB_NAME = 'resonote-events';
-const LEGACY_DB_NAME = 'resonote';
+const DEFAULT_DB_NAME = 'resonote-dexie-events';
 
-let instancePromise: Promise<IndexedDbEventStore> | undefined;
+let currentDbName = DEFAULT_DB_NAME;
+let instancePromise: Promise<DexieEventStore> | undefined;
 
-export { type NostrEvent, type IndexedDbStoredEvent as StoredEvent };
-export { IndexedDbEventStore as EventsDB };
+export { type NostrEvent, type DexieEventRecord as StoredEvent };
+export { DexieEventStore as EventsDB };
 
-export async function getEventsDB(): Promise<IndexedDbEventStore> {
-  instancePromise ??= (async () => {
-    try {
-      indexedDB.deleteDatabase(LEGACY_DB_NAME);
-    } catch {
-      // Ignore — old DB may not exist in fresh installs
-    }
-    return createIndexedDbEventStore(DEFAULT_DB_NAME);
-  })();
+export async function getEventsDB(): Promise<DexieEventStore> {
+  instancePromise ??= createDexieEventStore({ dbName: currentDbName });
   return instancePromise;
 }
 
-export function resetEventsDB(): void {
+export function resetEventsDB(dbName?: string): void {
+  currentDbName = dbName ?? DEFAULT_DB_NAME;
   instancePromise = undefined;
 }

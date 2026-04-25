@@ -1,6 +1,7 @@
 import { reduceReadSettlement, type StoredEvent } from '@auftakt/core';
 
 import { createHotEventIndex, type HotEventIndex } from './hot-event-index.js';
+import { createMaterializerQueue, type MaterializerTask } from './materializer-queue.js';
 
 export type ReadPolicy = 'cacheOnly' | 'localFirst' | 'relayConfirmed' | 'repair';
 
@@ -22,6 +23,19 @@ export interface EventCoordinatorRelay {
   ): Promise<readonly StoredEvent[]>;
 }
 
+export interface EventCoordinatorMaterializerQueue {
+  enqueue(task: MaterializerTask): void;
+  drain(): Promise<void>;
+  size(): number;
+}
+
+export interface EventCoordinatorRelayGateway {
+  verify(
+    filters: readonly Record<string, unknown>[],
+    options: { readonly reason: ReadPolicy }
+  ): Promise<{ readonly events: readonly StoredEvent[] }>;
+}
+
 export interface EventCoordinatorReadOptions {
   readonly policy: ReadPolicy;
 }
@@ -38,10 +52,13 @@ export interface EventCoordinatorMaterializeResult {
 
 export function createEventCoordinator(deps: {
   readonly hotIndex?: HotEventIndex;
+  readonly materializerQueue?: EventCoordinatorMaterializerQueue;
+  readonly relayGateway?: EventCoordinatorRelayGateway;
   readonly store: EventCoordinatorStore;
   readonly relay: EventCoordinatorRelay;
 }) {
   const hotIndex = deps.hotIndex ?? createHotEventIndex();
+  const materializerQueue = deps.materializerQueue ?? createMaterializerQueue();
 
   return {
     applyLocalEvent(event: StoredEvent): void {
@@ -51,22 +68,39 @@ export function createEventCoordinator(deps: {
       event: StoredEvent,
       relayUrl: string
     ): Promise<EventCoordinatorMaterializeResult> {
-      let result: unknown;
-      try {
-        result = await deps.store.putWithReconcile(event);
-      } catch {
-        hotIndex.applyVisible(event);
-        hotIndex.applyRelayHint(buildSeenHint(event.id, relayUrl));
-        return { stored: false, durability: 'degraded' };
-      }
-      const stored = (result as { stored?: boolean } | undefined)?.stored !== false;
-      if (!stored) return { stored: false, durability: 'durable' };
+      let materializeResult: EventCoordinatorMaterializeResult = {
+        stored: false,
+        durability: 'durable'
+      };
 
-      hotIndex.applyVisible(event);
-      const hint = buildSeenHint(event.id, relayUrl);
-      hotIndex.applyRelayHint(hint);
-      await deps.store.recordRelayHint?.(hint);
-      return { stored: true, durability: 'durable' };
+      materializerQueue.enqueue({
+        priority: event.kind === 5 ? 'critical' : 'normal',
+        async run() {
+          let result: unknown;
+          try {
+            result = await deps.store.putWithReconcile(event);
+          } catch {
+            hotIndex.applyVisible(event);
+            hotIndex.applyRelayHint(buildSeenHint(event.id, relayUrl));
+            materializeResult = { stored: false, durability: 'degraded' };
+            return;
+          }
+          const stored = (result as { stored?: boolean } | undefined)?.stored !== false;
+          if (!stored) {
+            materializeResult = { stored: false, durability: 'durable' };
+            return;
+          }
+
+          hotIndex.applyVisible(event);
+          const hint = buildSeenHint(event.id, relayUrl);
+          hotIndex.applyRelayHint(hint);
+          await deps.store.recordRelayHint?.(hint);
+          materializeResult = { stored: true, durability: 'durable' };
+        }
+      });
+
+      await materializerQueue.drain();
+      return materializeResult;
     },
     async read(
       filter: Record<string, unknown>,
@@ -85,23 +119,52 @@ export function createEventCoordinator(deps: {
         await Promise.all(missingIds.map((id) => deps.store.getById(id)))
       ).filter((event): event is StoredEvent => Boolean(event));
       const local = [...hotHits, ...durableHits];
+      let relayEvents: readonly StoredEvent[] = [];
+      let relaySettled = options.policy === 'cacheOnly';
 
       if (options.policy !== 'cacheOnly') {
-        void deps.relay.verify(filters, { reason: options.policy });
+        if (deps.relayGateway) {
+          const result = await deps.relayGateway.verify(filters, { reason: options.policy });
+          relayEvents = result.events;
+          relaySettled = true;
+          for (const event of relayEvents) {
+            hotIndex.applyVisible(event);
+          }
+        } else {
+          void deps.relay.verify(filters, { reason: options.policy });
+        }
       }
 
+      const events = mergeEventsById(local, relayEvents);
+
       return {
-        events: local,
+        events,
         settlement: reduceReadSettlement({
           localSettled: true,
-          relaySettled: options.policy === 'cacheOnly',
+          relaySettled,
           relayRequired: options.policy !== 'cacheOnly',
           localHitProvenance: local.length > 0 ? 'store' : null,
-          relayHit: false
+          relayHit: relayEvents.length > 0
         })
       };
     }
   };
+}
+
+function mergeEventsById(
+  localEvents: readonly StoredEvent[],
+  relayEvents: readonly StoredEvent[]
+): StoredEvent[] {
+  const events = new Map<string, StoredEvent>();
+  for (const event of localEvents) {
+    events.set(event.id, event);
+  }
+  for (const event of relayEvents) {
+    if (!events.has(event.id)) {
+      events.set(event.id, event);
+    }
+  }
+  return [...events.values()];
 }
 
 function buildSeenHint(eventId: string, relayUrl: string) {
