@@ -942,4 +942,125 @@ describe('relay replay request identity contract', () => {
 
     session.dispose();
   });
+
+  it('queues backward shards by max_subscriptions and releases them after EOSE', async () => {
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100,
+      requestOptimizer: {
+        relayCapabilities: {
+          [RELAY_URL]: {
+            relayUrl: RELAY_URL,
+            maxFilters: 1,
+            maxSubscriptions: 1,
+            supportedNips: [1, 11],
+            source: 'nip11',
+            expiresAt: 3_600,
+            stale: false
+          }
+        }
+      }
+    });
+    const req = createRxBackwardReq({
+      requestKey: createRuntimeRequestKey({
+        mode: 'backward',
+        scope: 'contract:max-subscriptions-queue',
+        filters: [{ ids: ['a'] }, { ids: ['b'] }, { ids: ['c'] }]
+      })
+    });
+
+    const sub = session.use(req).subscribe({});
+    req.emit([{ ids: ['a'] }, { ids: ['b'] }, { ids: ['c'] }]);
+    req.over();
+
+    await waitUntil(() => FakeWebSocket.instances.length > 0);
+    const socket = latestSocket();
+    socket.open();
+    await waitUntil(() => socket.sent.length === 1);
+
+    expect(session.getRelayCapabilitySnapshot(RELAY_URL)).toMatchObject({
+      queueDepth: 2,
+      activeSubscriptions: 1
+    });
+
+    const firstSubId = (socket.sent[0] as [string, string, ...unknown[]])[1];
+    socket.message(['EOSE', firstSubId]);
+    await waitUntil(() => socket.sent.length === 2);
+
+    expect(session.getRelayCapabilitySnapshot(RELAY_URL)).toMatchObject({
+      queueDepth: 1,
+      activeSubscriptions: 1
+    });
+
+    const secondSubId = (socket.sent[1] as [string, string, ...unknown[]])[1];
+    socket.message(['EOSE', secondSubId]);
+    await waitUntil(() => socket.sent.length === 3);
+
+    expect(session.getRelayCapabilitySnapshot(RELAY_URL)).toMatchObject({
+      queueDepth: 0,
+      activeSubscriptions: 1
+    });
+
+    sub.unsubscribe();
+    session.dispose();
+  });
+
+  it('publishes capability packets when shard queue state changes', async () => {
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100,
+      requestOptimizer: {
+        relayCapabilities: {
+          [RELAY_URL]: {
+            relayUrl: RELAY_URL,
+            maxFilters: 1,
+            maxSubscriptions: 1,
+            supportedNips: [],
+            source: 'learned',
+            expiresAt: null,
+            stale: false
+          }
+        }
+      }
+    });
+    const packets: Array<{ queueDepth: number; activeSubscriptions: number }> = [];
+    const capabilitySub = session.createRelayCapabilityObservable().subscribe({
+      next: (packet) => {
+        if (packet.from === RELAY_URL) {
+          packets.push({
+            queueDepth: packet.capability.queueDepth,
+            activeSubscriptions: packet.capability.activeSubscriptions
+          });
+        }
+      }
+    });
+    const req = createRxBackwardReq({
+      requestKey: createRuntimeRequestKey({
+        mode: 'backward',
+        scope: 'contract:queue-observation',
+        filters: [{ ids: ['a'] }, { ids: ['b'] }]
+      })
+    });
+
+    const sub = session.use(req).subscribe({});
+    req.emit([{ ids: ['a'] }, { ids: ['b'] }]);
+    req.over();
+
+    await waitUntil(() => FakeWebSocket.instances.length > 0);
+    const socket = latestSocket();
+    socket.open();
+    await waitUntil(() =>
+      packets.some((packet) => packet.queueDepth === 1 && packet.activeSubscriptions === 1)
+    );
+
+    const firstSubId = (socket.sent[0] as [string, string, ...unknown[]])[1];
+    socket.message(['EOSE', firstSubId]);
+    await waitUntil(() =>
+      packets.some((packet) => packet.queueDepth === 0 && packet.activeSubscriptions === 1)
+    );
+
+    capabilitySub.unsubscribe();
+    sub.unsubscribe();
+    session.dispose();
+  });
 });
