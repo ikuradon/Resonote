@@ -11,6 +11,14 @@ import {
   type RelayRuntimeCapabilityState
 } from './relay-capability.js';
 import {
+  calculateRelayReconnectDelay,
+  type NormalizedRelayLifecycleOptions,
+  normalizeRelayLifecycleOptions,
+  type RelayLifecycleMode,
+  type RelayLifecycleOptions,
+  type RelayLifecyclePolicy
+} from './relay-lifecycle.js';
+import {
   buildRequestExecutionPlan,
   type Filter as RequestFilter,
   type OptimizedLogicalRequestPlan,
@@ -168,20 +176,32 @@ class MutableRelayRequest implements RelayRequest {
 class RelaySocket {
   private ws: WebSocket | undefined;
   private connectPromise: Promise<WebSocket> | undefined;
+  private idleTimer: ReturnType<typeof setTimeout> | undefined;
+  private reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   private readonly queue: unknown[] = [];
+  private intentionalCloseReason: RelayObservationReason | undefined;
+  private reconnectAttempts = 0;
   state: RelayConnectionState = 'idle';
 
   constructor(
     readonly url: string,
+    private readonly getPolicy: () => RelayLifecyclePolicy,
+    private readonly shouldReconnect: () => boolean,
     private readonly onMessage: (from: string, message: unknown) => void,
-    private readonly onStateChange: (from: string, state: RelayConnectionState) => void
+    private readonly onStateChange: (
+      from: string,
+      state: RelayConnectionState,
+      reason?: RelayObservationReason
+    ) => void
   ) {}
 
   async connect(): Promise<WebSocket> {
+    this.cancelIdleTimer();
+    this.cancelReconnectTimer();
     if (this.ws?.readyState === WebSocket.OPEN) return this.ws;
     if (this.connectPromise) return this.connectPromise;
 
-    this.setState('connecting');
+    this.setState('connecting', 'connecting');
     this.connectPromise = new Promise<WebSocket>((resolve, reject) => {
       const ws = new WebSocket(this.url);
       let opened = false;
@@ -190,7 +210,9 @@ class RelaySocket {
         opened = true;
         this.ws = ws;
         this.connectPromise = undefined;
-        this.setState('open');
+        this.intentionalCloseReason = undefined;
+        this.reconnectAttempts = 0;
+        this.setState('open', 'opened');
         this.flushQueue();
         resolve(ws);
       });
@@ -207,7 +229,8 @@ class RelaySocket {
       ws.addEventListener('error', (error) => {
         if (!opened) {
           this.connectPromise = undefined;
-          this.setState('degraded');
+          this.ws = undefined;
+          this.setState('degraded', 'connect-failed');
           reject(error);
         }
       });
@@ -215,7 +238,29 @@ class RelaySocket {
       ws.addEventListener('close', () => {
         this.ws = undefined;
         this.connectPromise = undefined;
-        this.setState(opened ? 'backoff' : 'closed');
+        const reason = this.intentionalCloseReason;
+        this.intentionalCloseReason = undefined;
+
+        if (reason === 'idle-timeout') {
+          this.setState('idle', 'idle-timeout');
+          return;
+        }
+
+        if (reason) {
+          this.setState('closed', reason);
+          return;
+        }
+
+        if (opened) {
+          if (!this.shouldReconnect()) {
+            this.setState('backoff', 'disconnected');
+            return;
+          }
+          this.scheduleReconnect();
+          return;
+        }
+
+        this.setState('closed', 'connect-failed');
       });
     });
 
@@ -223,6 +268,7 @@ class RelaySocket {
   }
 
   async send(payload: unknown): Promise<void> {
+    this.cancelIdleTimer();
     if (this.ws?.readyState !== WebSocket.OPEN) {
       this.queue.push(payload);
       await this.connect();
@@ -231,11 +277,58 @@ class RelaySocket {
     this.ws.send(JSON.stringify(payload));
   }
 
-  close(): void {
-    this.ws?.close();
+  scheduleIdleDisconnect(): void {
+    const policy = this.getPolicy();
+    if (policy.mode !== 'lazy') return;
+    if (this.state !== 'open') return;
+    if (this.idleTimer) return;
+
+    this.idleTimer = setTimeout(() => {
+      this.idleTimer = undefined;
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        this.intentionalCloseReason = 'idle-timeout';
+        this.ws.close();
+        return;
+      }
+      this.ws = undefined;
+      this.connectPromise = undefined;
+      this.setState('idle', 'idle-timeout');
+    }, policy.idleDisconnectMs);
+  }
+
+  close(reason: RelayObservationReason = 'disposed'): void {
+    this.cancelIdleTimer();
+    this.cancelReconnectTimer();
+    this.queue.splice(0);
+    this.intentionalCloseReason = reason;
+
+    if (this.ws) {
+      this.ws.close();
+      return;
+    }
+
     this.ws = undefined;
     this.connectPromise = undefined;
-    this.setState('closed');
+    this.setState('closed', reason);
+  }
+
+  private scheduleReconnect(): void {
+    const policy = this.getPolicy();
+    const attempt = this.reconnectAttempts + 1;
+    const delay = calculateRelayReconnectDelay(attempt, policy.retry);
+    if (delay === null) {
+      this.reconnectAttempts = attempt;
+      this.setState('degraded', 'retry-exhausted');
+      return;
+    }
+
+    this.reconnectAttempts = attempt;
+    this.setState('backoff', 'reconnect-scheduled');
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = undefined;
+      if (!this.shouldReconnect()) return;
+      void this.connect().catch(() => {});
+    }, delay);
   }
 
   private flushQueue(): void {
@@ -245,9 +338,21 @@ class RelaySocket {
     }
   }
 
-  private setState(next: RelayConnectionState): void {
+  private cancelIdleTimer(): void {
+    if (!this.idleTimer) return;
+    clearTimeout(this.idleTimer);
+    this.idleTimer = undefined;
+  }
+
+  private cancelReconnectTimer(): void {
+    if (!this.reconnectTimer) return;
+    clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = undefined;
+  }
+
+  private setState(next: RelayConnectionState, reason?: RelayObservationReason): void {
     this.state = next;
-    this.onStateChange(this.url, next);
+    this.onStateChange(this.url, next, reason);
   }
 }
 
@@ -275,6 +380,7 @@ export interface CreateRelaySessionOptions {
   readonly defaultRelays: readonly string[];
   readonly eoseTimeout?: number;
   readonly requestOptimizer?: RelayRequestOptimizerOptions;
+  readonly relayLifecycle?: RelayLifecycleOptions;
 }
 
 export type CreateRxNostrSessionOptions = CreateRelaySessionOptions;
@@ -334,6 +440,8 @@ class RelaySession implements RxNostr {
   private readonly relayNeedsReplay = new Map<string, Set<string>>();
   private readonly relayObservations = new Map<string, RelayObservation>();
   private readonly relayCapabilities = new Map<string, RelayExecutionCapability>();
+  private readonly relayLifecyclePolicies = new Map<string, RelayLifecyclePolicy>();
+  private readonly relayLifecycleOptions: NormalizedRelayLifecycleOptions;
   private readonly capabilityStates = new Subject<RelayCapabilityPacket>();
   private capabilityLearningHandler: ((event: RelayCapabilityLearningEvent) => void) | undefined;
   private disposed = false;
@@ -341,8 +449,10 @@ class RelaySession implements RxNostr {
   constructor(
     private readonly eoseTimeout: number,
     defaultRelays: readonly string[],
-    private readonly requestOptimizer: RelayRequestOptimizerOptions
+    private readonly requestOptimizer: RelayRequestOptimizerOptions,
+    relayLifecycle: RelayLifecycleOptions = {}
   ) {
+    this.relayLifecycleOptions = normalizeRelayLifecycleOptions(relayLifecycle);
     this.setDefaultRelays([...defaultRelays]);
     this.setRelayCapabilities(requestOptimizer.relayCapabilities ?? {});
     this.capabilityLearningHandler = requestOptimizer.onCapabilityLearned;
@@ -358,11 +468,13 @@ class RelaySession implements RxNostr {
     const next = new Map<string, DefaultRelayConfig>();
     for (const relay of relays) {
       next.set(relay, { url: relay, read: true, write: true });
+      this.registerRelayLifecyclePolicy(relay, 'lazy-keep');
     }
 
     for (const [url, connection] of this.connections.entries()) {
       if (!next.has(url)) {
         connection.close();
+        this.relayLifecyclePolicies.delete(url);
         this.connections.delete(url);
       }
     }
@@ -678,9 +790,6 @@ class RelaySession implements RxNostr {
           packet.state === 'degraded'
         ) {
           this.markRelayNeedsReplay(packet.from, group.groupKey);
-          void this.getConnection(packet.from)
-            .connect()
-            .catch(() => {});
           return;
         }
 
@@ -792,6 +901,7 @@ class RelaySession implements RxNostr {
     group.activeRelaySubIds.get(relayUrl)?.clear();
     group.relayShardQueues.delete(relayUrl);
     this.publishRelayCapability(relayUrl);
+    this.maybeScheduleIdleDisconnect(relayUrl);
   }
 
   private groupOwnsRelaySubId(group: ActiveRequestGroup, relayUrl: string, subId: string): boolean {
@@ -809,6 +919,7 @@ class RelaySession implements RxNostr {
     group.activeRelaySubIds.get(relayUrl)?.clear();
     group.relayShardQueues.delete(relayUrl);
     this.publishRelayCapability(relayUrl);
+    this.maybeScheduleIdleDisconnect(relayUrl);
   }
 
   private releaseRelaySubId(group: ActiveRequestGroup, relayUrl: string, subId: string): void {
@@ -824,6 +935,7 @@ class RelaySession implements RxNostr {
     }
     this.untrackSubId(subId);
     this.publishRelayCapability(relayUrl);
+    this.maybeScheduleIdleDisconnect(relayUrl);
   }
 
   private completeBackwardGroupIfDone(group: ActiveRequestGroup): void {
@@ -871,6 +983,7 @@ class RelaySession implements RxNostr {
       group.activeRelaySubIds.get(relayUrl)?.clear();
       group.relayShardQueues.delete(relayUrl);
       this.publishRelayCapability(relayUrl);
+      this.maybeScheduleIdleDisconnect(relayUrl);
     }
 
     group.transportSubIds.clear();
@@ -1256,21 +1369,53 @@ class RelaySession implements RxNostr {
     }
   }
 
+  private registerRelayLifecyclePolicy(url: string, mode: RelayLifecycleMode): void {
+    const current = this.relayLifecyclePolicies.get(url);
+    if (current?.mode === 'lazy-keep') return;
+    if (current?.mode === mode) return;
+
+    const policy =
+      mode === 'lazy-keep'
+        ? this.relayLifecycleOptions.defaultRelay
+        : this.relayLifecycleOptions.temporaryRelay;
+    this.relayLifecyclePolicies.set(url, policy);
+  }
+
+  private getRelayLifecyclePolicy(url: string): RelayLifecyclePolicy {
+    const existing = this.relayLifecyclePolicies.get(url);
+    if (existing) return existing;
+    this.relayLifecyclePolicies.set(url, this.relayLifecycleOptions.temporaryRelay);
+    return this.relayLifecycleOptions.temporaryRelay;
+  }
+
+  private maybeScheduleIdleDisconnect(relayUrl: string): void {
+    const policy = this.getRelayLifecyclePolicy(relayUrl);
+    if (policy.mode !== 'lazy') return;
+    if (this.countActiveSubscriptions(relayUrl) > 0) return;
+    if (this.countQueuedShards(relayUrl) > 0) return;
+    if ((this.relayNeedsReplay.get(relayUrl)?.size ?? 0) > 0) return;
+
+    this.connections.get(relayUrl)?.scheduleIdleDisconnect();
+  }
+
   private getConnection(url: string): RelaySocket {
     let connection = this.connections.get(url);
     if (!connection) {
       connection = new RelaySocket(
         url,
+        () => this.getRelayLifecyclePolicy(url),
+        () => (this.relayGroupKeys.get(url)?.size ?? 0) > 0,
         (from, message) => this.messages.next({ from, message }),
-        (from, state) => {
+        (from, state, explicitReason) => {
           const reason =
-            state === 'connecting'
+            explicitReason ??
+            (state === 'connecting'
               ? 'connecting'
               : state === 'open'
                 ? 'opened'
                 : state === 'degraded'
                   ? 'connect-failed'
-                  : 'disconnected';
+                  : 'disconnected');
           this.updateRelayObservation(from, state, reason);
         }
       );
@@ -1287,7 +1432,13 @@ class RelaySession implements RxNostr {
         if (config.read) urls.add(url);
       }
     }
-    for (const relay of selection?.relays ?? []) urls.add(relay);
+    for (const relay of selection?.relays ?? []) {
+      this.registerRelayLifecyclePolicy(
+        relay,
+        this.defaultRelays.has(relay) ? 'lazy-keep' : 'lazy'
+      );
+      urls.add(relay);
+    }
     return [...urls];
   }
 
@@ -1298,7 +1449,13 @@ class RelaySession implements RxNostr {
         if (config.write) urls.add(url);
       }
     }
-    for (const relay of selection?.relays ?? []) urls.add(relay);
+    for (const relay of selection?.relays ?? []) {
+      this.registerRelayLifecyclePolicy(
+        relay,
+        this.defaultRelays.has(relay) ? 'lazy-keep' : 'lazy'
+      );
+      urls.add(relay);
+    }
     return [...urls];
   }
 
@@ -1347,7 +1504,8 @@ export function createRelaySession(options: CreateRelaySessionOptions): RxNostr 
   return new RelaySession(
     options.eoseTimeout ?? 10_000,
     options.defaultRelays,
-    options.requestOptimizer ?? {}
+    options.requestOptimizer ?? {},
+    options.relayLifecycle
   );
 }
 
