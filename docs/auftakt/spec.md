@@ -61,19 +61,19 @@ flowchart TD
     App[Feature / Shared Browser] --> Facade[src/shared/auftakt/resonote.ts]
     Facade --> Runtime[@auftakt/resonote]
     Runtime --> Core[@auftakt/core]
-    Runtime --> Store[@auftakt/adapter-indexeddb]
+    Runtime --> Store[@auftakt/adapter-dexie]
     Store --> Core
 ```
 
 ### 4.1 レイヤー構成
 
-| 層                | 役割                                                                   | 主な配置                                  |
-| ----------------- | ---------------------------------------------------------------------- | ----------------------------------------- |
-| App / Feature     | 高レベル API の利用                                                    | `src/features/*`, `src/shared/browser/*`  |
-| App-facing façade | import point の集約                                                    | `src/shared/auftakt/resonote.ts`          |
-| Resonote runtime  | read / subscribe / relay status / feature-facing operation             | `packages/resonote/src/runtime.ts`        |
-| Core runtime      | vocabulary / request planning / settlement / reconcile / relay session | `packages/core/src/*`                     |
-| Storage adapter   | persistence / materialization                                          | `packages/adapter-indexeddb/src/index.ts` |
+| 層                | 役割                                                                   | 主な配置                                 |
+| ----------------- | ---------------------------------------------------------------------- | ---------------------------------------- |
+| App / Feature     | 高レベル API の利用                                                    | `src/features/*`, `src/shared/browser/*` |
+| App-facing façade | import point の集約                                                    | `src/shared/auftakt/resonote.ts`         |
+| Resonote runtime  | read / subscribe / relay status / feature-facing operation             | `packages/resonote/src/runtime.ts`       |
+| Core runtime      | vocabulary / request planning / settlement / reconcile / relay session | `packages/core/src/*`                    |
+| Storage adapter   | persistence / materialization                                          | `packages/adapter-dexie/src/index.ts`    |
 
 ---
 
@@ -140,11 +140,11 @@ flowchart TD
 
 ---
 
-### 5.3 `@auftakt/adapter-indexeddb`
+### 5.3 `@auftakt/adapter-dexie`
 
 #### 役割
 
-`@auftakt/adapter-indexeddb` は、イベント保存と reconcile 結果の materialization
+`@auftakt/adapter-dexie` は、イベント保存と reconcile 結果の materialization
 を担当する。
 
 #### 主責務
@@ -405,7 +405,7 @@ sequenceDiagram
     participant Facade as src/shared/auftakt/resonote.ts
     participant Runtime as @auftakt/resonote
     participant Core as @auftakt/core
-    participant Store as @auftakt/adapter-indexeddb
+    participant Store as @auftakt/adapter-dexie
 
     Feature->>Facade: cachedFetchById(id)
     Facade->>Runtime: high-level read
@@ -449,7 +449,7 @@ sequenceDiagram
     participant Facade as src/shared/auftakt/resonote.ts
     participant Runtime as @auftakt/resonote
     participant Core as @auftakt/core
-    participant Store as @auftakt/adapter-indexeddb
+    participant Store as @auftakt/adapter-dexie
 
     Feature->>Facade: publishSignedEvent(params)
     Facade->>Runtime: high-level publish
@@ -550,13 +550,13 @@ import {
 flowchart LR
     Core[@auftakt/core]
     Resonote[@auftakt/resonote]
-    IndexedDB[@auftakt/adapter-indexeddb]
+    DexieStore[@auftakt/adapter-dexie]
     Facade[src/shared/auftakt/resonote.ts]
     App[Feature / Shared Browser]
 
     Resonote --> Core
-    Resonote --> IndexedDB
-    IndexedDB --> Core
+    Resonote --> DexieStore
+    DexieStore --> Core
     Facade --> Resonote
     App --> Facade
 ```
@@ -581,7 +581,7 @@ flowchart LR
 
 - `core` は語彙・判断・relay session primitive
 - `resonote` は高レベル runtime
-- `adapter-indexeddb` は storage backend adapter
+- `adapter-dexie` は storage backend adapter
 
 ### 13.3 境界スコープ・クロスウォーク (Bounded Scope Crosswalk)
 
@@ -608,14 +608,14 @@ façade API
 
 #### 1. Coordinator Ownership Matrix
 
-| Concern                             | Final Owner                               | Public Surface                               | Must NOT Own                     |
-| ----------------------------------- | ----------------------------------------- | -------------------------------------------- | -------------------------------- |
-| App-facing import point             | `src/shared/auftakt/resonote.ts`          | thin wrapper / re-export only                | semantics / transport / storage  |
-| Single coordinator orchestration    | `packages/resonote/src/runtime.ts`        | `@auftakt/resonote` + façade re-export       | raw socket / IndexedDB internals |
-| Shared vocabulary                   | `packages/core/src/index.ts`              | shared types/contracts                       | feature semantics                |
-| Request planning / optimization     | `packages/core/src/request-planning.ts`   | descriptors, requestKey, optimizer contracts | DB access                        |
-| Relay transport / reconnect         | `packages/core/src/relay-session.ts`      | core relay session primitive                 | feature semantics                |
-| Storage / reconcile materialization | `packages/adapter-indexeddb/src/index.ts` | adapter contract only                        | relay retry policy               |
+| Concern                             | Final Owner                             | Public Surface                               | Must NOT Own                     |
+| ----------------------------------- | --------------------------------------- | -------------------------------------------- | -------------------------------- |
+| App-facing import point             | `src/shared/auftakt/resonote.ts`        | thin wrapper / re-export only                | semantics / transport / storage  |
+| Single coordinator orchestration    | `packages/resonote/src/runtime.ts`      | `@auftakt/resonote` + façade re-export       | raw socket / IndexedDB internals |
+| Shared vocabulary                   | `packages/core/src/index.ts`            | shared types/contracts                       | feature semantics                |
+| Request planning / optimization     | `packages/core/src/request-planning.ts` | descriptors, requestKey, optimizer contracts | DB access                        |
+| Relay transport / reconnect         | `packages/core/src/relay-session.ts`    | core relay session primitive                 | feature semantics                |
+| Storage / reconcile materialization | `packages/adapter-dexie/src/index.ts`   | adapter contract only                        | relay retry policy               |
 
 #### 2. Public API & Plugin API Catalog
 
@@ -649,7 +649,7 @@ surface が coordinator/package-owned semantics に留まること」を指す�
 | NIP-04 | public-compat | implemented (compat fallback only)               | `src/shared/browser/mute.svelte.ts`                                   | `src/shared/browser/mute.test.ts`                                                                                                                   | private mute-tag 復号の compatibility fallback。DM 全面対応は主張しない                                                                                                                                               |
 | NIP-05 | public        | implemented                                      | `src/shared/nostr/nip05.ts`                                           | `src/shared/nostr/nip05.test.ts`                                                                                                                    | profile verification only                                                                                                                                                                                             |
 | NIP-07 | public        | implemented                                      | `src/shared/nostr/client.ts`                                          | `src/shared/nostr/client-integration.test.ts`                                                                                                       | browser signer integration via `window.nostr`                                                                                                                                                                         |
-| NIP-09 | public        | implemented                                      | `packages/adapter-indexeddb/src/index.ts`                             | `packages/core/src/reconcile.contract.test.ts`<br>`packages/adapter-indexeddb/src/reconcile.contract.test.ts`                                       | package-owned tombstone verification と late-event suppression                                                                                                                                                        |
+| NIP-09 | public        | implemented                                      | `packages/adapter-dexie/src/index.ts`                                 | `packages/core/src/reconcile.contract.test.ts`<br>`packages/adapter-dexie/src/materialization.contract.test.ts`                                     | package-owned tombstone verification と late-event suppression                                                                                                                                                        |
 | NIP-10 | public        | implemented                                      | `src/features/comments/application/comment-actions.ts`                | `src/features/comments/application/comment-actions.test.ts`<br>`e2e/reply-thread.test.ts`                                                           | reply threading と parent linkage                                                                                                                                                                                     |
 | NIP-11 | internal      | implemented (runtime-only bounded support)       | `packages/core/src/relay-session.ts`                                  | `packages/core/src/relay-session.contract.test.ts`                                                                                                  | runtime-only relay request-limit policy shapes shard queueing and reconnect replay. No public relay metadata surface and no broader NIP-11 discovery claim.                                                           |
 | NIP-19 | public        | implemented                                      | `src/features/nip19-resolver/application/resolve-nip19-navigation.ts` | `src/shared/nostr/nip19-decode.test.ts`<br>`src/features/nip19-resolver/application/resolve-nip19-navigation.test.ts`<br>`e2e/nip19-routes.test.ts` | standard `npub` / `nprofile` / `note` / `nevent` を公開対応。`ncontent` は Resonote-specific extension であり標準 NIP-19 claim には含めない                                                                           |
@@ -804,7 +804,7 @@ Auftakt は、Resonote における Nostr runtime
 
 - `core` = 語彙 / 判断 / relay session primitive
 - `resonote` = Resonote 高レベル機能
-- `adapter-indexeddb` = 保存 backend adapter
+- `adapter-dexie` = 保存 backend adapter
 - `src/shared/auftakt/resonote.ts` = app-facing façade
 
 この構造により、アプリケーション層は relay transport や storage detail

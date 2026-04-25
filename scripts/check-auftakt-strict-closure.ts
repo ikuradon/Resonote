@@ -23,6 +23,9 @@ const IGNORED_PATH_PARTS = [
   'node_modules/',
   'scripts/check-auftakt-strict-closure'
 ];
+const LEGACY_ADAPTER_SLUG = 'adapter-' + 'indexeddb';
+const LEGACY_ADAPTER_PACKAGE = `@auftakt/${LEGACY_ADAPTER_SLUG}`;
+const LEGACY_ADAPTER_PATH = `packages/${LEGACY_ADAPTER_SLUG}`;
 
 function addUnique(errors: string[], message: string): void {
   if (!errors.includes(message)) {
@@ -42,12 +45,12 @@ export function checkStrictClosure(files: readonly StrictClosureFile[]): StrictC
   const errors: string[] = [];
 
   for (const file of files) {
-    if (file.path.startsWith('packages/adapter-indexeddb/')) {
-      addUnique(errors, 'packages/adapter-indexeddb exists');
+    if (file.path.startsWith(`${LEGACY_ADAPTER_PATH}/`)) {
+      addUnique(errors, `${LEGACY_ADAPTER_PATH} exists`);
       continue;
     }
-    if (file.text.includes('@auftakt/adapter-indexeddb')) {
-      errors.push(`${file.path} imports @auftakt/adapter-indexeddb`);
+    if (file.text.includes(LEGACY_ADAPTER_PACKAGE)) {
+      errors.push(`${file.path} imports ${LEGACY_ADAPTER_PACKAGE}`);
     }
     if (
       isProductionResonoteSource(file.path) &&
@@ -95,8 +98,8 @@ function collectFiles(root = process.cwd()): StrictClosureFile[] {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const files = collectFiles();
-  if (existsSync('packages/adapter-indexeddb')) {
-    files.push({ path: 'packages/adapter-indexeddb/src/index.ts', text: '' });
+  if (existsSync(LEGACY_ADAPTER_PATH)) {
+    files.push({ path: `${LEGACY_ADAPTER_PATH}/src/index.ts`, text: '' });
   }
   const result = checkStrictClosure(files);
   if (!result.ok) {

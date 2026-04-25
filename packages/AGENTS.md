@@ -6,11 +6,11 @@
 
 ## WHERE TO LOOK
 
-| Package              | Role                                 | Notes                                       |
-| -------------------- | ------------------------------------ | ------------------------------------------- |
-| `core/`              | Auftakt runtime foundation           | vocabulary, planning, relay session         |
-| `resonote/`          | Resonote app-specific runtime facade | coordinator, plugins, feature-facing flows  |
-| `adapter-indexeddb/` | storage/materializer adapter         | IndexedDB apply + reconcile materialization |
+| Package          | Role                                 | Notes                                                                     |
+| ---------------- | ------------------------------------ | ------------------------------------------------------------------------- |
+| `core/`          | Auftakt runtime foundation           | vocabulary, planning, relay session                                       |
+| `resonote/`      | Resonote app-specific runtime facade | coordinator, plugins, feature-facing flows                                |
+| `adapter-dexie/` | storage/materializer adapter         | Dexie schema, durable queries, pending publishes, quarantine, relay hints |
 
 ## CONVENTIONS
 

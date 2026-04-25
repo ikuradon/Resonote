@@ -20,7 +20,7 @@
     "check:auftakt:nips": "node --experimental-strip-types scripts/check-auftakt-nips.ts",
     "check:auftakt:strict-closure": "git ls-files -co --exclude-standard | node --experimental-strip-types scripts/check-auftakt-strict-closure.ts",
     "test:auftakt:core": "vitest run packages/core/src/",
-    "test:auftakt:storage": "vitest run packages/adapter-indexeddb/src/",
+    "test:auftakt:storage": "vitest run packages/adapter-dexie/src/",
     "test:auftakt:resonote": "vitest run packages/resonote/src/",
     "test:auftakt:app-regression": "vitest run src/shared/nostr/cached-query.test.ts src/shared/browser/profile.svelte.test.ts src/shared/browser/relays.test.ts src/features/comments/ui/comment-view-model.test.ts src/features/notifications/ui/notification-feed-view-model.test.ts src/features/relays/ui/relay-settings-view-model.test.ts src/features/comments/application/comment-actions.test.ts src/features/content-resolution/application/resolve-content.test.ts",
     "test:auftakt:e2e": "playwright test e2e/reply-thread.test.ts e2e/comment-flow.test.ts e2e/reaction-delete-reply.test.ts e2e/notifications-page.test.ts e2e/profile-data.test.ts e2e/relay-settings-data.test.ts e2e/nip19-routes.test.ts e2e/content-page.test.ts",
@@ -83,7 +83,6 @@
   },
   "dependencies": {
     "@auftakt/adapter-dexie": "workspace:*",
-    "@auftakt/adapter-indexeddb": "workspace:*",
     "@auftakt/core": "workspace:*",
     "@auftakt/resonote": "workspace:*",
     "@hono/zod-validator": "^0.7.6",

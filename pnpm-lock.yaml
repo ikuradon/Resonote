@@ -15,9 +15,6 @@ importers:
       '@auftakt/adapter-dexie':
         specifier: workspace:*
         version: link:packages/adapter-dexie
-      '@auftakt/adapter-indexeddb':
-        specifier: workspace:*
-        version: link:packages/adapter-indexeddb
       '@auftakt/core':
         specifier: workspace:*
         version: link:packages/core
@@ -160,18 +157,6 @@ importers:
       dexie:
         specifier: ^4.2.1
         version: 4.4.2
-      nostr-typedef:
-        specifier: ^0.13.0
-        version: 0.13.0
-
-  packages/adapter-indexeddb:
-    dependencies:
-      '@auftakt/core':
-        specifier: workspace:*
-        version: link:../core
-      idb:
-        specifier: ^8.0.3
-        version: 8.0.3
       nostr-typedef:
         specifier: ^0.13.0
         version: 0.13.0

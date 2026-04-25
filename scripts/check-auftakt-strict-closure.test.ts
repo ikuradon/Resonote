@@ -2,22 +2,24 @@ import { describe, expect, it } from 'vitest';
 
 import { checkStrictClosure, type StrictClosureFile } from './check-auftakt-strict-closure.ts';
 
+const legacyAdapterSlug = 'adapter-' + 'indexeddb';
+const legacyAdapterPackage = `@auftakt/${legacyAdapterSlug}`;
+const legacyAdapterPath = `packages/${legacyAdapterSlug}`;
+
 function file(path: string, text: string): StrictClosureFile {
   return { path, text };
 }
 
 describe('checkStrictClosure', () => {
-  it('flags active adapter-indexeddb imports and package folders', () => {
+  it('flags active legacy adapter imports and package folders', () => {
     const result = checkStrictClosure([
-      file('src/shared/nostr/event-db.ts', "import { x } from '@auftakt/adapter-indexeddb';"),
-      file('packages/adapter-indexeddb/src/index.ts', 'export {};')
+      file('src/shared/nostr/event-db.ts', `import { x } from '${legacyAdapterPackage}';`),
+      file(`${legacyAdapterPath}/src/index.ts`, 'export {};')
     ]);
 
     expect(result.ok).toBe(false);
-    expect(result.errors).toContain(
-      'src/shared/nostr/event-db.ts imports @auftakt/adapter-indexeddb'
-    );
-    expect(result.errors).toContain('packages/adapter-indexeddb exists');
+    expect(result.errors).toContain(`src/shared/nostr/event-db.ts imports ${legacyAdapterPackage}`);
+    expect(result.errors).toContain(`${legacyAdapterPath} exists`);
   });
 
   it('flags no-op production quarantine writers', () => {

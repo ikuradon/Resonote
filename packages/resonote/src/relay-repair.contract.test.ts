@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 
-import { createIndexedDbEventStore } from '@auftakt/adapter-indexeddb';
+import { createDexieEventStore } from '@auftakt/adapter-dexie';
 import type { RequestKey, StoredEvent } from '@auftakt/core';
 import { createRuntimeRequestKey } from '@auftakt/core';
 import { describe, expect, it } from 'vitest';
@@ -54,9 +54,9 @@ async function createRuntimeFixture(options: {
   const createdRequests: FakeBackwardRequest[] = [];
   const materialized: StoredEvent[] = [];
   let negentropyCallCount = 0;
-  const eventsDB = await createIndexedDbEventStore(
-    `relay-repair-contract-${Date.now()}-${Math.random()}`
-  );
+  const eventsDB = await createDexieEventStore({
+    dbName: `relay-repair-contract-${Date.now()}-${Math.random()}`
+  });
 
   for (const event of options.initialEvents ?? []) {
     await eventsDB.putWithReconcile(event);

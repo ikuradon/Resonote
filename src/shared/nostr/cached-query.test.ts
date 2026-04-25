@@ -667,7 +667,7 @@ it('uses a Dexie-backed event db bridge', async () => {
   const source = await import('node:fs/promises').then((fs) =>
     fs.readFile(new URL('./event-db.ts', import.meta.url), 'utf8')
   );
-  const legacyAdapter = '@auftakt/' + 'adapter-indexeddb';
+  const legacyAdapter = '@auftakt/' + 'adapter-' + 'indexeddb';
 
   expect(source).toContain('@auftakt/adapter-dexie');
   expect(source).not.toContain(legacyAdapter);

@@ -422,7 +422,14 @@ export class DexieEventStore {
     );
     return {
       stored: true,
-      emissions: targets.map((id) => ({ subjectId: id, state: 'deleted', reason: 'tombstoned' }))
+      emissions: [
+        { subjectId: event.id, state: 'confirmed', reason: 'accepted-new' },
+        ...targets.map((id) => ({
+          subjectId: id,
+          state: 'deleted' as const,
+          reason: 'tombstoned' as const
+        }))
+      ]
     };
   }
 

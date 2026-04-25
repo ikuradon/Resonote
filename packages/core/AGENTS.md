@@ -19,7 +19,7 @@ Core Auftakt runtime foundation: shared vocabulary, crypto helpers, request plan
 ## CONVENTIONS
 
 - Keep app-facing feature operations out of core; those belong in `@auftakt/resonote`.
-- Storage implementation remains in `@auftakt/adapter-indexeddb`.
+- Storage implementation remains in `@auftakt/adapter-dexie`.
 - Add new public terms here only if multiple downstream packages or runtime bridges must share them.
 
 ## ANTI-PATTERNS
