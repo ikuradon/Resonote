@@ -19,6 +19,7 @@ const IGNORED_PATH_PARTS = [
   '.wrangler/',
   'build/',
   'dist-extension/',
+  'docs/archive/',
   'docs/superpowers/',
   'node_modules/',
   'scripts/check-auftakt-strict-closure'
@@ -34,11 +35,26 @@ const REMOVED_PACKAGE_PATTERNS = [
   LEGACY_ADAPTER_PATH
 ];
 const ACTIVE_DOC_PATHS = new Set(['README.md', 'CLAUDE.md']);
+const RETIRED_CACHED_READ_BASENAME = 'cached-' + 'query';
+const RETIRED_CACHED_READ_PATHS = new Set([
+  `src/shared/nostr/${RETIRED_CACHED_READ_BASENAME}.svelte.ts`,
+  `src/shared/nostr/${RETIRED_CACHED_READ_BASENAME}.ts`
+]);
+const RETIRED_CACHED_READ_SPECIFIERS = [
+  `$shared/nostr/${RETIRED_CACHED_READ_BASENAME}.js`,
+  `$shared/nostr/${RETIRED_CACHED_READ_BASENAME}.svelte.js`,
+  `./${RETIRED_CACHED_READ_BASENAME}.js`,
+  `./${RETIRED_CACHED_READ_BASENAME}.svelte.js`
+];
 
 function addUnique(errors: string[], message: string): void {
   if (!errors.includes(message)) {
     errors.push(message);
   }
+}
+
+function isIgnoredStrictClosurePath(path: string): boolean {
+  return IGNORED_PATH_PARTS.some((part) => path.includes(part));
 }
 
 function isProductionResonoteSource(path: string): boolean {
@@ -61,9 +77,17 @@ export function checkStrictClosure(files: readonly StrictClosureFile[]): StrictC
   const errors: string[] = [];
 
   for (const file of files) {
+    if (isIgnoredStrictClosurePath(file.path)) continue;
+
     if (file.path.startsWith(`${LEGACY_ADAPTER_PATH}/`)) {
       addUnique(errors, `${LEGACY_ADAPTER_PATH} exists`);
       continue;
+    }
+    if (RETIRED_CACHED_READ_PATHS.has(file.path)) {
+      errors.push(`${file.path} is retired; use $shared/auftakt/resonote.js for cached reads`);
+    }
+    if (RETIRED_CACHED_READ_SPECIFIERS.some((specifier) => file.text.includes(specifier))) {
+      errors.push(`${file.path} imports retired shared Nostr cached read bridge`);
     }
     if (file.text.includes(LEGACY_ADAPTER_PACKAGE)) {
       errors.push(`${file.path} imports ${LEGACY_ADAPTER_PACKAGE}`);
@@ -143,7 +167,7 @@ function collectFiles(root = process.cwd()): StrictClosureFile[] {
   const paths = input.length > 0 ? input.split(/\r?\n/) : [];
   return paths
     .filter((path) => ACTIVE_EXTENSIONS.test(path))
-    .filter((path) => !IGNORED_PATH_PARTS.some((part) => path.includes(part)))
+    .filter((path) => !isIgnoredStrictClosurePath(path))
     .map((path) => ({ path, text: readFileSync(join(root, path), 'utf8') }));
 }
 

@@ -7,6 +7,7 @@ const legacyAdapterPackage = `@auftakt/${legacyAdapterSlug}`;
 const legacyAdapterPath = `packages/${legacyAdapterSlug}`;
 const removedRelayAdapterSlug = 'adapter-' + 'relay';
 const removedRelayAdapterPackage = `@auftakt/${removedRelayAdapterSlug}`;
+const retiredCachedReadSlug = 'cached-' + 'query';
 
 function file(path: string, text: string): StrictClosureFile {
   return { path, text };
@@ -183,6 +184,47 @@ describe('checkStrictClosure', () => {
     expect(result.errors).toContain(
       'src/shared/nostr/pending-publishes.ts still uses standalone idb storage'
     );
+  });
+
+  it('flags retired shared nostr cached read bridge files and imports', () => {
+    const retiredFile = `src/shared/nostr/${retiredCachedReadSlug}.ts`;
+    const retiredImport = `$shared/nostr/${retiredCachedReadSlug}.js`;
+    const result = checkStrictClosure([
+      file(retiredFile, 'export {};'),
+      file(
+        'src/features/comments/ui/comment-view-model.svelte.ts',
+        `import { cachedFetchById } from '${retiredImport}';`
+      ),
+      file(
+        'packages/resonote/src/materializer-queue.ts',
+        'export function createMaterializerQueue() {}'
+      ),
+      file('packages/resonote/src/runtime.ts', 'createMaterializerQueue(); createRelayGateway();')
+    ]);
+
+    expect(result.errors).toContain(
+      `${retiredFile} is retired; use $shared/auftakt/resonote.js for cached reads`
+    );
+    expect(result.errors).toContain(
+      'src/features/comments/ui/comment-view-model.svelte.ts imports retired shared Nostr cached read bridge'
+    );
+  });
+
+  it('ignores archived docs that mention retired cached read bridges', () => {
+    const retiredImport = `$shared/nostr/${retiredCachedReadSlug}.js`;
+    const result = checkStrictClosure([
+      file('docs/archive/refactoring-plan.md', `Historical note: import '${retiredImport}';`),
+      file(
+        'packages/resonote/src/event-coordinator.ts',
+        'import { createMaterializerQueue } from "./materializer-queue.js";'
+      ),
+      file(
+        'packages/resonote/src/runtime.ts',
+        'import { createRelayGateway } from "./relay-gateway.js";'
+      )
+    ]);
+
+    expect(result).toEqual({ ok: true, errors: [] });
   });
 
   it('passes when strict closure invariants are satisfied', () => {
