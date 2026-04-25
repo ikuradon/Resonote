@@ -10,6 +10,7 @@ import {
 } from '../../../src/shared/nostr/pending-publishes.js';
 import {
   publishSignedEventsWithOfflineFallback,
+  publishSignedEventWithOfflineFallback,
   type RetryableSignedEvent,
   retryQueuedSignedPublishes
 } from './runtime.js';
@@ -108,7 +109,7 @@ describe('@auftakt/resonote publish queue contract', () => {
     expect(result.retryingCount).toBe(1);
   });
 
-  it('keeps single publish throwing instead of silently queueing on failure', async () => {
+  it('queues retryable single publish failures while preserving the caller-visible error', async () => {
     const castSigned = vi
       .fn<(_: object) => Promise<void>>()
       .mockRejectedValue(new Error('offline'));
@@ -116,10 +117,11 @@ describe('@auftakt/resonote publish queue contract', () => {
     const signed = makeEvent({ id: 'signed-1' });
 
     await expect(async () => {
-      await castSigned(signed);
+      await publishSignedEventWithOfflineFallback({ castSigned }, { addPendingPublish }, signed);
     }).rejects.toThrow('offline');
 
-    expect(addPendingPublish).not.toHaveBeenCalled();
+    expect(addPendingPublish).toHaveBeenCalledOnce();
+    expect(addPendingPublish).toHaveBeenCalledWith(signed);
   });
 
   it('queues only failed signed events in batch publish', async () => {

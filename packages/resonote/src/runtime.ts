@@ -2056,10 +2056,10 @@ export async function publishSignedEventWithOfflineFallback(
 ): Promise<void> {
   try {
     await runtime.castSigned(event);
-  } catch {
+  } catch (error) {
     const pending = toRetryableSignedEvent(event);
     if (pending) await queueRuntime.addPendingPublish(pending);
-    return;
+    throw error;
   }
 
   const pending = toRetryableSignedEvent(event);
