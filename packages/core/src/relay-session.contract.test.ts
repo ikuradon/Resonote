@@ -1063,4 +1063,104 @@ describe('relay replay request identity contract', () => {
     sub.unsubscribe();
     session.dispose();
   });
+
+  it('learns max_filters from CLOSED and reports the safety bound', async () => {
+    const learned: unknown[] = [];
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100,
+      requestOptimizer: {
+        defaultMaxFiltersPerRequest: 3,
+        onCapabilityLearned: (event) => learned.push(event)
+      }
+    });
+    const req = createRxBackwardReq({
+      requestKey: createRuntimeRequestKey({
+        mode: 'backward',
+        scope: 'contract:learn-max-filters',
+        filters: [{ ids: ['a'] }, { ids: ['b'] }, { ids: ['c'] }]
+      })
+    });
+
+    const sub = session.use(req).subscribe({});
+    req.emit([{ ids: ['a'] }, { ids: ['b'] }, { ids: ['c'] }]);
+    req.over();
+
+    await waitUntil(() => FakeWebSocket.instances.length > 0);
+    const socket = latestSocket();
+    socket.open();
+    await waitUntil(() => socket.sent.length === 1);
+
+    const subId = (socket.sent[0] as [string, string, ...unknown[]])[1];
+    socket.message(['CLOSED', subId, 'too many filters: max_filters=1']);
+
+    await waitUntil(() => learned.length === 1);
+    expect(learned[0]).toEqual({
+      relayUrl: RELAY_URL,
+      kind: 'maxFilters',
+      value: 1,
+      reason: 'too many filters: max_filters=1'
+    });
+
+    sub.unsubscribe();
+    session.dispose();
+  });
+
+  it('emits a duplicate event id once per logical consumer across shards', async () => {
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100,
+      requestOptimizer: {
+        relayCapabilities: {
+          [RELAY_URL]: {
+            relayUrl: RELAY_URL,
+            maxFilters: 1,
+            maxSubscriptions: null,
+            supportedNips: [],
+            source: 'learned',
+            expiresAt: null,
+            stale: false
+          }
+        }
+      }
+    });
+    const req = createRxForwardReq({
+      requestKey: createRuntimeRequestKey({
+        mode: 'forward',
+        scope: 'contract:dedup-shards',
+        filters: [{ ids: ['same'] }, { authors: ['pubkey-a'] }]
+      })
+    });
+    const received: string[] = [];
+
+    const sub = session.use(req).subscribe({
+      next: (packet) => received.push(packet.event.id)
+    });
+    req.emit([{ ids: ['same'] }, { authors: ['pubkey-a'] }]);
+
+    await waitUntil(() => FakeWebSocket.instances.length > 0);
+    const socket = latestSocket();
+    socket.open();
+    await waitUntil(() => socket.sent.length === 2);
+
+    const firstSubId = (socket.sent[0] as [string, string, ...unknown[]])[1];
+    const secondSubId = (socket.sent[1] as [string, string, ...unknown[]])[1];
+    const event = {
+      id: 'same-event',
+      pubkey: 'pubkey-a',
+      content: 'dupe',
+      created_at: 1,
+      tags: [],
+      kind: 1
+    };
+
+    socket.message(['EVENT', firstSubId, event]);
+    socket.message(['EVENT', secondSubId, event]);
+
+    await waitUntil(() => received.length === 1);
+    expect(received).toEqual(['same-event']);
+
+    sub.unsubscribe();
+    session.dispose();
+  });
 });

@@ -3,6 +3,7 @@ import { distinct, Observable, Subject } from 'rxjs';
 
 import {
   normalizeRelayCapabilitySnapshot,
+  parseRelayLimitClosedReason,
   type RelayCapabilityLearningEvent,
   type RelayCapabilityPacket,
   type RelayCapabilitySnapshot,
@@ -622,12 +623,26 @@ class RelaySession implements RxNostr {
         if (type === 'EVENT') {
           const event = (message as [string, string, NostrEvent])[2];
           for (const consumer of group.consumers) {
+            const eventId = typeof event?.id === 'string' ? event.id : null;
+            if (eventId && consumer.deliveredEventIds.has(eventId)) continue;
+            if (eventId) consumer.deliveredEventIds.add(eventId);
             consumer.observer.next({ from, event });
           }
           return;
         }
 
         if ((type === 'EOSE' || type === 'CLOSED') && group.mode === 'backward') {
+          if (type === 'CLOSED') {
+            const reason = typeof message[2] === 'string' ? message[2] : '';
+            const learned = parseRelayLimitClosedReason({
+              relayUrl: from,
+              reason,
+              activeAcceptedSubscriptions: this.countActiveSubscriptions(from)
+            });
+            if (learned) {
+              this.capabilityLearningHandler?.(learned);
+            }
+          }
           group.pendingSubIds.delete(incomingSubId);
           this.releaseRelaySubId(group, from, incomingSubId);
           void this.pumpRelayShardQueue(group, from)
