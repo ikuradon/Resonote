@@ -554,6 +554,117 @@ function createRegistryBackedSessionRuntime(
   };
 }
 
+function createMaterializedSubscriptionRuntime(
+  runtime: SessionRuntime<StoredEvent>
+): SessionRuntime<StoredEvent> {
+  const materializationRuntime = runtime as unknown as EventMaterializationRuntime;
+
+  return {
+    fetchBackwardEvents: <TOutput = StoredEvent>(
+      filters: readonly RuntimeFilter[],
+      options?: FetchBackwardOptions
+    ) => runtime.fetchBackwardEvents<TOutput>(filters, options),
+    fetchBackwardFirst: <TOutput = StoredEvent>(
+      filters: readonly RuntimeFilter[],
+      options?: FetchBackwardOptions
+    ) => runtime.fetchBackwardFirst<TOutput>(filters, options),
+    fetchLatestEvent: (...args) => runtime.fetchLatestEvent(...args),
+    getEventsDB: () => runtime.getEventsDB(),
+    getRxNostr: async () => {
+      const session = await runtime.getRxNostr();
+
+      return {
+        use: (req, options) =>
+          new Observable<unknown>((observer) => {
+            const pendingMaterializations = new Set<Promise<void>>();
+            let settled:
+              | { readonly type: 'complete' }
+              | { readonly type: 'error'; readonly error: unknown }
+              | null = null;
+            let disposed = false;
+
+            const finishIfIdle = () => {
+              if (!settled || pendingMaterializations.size > 0 || disposed) return;
+              if (settled.type === 'error') {
+                observer.error(settled.error);
+                return;
+              }
+              observer.complete();
+            };
+
+            const subscription = session.use(req, options).subscribe({
+              next: (packet) => {
+                const candidate = readRelayPacketCandidate(packet);
+                if (!candidate) return;
+
+                const task = (async () => {
+                  const accepted = await ingestRelayCandidateForRuntime(materializationRuntime, {
+                    event: candidate.event,
+                    relayUrl: candidate.relayUrl
+                  });
+                  if (!accepted.ok || disposed) return;
+
+                  observer.next({
+                    ...candidate.packet,
+                    event: accepted.event,
+                    from: candidate.relayUrl || undefined
+                  });
+                })();
+
+                pendingMaterializations.add(task);
+                void task
+                  .catch((error) => {
+                    if (!disposed) observer.error(error);
+                  })
+                  .finally(() => {
+                    pendingMaterializations.delete(task);
+                    finishIfIdle();
+                  });
+              },
+              complete: () => {
+                settled = { type: 'complete' };
+                finishIfIdle();
+              },
+              error: (error) => {
+                settled = { type: 'error', error };
+                finishIfIdle();
+              }
+            });
+
+            return () => {
+              disposed = true;
+              subscription.unsubscribe();
+              pendingMaterializations.clear();
+            };
+          })
+      };
+    },
+    createRxBackwardReq: (options) => runtime.createRxBackwardReq(options),
+    createRxForwardReq: (options) => runtime.createRxForwardReq(options),
+    uniq: () => runtime.uniq(),
+    merge: (...streams) => runtime.merge(...streams),
+    getRelayConnectionState: (url) => runtime.getRelayConnectionState(url),
+    observeRelayConnectionStates: (onPacket) => runtime.observeRelayConnectionStates(onPacket)
+  };
+}
+
+function readRelayPacketCandidate(packet: unknown): {
+  readonly packet: Record<string, unknown>;
+  readonly event: unknown;
+  readonly relayUrl: string;
+} | null {
+  if (typeof packet !== 'object' || packet === null || !('event' in packet)) {
+    return null;
+  }
+
+  const record = packet as Record<string, unknown>;
+  return {
+    packet: record,
+    event: record.event,
+    relayUrl: typeof record.from === 'string' ? record.from : ''
+  };
+}
+
 function getCachedFetchState(runtime: CoordinatorReadRuntime): CachedFetchState {
   const existing = cachedFetchStates.get(runtime);
   if (existing) return existing;
@@ -1592,6 +1703,8 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
   };
   const sessionRuntime = runtime as unknown as SessionRuntime<StoredEvent>;
   const registrySessionRuntime = createRegistryBackedSessionRuntime(sessionRuntime);
+  const materializedSubscriptionRuntime =
+    createMaterializedSubscriptionRuntime(registrySessionRuntime);
   const relayObservationRuntime = registrySessionRuntime as RelayObservationRuntime;
   const projectionRegistry = createProjectionRegistry();
   const readModelRegistry = createNamedRegistrationRegistry('Read model');
@@ -1728,7 +1841,7 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
     });
 
     return subscribeDualFilterStreams(
-      registrySessionRuntime,
+      materializedSubscriptionRuntime,
       {
         primaryFilter: {
           kinds: [...options.mentionKinds],
@@ -1766,7 +1879,7 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       }
     }),
     createResonoteCommentsFlowPlugin({
-      loadCommentSubscriptionDeps: () => loadEventSubscriptionDeps(registrySessionRuntime),
+      loadCommentSubscriptionDeps: () => loadEventSubscriptionDeps(materializedSubscriptionRuntime),
       buildCommentContentFilters,
       startCommentSubscription,
       startMergedCommentSubscription,
@@ -2799,7 +2912,9 @@ export async function loadCommentSubscriptionDeps(
   runtime: SessionRuntime
 ): Promise<CommentSubscriptionRefs> {
   return loadEventSubscriptionDeps(
-    createRegistryBackedSessionRuntime(runtime as SessionRuntime<StoredEvent>)
+    createMaterializedSubscriptionRuntime(
+      createRegistryBackedSessionRuntime(runtime as SessionRuntime<StoredEvent>)
+    )
   );
 }
 
@@ -2908,7 +3023,9 @@ export async function subscribeNotificationStreams(
   });
 
   return subscribeDualFilterStreams(
-    createRegistryBackedSessionRuntime(runtime as SessionRuntime<StoredEvent>),
+    createMaterializedSubscriptionRuntime(
+      createRegistryBackedSessionRuntime(runtime as SessionRuntime<StoredEvent>)
+    ),
     {
       primaryFilter: {
         kinds: [...options.mentionKinds],
