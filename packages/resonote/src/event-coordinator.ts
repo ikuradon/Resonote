@@ -91,11 +91,35 @@ export interface EventCoordinatorTransport {
   ): EventCoordinatorSubscriptionHandle;
 }
 
+export interface EventCoordinatorPublishAck {
+  readonly eventId: string;
+  readonly relayUrl: string;
+  readonly ok: boolean;
+}
+
+export interface EventCoordinatorPublishTransport {
+  publish(
+    event: StoredEvent,
+    handlers: { readonly onAck: (packet: EventCoordinatorPublishAck) => Promise<void> | void }
+  ): Promise<void>;
+}
+
+export interface EventCoordinatorPendingPublishes {
+  add(event: StoredEvent): Promise<void>;
+}
+
+export interface EventCoordinatorPublishResult {
+  readonly queued: boolean;
+  readonly ok: boolean;
+}
+
 export function createEventCoordinator(deps: {
   readonly hotIndex?: HotEventIndex;
   readonly materializerQueue?: EventCoordinatorMaterializerQueue;
   readonly relayGateway?: EventCoordinatorRelayGateway;
   readonly transport?: EventCoordinatorTransport;
+  readonly publishTransport?: EventCoordinatorPublishTransport;
+  readonly pendingPublishes?: EventCoordinatorPendingPublishes;
   readonly ingestRelayCandidate?: (
     candidate: EventCoordinatorRelayCandidate
   ) => Promise<EventCoordinatorIngressResult>;
@@ -218,6 +242,31 @@ export function createEventCoordinator(deps: {
     });
   }
 
+  async function publish(event: StoredEvent): Promise<EventCoordinatorPublishResult> {
+    if (!deps.publishTransport) {
+      await deps.pendingPublishes?.add(event);
+      return { queued: true, ok: false };
+    }
+
+    try {
+      await deps.publishTransport.publish(event, {
+        onAck: async (packet) => {
+          if (!packet.ok || packet.eventId !== event.id) return;
+          await deps.store.recordRelayHint?.({
+            eventId: event.id,
+            relayUrl: packet.relayUrl,
+            source: 'published',
+            lastSeenAt: Math.floor(Date.now() / 1000)
+          });
+        }
+      });
+      return { queued: false, ok: true };
+    } catch (error) {
+      await deps.pendingPublishes?.add(event);
+      throw error;
+    }
+  }
+
   return {
     applyLocalEvent(event: StoredEvent): void {
       hotIndex.applyVisible(event);
@@ -225,7 +274,8 @@ export function createEventCoordinator(deps: {
     materialize,
     materializeFromRelay: materialize,
     read,
-    subscribe
+    subscribe,
+    publish
   };
 }
 

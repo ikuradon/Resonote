@@ -422,4 +422,69 @@ describe('EventCoordinator read policy', () => {
 
     expect(onEvent).not.toHaveBeenCalled();
   });
+
+  it('publishes through coordinator transport and records successful relay hints', async () => {
+    const event = {
+      id: 'published',
+      pubkey: 'alice',
+      created_at: 20,
+      kind: 1,
+      tags: [],
+      content: 'publish',
+      sig: 'sig'
+    };
+    const recordRelayHint = vi.fn(async () => {});
+    const publish = vi.fn(async (_event, handlers) => {
+      await handlers.onAck({ eventId: 'published', relayUrl: 'wss://relay.example', ok: true });
+    });
+    const coordinator = createEventCoordinator({
+      publishTransport: { publish },
+      pendingPublishes: { add: vi.fn(async () => {}) },
+      store: {
+        getById: vi.fn(async () => null),
+        putWithReconcile: vi.fn(async () => ({ stored: true })),
+        recordRelayHint
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+
+    await expect(coordinator.publish(event)).resolves.toEqual({ queued: false, ok: true });
+
+    expect(publish).toHaveBeenCalledWith(event, expect.any(Object));
+    expect(recordRelayHint).toHaveBeenCalledWith({
+      eventId: 'published',
+      relayUrl: 'wss://relay.example',
+      source: 'published',
+      lastSeenAt: expect.any(Number)
+    });
+  });
+
+  it('queues retryable publish failures through coordinator pending storage', async () => {
+    const event = {
+      id: 'offline',
+      pubkey: 'alice',
+      created_at: 20,
+      kind: 1,
+      tags: [],
+      content: 'publish',
+      sig: 'sig'
+    };
+    const add = vi.fn(async () => {});
+    const coordinator = createEventCoordinator({
+      publishTransport: {
+        publish: vi.fn(async () => {
+          throw new Error('offline');
+        })
+      },
+      pendingPublishes: { add },
+      store: {
+        getById: vi.fn(async () => null),
+        putWithReconcile: vi.fn(async () => ({ stored: true }))
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+
+    await expect(coordinator.publish(event)).rejects.toThrow('offline');
+    expect(add).toHaveBeenCalledWith(event);
+  });
 });
