@@ -511,14 +511,20 @@ function createRegistryBackedSessionRuntime(
 ): SessionRuntime<StoredEvent> {
   const registry = getCoordinatorSubscriptionRegistry(runtime);
   return {
-    fetchBackwardEvents: (filters, options) =>
-      fetchBackwardEventsFromReadRuntime(
+    fetchBackwardEvents: <TOutput = StoredEvent>(
+      filters: readonly RuntimeFilter[],
+      options?: FetchBackwardOptions
+    ) =>
+      fetchBackwardEventsFromReadRuntime<TOutput>(
         runtime as unknown as BackwardFetchRuntime,
         filters,
         options
       ),
-    fetchBackwardFirst: async (filters, options) => {
-      const events = await fetchBackwardEventsFromReadRuntime<StoredEvent>(
+    fetchBackwardFirst: async <TOutput = StoredEvent>(
+      filters: readonly RuntimeFilter[],
+      options?: FetchBackwardOptions
+    ) => {
+      const events = await fetchBackwardEventsFromReadRuntime<TOutput>(
         runtime as unknown as BackwardFetchRuntime,
         filters,
         options
@@ -1561,14 +1567,20 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
 > {
   const coordinatorReadRuntime = runtime as unknown as CoordinatorReadRuntime;
   const queryRuntime: QueryRuntime<StoredEvent> = {
-    fetchBackwardEvents: (filters, options) =>
-      fetchBackwardEventsFromReadRuntime<StoredEvent>(
+    fetchBackwardEvents: <TOutput = StoredEvent>(
+      filters: readonly RuntimeFilter[],
+      options?: FetchBackwardOptions
+    ) =>
+      fetchBackwardEventsFromReadRuntime<TOutput>(
         coordinatorReadRuntime,
         filters,
         cloneFetchBackwardOptions(options)
       ),
-    fetchBackwardFirst: async (filters, options) => {
-      const events = await fetchBackwardEventsFromReadRuntime<StoredEvent>(
+    fetchBackwardFirst: async <TOutput = StoredEvent>(
+      filters: readonly RuntimeFilter[],
+      options?: FetchBackwardOptions
+    ) => {
+      const events = await fetchBackwardEventsFromReadRuntime<TOutput>(
         coordinatorReadRuntime,
         filters,
         cloneFetchBackwardOptions(options)

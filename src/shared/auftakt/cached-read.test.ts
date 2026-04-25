@@ -67,6 +67,10 @@ function createCachedReadRuntime(): CachedReadRuntime {
       put: vi.fn(async () => true)
     }),
     getRxNostr: async () => ({
+      requestNegentropySync: vi.fn(async () => ({
+        capability: 'unsupported' as const,
+        reason: 'missing-negentropy'
+      })),
       use: () => ({
         subscribe: subscribeMock
       })
@@ -703,7 +707,7 @@ describe('useCachedLatest', () => {
 
 it('uses a Dexie-backed event db bridge', async () => {
   const source = await import('node:fs/promises').then((fs) =>
-    fs.readFile(new URL('./event-db.ts', import.meta.url), 'utf8')
+    fs.readFile(new URL('../nostr/event-db.ts', import.meta.url), 'utf8')
   );
   const legacyAdapter = '@auftakt/' + 'adapter-' + 'indexeddb';
 
