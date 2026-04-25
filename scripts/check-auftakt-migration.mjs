@@ -44,7 +44,6 @@ const canonicalScope = {
 
 const forbiddenConsumerSpecifiers = [
   '$shared/nostr/gateway.js',
-  '$shared/nostr/cached-query.js',
   '$shared/nostr/user-relays.js'
 ];
 
@@ -90,16 +89,13 @@ const targetedConsumerScopes = [
 
 const residualLegacyAliasPolicies = [
   {
-    file: 'src/shared/nostr/cached-query.ts',
-    specifiers: ['$shared/nostr/cached-query.js'],
-    allowedTestImporters: []
-  },
-  {
     file: 'src/shared/nostr/user-relays.ts',
     specifiers: ['$shared/nostr/user-relays.js'],
     allowedTestImporters: ['src/shared/nostr/user-relays.test.ts']
   }
 ];
+
+const retiredCachedReadSpecifierPart = 'cached-' + 'query';
 
 const semanticGuardPolicies = [
   {
@@ -109,7 +105,7 @@ const semanticGuardPolicies = [
     allowedFiles: []
   },
   {
-    name: 'legacy-cached-query-source-contract',
+    name: 'legacy-cached-read-source-contract',
     description: 'retired source=loading|cache|relay contract',
     pattern:
       /source\??\s*:\s*'(loading|cache|relay)'|source\s*:\s*'loading'\s*\|\s*'cache'\s*\|\s*'relay'/g,
@@ -140,11 +136,12 @@ const semanticGuardPolicies = [
   {
     name: 'direct-shared-nostr-consumer-import',
     description: 'direct $shared/nostr canonical imports outside façade/internal bridges',
-    pattern: /\$shared\/nostr\/(cached-query|client|query|publish-signed)(?:\.js)?/g,
+    pattern: new RegExp(
+      `\\$shared\\/nostr\\/(${retiredCachedReadSpecifierPart}|client|query|publish-signed)(?:\\.js)?`,
+      'g'
+    ),
     allowedFiles: [
       'src/shared/auftakt/resonote.ts',
-      'src/shared/nostr/cached-query.svelte.ts',
-      'src/shared/nostr/cached-query.test.ts',
       'src/shared/nostr/materialized-latest.ts',
       'src/shared/nostr/materialized-latest.test.ts',
       'src/shared/nostr/relays-config.ts',

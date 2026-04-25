@@ -7,20 +7,15 @@ export const ownershipClassifications = [
 
 /** @type {Record<string, { classification: string; owner: string; disposition: string }>} */
 export const nostrOwnershipMatrix = {
-  'src/shared/nostr/cached-query.svelte.ts': {
+  'src/shared/auftakt/cached-read.svelte.ts': {
     classification: 'adapter-specific',
-    owner: 'shared/nostr adapter read bridge',
-    disposition: 'migrate to canonical read-settlement runtime API'
+    owner: 'shared/auftakt facade cached read driver',
+    disposition: 'retain as internal coordinator-backed cached read runtime'
   },
-  'src/shared/nostr/cached-query.test.ts': {
+  'src/shared/auftakt/cached-read.test.ts': {
     classification: 'app-owned',
     owner: 'app test harness',
-    disposition: 'retain as regression coverage for current bridge behavior'
-  },
-  'src/shared/nostr/cached-query.ts': {
-    classification: 'adapter-specific',
-    owner: 'shared/nostr adapter read bridge',
-    disposition: 'retire-ready legacy alias after consumer cutover; no remaining runtime or test imports'
+    disposition: 'retain as regression coverage for facade-owned cached read behavior'
   },
   'src/shared/nostr/client-integration.test.ts': {
     classification: 'app-owned',

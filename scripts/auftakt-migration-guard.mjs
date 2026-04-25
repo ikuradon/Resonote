@@ -34,6 +34,10 @@ export const retiredAuftaktInternalImports = [
 ];
 
 export const SHARED_NOSTR_ROOT = 'src/shared/nostr';
+export const SHARED_AUFTAKT_OWNERSHIP_FILES = [
+  'src/shared/auftakt/cached-read.svelte.ts',
+  'src/shared/auftakt/cached-read.test.ts'
+];
 
 /**
  * @param {string} dir
@@ -66,7 +70,15 @@ export function walk(dir, options = {}) {
  * @returns {string[]}
  */
 export function listSharedNostrFiles(dir = SHARED_NOSTR_ROOT) {
-  return walk(dir, { includeTests: true });
+  const files = walk(dir, { includeTests: true });
+  if (dir !== SHARED_NOSTR_ROOT) return files;
+
+  const extraFiles = SHARED_AUFTAKT_OWNERSHIP_FILES.filter((file) => {
+    const stat = statSync(file, { throwIfNoEntry: false });
+    return stat?.isFile();
+  });
+
+  return [...files, ...extraFiles].sort();
 }
 
 /**

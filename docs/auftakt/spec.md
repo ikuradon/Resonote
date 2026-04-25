@@ -773,7 +773,7 @@ consumer anchor と verification anchor を固定する。
 | **NIP-19 Resolver**    | `src/shared/auftakt/resonote.ts`                                       | `src/features/nip19-resolver/application/fetch-event.test.ts`         | `e2e/nip19-routes.test.ts`                                                         |
 | **Content Resolution** | `src/shared/auftakt/resonote.ts`                                       | `src/features/content-resolution/application/resolve-content.test.ts` | `e2e/content-page.test.ts`                                                         |
 | **Runtime Core**       | `packages/core/src/index.ts`                                           | `packages/core/src/read-settlement.contract.test.ts`                  | -                                                                                  |
-| **Cached Query**       | `src/shared/nostr/cached-query.svelte.ts`                              | `src/shared/nostr/cached-query.test.ts`                               | -                                                                                  |
+| **Cached Read**        | `src/shared/auftakt/cached-read.svelte.ts`                             | `src/shared/auftakt/cached-read.test.ts`                              | -                                                                                  |
 | **Relay Lifecycle**    | `src/shared/browser/relays.svelte.ts`                                  | `src/shared/browser/relays.test.ts`                                   | -                                                                                  |
 
 ### 15.2 最小検証マトリクス (Smallest-Viable Regression Matrix)
