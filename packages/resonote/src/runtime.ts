@@ -44,8 +44,8 @@ import {
   startMergedLiveSubscription,
   subscribeDualFilterStreams,
   type SubscriptionHandle,
-  type SubscriptionLike
-} from '@auftakt/core';
+  type SubscriptionLike,
+  validateRelayEvent} from '@auftakt/core';
 import type { EventParameters } from 'nostr-typedef';
 import { Observable } from 'rxjs';
 
@@ -102,7 +102,15 @@ interface CoordinatorReadRuntime {
   getEventsDB(): Promise<{
     getById(id: string): Promise<StoredEvent | null>;
     getByPubkeyAndKind(pubkey: string, kind: number): Promise<StoredEvent | null>;
+    getAllByKind(kind: number): Promise<StoredEvent[]>;
+    getByTagValue(tagQuery: string, kind?: number): Promise<StoredEvent[]>;
     listNegentropyEventRefs(): Promise<NegentropyEventRef[]>;
+    recordRelayHint?(hint: {
+      readonly eventId: string;
+      readonly relayUrl: string;
+      readonly source: 'seen' | 'hinted' | 'published' | 'repaired';
+      readonly lastSeenAt: number;
+    }): Promise<void>;
     putQuarantine?(record: QuarantineRecord): Promise<void>;
     put(event: StoredEvent): Promise<unknown>;
     putWithReconcile?(event: StoredEvent): Promise<{
@@ -156,22 +164,6 @@ interface LatestReadState<TEvent extends StoredEvent = StoredEvent> {
   sub?: { unsubscribe(): void };
   timeout?: ReturnType<typeof setTimeout>;
   readonly listeners: Set<() => void>;
-}
-
-interface BackwardFetchRuntime {
-  getEventsDB(): Promise<{
-    putQuarantine?(record: QuarantineRecord): Promise<void>;
-    put(event: StoredEvent): Promise<unknown>;
-    putWithReconcile?(event: StoredEvent): Promise<{
-      stored: boolean;
-      emissions: ReconcileEmission[];
-    }>;
-  }>;
-  getRxNostr(): Promise<NegentropySessionRuntime>;
-  createRxBackwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): {
-    emit(input: unknown): void;
-    over(): void;
-  };
 }
 
 interface RegistryRelayUseOptions {
@@ -516,7 +508,7 @@ function createRegistryBackedSessionRuntime(
       options?: FetchBackwardOptions
     ) =>
       fetchBackwardEventsFromReadRuntime<TOutput>(
-        runtime as unknown as BackwardFetchRuntime,
+        runtime as unknown as CoordinatorReadRuntime,
         filters,
         options
       ),
@@ -525,7 +517,7 @@ function createRegistryBackedSessionRuntime(
       options?: FetchBackwardOptions
     ) => {
       const events = await fetchBackwardEventsFromReadRuntime<TOutput>(
-        runtime as unknown as BackwardFetchRuntime,
+        runtime as unknown as CoordinatorReadRuntime,
         filters,
         options
       );
@@ -706,16 +698,6 @@ function isCoordinatorReadRuntime(value: unknown): value is CoordinatorReadRunti
   );
 }
 
-function isBackwardFetchRuntime(value: unknown): value is BackwardFetchRuntime {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'getEventsDB' in value &&
-    'getRxNostr' in value &&
-    'createRxBackwardReq' in value
-  );
-}
-
 function hasFetchBackwardEvents(
   value: unknown
 ): value is Pick<QueryRuntime, 'fetchBackwardEvents'> {
@@ -796,6 +778,84 @@ async function ingestRelayCandidateForRuntime(
   }
 
   return { ok: true, event: result.event };
+}
+
+function getRawRelayEventId(event: unknown): string | null {
+  if (typeof event !== 'object' || event === null) return null;
+  const id = (event as { id?: unknown }).id;
+  return typeof id === 'string' ? id : null;
+}
+
+async function acceptRelayCandidateForRuntime(
+  runtime: EventMaterializationRuntime,
+  candidate: { readonly event: unknown; readonly relayUrl: string }
+): Promise<{ readonly ok: true; readonly event: StoredEvent } | { readonly ok: false }> {
+  const validation = await validateRelayEvent(candidate.event);
+  if (!validation.ok) {
+    await quarantineRelayEvent(runtime, {
+      relayUrl: candidate.relayUrl,
+      eventId: getRawRelayEventId(candidate.event),
+      reason: validation.reason,
+      rawEvent: candidate.event
+    });
+    return { ok: false };
+  }
+
+  return { ok: true, event: validation.event };
+}
+
+function createCoordinatorStore(runtime: CoordinatorReadRuntime) {
+  return {
+    getById: async (id: string) => {
+      const db = await runtime.getEventsDB();
+      return db.getById(id);
+    },
+    getAllByKind: async (kind: number) => {
+      const db = await runtime.getEventsDB();
+      return db.getAllByKind(kind);
+    },
+    getByTagValue: async (tagQuery: string, kind?: number) => {
+      const db = await runtime.getEventsDB();
+      return db.getByTagValue(tagQuery, kind);
+    },
+    putWithReconcile: async (event: StoredEvent) => ({
+      stored: await materializeIncomingEvent(runtime, event)
+    }),
+    recordRelayHint: async (hint: {
+      readonly eventId: string;
+      readonly relayUrl: string;
+      readonly source: 'seen' | 'hinted' | 'published' | 'repaired';
+      readonly lastSeenAt: number;
+    }) => {
+      const db = await runtime.getEventsDB();
+      await db.recordRelayHint?.(hint);
+    }
+  };
+}
+
+function createRuntimeEventCoordinator(
+  runtime: CoordinatorReadRuntime,
+  options?: FetchBackwardOptions
+) {
+  return createEventCoordinator({
+    materializerQueue: createMaterializerQueue(),
+    relayGateway: {
+      verify: async (filters, verifyOptions) => {
+        const candidates = await fetchRelayCandidateEventsFromRuntime(runtime, filters, {
+          overlay: options?.overlay,
+          rejectOnError: options?.rejectOnError,
+          timeoutMs: options?.timeoutMs,
+          scope: `coordinator:runtime-read:${verifyOptions.reason}`
+        });
+        return { candidates };
+      }
+    },
+    ingestRelayCandidate: (candidate) => acceptRelayCandidateForRuntime(runtime, candidate),
+    store: createCoordinatorStore(runtime),
+    relay: {
+      verify: async () => []
+    }
+  });
 }
 
 function createLatestReadDriver<TEvent extends StoredEvent>(
@@ -1161,83 +1221,18 @@ function performInvalidateFetchByIdCache(runtime: CoordinatorReadRuntime, eventI
 }
 
 async function fetchBackwardEventsFromReadRuntime<TEvent>(
-  runtime: BackwardFetchRuntime,
+  runtime: CoordinatorReadRuntime,
   filters: readonly RuntimeFilter[],
   options?: FetchBackwardOptions
 ): Promise<TEvent[]> {
-  const rxNostr = await runtime.getRxNostr();
-  const requestKey = createRuntimeRequestKey({
-    mode: 'backward',
-    filters,
-    overlay: options?.overlay,
-    scope: 'resonote:coordinator:fetchBackwardEvents'
-  });
-  const req = runtime.createRxBackwardReq({ requestKey });
-  const events: TEvent[] = [];
+  const coordinator = createRuntimeEventCoordinator(runtime, options);
+  const result = await coordinator.read([...filters], { policy: 'localFirst' });
 
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const pendingMaterializations = new Set<Promise<void>>();
-    const timeout = setTimeout(() => settleResolve(), options?.timeoutMs ?? 10_000);
-    const useOptions =
-      options?.overlay && options.overlay.relays.length > 0
-        ? {
-            on: {
-              relays: options.overlay.relays,
-              defaultReadRelays: options.overlay.includeDefaultReadRelays ?? true
-            }
-          }
-        : undefined;
+  if (options?.rejectOnError && result.settlement.phase !== 'settled') {
+    throw new Error('Relay read did not settle');
+  }
 
-    const sub = rxNostr.use(req, useOptions).subscribe({
-      next: (packet) => {
-        const task = (async () => {
-          const result = await ingestRelayEvent({
-            relayUrl: typeof packet.from === 'string' ? packet.from : '',
-            event: packet.event,
-            materialize: (incoming) => materializeIncomingEvent(runtime, incoming),
-            quarantine: (record) => quarantineRelayEvent(runtime, record)
-          });
-          if (result.ok && result.stored) {
-            events.push(result.event as TEvent);
-          }
-        })();
-        pendingMaterializations.add(task);
-        void task.finally(() => {
-          pendingMaterializations.delete(task);
-        });
-      },
-      complete: () => settleResolve(),
-      error: (error) => {
-        if (options?.rejectOnError) {
-          settleReject(error);
-          return;
-        }
-        settleResolve();
-      }
-    });
-
-    for (const filter of filters) {
-      req.emit(filter as never);
-    }
-    req.over();
-
-    function settleResolve() {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      sub.unsubscribe();
-      void Promise.allSettled([...pendingMaterializations]).then(() => resolve(events));
-    }
-
-    function settleReject(error: unknown) {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      sub.unsubscribe();
-      void Promise.allSettled([...pendingMaterializations]).then(() => reject(error));
-    }
-  });
+  return result.events as TEvent[];
 }
 
 export interface RelayStatusRuntime {
@@ -2165,11 +2160,11 @@ export async function observeRelayConnectionStates(
 }
 
 export async function fetchBackwardEvents<TEvent>(
-  runtime: Pick<QueryRuntime, 'fetchBackwardEvents'> | BackwardFetchRuntime,
+  runtime: Pick<QueryRuntime, 'fetchBackwardEvents'> | CoordinatorReadRuntime,
   filters: readonly RuntimeFilter[],
   options?: FetchBackwardOptions
 ): Promise<TEvent[]> {
-  if (!hasFetchBackwardEvents(runtime) && isBackwardFetchRuntime(runtime)) {
+  if (!hasFetchBackwardEvents(runtime) && isCoordinatorReadRuntime(runtime)) {
     return fetchBackwardEventsFromReadRuntime<TEvent>(
       runtime,
       filters,
@@ -2180,11 +2175,11 @@ export async function fetchBackwardEvents<TEvent>(
 }
 
 export async function fetchBackwardFirst<TEvent>(
-  runtime: Pick<QueryRuntime, 'fetchBackwardFirst'> | BackwardFetchRuntime,
+  runtime: Pick<QueryRuntime, 'fetchBackwardFirst'> | CoordinatorReadRuntime,
   filters: readonly RuntimeFilter[],
   options?: FetchBackwardOptions
 ): Promise<TEvent | null> {
-  if (!hasFetchBackwardFirst(runtime) && isBackwardFetchRuntime(runtime)) {
+  if (!hasFetchBackwardFirst(runtime) && isCoordinatorReadRuntime(runtime)) {
     const events = await fetchBackwardEventsFromReadRuntime<TEvent>(
       runtime,
       filters,
@@ -2470,6 +2465,75 @@ async function fetchRelayCandidateEventsFromRelay(
       settled = true;
       clearTimeout(timeout);
       sub.unsubscribe();
+      resolve(candidates);
+    }
+  });
+}
+
+async function fetchRelayCandidateEventsFromRuntime(
+  runtime: CoordinatorReadRuntime,
+  filters: readonly RuntimeFilter[],
+  options: {
+    readonly overlay?: RelayReadOverlayOptions;
+    readonly rejectOnError?: boolean;
+    readonly timeoutMs?: number;
+    readonly scope: string;
+  }
+): Promise<Array<{ event: unknown; relayUrl: string }>> {
+  if (filters.length === 0) return [];
+
+  const rxNostr = await runtime.getRxNostr();
+  const req = runtime.createRxBackwardReq({
+    requestKey: createRuntimeRequestKey({
+      mode: 'backward',
+      filters,
+      overlay: options.overlay,
+      scope: options.scope
+    })
+  });
+  const candidates: Array<{ event: unknown; relayUrl: string }> = [];
+  const useOptions =
+    options.overlay && options.overlay.relays.length > 0
+      ? {
+          on: {
+            relays: options.overlay.relays,
+            defaultReadRelays: options.overlay.includeDefaultReadRelays ?? true
+          }
+        }
+      : undefined;
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timeout = setTimeout(() => finish(), options.timeoutMs ?? 10_000);
+    const sub = rxNostr.use(req, useOptions).subscribe({
+      next: (packet) => {
+        candidates.push({
+          event: packet.event,
+          relayUrl: typeof packet.from === 'string' ? packet.from : ''
+        });
+      },
+      complete: () => finish(),
+      error: (error) => {
+        if (options.rejectOnError) {
+          finish(error);
+          return;
+        }
+        finish();
+      }
+    });
+
+    for (const filter of filters) req.emit(filter);
+    req.over();
+
+    function finish(error?: unknown) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      sub.unsubscribe();
+      if (error !== undefined) {
+        reject(error);
+        return;
+      }
       resolve(candidates);
     }
   });
