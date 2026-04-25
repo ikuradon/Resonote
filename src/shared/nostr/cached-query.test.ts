@@ -99,7 +99,7 @@ describe('cachedFetchById', () => {
   });
 
   it('caches non-null results permanently', async () => {
-    const dbEvent = { id: 'e2', content: 'hello', kind: 1 };
+    const dbEvent = { id: 'event-2', content: 'hello', kind: 1 };
     dbGetByIdMock.mockResolvedValueOnce(dbEvent);
 
     const result1 = await cachedFetchById('event-2');
@@ -146,7 +146,7 @@ describe('cachedFetchById', () => {
     // After TTL (30s): retries
     dateSpy.mockReturnValue(now + 31_000);
     dbGetByIdMock.mockResolvedValueOnce({
-      id: 'e3',
+      id: 'event-3',
       content: 'found',
       kind: 1
     });
@@ -352,7 +352,7 @@ describe('invalidateFetchByIdCache', () => {
 
     // Next call should hit DB again
     dbGetByIdMock.mockResolvedValueOnce({
-      id: 'e5',
+      id: 'event-5',
       content: 'refreshed',
       kind: 1
     });
@@ -377,7 +377,7 @@ describe('invalidateFetchByIdCache', () => {
     // Invalidate forces re-fetch even within TTL
     invalidateFetchByIdCache('event-6');
     dbGetByIdMock.mockResolvedValueOnce({
-      id: 'e6',
+      id: 'event-6',
       content: 'found',
       kind: 1
     });

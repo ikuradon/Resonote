@@ -1,8 +1,7 @@
-import { createRxBackwardReq } from '@auftakt/core';
-
-import { fetchBackwardEvents as fetchBackwardEventsHelper } from '../../../packages/resonote/src/runtime.js';
-import { getRxNostr } from './client.js';
-import { getEventsDB } from './event-db.js';
+import {
+  fetchBackwardEvents as fetchBackwardEventsFromFacade,
+  fetchBackwardFirst as fetchBackwardFirstFromFacade
+} from '$shared/auftakt/resonote.js';
 
 type Filter = Record<string, unknown>;
 
@@ -21,17 +20,12 @@ export async function fetchBackwardEvents<TEvent>(
   filters: readonly Filter[],
   options?: FetchBackwardOptions
 ): Promise<TEvent[]> {
-  return fetchBackwardEventsHelper<TEvent>(
-    { getRxNostr, createRxBackwardReq, getEventsDB },
-    filters,
-    options
-  );
+  return fetchBackwardEventsFromFacade<TEvent>(filters, options);
 }
 
 export async function fetchBackwardFirst<TEvent>(
   filters: readonly Filter[],
   options?: FetchBackwardOptions
 ): Promise<TEvent | null> {
-  const events = await fetchBackwardEvents<TEvent>(filters, options);
-  return events.at(-1) ?? null;
+  return fetchBackwardFirstFromFacade<TEvent>(filters, options);
 }

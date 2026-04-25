@@ -1,107 +1,59 @@
-import { createRuntimeRequestKey, finalizeEvent } from '@auftakt/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-interface SubscribeCallbacks {
-  next?: (packet: { event: unknown }) => void;
-  complete?: () => void;
-  error?: (error: unknown) => void;
-}
-
-const { createRxBackwardReqMock, dbPutMock, getRxNostrMock, subscribeMock } = vi.hoisted(() => ({
-  createRxBackwardReqMock: vi.fn(() => ({
-    emit: vi.fn(),
-    over: vi.fn()
-  })),
-  dbPutMock: vi.fn(async () => true),
-  getRxNostrMock: vi.fn(),
-  subscribeMock: vi.fn<(callbacks: SubscribeCallbacks) => { unsubscribe(): void }>()
+const { fetchBackwardEventsMock, fetchBackwardFirstMock } = vi.hoisted(() => ({
+  fetchBackwardEventsMock: vi.fn(),
+  fetchBackwardFirstMock: vi.fn()
 }));
 
-vi.mock('@auftakt/core', async (importOriginal) => {
-  const actual = await importOriginal();
-  return Object.assign({}, actual, {
-    createRxBackwardReq: createRxBackwardReqMock
-  });
-});
-
-vi.mock('./client.js', () => ({
-  getRxNostr: getRxNostrMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  fetchBackwardEvents: fetchBackwardEventsMock,
+  fetchBackwardFirst: fetchBackwardFirstMock
 }));
 
-vi.mock('./event-db.js', () => ({
-  getEventsDB: async () => ({
-    put: dbPutMock
-  })
-}));
-
-vi.mock('$shared/utils/logger.js', () => ({
-  createLogger: () => ({ warn: vi.fn() })
-}));
-
-import { fetchBackwardEvents } from './query.js';
-
-const RELAY_SECRET_KEY = new Uint8Array(32).fill(2);
-
-function signedRelayEvent(overrides: { content: string; kind: number; created_at: number }) {
-  return finalizeEvent(
-    {
-      content: overrides.content,
-      kind: overrides.kind,
-      created_at: overrides.created_at,
-      tags: []
-    },
-    RELAY_SECRET_KEY
-  );
-}
+import { fetchBackwardEvents, fetchBackwardFirst } from './query.js';
 
 describe('fetchBackwardEvents', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getRxNostrMock.mockResolvedValue({
-      use: () => ({
-        subscribe: subscribeMock
-      })
-    });
+    fetchBackwardEventsMock.mockResolvedValue([]);
+    fetchBackwardFirstMock.mockResolvedValue(null);
   });
 
-  it('returns partial events when the relay stream errors by default', async () => {
-    const event = signedRelayEvent({ content: 'hello', created_at: 1, kind: 0 });
-    subscribeMock.mockImplementation((callbacks) => {
-      void Promise.resolve().then(() => {
-        callbacks.next?.({
-          event
-        });
-        callbacks.error?.(new Error('relay error'));
-      });
-      return { unsubscribe: vi.fn() };
-    });
+  it('delegates backward reads to the Auftakt facade', async () => {
+    const event = { id: 'event', kind: 1 };
+    fetchBackwardEventsMock.mockResolvedValueOnce([event]);
 
-    await expect(fetchBackwardEvents([{ authors: ['pk1'], kinds: [0] }])).resolves.toEqual([event]);
-    expect(createRxBackwardReqMock).toHaveBeenCalledWith({
-      requestKey: createRuntimeRequestKey({
-        mode: 'backward',
-        filters: [{ authors: ['pk1'], kinds: [0] }],
-        scope: 'resonote:coordinator:fetchBackwardEvents'
-      })
-    });
+    await expect(fetchBackwardEvents([{ authors: ['pk1'], kinds: [1] }])).resolves.toEqual([event]);
+    expect(fetchBackwardEventsMock).toHaveBeenCalledWith(
+      [{ authors: ['pk1'], kinds: [1] }],
+      undefined
+    );
   });
 
-  it('rejects on relay errors when rejectOnError is enabled', async () => {
-    const event = signedRelayEvent({ content: 'hello', created_at: 1, kind: 0 });
-    subscribeMock.mockImplementation((callbacks) => {
-      void Promise.resolve().then(() => {
-        callbacks.next?.({
-          event
-        });
-        callbacks.error?.(new Error('relay error'));
-      });
-      return { unsubscribe: vi.fn() };
+  it('passes relay read options through to the facade', async () => {
+    await fetchBackwardEvents([{ ids: ['event'] }], {
+      rejectOnError: true,
+      timeoutMs: 5_000
     });
 
-    await expect(
-      fetchBackwardEvents([{ authors: ['pk1'], kinds: [0] }], {
-        rejectOnError: true
-      })
-    ).rejects.toThrow('relay error');
+    expect(fetchBackwardEventsMock).toHaveBeenCalledWith([{ ids: ['event'] }], {
+      rejectOnError: true,
+      timeoutMs: 5_000
+    });
+  });
+});
+
+describe('fetchBackwardFirst', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchBackwardFirstMock.mockResolvedValue(null);
+  });
+
+  it('delegates first backward read to the Auftakt facade', async () => {
+    const event = { id: 'first', kind: 1 };
+    fetchBackwardFirstMock.mockResolvedValueOnce(event);
+
+    await expect(fetchBackwardFirst([{ ids: ['first'] }])).resolves.toEqual(event);
+    expect(fetchBackwardFirstMock).toHaveBeenCalledWith([{ ids: ['first'] }], undefined);
   });
 });

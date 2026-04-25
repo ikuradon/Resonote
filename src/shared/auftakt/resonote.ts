@@ -47,10 +47,6 @@ import {
 } from '$shared/nostr/client.js';
 import { getEventsDB } from '$shared/nostr/event-db.js';
 import { addPendingPublish, drainPendingPublishes } from '$shared/nostr/pending-publishes.js';
-import {
-  fetchBackwardEvents as fetchBackwardEventsImpl,
-  fetchBackwardFirst as fetchBackwardFirstImpl
-} from '$shared/nostr/query.js';
 
 type ResonoteRuntime = Parameters<
   typeof createResonoteCoordinator<CachedFetchByIdResult, UseCachedLatestResult>
@@ -68,26 +64,10 @@ interface WotResult {
 }
 
 const runtime: ResonoteRuntime = {
-  fetchBackwardEvents: (filters, options) =>
-    fetchBackwardEventsImpl(filters, {
-      ...options,
-      overlay: options?.overlay
-        ? {
-            ...options.overlay,
-            relays: [...options.overlay.relays]
-          }
-        : undefined
-    }),
-  fetchBackwardFirst: (filters, options) =>
-    fetchBackwardFirstImpl(filters, {
-      ...options,
-      overlay: options?.overlay
-        ? {
-            ...options.overlay,
-            relays: [...options.overlay.relays]
-          }
-        : undefined
-    }),
+  fetchBackwardEvents: () =>
+    Promise.reject(new Error('Use the Auftakt coordinator backward read facade')),
+  fetchBackwardFirst: () =>
+    Promise.reject(new Error('Use the Auftakt coordinator backward read facade')),
   fetchLatestEvent: (pubkey, kind) => fetchLatestEventImpl(pubkey, kind),
   getEventsDB: () => getEventsDB(),
   getRxNostr: () => getRxNostr(),
@@ -302,6 +282,34 @@ export async function searchEpisodeBookmarkByGuid(pubkey: string, guid: string) 
 
 export async function fetchNostrEventById<TEvent>(eventId: string, relayHints: readonly string[]) {
   return coordinator.fetchNostrEventById<TEvent>(eventId, relayHints);
+}
+
+export async function fetchBackwardEvents<TEvent>(
+  filters: readonly Record<string, unknown>[],
+  options?: {
+    readonly overlay?: {
+      readonly relays: readonly string[];
+      readonly includeDefaultReadRelays?: boolean;
+    };
+    readonly timeoutMs?: number;
+    readonly rejectOnError?: boolean;
+  }
+): Promise<TEvent[]> {
+  return coordinator.fetchBackwardEvents<TEvent>(filters, options);
+}
+
+export async function fetchBackwardFirst<TEvent>(
+  filters: readonly Record<string, unknown>[],
+  options?: {
+    readonly overlay?: {
+      readonly relays: readonly string[];
+      readonly includeDefaultReadRelays?: boolean;
+    };
+    readonly timeoutMs?: number;
+    readonly rejectOnError?: boolean;
+  }
+): Promise<TEvent | null> {
+  return coordinator.fetchBackwardFirst<TEvent>(filters, options);
 }
 
 export async function fetchNotificationTargetPreview(eventId: string): Promise<string | null> {
