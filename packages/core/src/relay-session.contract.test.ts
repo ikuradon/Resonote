@@ -1299,6 +1299,74 @@ describe('relay replay request identity contract', () => {
     session.dispose();
   });
 
+  it('emits normalized capability state after temporary relay idle disconnect', async () => {
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100,
+      relayLifecycle: {
+        idleDisconnectMs: 10,
+        retry: { strategy: 'off' }
+      }
+    });
+    const req = createRxBackwardReq({
+      requestKey: 'rq:v1:contract-idle-capability-observation' as RequestKey
+    });
+    const capabilityPackets: Array<{
+      from: string;
+      queueDepth: number;
+      activeSubscriptions: number;
+    }> = [];
+    let completed = false;
+
+    const capabilitySub = session.createRelayCapabilityObservable().subscribe({
+      next: (packet) => {
+        if (packet.from === TEMP_RELAY_URL) {
+          capabilityPackets.push({
+            from: packet.from,
+            queueDepth: packet.capability.queueDepth,
+            activeSubscriptions: packet.capability.activeSubscriptions
+          });
+        }
+      }
+    });
+    const sub = session
+      .use(req, {
+        on: {
+          defaultReadRelays: false,
+          relays: [TEMP_RELAY_URL]
+        }
+      })
+      .subscribe({
+        complete: () => {
+          completed = true;
+        }
+      });
+
+    req.emit({ kinds: [1] });
+    req.over();
+
+    await waitUntil(() => FakeWebSocket.instances.some((socket) => socket.url === TEMP_RELAY_URL));
+    const socket = FakeWebSocket.instances.find((entry) => entry.url === TEMP_RELAY_URL);
+    if (!socket) throw new Error('temporary socket was not created');
+    socket.open();
+    await waitUntil(() => socket.sent.length > 0);
+
+    const [, subId] = socket.sent[0] as [string, string, Record<string, unknown>];
+    socket.message(['EOSE', subId]);
+    await waitUntil(() => completed);
+    await waitUntil(() => session.getRelayStatus(TEMP_RELAY_URL)?.reason === 'idle-timeout');
+
+    expect(capabilityPackets).toContainEqual({
+      from: TEMP_RELAY_URL,
+      queueDepth: 0,
+      activeSubscriptions: 0
+    });
+
+    capabilitySub.unsubscribe();
+    sub.unsubscribe();
+    session.dispose();
+  });
+
   it('emits a duplicate event id once per logical consumer across shards', async () => {
     const session = createRxNostrSession({
       defaultRelays: [RELAY_URL],

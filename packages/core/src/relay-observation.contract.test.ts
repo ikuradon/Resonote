@@ -17,6 +17,11 @@ describe('@auftakt/core relay observation contract', () => {
 
     expect(normalizeRelayObservation('wss://relay.test', 'closed', 'disposed').degraded).toBe(true);
     expect(normalizeRelayObservation('wss://relay.test', 'open', 'opened').degraded).toBe(false);
+    expect(normalizeRelayObservation('wss://relay.test', 'idle', 'idle-timeout')).toMatchObject({
+      connection: 'idle',
+      degraded: false,
+      reason: 'idle-timeout'
+    });
   });
 
   it('normalizes packets and snapshots with relay and aggregate state intact', () => {
