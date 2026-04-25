@@ -1,3 +1,16 @@
+import {
+  defineProjection,
+  type NegentropyEventRef,
+  type OfflineDeliveryDecision,
+  type OrderedEventCursor,
+  type OrderedEventTraversalDirection,
+  type OrderedEventTraversalOptions,
+  type ProjectionDefinition,
+  type ProjectionTraversalOptions,
+  type ReconcileEmission,
+  reconcileOfflineDelivery
+} from '@auftakt/core';
+import Dexie from 'dexie';
 import type { Event as NostrEvent } from 'nostr-typedef';
 
 import { buildProtectedCompactionEventIds } from './maintenance.js';
@@ -8,6 +21,8 @@ import type {
 } from './schema.js';
 import { AuftaktDexieDatabase } from './schema.js';
 
+export type { Event as NostrEvent } from 'nostr-typedef';
+
 export const AUFTAKT_DEXIE_ADAPTER_VERSION = 1;
 
 export interface CreateDexieEventStoreOptions {
@@ -16,11 +31,7 @@ export interface CreateDexieEventStoreOptions {
 
 export interface DexieMaterializationResult {
   readonly stored: boolean;
-  readonly emissions: readonly {
-    readonly subjectId: string;
-    readonly state: string;
-    readonly reason: string;
-  }[];
+  readonly emissions: readonly ReconcileEmission[];
 }
 
 export interface RelayHintInput {
@@ -84,14 +95,159 @@ export class DexieEventStore {
     return record ? toNostrEvent(record) : null;
   }
 
-  async getByTagValue(tagValue: string): Promise<NostrEvent[]> {
+  async put(event: NostrEvent): Promise<boolean> {
+    const result = await this.putWithReconcile(event);
+    return result.stored;
+  }
+
+  async putManyWithReconcile(events: readonly NostrEvent[]): Promise<DexieMaterializationResult[]> {
+    const results: DexieMaterializationResult[] = [];
+    for (const event of events) {
+      results.push(await this.putWithReconcile(event));
+    }
+    return results;
+  }
+
+  async putMany(events: readonly NostrEvent[]): Promise<void> {
+    await this.putManyWithReconcile(events);
+  }
+
+  async getByPubkeyAndKind(pubkey: string, kind: number): Promise<NostrEvent | null> {
+    const rows = await this.db.events.where('[pubkey+kind]').equals([pubkey, kind]).toArray();
+    const record = sortEventsDesc(rows).at(0) ?? null;
+    return record ? toNostrEvent(record) : null;
+  }
+
+  async getManyByPubkeysAndKind(pubkeys: readonly string[], kind: number): Promise<NostrEvent[]> {
+    const events = await Promise.all(
+      pubkeys.map((pubkey) => this.getByPubkeyAndKind(pubkey, kind))
+    );
+    return events.filter((event): event is NostrEvent => event !== null);
+  }
+
+  async getByReplaceKey(pubkey: string, kind: number, dTag: string): Promise<NostrEvent | null> {
+    const head = await this.getReplaceableHead(pubkey, kind, dTag);
+    if (head) return head;
+
+    const rows = await this.db.events
+      .where('[pubkey+kind+d_tag]')
+      .equals([pubkey, kind, dTag])
+      .toArray();
+    const record = sortEventsDesc(rows).at(0) ?? null;
+    return record ? toNostrEvent(record) : null;
+  }
+
+  async getByTagValue(tagValue: string, kind?: number): Promise<NostrEvent[]> {
     const parsed = parseTagValue(tagValue);
     const rows = await this.db.event_tags
       .where('[tag+value]')
       .equals([parsed.tag, parsed.value])
       .toArray();
-    const events = await this.db.events.bulkGet(rows.map((row) => row.event_id));
-    return events.filter((event): event is DexieEventRecord => Boolean(event)).map(toNostrEvent);
+    const ids = [...new Set(rows.map((row) => row.event_id))];
+    const events = await this.db.events.bulkGet(ids);
+    return events
+      .filter((event): event is DexieEventRecord => Boolean(event))
+      .filter((event) => kind === undefined || event.kind === kind)
+      .map(toNostrEvent);
+  }
+
+  async getAllByKind(kind: number): Promise<NostrEvent[]> {
+    const records = await this.db.events
+      .where('[kind+created_at]')
+      .between([kind, Dexie.minKey], [kind, Dexie.maxKey])
+      .toArray();
+    return records.map(toNostrEvent);
+  }
+
+  async getMaxCreatedAt(kind: number, pubkey?: string): Promise<number | null> {
+    const records = pubkey
+      ? await this.db.events.where('[pubkey+kind]').equals([pubkey, kind]).toArray()
+      : await this.db.events
+          .where('[kind+created_at]')
+          .between([kind, Dexie.minKey], [kind, Dexie.maxKey])
+          .toArray();
+
+    if (records.length === 0) return null;
+    return Math.max(...records.map((record) => record.created_at));
+  }
+
+  async listOrderedEvents(options: OrderedEventTraversalOptions = {}): Promise<NostrEvent[]> {
+    const limit = normalizeTraversalLimit(options.limit);
+    if (limit === 0) return [];
+
+    const kindSet = options.kinds?.length ? new Set(options.kinds) : null;
+    const direction = options.direction ?? 'asc';
+    const ordered =
+      direction === 'desc'
+        ? await this.db.events.orderBy('[created_at+id]').reverse().toArray()
+        : await this.db.events.orderBy('[created_at+id]').toArray();
+
+    return ordered
+      .filter((event) => isBeyondCursor(event, options.cursor, direction))
+      .filter((event) => !kindSet || kindSet.has(event.kind))
+      .slice(0, limit)
+      .map(toNostrEvent);
+  }
+
+  async listProjectionSourceEvents(
+    definition: ProjectionDefinition,
+    options: ProjectionTraversalOptions = {}
+  ): Promise<NostrEvent[]> {
+    const projection = defineProjection(definition);
+    const sortKey = options.sortKey ?? 'created_at';
+    const sort = projection.sorts.find((entry) => entry.key === sortKey);
+
+    if (!sort) {
+      throw new Error(`Projection sort is not registered: ${projection.name}:${sortKey}`);
+    }
+
+    if (sortKey !== 'created_at' && sort.pushdownSupported) {
+      throw new Error(
+        `Projection sort pushdown requires adapter-owned implementation: ${projection.name}:${sortKey}`
+      );
+    }
+
+    return this.listOrderedEvents({
+      cursor: options.cursor,
+      direction: options.direction,
+      limit: options.limit,
+      kinds: projection.sourceKinds
+    });
+  }
+
+  async listNegentropyEventRefs(): Promise<NegentropyEventRef[]> {
+    const records = await this.db.events.orderBy('[created_at+id]').toArray();
+    return records.map((event) => ({
+      id: event.id,
+      pubkey: event.pubkey,
+      created_at: event.created_at,
+      kind: event.kind,
+      tags: event.tags
+    }));
+  }
+
+  async deleteByIds(ids: readonly string[]): Promise<void> {
+    if (ids.length === 0) return;
+
+    await this.db.transaction(
+      'rw',
+      this.db.events,
+      this.db.event_tags,
+      this.db.replaceable_heads,
+      this.db.event_relay_hints,
+      async () => {
+        await this.db.events.bulkDelete([...ids]);
+        await Promise.all([
+          ...ids.map((id) => this.db.event_tags.where('event_id').equals(id).delete()),
+          ...ids.map((id) => this.db.replaceable_heads.where('event_id').equals(id).delete()),
+          ...ids.map((id) => this.db.event_relay_hints.where('event_id').equals(id).delete())
+        ]);
+      }
+    );
+  }
+
+  async clearAll(): Promise<void> {
+    await Promise.all(this.db.tables.map((table) => table.clear()));
   }
 
   async putQuarantine(record: {
@@ -173,6 +329,45 @@ export class DexieEventStore {
 
   async getPendingPublishes(): Promise<DexiePendingPublishRecord[]> {
     return this.db.pending_publishes.toArray();
+  }
+
+  async removePendingPublish(id: string): Promise<void> {
+    await this.db.pending_publishes.delete(id);
+  }
+
+  async drainPendingPublishes(
+    deliver: (event: NostrEvent) => Promise<OfflineDeliveryDecision>
+  ): Promise<{
+    readonly emissions: readonly ReconcileEmission[];
+    readonly settledCount: number;
+    readonly retryingCount: number;
+  }> {
+    const pending = await this.getPendingPublishes();
+    const emissions: ReconcileEmission[] = [];
+    let settledCount = 0;
+    let retryingCount = 0;
+
+    for (const record of pending) {
+      let decision: OfflineDeliveryDecision;
+      try {
+        decision = await deliver(record.event);
+      } catch {
+        decision = 'retrying';
+      }
+
+      emissions.push(reconcileOfflineDelivery(record.id, decision));
+
+      if (decision === 'confirmed' || decision === 'rejected') {
+        await this.removePendingPublish(record.id);
+        settledCount += 1;
+        continue;
+      }
+
+      await this.db.pending_publishes.update(record.id, { status: 'retrying' });
+      retryingCount += 1;
+    }
+
+    return { emissions, settledCount, retryingCount };
   }
 
   async compact(options: CompactionOptions): Promise<CompactionResult> {
@@ -285,6 +480,37 @@ export async function createDexieEventStore(
 }
 
 export * from './schema.js';
+
+function sortEventsDesc<TEvent extends Pick<NostrEvent, 'created_at' | 'id'>>(
+  events: readonly TEvent[]
+): TEvent[] {
+  return [...events].sort((left, right) => {
+    if (right.created_at !== left.created_at) return right.created_at - left.created_at;
+    return right.id.localeCompare(left.id);
+  });
+}
+
+function normalizeTraversalLimit(limit: number | undefined): number {
+  if (limit === undefined) return Number.POSITIVE_INFINITY;
+  if (!Number.isFinite(limit) || limit <= 0) return 0;
+  return Math.floor(limit);
+}
+
+function isBeyondCursor(
+  event: Pick<NostrEvent, 'created_at' | 'id'>,
+  cursor: OrderedEventCursor | null | undefined,
+  direction: OrderedEventTraversalDirection
+): boolean {
+  if (!cursor) return true;
+
+  if (direction === 'desc') {
+    if (event.created_at !== cursor.created_at) return event.created_at < cursor.created_at;
+    return event.id < cursor.id;
+  }
+
+  if (event.created_at !== cursor.created_at) return event.created_at > cursor.created_at;
+  return event.id > cursor.id;
+}
 
 async function writeEventRecord(db: AuftaktDexieDatabase, event: NostrEvent): Promise<void> {
   const record = {
