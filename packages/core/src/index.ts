@@ -42,6 +42,22 @@ export {
   reconcileReplayRepairSubjects,
   verifyDeletionTargets
 } from './reconcile.js';
+export type {
+  RelayCapabilityLearningEvent,
+  RelayCapabilityNip11Status,
+  RelayCapabilityOverride,
+  RelayCapabilityPacket,
+  RelayCapabilityRecord,
+  RelayCapabilitySnapshot,
+  RelayCapabilitySource,
+  RelayExecutionCapability,
+  RelayRuntimeCapabilityState
+} from './relay-capability.js';
+export {
+  calculateEffectiveRelayCapability,
+  normalizeRelayCapabilitySnapshot,
+  parseRelayLimitClosedReason
+} from './relay-capability.js';
 export {
   normalizeRelayObservation,
   normalizeRelayObservationPacket,
