@@ -6,7 +6,6 @@ import {
   type RelayObservationRuntime,
   type RelayObservationSnapshot
 } from '@auftakt/core';
-import { createRuntimeRequestKey } from '@auftakt/core';
 import type { EventParameters } from 'nostr-typedef';
 
 import { DEFAULT_RELAYS } from '$shared/nostr/relays.js';
@@ -78,60 +77,13 @@ export async function fetchLatestEvent(
   pubkey: string,
   kind: number
 ): Promise<{ tags: string[][]; content: string; created_at: number } | null> {
-  const { createRxBackwardReq } = await import('@auftakt/core');
-  const instance = await getRxNostr();
-
-  return new Promise<{ tags: string[][]; content: string; created_at: number } | null>(
-    (resolve) => {
-      const requestKey = createRuntimeRequestKey({
-        mode: 'backward',
-        filters: [{ kinds: [kind], authors: [pubkey], limit: 1 }],
-        scope: 'shared:nostr:client:fetchLatestEvent'
-      });
-      const req = createRxBackwardReq({ requestKey });
-      let latest: { tags: string[][]; content: string; created_at: number } | null = null;
-      let resolved = false;
-
-      const timeout = setTimeout(() => {
-        if (!resolved) {
-          resolved = true;
-          sub.unsubscribe();
-          resolve(latest);
-        }
-      }, 10_000);
-
-      const sub = instance.use(req).subscribe({
-        next: (packet) => {
-          if (!latest || packet.event.created_at > latest.created_at) {
-            latest = packet.event;
-          }
-          import('$shared/nostr/event-db.js')
-            .then(({ getEventsDB }) => getEventsDB())
-            .then((db) => db.put(packet.event))
-            .catch((e) => log.error('Failed to cache event to IndexedDB', e));
-        },
-        complete: () => {
-          if (!resolved) {
-            resolved = true;
-            clearTimeout(timeout);
-            sub.unsubscribe();
-            resolve(latest);
-          }
-        },
-        error: () => {
-          if (!resolved) {
-            resolved = true;
-            clearTimeout(timeout);
-            sub.unsubscribe();
-            resolve(latest);
-          }
-        }
-      });
-
-      req.emit({ kinds: [kind], authors: [pubkey], limit: 1 });
-      req.over();
-    }
-  );
+  const { fetchBackwardFirst } = await import('$shared/nostr/query.js');
+  const event = await fetchBackwardFirst<{
+    tags: string[][];
+    content: string;
+    created_at: number;
+  }>([{ kinds: [kind], authors: [pubkey], limit: 1 }], { timeoutMs: 10_000 });
+  return event ? { tags: event.tags, content: event.content, created_at: event.created_at } : null;
 }
 
 export async function setDefaultRelays(urls: string[]): Promise<void> {

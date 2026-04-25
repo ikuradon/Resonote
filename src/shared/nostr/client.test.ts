@@ -18,6 +18,7 @@ const sendSubscribeMock = vi.fn<(callbacks: SendCallbacks) => { unsubscribe: () 
 const useSubscribeMock = vi.fn<(callbacks: UseCallbacks) => { unsubscribe: () => void }>(() => ({
   unsubscribe: vi.fn()
 }));
+const fetchBackwardFirstMock = vi.fn();
 
 const mockRxNostr = {
   setDefaultRelays: vi.fn(),
@@ -55,6 +56,10 @@ vi.mock('$shared/utils/logger.js', () => ({
 
 vi.mock('$shared/nostr/event-db.js', () => ({
   getEventsDB: async () => ({ put: vi.fn() })
+}));
+
+vi.mock('$shared/nostr/query.js', () => ({
+  fetchBackwardFirst: fetchBackwardFirstMock
 }));
 
 beforeEach(() => {
@@ -225,129 +230,34 @@ describe('castSigned', () => {
 });
 
 describe('fetchLatestEvent', () => {
-  it('returns the latest event by created_at', async () => {
-    const { fetchLatestEvent, getRxNostr } = await import('./client.js');
-    await getRxNostr();
-
-    useSubscribeMock.mockImplementation((callbacks: UseCallbacks) => {
-      void Promise.resolve().then(() => {
-        callbacks.next?.({
-          event: { created_at: 1, tags: [], content: 'old' }
-        });
-        callbacks.next?.({
-          event: { created_at: 2, tags: [], content: 'new' }
-        });
-        callbacks.complete?.();
-      });
-      return { unsubscribe: vi.fn() };
+  it('delegates to the materialized backward query helper', async () => {
+    fetchBackwardFirstMock.mockResolvedValueOnce({
+      created_at: 2,
+      tags: [['r', 'wss://relay.example']],
+      content: 'new',
+      id: 'event-id'
     });
+    const { fetchLatestEvent } = await import('./client.js');
 
     await expect(fetchLatestEvent('pubkey', 1)).resolves.toEqual({
       created_at: 2,
-      tags: [],
+      tags: [['r', 'wss://relay.example']],
       content: 'new'
     });
+    expect(fetchBackwardFirstMock).toHaveBeenCalledWith(
+      [{ kinds: [1], authors: ['pubkey'], limit: 1 }],
+      { timeoutMs: 10_000 }
+    );
   });
 
-  it('returns null when no events received', async () => {
-    const { fetchLatestEvent, getRxNostr } = await import('./client.js');
-    await getRxNostr();
-
-    useSubscribeMock.mockImplementation((callbacks: UseCallbacks) => {
-      void Promise.resolve().then(() => callbacks.complete?.());
-      return { unsubscribe: vi.fn() };
-    });
+  it('returns null when the materialized query misses', async () => {
+    fetchBackwardFirstMock.mockResolvedValueOnce(null);
+    const { fetchLatestEvent } = await import('./client.js');
 
     await expect(fetchLatestEvent('pubkey', 1)).resolves.toBeNull();
-  });
-
-  it('returns latest event on error if available', async () => {
-    const { fetchLatestEvent, getRxNostr } = await import('./client.js');
-    await getRxNostr();
-
-    useSubscribeMock.mockImplementation((callbacks: UseCallbacks) => {
-      void Promise.resolve().then(() => {
-        callbacks.next?.({
-          event: { created_at: 2, tags: [], content: 'new' }
-        });
-        callbacks.error?.();
-      });
-      return { unsubscribe: vi.fn() };
-    });
-
-    await expect(fetchLatestEvent('pubkey', 1)).resolves.toEqual({
-      created_at: 2,
-      tags: [],
-      content: 'new'
-    });
-  });
-
-  it('returns null on error with no events', async () => {
-    const { fetchLatestEvent, getRxNostr } = await import('./client.js');
-    await getRxNostr();
-
-    useSubscribeMock.mockImplementation((callbacks: UseCallbacks) => {
-      void Promise.resolve().then(() => callbacks.error?.());
-      return { unsubscribe: vi.fn() };
-    });
-
-    await expect(fetchLatestEvent('pubkey', 1)).resolves.toBeNull();
-  });
-
-  it('resolves with latest event on timeout when subscription hangs', async () => {
-    vi.useFakeTimers();
-    const { fetchLatestEvent, getRxNostr } = await import('./client.js');
-    await getRxNostr();
-
-    useSubscribeMock.mockImplementation((callbacks: UseCallbacks) => {
-      void Promise.resolve().then(() =>
-        callbacks.next?.({ event: { created_at: 2, tags: [], content: 'new' } })
-      );
-      return { unsubscribe: vi.fn() };
-    });
-
-    const promise = fetchLatestEvent('pubkey', 1);
-    await vi.advanceTimersByTimeAsync(10_001);
-    await expect(promise).resolves.toEqual({
-      created_at: 2,
-      tags: [],
-      content: 'new'
-    });
-  });
-
-  it('resolves with null on timeout when no events received', async () => {
-    vi.useFakeTimers();
-    const { fetchLatestEvent, getRxNostr } = await import('./client.js');
-    await getRxNostr();
-
-    useSubscribeMock.mockImplementation(() => ({ unsubscribe: vi.fn() }));
-
-    const promise = fetchLatestEvent('pubkey', 1);
-    await vi.advanceTimersByTimeAsync(10_001);
-    await expect(promise).resolves.toBeNull();
-  });
-
-  it('keeps event with higher created_at when out-of-order', async () => {
-    const { fetchLatestEvent, getRxNostr } = await import('./client.js');
-    await getRxNostr();
-
-    useSubscribeMock.mockImplementation((callbacks: UseCallbacks) => {
-      void Promise.resolve().then(() => {
-        callbacks.next?.({
-          event: { created_at: 5, tags: [], content: 'newer' }
-        });
-        callbacks.next?.({
-          event: { created_at: 3, tags: [], content: 'older' }
-        });
-        callbacks.complete?.();
-      });
-      return { unsubscribe: vi.fn() };
-    });
-
-    await expect(fetchLatestEvent('pubkey', 1)).resolves.toEqual({
-      created_at: 5,
-      tags: [],
-      content: 'newer'
-    });
+    expect(fetchBackwardFirstMock).toHaveBeenCalledWith(
+      [{ kinds: [1], authors: ['pubkey'], limit: 1 }],
+      { timeoutMs: 10_000 }
+    );
   });
 });

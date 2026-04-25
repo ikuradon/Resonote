@@ -50,7 +50,7 @@ import type { EventParameters } from 'nostr-typedef';
 import { Observable } from 'rxjs';
 
 import { createEventCoordinator } from './event-coordinator.js';
-import { ingestRelayEvent } from './event-ingress.js';
+import { ingestRelayEvent, type QuarantineRecord } from './event-ingress.js';
 import { createMaterializerQueue } from './materializer-queue.js';
 import {
   type CommentsFlow,
@@ -103,6 +103,7 @@ interface CoordinatorReadRuntime {
     getById(id: string): Promise<StoredEvent | null>;
     getByPubkeyAndKind(pubkey: string, kind: number): Promise<StoredEvent | null>;
     listNegentropyEventRefs(): Promise<NegentropyEventRef[]>;
+    putQuarantine?(record: QuarantineRecord): Promise<void>;
     put(event: StoredEvent): Promise<unknown>;
     putWithReconcile?(event: StoredEvent): Promise<{
       stored: boolean;
@@ -114,6 +115,17 @@ interface CoordinatorReadRuntime {
     emit(input: unknown): void;
     over(): void;
   };
+}
+
+interface EventMaterializationRuntime {
+  getEventsDB(): Promise<{
+    putQuarantine?(record: QuarantineRecord): Promise<void>;
+    put(event: StoredEvent): Promise<unknown>;
+    putWithReconcile?(event: StoredEvent): Promise<{
+      stored: boolean;
+      emissions: ReconcileEmission[];
+    }>;
+  }>;
 }
 
 interface CachedFetchState {
@@ -147,7 +159,8 @@ interface LatestReadState<TEvent extends StoredEvent = StoredEvent> {
 }
 
 interface BackwardFetchRuntime {
-  getEventsDB?(): Promise<{
+  getEventsDB(): Promise<{
+    putQuarantine?(record: QuarantineRecord): Promise<void>;
     put(event: StoredEvent): Promise<unknown>;
     putWithReconcile?(event: StoredEvent): Promise<{
       stored: boolean;
@@ -568,6 +581,7 @@ function isBackwardFetchRuntime(value: unknown): value is BackwardFetchRuntime {
   return (
     typeof value === 'object' &&
     value !== null &&
+    'getEventsDB' in value &&
     'getRxNostr' in value &&
     'createRxBackwardReq' in value
   );
@@ -608,7 +622,7 @@ function notifyLatestRead<TEvent extends StoredEvent>(state: LatestReadState<TEv
 }
 
 async function materializeIncomingEvent(
-  runtime: Pick<CoordinatorReadRuntime, 'getEventsDB'>,
+  runtime: EventMaterializationRuntime,
   event: StoredEvent
 ): Promise<boolean> {
   try {
@@ -622,6 +636,18 @@ async function materializeIncomingEvent(
     return stored !== false;
   } catch {
     return true;
+  }
+}
+
+async function quarantineRelayEvent(
+  runtime: EventMaterializationRuntime,
+  record: QuarantineRecord
+): Promise<void> {
+  try {
+    const db = await runtime.getEventsDB();
+    await db.putQuarantine?.(record);
+  } catch {
+    // Invalid relay input remains blocked even if diagnostics cannot be persisted.
   }
 }
 
@@ -707,7 +733,7 @@ function createLatestReadDriver<TEvent extends StoredEvent>(
               relayUrl: typeof packet.from === 'string' ? packet.from : '',
               event: packet.event,
               materialize: (event) => materializeIncomingEvent(runtime, event),
-              quarantine: async () => {}
+              quarantine: (record) => quarantineRelayEvent(runtime, record)
             });
             if (!result.ok) return;
             const incoming = result.event as unknown as TEvent;
@@ -942,7 +968,7 @@ async function fetchAndCacheByIdFromRelay(
               relayUrl: typeof packet.from === 'string' ? packet.from : '',
               event: packet.event,
               materialize: (incoming) => materializeIncomingEvent(runtime, incoming),
-              quarantine: async () => {}
+              quarantine: (record) => quarantineRelayEvent(runtime, record)
             });
             if (result.ok && result.stored) {
               found = result.event;
@@ -1015,6 +1041,7 @@ async function fetchBackwardEventsFromReadRuntime<TEvent>(
 
   return new Promise((resolve, reject) => {
     let settled = false;
+    const pendingMaterializations = new Set<Promise<void>>();
     const timeout = setTimeout(() => settleResolve(), options?.timeoutMs ?? 10_000);
     const useOptions =
       options?.overlay && options.overlay.relays.length > 0
@@ -1028,7 +1055,21 @@ async function fetchBackwardEventsFromReadRuntime<TEvent>(
 
     const sub = rxNostr.use(req, useOptions).subscribe({
       next: (packet) => {
-        events.push(packet.event as TEvent);
+        const task = (async () => {
+          const result = await ingestRelayEvent({
+            relayUrl: typeof packet.from === 'string' ? packet.from : '',
+            event: packet.event,
+            materialize: (incoming) => materializeIncomingEvent(runtime, incoming),
+            quarantine: (record) => quarantineRelayEvent(runtime, record)
+          });
+          if (result.ok && result.stored) {
+            events.push(result.event as TEvent);
+          }
+        })();
+        pendingMaterializations.add(task);
+        void task.finally(() => {
+          pendingMaterializations.delete(task);
+        });
       },
       complete: () => settleResolve(),
       error: (error) => {
@@ -1050,7 +1091,7 @@ async function fetchBackwardEventsFromReadRuntime<TEvent>(
       settled = true;
       clearTimeout(timeout);
       sub.unsubscribe();
-      resolve(events);
+      void Promise.allSettled([...pendingMaterializations]).then(() => resolve(events));
     }
 
     function settleReject(error: unknown) {
@@ -1058,7 +1099,7 @@ async function fetchBackwardEventsFromReadRuntime<TEvent>(
       settled = true;
       clearTimeout(timeout);
       sub.unsubscribe();
-      reject(error);
+      void Promise.allSettled([...pendingMaterializations]).then(() => reject(error));
     }
   });
 }

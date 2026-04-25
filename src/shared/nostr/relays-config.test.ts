@@ -1,33 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const mockFetchLatestEvent = vi.fn();
 const mockSetDefaultRelays = vi.fn();
-let subscribeFn: (observer: {
-  next?: (packet: unknown) => void;
-  complete?: () => void;
-  error?: (err: unknown) => void;
-}) => { unsubscribe: () => void };
-
-vi.mock('@auftakt/core', async (importOriginal) => {
-  const actual = await importOriginal();
-  return Object.assign({}, actual, {
-    createRxBackwardReq: () => ({
-      emit: vi.fn(),
-      over: vi.fn()
-    })
-  });
-});
 
 vi.mock('$shared/nostr/client.js', () => ({
-  setDefaultRelays: mockSetDefaultRelays,
-  getRxNostr: vi.fn().mockResolvedValue({
-    use: () => ({
-      subscribe: (observer: {
-        next?: (p: unknown) => void;
-        complete?: () => void;
-        error?: (e: unknown) => void;
-      }) => subscribeFn(observer)
-    })
-  })
+  fetchLatestEvent: mockFetchLatestEvent,
+  setDefaultRelays: mockSetDefaultRelays
 }));
 
 vi.mock('$shared/nostr/relays.js', () => ({
@@ -60,10 +38,7 @@ describe('relays-config: applyUserRelays', () => {
   });
 
   it('falls back to default relays when no relay list found', async () => {
-    subscribeFn = (observer) => {
-      queueMicrotask(() => observer.complete?.());
-      return { unsubscribe: vi.fn() };
-    };
+    mockFetchLatestEvent.mockResolvedValueOnce(null);
 
     const { applyUserRelays } = await import('./relays-config.js');
     const result = await applyUserRelays('deadbeef'.repeat(8));
@@ -75,19 +50,14 @@ describe('relays-config: applyUserRelays', () => {
   });
 
   it('applies user relays when kind:10002 event found', async () => {
-    subscribeFn = (observer) => {
-      observer.next?.({
-        event: {
-          created_at: 1000,
-          tags: [
-            ['r', 'wss://user-relay1.example.com'],
-            ['r', 'wss://user-relay2.example.com']
-          ]
-        }
-      });
-      queueMicrotask(() => observer.complete?.());
-      return { unsubscribe: vi.fn() };
-    };
+    mockFetchLatestEvent.mockResolvedValueOnce({
+      created_at: 1000,
+      content: '',
+      tags: [
+        ['r', 'wss://user-relay1.example.com'],
+        ['r', 'wss://user-relay2.example.com']
+      ]
+    });
 
     const { applyUserRelays } = await import('./relays-config.js');
     const result = await applyUserRelays('deadbeef'.repeat(8));
@@ -105,16 +75,11 @@ describe('relays-config: applyUserRelays', () => {
         resolveSetDefaultRelays = resolve;
       })
     );
-    subscribeFn = (observer) => {
-      observer.next?.({
-        event: {
-          created_at: 1000,
-          tags: [['r', 'wss://user-relay.example.com']]
-        }
-      });
-      queueMicrotask(() => observer.complete?.());
-      return { unsubscribe: vi.fn() };
-    };
+    mockFetchLatestEvent.mockResolvedValueOnce({
+      created_at: 1000,
+      content: '',
+      tags: [['r', 'wss://user-relay.example.com']]
+    });
 
     const { applyUserRelays } = await import('./relays-config.js');
     let resolved = false;
@@ -132,10 +97,7 @@ describe('relays-config: applyUserRelays', () => {
   });
 
   it('falls back to defaults on subscription error', async () => {
-    subscribeFn = (observer) => {
-      queueMicrotask(() => observer.error?.(new Error('network')));
-      return { unsubscribe: vi.fn() };
-    };
+    mockFetchLatestEvent.mockRejectedValueOnce(new Error('network'));
 
     const { applyUserRelays } = await import('./relays-config.js');
     const result = await applyUserRelays('deadbeef'.repeat(8));
@@ -145,23 +107,12 @@ describe('relays-config: applyUserRelays', () => {
       'wss://relay2.example.com'
     ]);
   });
-  it('uses event with highest created_at when multiple packets arrive', async () => {
-    subscribeFn = (observer) => {
-      observer.next?.({
-        event: {
-          created_at: 1000,
-          tags: [['r', 'wss://old-relay.example.com']]
-        }
-      });
-      observer.next?.({
-        event: {
-          created_at: 2000,
-          tags: [['r', 'wss://new-relay.example.com']]
-        }
-      });
-      queueMicrotask(() => observer.complete?.());
-      return { unsubscribe: vi.fn() };
-    };
+  it('uses the materialized latest relay list event', async () => {
+    mockFetchLatestEvent.mockResolvedValueOnce({
+      created_at: 2000,
+      content: '',
+      tags: [['r', 'wss://new-relay.example.com']]
+    });
 
     const { applyUserRelays } = await import('./relays-config.js');
     const result = await applyUserRelays('deadbeef'.repeat(8));
@@ -169,27 +120,17 @@ describe('relays-config: applyUserRelays', () => {
     expect(mockSetDefaultRelays).toHaveBeenCalledWith(['wss://new-relay.example.com']);
   });
 
-  it('ignores older event arriving after newer one', async () => {
-    subscribeFn = (observer) => {
-      observer.next?.({
-        event: {
-          created_at: 2000,
-          tags: [['r', 'wss://new-relay.example.com']]
-        }
-      });
-      observer.next?.({
-        event: {
-          created_at: 1000,
-          tags: [['r', 'wss://old-relay.example.com']]
-        }
-      });
-      queueMicrotask(() => observer.complete?.());
-      return { unsubscribe: vi.fn() };
-    };
+  it('passes the relay list kind to the materialized latest helper', async () => {
+    mockFetchLatestEvent.mockResolvedValueOnce({
+      created_at: 1000,
+      content: '',
+      tags: [['r', 'wss://relay.example.com']]
+    });
 
     const { applyUserRelays } = await import('./relays-config.js');
     const result = await applyUserRelays('deadbeef'.repeat(8));
-    expect(result).toEqual(['wss://new-relay.example.com']);
+    expect(result).toEqual(['wss://relay.example.com']);
+    expect(mockFetchLatestEvent).toHaveBeenCalledWith('deadbeef'.repeat(8), 10002);
   });
 });
 
@@ -199,11 +140,6 @@ describe('relays-config: resetToDefaultRelays', () => {
   });
 
   it('calls setDefaultRelays with default relay list', async () => {
-    subscribeFn = (observer) => {
-      queueMicrotask(() => observer.complete?.());
-      return { unsubscribe: vi.fn() };
-    };
-
     const { resetToDefaultRelays } = await import('./relays-config.js');
     await resetToDefaultRelays();
     expect(mockSetDefaultRelays).toHaveBeenCalledWith([

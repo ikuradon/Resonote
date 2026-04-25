@@ -45,3 +45,12 @@ describe('ingestRelayEvent', () => {
     expect(quarantined).toHaveLength(1);
   });
 });
+
+it('runtime source does not expose raw packet events from compatibility fetches', async () => {
+  const source = await import('node:fs/promises').then((fs) =>
+    fs.readFile(new URL('./runtime.ts', import.meta.url), 'utf8')
+  );
+
+  expect(source).not.toMatch(/events\.push\(\s*packet\.event/);
+  expect(source).not.toMatch(/quarantine:\s*async\s*\(\)\s*=>\s*\{\}/);
+});
