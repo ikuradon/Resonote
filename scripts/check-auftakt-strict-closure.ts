@@ -49,6 +49,14 @@ function isProductionResonoteSource(path: string): boolean {
   );
 }
 
+function isProductionSharedNostrSource(path: string): boolean {
+  return (
+    path.startsWith('src/shared/nostr/') &&
+    !path.endsWith('.test.ts') &&
+    !path.endsWith('.contract.test.ts')
+  );
+}
+
 export function checkStrictClosure(files: readonly StrictClosureFile[]): StrictClosureResult {
   const errors: string[] = [];
 
@@ -74,6 +82,21 @@ export function checkStrictClosure(files: readonly StrictClosureFile[]): StrictC
       /toStoredEvent\(\s*packet\.event\s*\)/.test(file.text)
     ) {
       errors.push(`${file.path} converts raw packet.event without ingress`);
+    }
+    if (
+      isProductionSharedNostrSource(file.path) &&
+      (/events\.push\(\s*packet\.event/.test(file.text) ||
+        /callbacks\.next\?\.\(\s*\{\s*event:\s*packet\.event/.test(file.text))
+    ) {
+      errors.push(`${file.path} exposes raw packet.event outside coordinator facade`);
+    }
+    if (
+      isProductionSharedNostrSource(file.path) &&
+      /packages\/resonote\/src\/runtime\.js/.test(file.text)
+    ) {
+      errors.push(
+        `${file.path} imports package runtime internals instead of the coordinator facade`
+      );
     }
     if (
       file.path === 'packages/resonote/src/relay-gateway.ts' &&

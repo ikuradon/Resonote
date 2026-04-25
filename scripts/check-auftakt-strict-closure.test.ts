@@ -70,6 +70,42 @@ describe('checkStrictClosure', () => {
     );
   });
 
+  it('flags shared nostr raw relay packet event emission', () => {
+    const result = checkStrictClosure([
+      file(
+        'src/shared/nostr/query.ts',
+        'callbacks.next?.({ event: packet.event, relayHint: packet.from });'
+      ),
+      file(
+        'packages/resonote/src/materializer-queue.ts',
+        'export function createMaterializerQueue() {}'
+      ),
+      file('packages/resonote/src/runtime.ts', 'createMaterializerQueue(); createRelayGateway();')
+    ]);
+
+    expect(result.errors).toContain(
+      'src/shared/nostr/query.ts exposes raw packet.event outside coordinator facade'
+    );
+  });
+
+  it('flags shared nostr deep package runtime imports', () => {
+    const result = checkStrictClosure([
+      file(
+        'src/shared/nostr/query.ts',
+        "import { fetchBackwardEvents } from '../../../packages/resonote/src/runtime.js';"
+      ),
+      file(
+        'packages/resonote/src/materializer-queue.ts',
+        'export function createMaterializerQueue() {}'
+      ),
+      file('packages/resonote/src/runtime.ts', 'createMaterializerQueue(); createRelayGateway();')
+    ]);
+
+    expect(result.errors).toContain(
+      'src/shared/nostr/query.ts imports package runtime internals instead of the coordinator facade'
+    );
+  });
+
   it('flags relay gateway public event result naming', () => {
     const result = checkStrictClosure([
       file(
