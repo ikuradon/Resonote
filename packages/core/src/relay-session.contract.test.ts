@@ -1,6 +1,6 @@
 import type { RequestKey } from '@auftakt/core';
 import { createRuntimeRequestKey, REPAIR_REQUEST_COALESCING_SCOPE } from '@auftakt/core';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createRxBackwardReq, createRxForwardReq, createRxNostrSession } from './index.js';
 
@@ -62,6 +62,7 @@ class FakeWebSocket {
 
 const RELAY_URL = 'wss://relay.contract.test';
 const RELAY_B_URL = 'wss://relay-b.contract.test';
+const TEMP_RELAY_URL = 'wss://relay-temp.contract.test';
 
 function latestSocket(): FakeWebSocket {
   const socket = FakeWebSocket.instances.at(-1);
@@ -92,6 +93,7 @@ describe('relay replay request identity contract', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     Object.defineProperty(globalThis, 'WebSocket', {
       configurable: true,
       writable: true,
@@ -385,6 +387,197 @@ describe('relay replay request identity contract', () => {
     expect(states.includes('degraded')).toBe(true);
 
     stateSub.unsubscribe();
+    sub.unsubscribe();
+    session.dispose();
+  });
+
+  it('keeps default relays open after backward request completion', async () => {
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100,
+      relayLifecycle: {
+        idleDisconnectMs: 10,
+        retry: { strategy: 'off' }
+      }
+    });
+    const req = createRxBackwardReq({
+      requestKey: 'rq:v1:contract-default-lazy-keep' as RequestKey
+    });
+    let completed = false;
+
+    const sub = session.use(req).subscribe({
+      complete: () => {
+        completed = true;
+      }
+    });
+
+    req.emit({ kinds: [1] });
+    req.over();
+
+    await waitUntil(() => FakeWebSocket.instances.length > 0);
+    const socket = latestSocket();
+    socket.open();
+    await waitUntil(() => socket.sent.length > 0);
+
+    const [, subId] = socket.sent[0] as [string, string, Record<string, unknown>];
+    socket.message(['EOSE', subId]);
+    await waitUntil(() => completed);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(socket.readyState).toBe(FakeWebSocket.OPEN);
+    expect(session.getRelayStatus(RELAY_URL)?.connection).toBe('open');
+
+    sub.unsubscribe();
+    session.dispose();
+  });
+
+  it('idle-disconnects temporary relays after backward request completion', async () => {
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100,
+      relayLifecycle: {
+        idleDisconnectMs: 10,
+        retry: { strategy: 'off' }
+      }
+    });
+    const req = createRxBackwardReq({
+      requestKey: 'rq:v1:contract-temporary-idle' as RequestKey
+    });
+    const states: Array<{ from: string; state: string; reason: string }> = [];
+    let completed = false;
+
+    const stateSub = session.createConnectionStateObservable().subscribe({
+      next: (packet) => {
+        states.push({ from: packet.from, state: packet.state, reason: packet.reason });
+      }
+    });
+    const sub = session
+      .use(req, {
+        on: {
+          defaultReadRelays: false,
+          relays: [TEMP_RELAY_URL]
+        }
+      })
+      .subscribe({
+        complete: () => {
+          completed = true;
+        }
+      });
+
+    req.emit({ kinds: [1] });
+    req.over();
+
+    await waitUntil(() => FakeWebSocket.instances.some((socket) => socket.url === TEMP_RELAY_URL));
+    const socket = FakeWebSocket.instances.find((entry) => entry.url === TEMP_RELAY_URL);
+    if (!socket) throw new Error('temporary socket was not created');
+    socket.open();
+    await waitUntil(() => socket.sent.length > 0);
+
+    const [, subId] = socket.sent[0] as [string, string, Record<string, unknown>];
+    socket.message(['EOSE', subId]);
+    await waitUntil(() => completed);
+    await waitUntil(() => session.getRelayStatus(TEMP_RELAY_URL)?.reason === 'idle-timeout');
+
+    expect(socket.readyState).toBe(FakeWebSocket.CLOSED);
+    expect(session.getRelayStatus(TEMP_RELAY_URL)).toMatchObject({
+      connection: 'idle',
+      reason: 'idle-timeout'
+    });
+    expect(states).toContainEqual({
+      from: TEMP_RELAY_URL,
+      state: 'idle',
+      reason: 'idle-timeout'
+    });
+
+    stateSub.unsubscribe();
+    sub.unsubscribe();
+    session.dispose();
+  });
+
+  it('reconnects forward streams only after configured backoff delay', async () => {
+    vi.useFakeTimers();
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100,
+      relayLifecycle: {
+        retry: {
+          strategy: 'exponential',
+          initialDelayMs: 50,
+          maxDelayMs: 100,
+          maxAttempts: 2
+        }
+      }
+    });
+    const req = createRxForwardReq({
+      requestKey: 'rq:v1:contract-delayed-reconnect' as RequestKey
+    });
+    const states: Array<{ state: string; reason: string }> = [];
+
+    const stateSub = session.createConnectionStateObservable().subscribe({
+      next: (packet) => {
+        if (packet.from === RELAY_URL) states.push({ state: packet.state, reason: packet.reason });
+      }
+    });
+    const sub = session.use(req).subscribe({});
+
+    req.emit({ kinds: [1], authors: ['pubkey-a'] });
+
+    await vi.waitFor(() => expect(FakeWebSocket.instances.length).toBe(1));
+    const firstSocket = latestSocket();
+    firstSocket.open();
+    await vi.waitFor(() => expect(firstSocket.sent.length).toBeGreaterThan(0));
+
+    firstSocket.close();
+    expect(states).toContainEqual({ state: 'backoff', reason: 'reconnect-scheduled' });
+    await vi.advanceTimersByTimeAsync(49);
+    expect(FakeWebSocket.instances).toHaveLength(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await vi.waitFor(() => expect(FakeWebSocket.instances.length).toBe(2));
+    const secondSocket = latestSocket();
+    secondSocket.open();
+    await vi.waitFor(() => expect(secondSocket.sent.length).toBeGreaterThan(0));
+
+    expect(secondSocket.sent[0]).toEqual([
+      'REQ',
+      expect.stringMatching(/^auftakt-/),
+      { authors: ['pubkey-a'], kinds: [1] }
+    ]);
+
+    stateSub.unsubscribe();
+    sub.unsubscribe();
+    session.dispose();
+  });
+
+  it('does not reconnect when retry strategy is off', async () => {
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100,
+      relayLifecycle: {
+        retry: { strategy: 'off' }
+      }
+    });
+    const req = createRxForwardReq({
+      requestKey: 'rq:v1:contract-retry-off' as RequestKey
+    });
+    const sub = session.use(req).subscribe({});
+
+    req.emit({ kinds: [1] });
+
+    await waitUntil(() => FakeWebSocket.instances.length > 0);
+    const firstSocket = latestSocket();
+    firstSocket.open();
+    await waitUntil(() => firstSocket.sent.length > 0);
+
+    firstSocket.close();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    expect(session.getRelayStatus(RELAY_URL)).toMatchObject({
+      connection: 'degraded',
+      reason: 'retry-exhausted'
+    });
+
     sub.unsubscribe();
     session.dispose();
   });
