@@ -1141,6 +1141,12 @@ export interface ResonoteRuntime {
     getById(id: string): Promise<StoredEvent | null>;
     getAllByKind(kind: number): Promise<StoredEvent[]>;
     listNegentropyEventRefs(): Promise<NegentropyEventRef[]>;
+    recordRelayHint?(hint: {
+      readonly eventId: string;
+      readonly relayUrl: string;
+      readonly source: 'seen' | 'hinted' | 'published' | 'repaired';
+      readonly lastSeenAt: number;
+    }): Promise<void>;
     deleteByIds(ids: string[]): Promise<void>;
     clearAll(): Promise<void>;
     put(event: StoredEvent): Promise<unknown>;
@@ -1298,16 +1304,35 @@ export interface CreateResonoteCoordinatorOptions<TResult, TLatestResult> {
     'cachedFetchById' | 'invalidateFetchByIdCache'
   >;
   readonly cachedLatestRuntime: Pick<CachedLatestRuntime<TLatestResult>, 'useCachedLatest'>;
-  readonly publishTransportRuntime: Pick<PublishRuntime, 'castSigned'>;
+  readonly publishTransportRuntime: Pick<PublishRuntime, 'castSigned' | 'observePublishAcks'>;
   readonly pendingPublishQueueRuntime: PendingPublishQueueRuntime;
   readonly relayStatusRuntime: RelayStatusRuntime;
 }
 
 export interface PublishRuntime {
   castSigned(params: EventParameters): Promise<void>;
+  observePublishAcks?(
+    event: RetryableSignedEvent,
+    onAck: (packet: PublishAckPacket) => Promise<void> | void
+  ): Promise<void>;
   retryPendingPublishes(): Promise<void>;
   publishSignedEvent(params: EventParameters): Promise<void>;
   publishSignedEvents(params: EventParameters[]): Promise<void>;
+}
+
+export interface PublishAckPacket {
+  readonly eventId: string;
+  readonly relayUrl: string;
+  readonly ok: boolean;
+}
+
+export interface PublishHintRecorder {
+  recordRelayHint(hint: {
+    readonly eventId: string;
+    readonly relayUrl: string;
+    readonly source: 'published';
+    readonly lastSeenAt: number;
+  }): Promise<void>;
 }
 
 export interface RetryableSignedEvent extends EventParameters {
@@ -1743,6 +1768,13 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
     }
   }
 
+  const publishHintRecorder: PublishHintRecorder = {
+    recordRelayHint: async (hint) => {
+      const db = await runtime.getEventsDB();
+      await db.recordRelayHint?.(hint);
+    }
+  };
+
   return {
     cachedFetchById: (eventId) =>
       cachedFetchByIdRuntime.cachedFetchById(coordinatorReadRuntime, eventId),
@@ -1751,12 +1783,19 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
     useCachedLatest: (pubkey, kind) =>
       cachedLatestRuntime.useCachedLatest(coordinatorReadRuntime, pubkey, kind),
     castSigned: (params) => publishTransportRuntime.castSigned(params),
-    publishSignedEvent: (params) => publishTransportRuntime.castSigned(params),
+    publishSignedEvent: (params) =>
+      publishSignedEventWithOfflineFallback(
+        publishTransportRuntime,
+        pendingPublishQueueRuntime,
+        params,
+        publishHintRecorder
+      ),
     publishSignedEvents: (params) =>
       publishSignedEventsWithOfflineFallback(
         publishTransportRuntime,
         pendingPublishQueueRuntime,
-        params
+        params,
+        publishHintRecorder
       ),
     retryPendingPublishes: async () => {
       await retryQueuedSignedPublishes(publishTransportRuntime, pendingPublishQueueRuntime);
@@ -2010,27 +2049,45 @@ export async function retryQueuedSignedPublishes(
 }
 
 export async function publishSignedEventWithOfflineFallback(
-  runtime: Pick<PublishRuntime, 'castSigned'>,
+  runtime: Pick<PublishRuntime, 'castSigned' | 'observePublishAcks'>,
   queueRuntime: Pick<PendingPublishQueueRuntime, 'addPendingPublish'>,
-  event: EventParameters | RetryableSignedEvent
+  event: EventParameters | RetryableSignedEvent,
+  hints?: PublishHintRecorder
 ): Promise<void> {
   try {
     await runtime.castSigned(event);
   } catch {
     const pending = toRetryableSignedEvent(event);
     if (pending) await queueRuntime.addPendingPublish(pending);
+    return;
+  }
+
+  const pending = toRetryableSignedEvent(event);
+  if (pending && runtime.observePublishAcks && hints) {
+    await runtime.observePublishAcks(pending, async (packet) => {
+      if (!packet.ok || packet.eventId !== pending.id) return;
+      await hints.recordRelayHint({
+        eventId: pending.id,
+        relayUrl: packet.relayUrl,
+        source: 'published',
+        lastSeenAt: Math.floor(Date.now() / 1000)
+      });
+    });
   }
 }
 
 export async function publishSignedEventsWithOfflineFallback(
-  runtime: Pick<PublishRuntime, 'castSigned'>,
+  runtime: Pick<PublishRuntime, 'castSigned' | 'observePublishAcks'>,
   queueRuntime: Pick<PendingPublishQueueRuntime, 'addPendingPublish'>,
-  events: Array<EventParameters | RetryableSignedEvent>
+  events: Array<EventParameters | RetryableSignedEvent>,
+  hints?: PublishHintRecorder
 ): Promise<void> {
   if (events.length === 0) return;
 
   await Promise.allSettled(
-    events.map(async (event) => publishSignedEventWithOfflineFallback(runtime, queueRuntime, event))
+    events.map(async (event) =>
+      publishSignedEventWithOfflineFallback(runtime, queueRuntime, event, hints)
+    )
   );
 }
 

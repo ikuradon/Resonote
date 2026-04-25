@@ -41,6 +41,7 @@ import {
   fetchLatestEvent as fetchLatestEventImpl,
   getRelayConnectionState as getRelayConnectionStateImpl,
   getRxNostr,
+  observePublishAcks as observePublishAcksImpl,
   observeRelayConnectionStates as observeRelayConnectionStatesImpl,
   setDefaultRelays as setDefaultRelaysImpl
 } from '$shared/nostr/client.js';
@@ -105,7 +106,8 @@ const nostrReadRuntime = {
 };
 
 const publishTransportRuntime = {
-  castSigned: (params: EventParameters) => castSignedImpl(params)
+  castSigned: (params: EventParameters) => castSignedImpl(params),
+  observePublishAcks: observePublishAcksImpl
 };
 
 const pendingPublishQueueRuntime = {

@@ -13,8 +13,15 @@ import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('nostr:client');
 
+interface PublishAckPacket {
+  readonly eventId: string;
+  readonly relayUrl: string;
+  readonly ok: boolean;
+}
+
 let initPromise: Promise<RxNostr> | undefined;
 let rxNostr: RxNostr | undefined;
+const publishAckHistory = new Map<string, PublishAckPacket[]>();
 
 export async function getRxNostr(): Promise<RxNostr> {
   if (rxNostr) return rxNostr;
@@ -47,6 +54,9 @@ export async function castSigned(
 
     const sub = instance.send(params, { signer: nip07Signer() }).subscribe({
       next: (packet) => {
+        const history = publishAckHistory.get(packet.eventId) ?? [];
+        history.push({ eventId: packet.eventId, relayUrl: packet.from, ok: packet.ok });
+        publishAckHistory.set(packet.eventId, history);
         if (packet.ok) okCount++;
         if (!resolved && okCount >= needed) {
           resolved = true;
@@ -71,6 +81,15 @@ export async function castSigned(
       }
     });
   });
+}
+
+export async function observePublishAcks(
+  event: { readonly id: string },
+  onAck: (packet: PublishAckPacket) => Promise<void> | void
+): Promise<void> {
+  for (const packet of publishAckHistory.get(event.id) ?? []) {
+    await onAck(packet);
+  }
 }
 
 export async function fetchLatestEvent(
@@ -143,4 +162,5 @@ export function disposeRxNostr(): void {
   rxNostr?.dispose();
   rxNostr = undefined;
   initPromise = undefined;
+  publishAckHistory.clear();
 }
