@@ -87,9 +87,10 @@ import {
 } from './relay-capability-registry.js';
 import { createRelayGateway } from './relay-gateway.js';
 import {
+  buildPublishRelaySendOptions,
   buildReadRelayOverlay,
-  RESONOTE_DEFAULT_RELAY_SELECTION_POLICY
-} from './relay-selection-runtime.js';
+  type PublishRelaySendOptions,
+  RESONOTE_DEFAULT_RELAY_SELECTION_POLICY} from './relay-selection-runtime.js';
 
 export type { CommentSubscriptionRefs, SubscriptionHandle };
 export type { RelayCapabilityPacket, RelayCapabilitySnapshot } from '@auftakt/core';
@@ -1438,7 +1439,7 @@ export interface ResonoteCoordinator<TResult = unknown, TLatestResult = unknown>
   cachedFetchById(eventId: string): Promise<TResult>;
   invalidateFetchByIdCache(eventId: string): void;
   useCachedLatest(pubkey: string, kind: number): TLatestResult;
-  castSigned(params: EventParameters): Promise<void>;
+  castSigned(params: EventParameters, options?: PublishTransportOptions): Promise<void>;
   publishSignedEvent(params: EventParameters): Promise<void>;
   publishSignedEvents(params: EventParameters[]): Promise<void>;
   retryPendingPublishes(): Promise<void>;
@@ -1554,8 +1555,10 @@ export interface CreateResonoteCoordinatorOptions<TResult, TLatestResult> {
   readonly relayCapabilityRuntime?: RelayCapabilityRuntime;
 }
 
+export type PublishTransportOptions = PublishRelaySendOptions;
+
 export interface PublishRuntime {
-  castSigned(params: EventParameters): Promise<void>;
+  castSigned(params: EventParameters, options?: PublishTransportOptions): Promise<void>;
   observePublishAcks?(
     event: RetryableSignedEvent,
     onAck: (packet: PublishAckPacket) => Promise<void> | void
@@ -2188,20 +2191,29 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       cachedFetchByIdRuntime.invalidateFetchByIdCache(coordinatorReadRuntime, eventId),
     useCachedLatest: (pubkey, kind) =>
       cachedLatestRuntime.useCachedLatest(coordinatorReadRuntime, pubkey, kind),
-    castSigned: (params) => publishTransportRuntime.castSigned(params),
-    publishSignedEvent: (params) =>
+    castSigned: (params, options) => publishTransportRuntime.castSigned(params, options),
+    publishSignedEvent: async (params) =>
       publishSignedEventWithOfflineFallback(
         publishTransportRuntime,
         pendingPublishQueueRuntime,
         params,
-        publishHintRecorder
+        publishHintRecorder,
+        await buildPublishRelaySendOptions(runtime, {
+          event: params,
+          policy: RESONOTE_DEFAULT_RELAY_SELECTION_POLICY
+        })
       ),
     publishSignedEvents: (params) =>
       publishSignedEventsWithOfflineFallback(
         publishTransportRuntime,
         pendingPublishQueueRuntime,
         params,
-        publishHintRecorder
+        publishHintRecorder,
+        async (event) =>
+          buildPublishRelaySendOptions(runtime, {
+            event,
+            policy: RESONOTE_DEFAULT_RELAY_SELECTION_POLICY
+          })
       ),
     retryPendingPublishes: async () => {
       await retryQueuedSignedPublishes(publishTransportRuntime, pendingPublishQueueRuntime);
@@ -2496,10 +2508,11 @@ export async function publishSignedEventWithOfflineFallback(
   runtime: Pick<PublishRuntime, 'castSigned' | 'observePublishAcks'>,
   queueRuntime: Pick<PendingPublishQueueRuntime, 'addPendingPublish'>,
   event: EventParameters | RetryableSignedEvent,
-  hints?: PublishHintRecorder
+  hints?: PublishHintRecorder,
+  options?: PublishTransportOptions
 ): Promise<void> {
   try {
-    await runtime.castSigned(event);
+    await runtime.castSigned(event, options);
   } catch (error) {
     const pending = toRetryableSignedEvent(event);
     if (pending) await queueRuntime.addPendingPublish(pending);
@@ -2524,13 +2537,22 @@ export async function publishSignedEventsWithOfflineFallback(
   runtime: Pick<PublishRuntime, 'castSigned' | 'observePublishAcks'>,
   queueRuntime: Pick<PendingPublishQueueRuntime, 'addPendingPublish'>,
   events: Array<EventParameters | RetryableSignedEvent>,
-  hints?: PublishHintRecorder
+  hints?: PublishHintRecorder,
+  buildOptions?: (
+    event: EventParameters | RetryableSignedEvent
+  ) => Promise<PublishTransportOptions | undefined>
 ): Promise<void> {
   if (events.length === 0) return;
 
   await Promise.allSettled(
     events.map(async (event) =>
-      publishSignedEventWithOfflineFallback(runtime, queueRuntime, event, hints)
+      publishSignedEventWithOfflineFallback(
+        runtime,
+        queueRuntime,
+        event,
+        hints,
+        buildOptions ? await buildOptions(event) : undefined
+      )
     )
   );
 }

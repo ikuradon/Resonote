@@ -121,6 +121,30 @@ describe('resonote relay selection runtime', () => {
     });
   });
 
+  it('builds publish options for unsigned event parameters without author relay lookup', async () => {
+    const runtime = createRuntimeFixture();
+
+    const options = await buildPublishRelaySendOptions(runtime, {
+      event: {
+        kind: 1111,
+        tags: [['e', 'target', 'wss://explicit-target.example']]
+      },
+      policy
+    });
+
+    expect(runtime.getByPubkeyAndKind).not.toHaveBeenCalled();
+    expect(options).toEqual({
+      on: {
+        relays: [
+          'wss://default.example/',
+          'wss://durable.example/',
+          'wss://explicit-target.example/'
+        ],
+        defaultWriteRelays: false
+      }
+    });
+  });
+
   it('uses conservative outbox as the Resonote default policy', () => {
     expect(RESONOTE_DEFAULT_RELAY_SELECTION_POLICY).toMatchObject({
       strategy: 'conservative-outbox',

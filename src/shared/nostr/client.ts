@@ -20,6 +20,13 @@ interface PublishAckPacket {
   readonly ok: boolean;
 }
 
+interface RelayPublishOptions {
+  readonly on?: {
+    readonly relays?: readonly string[];
+    readonly defaultWriteRelays?: boolean;
+  };
+}
+
 let initPromise: Promise<RxNostr> | undefined;
 let rxNostr: RxNostr | undefined;
 const publishAckHistory = new Map<string, PublishAckPacket[]>();
@@ -40,20 +47,36 @@ export async function getRxNostr(): Promise<RxNostr> {
   return initPromise;
 }
 
+export async function getDefaultRelayUrls(): Promise<string[]> {
+  const instance = await getRxNostr();
+  return Object.keys(instance.getDefaultRelays());
+}
+
 export async function castSigned(
   params: EventParameters,
-  options?: { successThreshold?: number }
+  options?: { successThreshold?: number } & RelayPublishOptions
 ): Promise<void> {
   const threshold = options?.successThreshold ?? 0.5;
   const instance = await getRxNostr();
   const relayCount = Object.keys(instance.getDefaultRelays()).length;
-  const needed = Math.max(1, Math.ceil(relayCount * threshold));
+  const targetRelayCount = options?.on?.relays?.length ?? relayCount;
+  const needed = Math.max(1, Math.ceil(targetRelayCount * threshold));
 
   return new Promise<void>((resolve, reject) => {
     let okCount = 0;
     let resolved = false;
 
-    const sub = instance.send(params, { signer: nip07Signer() }).subscribe({
+    const sendOptions = options?.on
+      ? {
+          signer: nip07Signer(),
+          on: {
+            relays: options.on.relays ? [...options.on.relays] : undefined,
+            defaultWriteRelays: options.on.defaultWriteRelays
+          }
+        }
+      : { signer: nip07Signer() };
+
+    const sub = instance.send(params, sendOptions).subscribe({
       next: (packet) => {
         const history = publishAckHistory.get(packet.eventId) ?? [];
         history.push({ eventId: packet.eventId, relayUrl: packet.from, ok: packet.ok });

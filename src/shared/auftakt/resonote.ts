@@ -43,6 +43,7 @@ import {
 import {
   castSigned as castSignedImpl,
   fetchLatestEvent as fetchLatestEventImpl,
+  getDefaultRelayUrls,
   getRelayConnectionState as getRelayConnectionStateImpl,
   getRxNostr,
   observePublishAcks as observePublishAcksImpl,
@@ -71,6 +72,7 @@ const runtime: ResonoteRuntime = {
   fetchLatestEvent: (pubkey, kind) => fetchLatestEventImpl(pubkey, kind),
   getEventsDB: () => getEventsDB(),
   getRxNostr: () => getRxNostr(),
+  getDefaultRelays: () => getDefaultRelayUrls(),
   createRxBackwardReq: (options) => createRxBackwardReq(options),
   createRxForwardReq: (options) => createRxForwardReq(options),
   uniq: () => uniq(),
@@ -86,7 +88,8 @@ const nostrReadRuntime = {
 };
 
 const publishTransportRuntime = {
-  castSigned: (params: EventParameters) => castSignedImpl(params),
+  castSigned: (params: EventParameters, options?: Parameters<typeof castSignedImpl>[1]) =>
+    castSignedImpl(params, options),
   observePublishAcks: observePublishAcksImpl
 };
 

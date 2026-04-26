@@ -89,7 +89,8 @@ export async function buildReadRelayOverlay(
 export async function buildPublishRelaySendOptions(
   runtime: RelaySelectionRuntime,
   input: {
-    readonly event: Pick<StoredEvent, 'id' | 'pubkey' | 'kind' | 'tags'>;
+    readonly event: Pick<StoredEvent, 'kind' | 'tags'> &
+      Partial<Pick<StoredEvent, 'id' | 'pubkey'>>;
     readonly policy?: RelaySelectionPolicyOptions;
   }
 ): Promise<PublishRelaySendOptions | undefined> {
@@ -98,7 +99,9 @@ export async function buildPublishRelaySendOptions(
   const candidates: RelaySelectionCandidate[] = [];
 
   candidates.push(...(await defaultCandidates(runtime, 'write')));
-  candidates.push(...(await authorWriteCandidates(db, input.event.pubkey)));
+  if (typeof input.event.pubkey === 'string') {
+    candidates.push(...(await authorWriteCandidates(db, input.event.pubkey)));
+  }
 
   for (const eventId of collectTagValues(input.event.tags, new Set(['e', 'q']))) {
     candidates.push(...(await durableHintCandidates(db, eventId, 'write')));
@@ -107,7 +110,7 @@ export async function buildPublishRelaySendOptions(
     candidates.push({ relay, source: 'audience', role: 'write' });
   }
   for (const pubkey of collectTagValues(input.event.tags, new Set(['p']))) {
-    if (pubkey === input.event.pubkey) continue;
+    if (typeof input.event.pubkey === 'string' && pubkey === input.event.pubkey) continue;
     candidates.push(...(await audienceRelayCandidates(db, pubkey)));
   }
 
