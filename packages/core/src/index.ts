@@ -90,6 +90,26 @@ export {
   REPAIR_REQUEST_COALESCING_SCOPE
 } from './relay-request.js';
 export type {
+  Nip65RelayListEntry,
+  NormalizedRelaySelectionPolicy,
+  RelayCandidateSource,
+  RelaySelectionCandidate,
+  RelaySelectionDiagnostic,
+  RelaySelectionIntent,
+  RelaySelectionPlan,
+  RelaySelectionPlanInput,
+  RelaySelectionPolicyOptions,
+  RelaySelectionRole,
+  RelaySelectionStrategy
+} from './relay-selection.js';
+export {
+  buildRelaySelectionPlan,
+  normalizeRelaySelectionPolicy,
+  normalizeRelayUrl,
+  parseNip65RelayListTags,
+  relayListEntriesToSelectionCandidates
+} from './relay-selection.js';
+export type {
   ConnectionStatePacket,
   CreateRelayRequestOptions,
   CreateRelaySessionOptions,

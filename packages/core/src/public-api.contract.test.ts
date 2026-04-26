@@ -50,12 +50,15 @@ describe('@auftakt/core public api contract', () => {
 
     expect(mod).toEqual(
       expect.objectContaining({
+        buildRelaySelectionPlan: expect.any(Function),
         buildRequestExecutionPlan: expect.any(Function),
         calculateRelayReconnectDelay: expect.any(Function),
         createRuntimeRequestKey: expect.any(Function),
         createRxNostrSession: expect.any(Function),
         filterNegentropyEventRefs: expect.any(Function),
         normalizeRelayLifecycleOptions: expect.any(Function),
+        normalizeRelaySelectionPolicy: expect.any(Function),
+        parseNip65RelayListTags: expect.any(Function),
         reconcileReplayRepairSubjects: expect.any(Function),
         reduceReadSettlement: expect.any(Function),
         validateRelayEvent: expect.any(Function)
