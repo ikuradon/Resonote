@@ -86,6 +86,10 @@ import {
   type RelayInformationDocument
 } from './relay-capability-registry.js';
 import { createRelayGateway } from './relay-gateway.js';
+import {
+  buildReadRelayOverlay,
+  RESONOTE_DEFAULT_RELAY_SELECTION_POLICY
+} from './relay-selection-runtime.js';
 
 export type { CommentSubscriptionRefs, SubscriptionHandle };
 export type { RelayCapabilityPacket, RelayCapabilitySnapshot } from '@auftakt/core';
@@ -442,13 +446,15 @@ class CoordinatorSubscriptionRegistry {
     entry.starting = true;
 
     void this.getRawSession()
-      .then((session) => {
+      .then(async (session) => {
         if (!this.entries.has(entry.entryKey) || entry.consumerCount === 0) {
           return;
         }
 
+        const resolvedUseOptions = entry.useOptions ?? (await this.resolveUseOptions(entry));
+
         entry.transportSubscription = session
-          .use(entry.transportRequest, entry.useOptions)
+          .use(entry.transportRequest, resolvedUseOptions)
           .subscribe({
             next: (packet) => {
               for (const consumer of entry.consumers) {
@@ -488,6 +494,24 @@ class CoordinatorSubscriptionRegistry {
       .finally(() => {
         entry.starting = false;
       });
+  }
+
+  private async resolveUseOptions(
+    entry: SharedSubscriptionEntry
+  ): Promise<RegistryRelayUseOptions | undefined> {
+    const overlay = await buildReadRelayOverlay(this.runtime, {
+      intent: 'subscribe',
+      filters: entry.filters,
+      policy: RESONOTE_DEFAULT_RELAY_SELECTION_POLICY
+    });
+
+    if (!overlay) return undefined;
+    return {
+      on: {
+        relays: overlay.relays,
+        defaultReadRelays: overlay.includeDefaultReadRelays ?? false
+      }
+    };
   }
 
   private detachConsumer(consumer: RegistryConsumer): void {
@@ -1272,14 +1296,36 @@ async function fetchBackwardEventsFromReadRuntime<TEvent>(
   filters: readonly RuntimeFilter[],
   options?: FetchBackwardOptions
 ): Promise<TEvent[]> {
-  const coordinator = createRuntimeEventCoordinator(runtime, options);
+  const resolvedOptions = await resolveReadOptions(runtime, filters, options, 'read');
+  const coordinator = createRuntimeEventCoordinator(runtime, resolvedOptions);
   const result = await coordinator.read([...filters], { policy: 'localFirst' });
 
-  if (options?.rejectOnError && result.settlement.phase !== 'settled') {
+  if (resolvedOptions?.rejectOnError && result.settlement.phase !== 'settled') {
     throw new Error('Relay read did not settle');
   }
 
   return result.events as TEvent[];
+}
+
+async function resolveReadOptions(
+  runtime: CoordinatorReadRuntime,
+  filters: readonly RuntimeFilter[],
+  options: FetchBackwardOptions | undefined,
+  intent: 'read' | 'subscribe' | 'repair'
+): Promise<FetchBackwardOptions | undefined> {
+  if (options?.overlay) return options;
+
+  const overlay = await buildReadRelayOverlay(runtime, {
+    intent,
+    filters,
+    policy: RESONOTE_DEFAULT_RELAY_SELECTION_POLICY
+  });
+
+  if (!overlay) return options;
+  return {
+    ...options,
+    overlay
+  };
 }
 
 export interface RelayStatusRuntime {
