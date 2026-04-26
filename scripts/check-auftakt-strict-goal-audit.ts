@@ -166,6 +166,47 @@ const REQUIRED_BROADER_OUTBOX_FILES = [
   }
 ];
 
+const REQUIRED_PLUGIN_MODEL_API_AUDIT_EVIDENCE =
+  'Plugin model API now gives extensions coordinator-mediated event, user, addressable, relay-set, and relay-hint handles without exposing raw storage or transport handles.';
+
+const REQUIRED_PLUGIN_MODEL_API_FILES = [
+  {
+    path: 'packages/resonote/src/runtime.ts',
+    text: 'ResonoteCoordinatorPluginModels',
+    description: 'plugin model API type'
+  },
+  {
+    path: 'packages/resonote/src/runtime.ts',
+    text: 'readonly models: ResonoteCoordinatorPluginModels',
+    description: 'plugin model API handle wiring'
+  },
+  {
+    path: 'packages/resonote/src/runtime.ts',
+    text: 'createPluginRegistrationApi(pending, entityHandles)',
+    description: 'plugin registration model API injection'
+  },
+  {
+    path: 'packages/resonote/src/plugin-api.contract.test.ts',
+    text: 'lets plugins register read models backed by coordinator model handles',
+    description: 'plugin model API read model contract'
+  },
+  {
+    path: 'packages/resonote/src/plugin-api.contract.test.ts',
+    text: 'ResonoteCoordinatorPluginModels',
+    description: 'plugin model API package type contract'
+  },
+  {
+    path: 'packages/resonote/src/plugin-isolation.contract.test.ts',
+    text: 'getAddressable',
+    description: 'plugin model API high-level addressable factory contract'
+  },
+  {
+    path: 'packages/resonote/src/plugin-isolation.contract.test.ts',
+    text: 'materializerQueue',
+    description: 'plugin model API raw-handle isolation contract'
+  }
+];
+
 const AMBIGUOUS_STRICT_COMPLETION_PATTERNS = [
   /strict final completion is satisfied/i,
   /strict final target is satisfied/i,
@@ -343,6 +384,10 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
     errors.push(`${strictAudit.path} is missing broader outbox routing implementation evidence`);
   }
 
+  if (!strictAudit.text.includes(REQUIRED_PLUGIN_MODEL_API_AUDIT_EVIDENCE)) {
+    errors.push(`${strictAudit.path} is missing plugin model API implementation evidence`);
+  }
+
   for (const required of REQUIRED_PUBLISH_SETTLEMENT_FILES) {
     const text = findFileText(files, required.path);
     if (text === null) {
@@ -387,6 +432,17 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
     }
   }
 
+  for (const required of REQUIRED_PLUGIN_MODEL_API_FILES) {
+    const text = findFileText(files, required.path);
+    if (text === null) {
+      errors.push(`${required.path} is missing for strict plugin model API audit`);
+      continue;
+    }
+    if (!text.includes(required.text)) {
+      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
+    }
+  }
+
   if (AMBIGUOUS_STRICT_COMPLETION_PATTERNS.some((pattern) => pattern.test(strictAudit.text))) {
     errors.push(
       `${strictAudit.path} claims strict final completion without preserving scoped-vs-strict distinction`
@@ -407,6 +463,8 @@ function collectFiles(root = process.cwd()): StrictGoalAuditFile[] {
     'packages/resonote/src/event-coordinator.ts',
     'packages/adapter-dexie/src/index.ts',
     'packages/resonote/src/runtime.ts',
+    'packages/resonote/src/plugin-api.contract.test.ts',
+    'packages/resonote/src/plugin-isolation.contract.test.ts',
     'packages/resonote/src/relay-repair.contract.test.ts',
     'packages/resonote/src/public-read-cutover.contract.test.ts',
     'packages/resonote/src/relay-selection-runtime.ts',

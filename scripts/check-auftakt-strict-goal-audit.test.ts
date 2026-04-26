@@ -54,6 +54,7 @@ Publish settlement now has core vocabulary and coordinator-owned local materiali
 Sync cursor incremental repair now persists Dexie ordered cursors and bounds fallback and negentropy repair through coordinator-owned runtime repair.
 Ordinary read capability verification now routes latest and backward coordinator reads through negentropy-first RelayGateway verification with REQ fallback.
 Broader outbox routing now uses coordinator-selected author, audience, explicit addressable, and durable addressable relay candidates while default-only suppresses broader candidates.
+Plugin model API now gives extensions coordinator-mediated event, user, addressable, relay-set, and relay-hint handles without exposing raw storage or transport handles.
 `;
 
 const validRequiredProofFiles = [
@@ -68,7 +69,7 @@ const validRequiredProofFiles = [
   ),
   file(
     'packages/resonote/src/runtime.ts',
-    'const cursor = await loadRepairSyncCursor(eventsDB, cursorState);\ncreateOrdinaryReadRelayGateway\nverifyOrdinaryReadRelayCandidates'
+    'const cursor = await loadRepairSyncCursor(eventsDB, cursorState);\ncreateOrdinaryReadRelayGateway\nverifyOrdinaryReadRelayCandidates\nResonoteCoordinatorPluginModels\nreadonly models: ResonoteCoordinatorPluginModels\ncreatePluginRegistrationApi(pending, entityHandles)'
   ),
   file(
     'packages/resonote/src/relay-repair.contract.test.ts',
@@ -89,6 +90,14 @@ const validRequiredProofFiles = [
   file(
     'packages/resonote/src/relay-routing-publish.contract.test.ts',
     'passes selected relays to reaction publish transport\npasses selected audience relays to mention publish transport\npasses addressable explicit relay hints to publish transport\npasses durable addressable target hints to publish transport'
+  ),
+  file(
+    'packages/resonote/src/plugin-api.contract.test.ts',
+    'lets plugins register read models backed by coordinator model handles\nResonoteCoordinatorPluginModels'
+  ),
+  file(
+    'packages/resonote/src/plugin-isolation.contract.test.ts',
+    'getAddressable\ngetEvent\ngetRelayHints\ngetRelaySet\ngetUser\nmaterializerQueue'
   )
 ];
 
@@ -208,6 +217,24 @@ describe('checkStrictGoalAudit', () => {
     expect(result.ok).toBe(false);
     expect(result.errors).toContain(
       `${STRICT_GOAL_AUDIT_PATH} is missing broader outbox routing implementation evidence`
+    );
+  });
+
+  it('requires plugin model api implementation proof', () => {
+    const result = checkStrictGoalAudit([
+      file(
+        STRICT_GOAL_AUDIT_PATH,
+        validAuditText.replace(
+          'Plugin model API now gives extensions coordinator-mediated event, user, addressable, relay-set, and relay-hint handles without exposing raw storage or transport handles.',
+          'Plugin model API evidence removed.'
+        )
+      ),
+      ...validRequiredProofFiles
+    ]);
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain(
+      `${STRICT_GOAL_AUDIT_PATH} is missing plugin model API implementation evidence`
     );
   });
 

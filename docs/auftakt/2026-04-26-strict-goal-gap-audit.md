@@ -85,7 +85,7 @@ It excludes:
 2. Coordinator-owned publish settlement. `Implemented in this slice; keep regression gates active.`
 3. Sync cursor incremental repair. `Implemented in this slice; keep restart repair regression gates active.`
 4. Broader outbox routing. `Implemented in this slice; keep broader outbox routing regression gates active.`
-5. NDK-like model expansion.
+5. NDK-like model expansion. `Implemented in this slice for plugin model convenience; keep plugin model API regression gates active.`
 6. Storage hot-path hardening.
 
 ## Verification
@@ -95,6 +95,7 @@ It excludes:
 - `pnpm run check:auftakt:nips`
 - Ordinary read capability verification now routes latest and backward coordinator reads through negentropy-first RelayGateway verification with REQ fallback.
 - Broader outbox routing now uses coordinator-selected author, audience, explicit addressable, and durable addressable relay candidates while default-only suppresses broader candidates.
+- Plugin model API now gives extensions coordinator-mediated event, user, addressable, relay-set, and relay-hint handles without exposing raw storage or transport handles.
 - `pnpm run check:auftakt:strict-closure`
 - `pnpm run test:auftakt:core`
 - `pnpm run test:auftakt:storage`
