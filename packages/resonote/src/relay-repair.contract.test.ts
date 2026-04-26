@@ -2,7 +2,11 @@ import 'fake-indexeddb/auto';
 
 import { createDexieEventStore } from '@auftakt/adapter-dexie';
 import type { RequestKey, StoredEvent } from '@auftakt/core';
-import { createRuntimeRequestKey, finalizeEvent } from '@auftakt/core';
+import {
+  createNegentropyRepairRequestKey,
+  createRuntimeRequestKey,
+  finalizeEvent
+} from '@auftakt/core';
 import { describe, expect, it, vi } from 'vitest';
 
 import { repairEventsFromRelay, type ResonoteRuntime } from './runtime.js';
@@ -13,6 +17,11 @@ const fixtureSecret = (() => {
   secret[31] = 1;
   return secret;
 })();
+const repairRelayUrl = 'wss://relay.contract.test';
+
+function repairCursorKey(relayUrl: string, requestKey: RequestKey): string {
+  return `relay:${relayUrl}\nrequest:${requestKey}`;
+}
 
 function hexId(seed: string): string {
   return seed.repeat(64);
@@ -47,6 +56,7 @@ class FakeBackwardRequest {
 }
 
 async function createRuntimeFixture(options: {
+  dbName?: string;
   initialEvents?: FixtureEvent[];
   negentropyResult?: {
     capability: 'supported' | 'unsupported' | 'failed';
@@ -59,9 +69,14 @@ async function createRuntimeFixture(options: {
 }) {
   const createdRequests: FakeBackwardRequest[] = [];
   const materialized: StoredEvent[] = [];
+  const negentropyRequests: Array<{
+    relayUrl: string;
+    filter: Record<string, unknown>;
+    timeoutMs?: number;
+  }> = [];
   let negentropyCallCount = 0;
   const eventsDB = await createDexieEventStore({
-    dbName: `relay-repair-contract-${Date.now()}-${Math.random()}`
+    dbName: options.dbName ?? `relay-repair-contract-${Date.now()}-${Math.random()}`
   });
 
   for (const event of options.initialEvents ?? []) {
@@ -70,8 +85,13 @@ async function createRuntimeFixture(options: {
 
   const session = {
     requestNegentropySync: options.negentropyResult
-      ? async () => {
+      ? async (request: {
+          relayUrl: string;
+          filter: Record<string, unknown>;
+          timeoutMs?: number;
+        }) => {
           negentropyCallCount += 1;
+          negentropyRequests.push(request);
           return options.negentropyResult;
         }
       : undefined,
@@ -124,6 +144,8 @@ async function createRuntimeFixture(options: {
         getById: eventsDB.getById.bind(eventsDB),
         getAllByKind: eventsDB.getAllByKind.bind(eventsDB),
         listNegentropyEventRefs: eventsDB.listNegentropyEventRefs.bind(eventsDB),
+        getSyncCursor: eventsDB.getSyncCursor.bind(eventsDB),
+        putSyncCursor: eventsDB.putSyncCursor.bind(eventsDB),
         deleteByIds: eventsDB.deleteByIds.bind(eventsDB),
         clearAll: eventsDB.clearAll.bind(eventsDB),
         async put(event: StoredEvent) {
@@ -169,6 +191,7 @@ async function createRuntimeFixture(options: {
   return {
     createdRequests,
     materialized,
+    negentropyRequests,
     getNegentropyCallCount: () => negentropyCallCount,
     eventsDB,
     runtime
@@ -358,7 +381,10 @@ describe('@auftakt/resonote relay repair contract', () => {
 
     expect(fixture.getNegentropyCallCount()).toBe(1);
     expect(fixture.createdRequests).toHaveLength(2);
-    expect(fixture.materialized).toEqual([missingEvent, missingEvent]);
+    expect(fixture.createdRequests[1]?.emitted).toEqual([
+      expect.objectContaining({ since: missingEvent.created_at })
+    ]);
+    expect(fixture.materialized).toEqual([missingEvent]);
   });
 
   it('materializes negentropy-discovered events through reconcile and emits repaired-negentropy', async () => {
@@ -539,5 +565,133 @@ describe('@auftakt/resonote relay repair contract', () => {
       )
     ).toEqual([50, 50, 1]);
     expect(fixture.materialized).toHaveLength(101);
+  });
+
+  it('resumes fallback repair from a persisted cursor after runtime recreation', async () => {
+    const filter = { authors: ['pubkey-a'], kinds: [1] };
+    const firstEvent = makeEvent(hexId('3'), { created_at: 300 });
+    const secondEvent = makeEvent(hexId('4'), { created_at: 400 });
+    const dbName = `relay-repair-cursor-restart-${Date.now()}-${Math.random()}`;
+    const initial = await createRuntimeFixture({
+      dbName,
+      negentropyResult: {
+        capability: 'unsupported',
+        reason: 'unsupported: relay disabled negentropy'
+      },
+      fallbackEvents: [firstEvent]
+    });
+
+    await repairEventsFromRelay(initial.runtime, {
+      filters: [filter],
+      relayUrl: repairRelayUrl,
+      timeoutMs: 10
+    });
+    initial.eventsDB.db.close();
+
+    const restarted = await createRuntimeFixture({
+      dbName,
+      negentropyResult: {
+        capability: 'unsupported',
+        reason: 'unsupported: relay disabled negentropy'
+      },
+      fallbackEvents: [firstEvent, secondEvent]
+    });
+
+    const result = await repairEventsFromRelay(restarted.runtime, {
+      filters: [filter],
+      relayUrl: repairRelayUrl,
+      timeoutMs: 10
+    });
+
+    expect(restarted.createdRequests[0]?.emitted).toEqual([
+      expect.objectContaining({
+        authors: ['pubkey-a'],
+        kinds: [1],
+        since: firstEvent.created_at
+      })
+    ]);
+    expect(result.repairedIds).toEqual([secondEvent.id]);
+    expect(restarted.materialized).toEqual([secondEvent]);
+  });
+
+  it('does not advance fallback repair cursor for malformed candidates', async () => {
+    const fixture = await createRuntimeFixture({
+      negentropyResult: {
+        capability: 'unsupported',
+        reason: 'unsupported: relay disabled negentropy'
+      },
+      rawFallbackEvents: [{ malformed: true }]
+    });
+    const putSyncCursor = vi.spyOn(fixture.eventsDB, 'putSyncCursor');
+
+    const result = await repairEventsFromRelay(fixture.runtime, {
+      filters: [{ authors: ['pubkey-a'], kinds: [1] }],
+      relayUrl: repairRelayUrl,
+      timeoutMs: 10
+    });
+
+    expect(result.repairedIds).toEqual([]);
+    expect(putSyncCursor).not.toHaveBeenCalled();
+    await expect(fixture.eventsDB.db.sync_cursors.toArray()).resolves.toEqual([]);
+  });
+
+  it('repairs late kind:5 after cursor restart and tombstones the target', async () => {
+    const targetEvent = makeEvent(hexId('5'), { created_at: 500, kind: 1111, tags: [] });
+    const deletionEvent = makeEvent(hexId('6'), {
+      created_at: 510,
+      kind: 5,
+      tags: [['e', targetEvent.id]]
+    });
+    const filter = { authors: ['pubkey-a'], kinds: [1111, 5] };
+    const dbName = `relay-repair-kind5-cursor-${Date.now()}-${Math.random()}`;
+    const setup = await createRuntimeFixture({
+      dbName,
+      initialEvents: [targetEvent]
+    });
+    const requestKey = createNegentropyRepairRequestKey({
+      filters: [filter],
+      relayUrl: repairRelayUrl,
+      scope: 'timeline:repair:fallback'
+    });
+
+    await setup.eventsDB.putSyncCursor({
+      key: repairCursorKey(repairRelayUrl, requestKey),
+      relay: repairRelayUrl,
+      requestKey,
+      cursor: {
+        created_at: targetEvent.created_at,
+        id: targetEvent.id
+      },
+      updatedAt: 1
+    });
+    setup.eventsDB.db.close();
+
+    const restarted = await createRuntimeFixture({
+      dbName,
+      negentropyResult: {
+        capability: 'unsupported',
+        reason: 'unsupported: relay disabled negentropy'
+      },
+      fallbackEvents: [targetEvent, deletionEvent]
+    });
+
+    const result = await repairEventsFromRelay(restarted.runtime, {
+      filters: [filter],
+      relayUrl: repairRelayUrl,
+      timeoutMs: 10
+    });
+
+    expect(restarted.createdRequests[0]?.emitted).toEqual([
+      expect.objectContaining({
+        kinds: [1111, 5],
+        since: targetEvent.created_at
+      })
+    ]);
+    expect(result.repairedIds).toEqual([deletionEvent.id]);
+    await expect(restarted.eventsDB.getById(targetEvent.id)).resolves.toBeNull();
+    await expect(restarted.eventsDB.getById(deletionEvent.id)).resolves.toMatchObject({
+      id: deletionEvent.id,
+      kind: 5
+    });
   });
 });

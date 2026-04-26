@@ -2,6 +2,7 @@ import type {
   NamedRegistration,
   NamedRegistrationRegistry,
   NegentropyTransportResult,
+  OrderedEventCursor,
   ProjectionDefinition,
   ReadSettlement,
   ReadSettlementLocalProvenance,
@@ -53,6 +54,7 @@ import {
   subscribeDualFilterStreams,
   type SubscriptionHandle,
   type SubscriptionLike,
+  toOrderedEventCursor,
   validateRelayEvent
 } from '@auftakt/core';
 import type { EventParameters } from 'nostr-typedef';
@@ -1487,6 +1489,14 @@ export interface ResonoteRuntime {
     getById(id: string): Promise<StoredEvent | null>;
     getAllByKind(kind: number): Promise<StoredEvent[]>;
     listNegentropyEventRefs(): Promise<NegentropyEventRef[]>;
+    getSyncCursor?(key: string): Promise<OrderedEventCursor | null>;
+    putSyncCursor?(record: {
+      readonly key: string;
+      readonly relay: string;
+      readonly requestKey: string;
+      readonly cursor: OrderedEventCursor;
+      readonly updatedAt: number;
+    }): Promise<void>;
     isDeleted?(id: string, pubkey: string): Promise<boolean>;
     recordRelayHint?(hint: {
       readonly eventId: string;
@@ -2930,6 +2940,106 @@ function chunkIds(ids: readonly string[], size = 50): RuntimeFilter[] {
   return chunks;
 }
 
+type ResonoteEventStore = Awaited<ReturnType<ResonoteRuntime['getEventsDB']>>;
+
+interface RepairSyncCursorState {
+  readonly key: string;
+  readonly relay: string;
+  readonly requestKey: string;
+}
+
+function createRepairSyncCursorState(input: {
+  readonly relayUrl: string;
+  readonly filters: readonly RuntimeFilter[];
+  readonly scope: string;
+}): RepairSyncCursorState {
+  const requestKey = createNegentropyRepairRequestKey({
+    filters: input.filters,
+    relayUrl: input.relayUrl,
+    scope: input.scope
+  });
+
+  return {
+    key: `relay:${input.relayUrl}\nrequest:${requestKey}`,
+    relay: input.relayUrl,
+    requestKey
+  };
+}
+
+async function loadRepairSyncCursor(
+  eventsDB: ResonoteEventStore,
+  state: RepairSyncCursorState
+): Promise<OrderedEventCursor | null> {
+  if (typeof eventsDB.getSyncCursor !== 'function') return null;
+  try {
+    return await eventsDB.getSyncCursor(state.key);
+  } catch {
+    return null;
+  }
+}
+
+function withRepairSyncCursorFilters(
+  filters: readonly RuntimeFilter[],
+  cursor: OrderedEventCursor | null
+): RuntimeFilter[] {
+  if (!cursor) return [...filters];
+
+  return filters.map((filter) => {
+    const since =
+      typeof filter.since === 'number'
+        ? Math.max(filter.since, cursor.created_at)
+        : cursor.created_at;
+    return { ...filter, since };
+  });
+}
+
+function compareOrderedEventToCursor(
+  event: Pick<StoredEvent, 'created_at' | 'id'>,
+  cursor: OrderedEventCursor
+): number {
+  if (event.created_at !== cursor.created_at) return event.created_at - cursor.created_at;
+  return event.id.localeCompare(cursor.id);
+}
+
+function isAfterRepairSyncCursor(
+  event: Pick<StoredEvent, 'created_at' | 'id'>,
+  cursor: OrderedEventCursor | null
+): boolean {
+  return !cursor || compareOrderedEventToCursor(event, cursor) > 0;
+}
+
+function newestRepairSyncCursor(
+  events: readonly Pick<StoredEvent, 'created_at' | 'id'>[]
+): OrderedEventCursor | null {
+  const newest = [...events].sort((left, right) => {
+    if (right.created_at !== left.created_at) return right.created_at - left.created_at;
+    return right.id.localeCompare(left.id);
+  })[0];
+  return newest ? toOrderedEventCursor(newest) : null;
+}
+
+async function advanceRepairSyncCursor(
+  eventsDB: ResonoteEventStore,
+  state: RepairSyncCursorState,
+  events: readonly Pick<StoredEvent, 'created_at' | 'id'>[]
+): Promise<void> {
+  if (typeof eventsDB.putSyncCursor !== 'function') return;
+  const cursor = newestRepairSyncCursor(events);
+  if (!cursor) return;
+
+  try {
+    await eventsDB.putSyncCursor({
+      key: state.key,
+      relay: state.relay,
+      requestKey: state.requestKey,
+      cursor,
+      updatedAt: Math.floor(Date.now() / 1000)
+    });
+  } catch {
+    return;
+  }
+}
+
 async function fetchRelayCandidateEventsFromRelay(
   runtime: ResonoteRuntime,
   filters: readonly RuntimeFilter[],
@@ -3054,9 +3164,15 @@ async function fetchRelayCandidateEventsFromRuntime(
 async function materializeRepairCandidates(
   runtime: ResonoteRuntime,
   relayUrl: string,
-  candidates: readonly unknown[]
-): Promise<{ repairedIds: string[]; materializationEmissions: ReconcileEmission[] }> {
+  candidates: readonly unknown[],
+  cursor: OrderedEventCursor | null
+): Promise<{
+  repairedIds: string[];
+  repairedEvents: StoredEvent[];
+  materializationEmissions: ReconcileEmission[];
+}> {
   const repairedIds: string[] = [];
+  const repairedEvents: StoredEvent[] = [];
   const materializationEmissions: ReconcileEmission[] = [];
 
   for (const candidate of candidates) {
@@ -3064,6 +3180,7 @@ async function materializeRepairCandidates(
       relayUrl,
       event: candidate,
       materialize: async (event) => {
+        if (!isAfterRepairSyncCursor(event, cursor)) return false;
         const eventsDB = await runtime.getEventsDB();
         const materialized = await eventsDB.putWithReconcile(event);
         materializationEmissions.push(...materialized.emissions);
@@ -3074,11 +3191,13 @@ async function materializeRepairCandidates(
 
     if (result.ok && result.stored) {
       repairedIds.push(result.event.id);
+      repairedEvents.push(result.event);
     }
   }
 
   return {
     repairedIds,
+    repairedEvents,
     materializationEmissions
   };
 }
@@ -3088,9 +3207,17 @@ async function fallbackRepairEventsFromRelay(
   options: RelayRepairOptions,
   capability: NegentropyTransportResult['capability']
 ): Promise<RelayRepairResult> {
+  const eventsDB = await runtime.getEventsDB();
+  const cursorState = createRepairSyncCursorState({
+    relayUrl: options.relayUrl,
+    filters: options.filters,
+    scope: 'timeline:repair:fallback'
+  });
+  const cursor = await loadRepairSyncCursor(eventsDB, cursorState);
+  const filters = withRepairSyncCursorFilters(options.filters, cursor);
   const fallbackCandidates = await fetchRelayCandidateEventsFromRelay(
     runtime,
-    options.filters,
+    filters,
     options.relayUrl,
     options.timeoutMs,
     'timeline:repair:fallback'
@@ -3098,8 +3225,10 @@ async function fallbackRepairEventsFromRelay(
   const materialized = await materializeRepairCandidates(
     runtime,
     options.relayUrl,
-    fallbackCandidates
+    fallbackCandidates,
+    cursor
   );
+  await advanceRepairSyncCursor(eventsDB, cursorState, materialized.repairedEvents);
 
   return {
     strategy: 'fallback',
@@ -3181,7 +3310,8 @@ export async function repairEventsFromRelay(
   const materialized = await materializeRepairCandidates(
     runtime,
     options.relayUrl,
-    repairCandidates
+    repairCandidates,
+    null
   );
 
   return {
