@@ -145,6 +145,25 @@ describe('resonote relay selection runtime', () => {
     });
   });
 
+  it('builds publish options when event parameters omit tags and pubkey', async () => {
+    const runtime = createRuntimeFixture();
+
+    const options = await buildPublishRelaySendOptions(runtime, {
+      event: {
+        kind: 1
+      },
+      policy
+    });
+
+    expect(runtime.getByPubkeyAndKind).not.toHaveBeenCalled();
+    expect(options).toEqual({
+      on: {
+        relays: ['wss://default.example/'],
+        defaultWriteRelays: false
+      }
+    });
+  });
+
   it('uses conservative outbox as the Resonote default policy', () => {
     expect(RESONOTE_DEFAULT_RELAY_SELECTION_POLICY).toMatchObject({
       strategy: 'conservative-outbox',

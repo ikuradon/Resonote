@@ -45,6 +45,13 @@ export interface PublishRelaySendOptions {
   };
 }
 
+export interface RelaySelectionPublishEvent {
+  readonly kind: number;
+  readonly tags?: readonly (readonly string[])[];
+  readonly id?: string;
+  readonly pubkey?: string;
+}
+
 type RelaySelectionDb = Awaited<ReturnType<RelaySelectionRuntime['getEventsDB']>>;
 
 export async function buildReadRelayOverlay(
@@ -89,13 +96,13 @@ export async function buildReadRelayOverlay(
 export async function buildPublishRelaySendOptions(
   runtime: RelaySelectionRuntime,
   input: {
-    readonly event: Pick<StoredEvent, 'kind' | 'tags'> &
-      Partial<Pick<StoredEvent, 'id' | 'pubkey'>>;
+    readonly event: RelaySelectionPublishEvent;
     readonly policy?: RelaySelectionPolicyOptions;
   }
 ): Promise<PublishRelaySendOptions | undefined> {
   const policy = input.policy ?? RESONOTE_DEFAULT_RELAY_SELECTION_POLICY;
   const db = await runtime.getEventsDB();
+  const tags = input.event.tags ?? [];
   const candidates: RelaySelectionCandidate[] = [];
 
   candidates.push(...(await defaultCandidates(runtime, 'write')));
@@ -103,19 +110,19 @@ export async function buildPublishRelaySendOptions(
     candidates.push(...(await authorWriteCandidates(db, input.event.pubkey)));
   }
 
-  for (const eventId of collectTagValues(input.event.tags, new Set(['e', 'q']))) {
+  for (const eventId of collectTagValues(tags, new Set(['e', 'q']))) {
     candidates.push(...(await durableHintCandidates(db, eventId, 'write')));
   }
-  for (const relay of collectExplicitRelayHints(input.event.tags)) {
+  for (const relay of collectExplicitRelayHints(tags)) {
     candidates.push({ relay, source: 'audience', role: 'write' });
   }
-  for (const pubkey of collectTagValues(input.event.tags, new Set(['p']))) {
+  for (const pubkey of collectTagValues(tags, new Set(['p']))) {
     if (typeof input.event.pubkey === 'string' && pubkey === input.event.pubkey) continue;
     candidates.push(...(await audienceRelayCandidates(db, pubkey)));
   }
 
   const plan = buildRelaySelectionPlan({
-    intent: publishIntentForKind(input.event.kind, input.event.tags),
+    intent: publishIntentForKind(input.event.kind, tags),
     policy,
     candidates
   });
