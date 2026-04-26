@@ -1743,6 +1743,29 @@ export interface PendingPublishQueueRuntime {
   ): Promise<PendingDrainResult>;
 }
 
+interface CoordinatorPublishStore {
+  getById(id: string): Promise<StoredEvent | null>;
+  putWithReconcile(event: StoredEvent): Promise<unknown>;
+  recordRelayHint?(hint: {
+    readonly eventId: string;
+    readonly relayUrl: string;
+    readonly source: 'seen' | 'hinted' | 'published' | 'repaired';
+    readonly lastSeenAt: number;
+  }): Promise<void>;
+}
+
+export interface CoordinatorSignedPublishRuntime {
+  readonly event: RetryableSignedEvent;
+  readonly options?: PublishTransportOptions;
+  readonly openStore: () => Promise<CoordinatorPublishStore>;
+  readonly publish: (
+    event: RetryableSignedEvent,
+    handlers: { readonly onAck: (packet: PublishAckPacket) => Promise<void> | void },
+    options?: PublishTransportOptions
+  ) => Promise<void>;
+  readonly addPendingPublish: (event: RetryableSignedEvent) => Promise<void>;
+}
+
 export interface RelayRepairOptions {
   readonly filters: readonly RuntimeFilter[];
   readonly relayUrl: string;
@@ -2358,6 +2381,32 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       })
   });
 
+  const publishSignedEventFromCoordinator = async (params: EventParameters): Promise<void> => {
+    const options = await buildPublishRelaySendOptions(runtime, {
+      event: params,
+      policy: relaySelectionPolicy
+    });
+    const pending = toRetryableSignedEvent(params);
+    if (!pending) {
+      return publishSignedEventWithOfflineFallback(
+        publishTransportRuntime,
+        pendingPublishQueueRuntime,
+        params,
+        publishHintRecorder,
+        options
+      );
+    }
+
+    await publishSignedEventThroughCoordinator({
+      event: pending,
+      options,
+      openStore: () => runtime.getEventsDB(),
+      publish: (event, handlers, sendOptions) =>
+        publishTransportRuntimeWithAcks(publishTransportRuntime, event, handlers, sendOptions),
+      addPendingPublish: (event) => pendingPublishQueueRuntime.addPendingPublish(event)
+    });
+  };
+
   return {
     fetchBackwardEvents: (filters, options) =>
       fetchBackwardEventsFromReadRuntime<never>(
@@ -2382,29 +2431,11 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
     useCachedLatest: (pubkey, kind) =>
       cachedLatestRuntime.useCachedLatest(coordinatorReadRuntime, pubkey, kind),
     castSigned: (params, options) => publishTransportRuntime.castSigned(params, options),
-    publishSignedEvent: async (params) =>
-      publishSignedEventWithOfflineFallback(
-        publishTransportRuntime,
-        pendingPublishQueueRuntime,
-        params,
-        publishHintRecorder,
-        await buildPublishRelaySendOptions(runtime, {
-          event: params,
-          policy: relaySelectionPolicy
-        })
-      ),
-    publishSignedEvents: (params) =>
-      publishSignedEventsWithOfflineFallback(
-        publishTransportRuntime,
-        pendingPublishQueueRuntime,
-        params,
-        publishHintRecorder,
-        async (event) =>
-          buildPublishRelaySendOptions(runtime, {
-            event,
-            policy: relaySelectionPolicy
-          })
-      ),
+    publishSignedEvent: publishSignedEventFromCoordinator,
+    publishSignedEvents: async (params) => {
+      if (params.length === 0) return;
+      await Promise.allSettled(params.map((event) => publishSignedEventFromCoordinator(event)));
+    },
     retryPendingPublishes: async () => {
       await retryQueuedSignedPublishes(publishTransportRuntime, pendingPublishQueueRuntime);
     },
@@ -2671,6 +2702,34 @@ function toRetryableSignedEvent(
   }
 
   return null;
+}
+
+async function publishTransportRuntimeWithAcks(
+  runtime: Pick<PublishRuntime, 'castSigned' | 'observePublishAcks'>,
+  event: RetryableSignedEvent,
+  handlers: { readonly onAck: (packet: PublishAckPacket) => Promise<void> | void },
+  options?: PublishTransportOptions
+): Promise<void> {
+  await runtime.castSigned(event, options);
+  if (!runtime.observePublishAcks) return;
+  await runtime.observePublishAcks(event, handlers.onAck);
+}
+
+export async function publishSignedEventThroughCoordinator(input: CoordinatorSignedPublishRuntime) {
+  const store = await input.openStore();
+  const coordinator = createEventCoordinator({
+    publishTransport: {
+      publish: (event, handlers) =>
+        input.publish(event as RetryableSignedEvent, handlers, input.options)
+    },
+    pendingPublishes: {
+      add: (event) => input.addPendingPublish(event as RetryableSignedEvent)
+    },
+    store,
+    relay: { verify: async () => [] }
+  });
+
+  return coordinator.publish(input.event);
 }
 
 export async function retryQueuedSignedPublishes(

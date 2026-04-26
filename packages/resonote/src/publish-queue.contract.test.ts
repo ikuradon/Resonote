@@ -10,6 +10,7 @@ import {
 } from '../../../src/shared/nostr/pending-publishes.js';
 import {
   publishSignedEventsWithOfflineFallback,
+  publishSignedEventThroughCoordinator,
   publishSignedEventWithOfflineFallback,
   type RetryableSignedEvent,
   retryQueuedSignedPublishes
@@ -143,5 +144,52 @@ describe('@auftakt/resonote publish queue contract', () => {
     expect(castSigned).toHaveBeenCalledTimes(3);
     expect(addPendingPublish).toHaveBeenCalledTimes(1);
     expect(addPendingPublish).toHaveBeenCalledWith(signed);
+  });
+
+  it('publishes signed events through coordinator materialization and relay hints', async () => {
+    const signed = makeEvent({ id: 'coordinator-signed' });
+    const calls: string[] = [];
+    const recordRelayHint = vi.fn(async () => {});
+    const result = await publishSignedEventThroughCoordinator({
+      event: signed,
+      options: { on: { relays: ['wss://relay.example'] } },
+      openStore: async () => ({
+        getById: async () => null,
+        putWithReconcile: async () => {
+          calls.push('materialize');
+          return { stored: true };
+        },
+        recordRelayHint
+      }),
+      publish: async (_event, handlers) => {
+        calls.push('publish');
+        await handlers.onAck({
+          eventId: 'coordinator-signed',
+          relayUrl: 'wss://relay.example',
+          ok: true
+        });
+      },
+      addPendingPublish: async () => {
+        throw new Error('should not queue');
+      }
+    });
+
+    expect(result).toEqual({
+      queued: false,
+      ok: true,
+      settlement: {
+        phase: 'settled',
+        state: 'confirmed',
+        durability: 'relay',
+        reason: 'relay-accepted'
+      }
+    });
+    expect(calls).toEqual(['materialize', 'publish']);
+    expect(recordRelayHint).toHaveBeenCalledWith({
+      eventId: 'coordinator-signed',
+      relayUrl: 'wss://relay.example',
+      source: 'published',
+      lastSeenAt: expect.any(Number)
+    });
   });
 });
