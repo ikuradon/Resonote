@@ -1,6 +1,7 @@
 import { type ReadSettlement, reduceReadSettlement, type StoredEvent } from '@auftakt/core';
 import { describe, expect, it, vi } from 'vitest';
 
+import { deriveEntityHandleState } from './entity-handles.js';
 import { createResonoteCoordinator, type EntityHandleState } from './runtime.js';
 
 const LOCAL_SETTLEMENT = reduceReadSettlement({
@@ -145,7 +146,51 @@ describe('@auftakt/resonote entity handles', () => {
   it('exports the handle state type through runtime type exports', () => {
     const state: EntityHandleState = 'relay-confirmed';
     expect(state).toBe('relay-confirmed');
-    expect(LOCAL_SETTLEMENT.phase).toBe('settled');
-    expect(makeEvent('f'.repeat(64)).id).toBe('f'.repeat(64));
   });
+});
+
+describe('entity handle settlement state derivation', () => {
+  it.each([
+    [
+      'missing',
+      null,
+      reduceReadSettlement({ localSettled: true, relaySettled: true, relayRequired: true }),
+      false
+    ],
+    ['local', makeEvent('1'.repeat(64)), LOCAL_SETTLEMENT, false],
+    [
+      'partial',
+      makeEvent('2'.repeat(64)),
+      reduceReadSettlement({
+        localSettled: true,
+        relaySettled: false,
+        relayRequired: true,
+        localHitProvenance: 'store'
+      }),
+      false
+    ],
+    [
+      'relay-confirmed',
+      makeEvent('3'.repeat(64)),
+      reduceReadSettlement({
+        localSettled: true,
+        relaySettled: true,
+        relayRequired: true,
+        relayHit: true
+      }),
+      false
+    ],
+    [
+      'repaired',
+      makeEvent('4'.repeat(64)),
+      { phase: 'settled', provenance: 'relay', reason: 'negentropy-repair' },
+      false
+    ],
+    ['deleted', makeEvent('5'.repeat(64)), LOCAL_SETTLEMENT, true]
+  ] satisfies Array<[EntityHandleState, StoredEvent | null, ReadSettlement, boolean]>)(
+    'maps %s state',
+    (expected, value, settlement, deleted) => {
+      expect(deriveEntityHandleState({ value, settlement, deleted })).toBe(expected);
+    }
+  );
 });

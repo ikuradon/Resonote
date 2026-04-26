@@ -218,7 +218,6 @@ export function deriveEntityHandleState(input: {
   readonly deleted?: boolean;
 }): EntityHandleState {
   if (input.deleted === true) return 'deleted';
-  if (input.settlement.reason === 'relay-repair') return 'repaired';
   if (input.settlement.reason === 'replay-restore') return 'repaired';
   if (input.settlement.reason === 'negentropy-repair') return 'repaired';
   if (input.settlement.phase === 'partial') return 'partial';
