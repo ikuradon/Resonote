@@ -207,6 +207,52 @@ const REQUIRED_PLUGIN_MODEL_API_FILES = [
   }
 ];
 
+const REQUIRED_STORAGE_HOT_PATH_AUDIT_EVIDENCE =
+  'Storage hot-path hardening now proves Dexie kind-bounded traversal, projection reads, max-created lookups, and HotEventIndex kind, tag, replaceable, deletion, and relay-hint paths without broad event-table scans.';
+
+const REQUIRED_STORAGE_HOT_PATH_FILES = [
+  {
+    path: 'packages/adapter-dexie/src/hot-path.contract.test.ts',
+    text: 'uses kind index for ordered traversal',
+    description: 'Dexie kind-bounded ordered traversal contract'
+  },
+  {
+    path: 'packages/adapter-dexie/src/hot-path.contract.test.ts',
+    text: 'uses pubkey kind created_at index for author max created_at lookups',
+    description: 'Dexie author max-created hot-path contract'
+  },
+  {
+    path: 'packages/adapter-dexie/src/index.ts',
+    text: "where('[kind+created_at]')",
+    description: 'Dexie kind index traversal implementation'
+  },
+  {
+    path: 'packages/adapter-dexie/src/index.ts',
+    text: "where('[pubkey+kind+created_at]')",
+    description: 'Dexie author max-created index implementation'
+  },
+  {
+    path: 'packages/adapter-dexie/src/schema.ts',
+    text: '[pubkey+kind+created_at]',
+    description: 'Dexie author max-created schema index'
+  },
+  {
+    path: 'packages/resonote/src/hot-event-index.contract.test.ts',
+    text: 'removes deleted events from all hot indexes',
+    description: 'HotEventIndex deletion cleanup contract'
+  },
+  {
+    path: 'packages/resonote/src/hot-event-index.ts',
+    text: 'replaceableHeads',
+    description: 'HotEventIndex replaceable head implementation'
+  },
+  {
+    path: 'packages/resonote/src/event-coordinator.contract.test.ts',
+    text: 'prefills tag reads from hot index while still checking durable store',
+    description: 'coordinator tag hot prefill contract'
+  }
+];
+
 const AMBIGUOUS_STRICT_COMPLETION_PATTERNS = [
   /strict final completion is satisfied/i,
   /strict final target is satisfied/i,
@@ -388,6 +434,12 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
     errors.push(`${strictAudit.path} is missing plugin model API implementation evidence`);
   }
 
+  if (!strictAudit.text.includes(REQUIRED_STORAGE_HOT_PATH_AUDIT_EVIDENCE)) {
+    errors.push(
+      `${strictAudit.path} is missing storage hot-path hardening implementation evidence`
+    );
+  }
+
   for (const required of REQUIRED_PUBLISH_SETTLEMENT_FILES) {
     const text = findFileText(files, required.path);
     if (text === null) {
@@ -443,6 +495,17 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
     }
   }
 
+  for (const required of REQUIRED_STORAGE_HOT_PATH_FILES) {
+    const text = findFileText(files, required.path);
+    if (text === null) {
+      errors.push(`${required.path} is missing for strict storage hot-path audit`);
+      continue;
+    }
+    if (!text.includes(required.text)) {
+      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
+    }
+  }
+
   if (AMBIGUOUS_STRICT_COMPLETION_PATTERNS.some((pattern) => pattern.test(strictAudit.text))) {
     errors.push(
       `${strictAudit.path} claims strict final completion without preserving scoped-vs-strict distinction`
@@ -462,7 +525,12 @@ function collectFiles(root = process.cwd()): StrictGoalAuditFile[] {
     'packages/core/src/settlement.ts',
     'packages/resonote/src/event-coordinator.ts',
     'packages/adapter-dexie/src/index.ts',
+    'packages/adapter-dexie/src/hot-path.contract.test.ts',
+    'packages/adapter-dexie/src/schema.ts',
     'packages/resonote/src/runtime.ts',
+    'packages/resonote/src/hot-event-index.ts',
+    'packages/resonote/src/hot-event-index.contract.test.ts',
+    'packages/resonote/src/event-coordinator.contract.test.ts',
     'packages/resonote/src/plugin-api.contract.test.ts',
     'packages/resonote/src/plugin-isolation.contract.test.ts',
     'packages/resonote/src/relay-repair.contract.test.ts',

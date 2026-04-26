@@ -55,6 +55,7 @@ Sync cursor incremental repair now persists Dexie ordered cursors and bounds fal
 Ordinary read capability verification now routes latest and backward coordinator reads through negentropy-first RelayGateway verification with REQ fallback.
 Broader outbox routing now uses coordinator-selected author, audience, explicit addressable, and durable addressable relay candidates while default-only suppresses broader candidates.
 Plugin model API now gives extensions coordinator-mediated event, user, addressable, relay-set, and relay-hint handles without exposing raw storage or transport handles.
+Storage hot-path hardening now proves Dexie kind-bounded traversal, projection reads, max-created lookups, and HotEventIndex kind, tag, replaceable, deletion, and relay-hint paths without broad event-table scans.
 `;
 
 const validRequiredProofFiles = [
@@ -65,7 +66,7 @@ const validRequiredProofFiles = [
   ),
   file(
     'packages/adapter-dexie/src/index.ts',
-    'async putSyncCursor(record) { await this.db.sync_cursors.put(record); }'
+    "async putSyncCursor(record) { await this.db.sync_cursors.put(record); }\nwhere('[kind+created_at]')\nwhere('[pubkey+kind+created_at]')\nlistOrderedEventsByKind"
   ),
   file(
     'packages/resonote/src/runtime.ts',
@@ -98,6 +99,26 @@ const validRequiredProofFiles = [
   file(
     'packages/resonote/src/plugin-isolation.contract.test.ts',
     'getAddressable\ngetEvent\ngetRelayHints\ngetRelaySet\ngetUser\nmaterializerQueue'
+  ),
+  file(
+    'packages/adapter-dexie/src/hot-path.contract.test.ts',
+    'uses kind index for ordered traversal\nuses kind index for projection source traversal\nuses pubkey kind created_at index for author max created_at lookups\nkeeps tag and relay hint hot paths indexed'
+  ),
+  file(
+    'packages/adapter-dexie/src/schema.ts',
+    '[pubkey+kind+created_at]\nthis.version(4).stores(versionFourStores)'
+  ),
+  file(
+    'packages/resonote/src/hot-event-index.contract.test.ts',
+    'orders hot kind lookups and applies limit and cursor\nfilters hot tag lookups by kind\nkeeps hot replaceable heads\nremoves deleted events from all hot indexes\nsorts hot relay hints newest first'
+  ),
+  file(
+    'packages/resonote/src/hot-event-index.ts',
+    'getByKind(kind, options\ngetReplaceableHead(pubkey, kind, dTag\nreplaceableHeads'
+  ),
+  file(
+    'packages/resonote/src/event-coordinator.contract.test.ts',
+    'prefills tag reads from hot index while still checking durable store\nprefills kind reads from hot index while still checking durable store'
   )
 ];
 
@@ -235,6 +256,24 @@ describe('checkStrictGoalAudit', () => {
     expect(result.ok).toBe(false);
     expect(result.errors).toContain(
       `${STRICT_GOAL_AUDIT_PATH} is missing plugin model API implementation evidence`
+    );
+  });
+
+  it('requires storage hot-path hardening implementation proof', () => {
+    const result = checkStrictGoalAudit([
+      file(
+        STRICT_GOAL_AUDIT_PATH,
+        validAuditText.replace(
+          'Storage hot-path hardening now proves Dexie kind-bounded traversal, projection reads, max-created lookups, and HotEventIndex kind, tag, replaceable, deletion, and relay-hint paths without broad event-table scans.',
+          'Storage hot-path evidence removed.'
+        )
+      ),
+      ...validRequiredProofFiles
+    ]);
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain(
+      `${STRICT_GOAL_AUDIT_PATH} is missing storage hot-path hardening implementation evidence`
     );
   });
 
