@@ -79,6 +79,59 @@ describe('@auftakt/resonote public api contract', () => {
     expect(exportNames).not.toContain('buildRelaySetSnapshot');
   });
 
+  it('keeps package value exports on an explicit coordinator-owned allowlist', async () => {
+    const mod = await import('@auftakt/resonote');
+    const exportNames = Object.keys(mod).sort();
+
+    expect(exportNames).toEqual(
+      [
+        'RESONOTE_COORDINATOR_PLUGIN_API_VERSION',
+        'RESONOTE_PLAY_POSITION_SORT',
+        'buildCommentContentFilters',
+        'cachedFetchById',
+        'castSigned',
+        'createResonoteCoordinator',
+        'fetchCustomEmojiCategories',
+        'fetchCustomEmojiSources',
+        'fetchFollowListSnapshot',
+        'fetchLatestEvent',
+        'fetchNostrEventById',
+        'fetchNotificationTargetPreview',
+        'fetchProfileCommentEvents',
+        'fetchProfileMetadataEvents',
+        'fetchProfileMetadataSources',
+        'fetchRelayListEvents',
+        'fetchRelayListSources',
+        'fetchWot',
+        'getRelayConnectionState',
+        'getResonotePlayPositionMs',
+        'invalidateFetchByIdCache',
+        'loadCommentSubscriptionDeps',
+        'observeRelayCapabilities',
+        'observeRelayConnectionStates',
+        'observeRelayStatuses',
+        'publishSignedEvents',
+        'publishSignedEventsWithOfflineFallback',
+        'publishSignedEventWithOfflineFallback',
+        'registerPlugin',
+        'resonoteTimelineProjection',
+        'retryPendingPublishes',
+        'retryQueuedSignedPublishes',
+        'searchBookmarkDTagEvent',
+        'searchEpisodeBookmarkByGuid',
+        'setDefaultRelays',
+        'snapshotRelayCapabilities',
+        'snapshotRelayStatuses',
+        'sortResonoteTimelineByPlayPosition',
+        'startCommentDeletionReconcile',
+        'startCommentSubscription',
+        'startMergedCommentSubscription',
+        'subscribeNotificationStreams',
+        'useCachedLatest'
+      ].sort()
+    );
+  });
+
   it('does not expose raw negentropy protocol names', async () => {
     const mod = await import('@auftakt/resonote');
     const exportNames = Object.keys(mod);
