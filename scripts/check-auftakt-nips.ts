@@ -22,6 +22,32 @@ export interface NipMatrix {
   entries: NipMatrixEntry[];
 }
 
+const KNOWN_LEVELS = new Set([
+  'public',
+  'public-compat',
+  'internal',
+  'internal-only',
+  'scoped-out'
+]);
+const KNOWN_STATUSES = new Set([
+  'implemented',
+  'partial',
+  'planned',
+  'deferred',
+  'not-started',
+  'not-applicable',
+  'deprecated',
+  'unrecommended'
+]);
+const KNOWN_PRIORITIES = new Set(['P0', 'P1', 'P2', 'P3']);
+const DOCS_ONLY_OWNER = 'docs/auftakt/nip-matrix.json';
+const NON_IMPLEMENTED_STATUSES = new Set([
+  'not-started',
+  'not-applicable',
+  'deprecated',
+  'unrecommended'
+]);
+
 export function checkNipMatrix(
   inventory: NipInventory,
   matrix: NipMatrix
@@ -85,6 +111,26 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   const errors: string[] = [];
   for (const key of ['level', 'status', 'owner', 'proof', 'priority', 'scopeNotes'] as const) {
     if (!entry[key]) errors.push(`NIP-${entry.nip} missing ${key}`);
+  }
+  if (entry.level && !KNOWN_LEVELS.has(entry.level)) {
+    errors.push(`NIP-${entry.nip} has unknown level ${entry.level}`);
+  }
+  if (entry.status && !KNOWN_STATUSES.has(entry.status)) {
+    errors.push(`NIP-${entry.nip} has unknown status ${entry.status}`);
+  }
+  if (entry.priority && !KNOWN_PRIORITIES.has(entry.priority)) {
+    errors.push(`NIP-${entry.nip} has unknown priority ${entry.priority}`);
+  }
+  if (/^(TBD|TODO|notes)$/i.test(entry.scopeNotes.trim())) {
+    errors.push(`NIP-${entry.nip} missing support boundary in scopeNotes`);
+  }
+  if (!NON_IMPLEMENTED_STATUSES.has(entry.status)) {
+    if (entry.owner === DOCS_ONLY_OWNER) {
+      errors.push(`NIP-${entry.nip} ${entry.status} claim cannot use docs-only owner`);
+    }
+    if (entry.proof === DOCS_ONLY_OWNER) {
+      errors.push(`NIP-${entry.nip} ${entry.status} claim cannot use docs-only proof`);
+    }
   }
   return errors;
 }

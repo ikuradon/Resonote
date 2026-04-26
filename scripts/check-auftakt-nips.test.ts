@@ -62,3 +62,53 @@ describe('checkNipMatrix', () => {
     expect(result.errors).toContain('Matrix sourceDate differs from inventory sourceDate');
   });
 });
+
+describe('NIP matrix entry validation', () => {
+  it('rejects unknown level status and priority values', () => {
+    const result = checkNipMatrix(
+      { nips: ['01'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [entry('01', { level: 'mystery', status: 'done', priority: 'soon' })]
+      }
+    );
+
+    expect(result.errors).toContain('NIP-01 has unknown level mystery');
+    expect(result.errors).toContain('NIP-01 has unknown status done');
+    expect(result.errors).toContain('NIP-01 has unknown priority soon');
+  });
+
+  it('rejects implemented or partial claims with docs-only owner or proof', () => {
+    const result = checkNipMatrix(
+      { nips: ['01'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('01', {
+            status: 'implemented',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain('NIP-01 implemented claim cannot use docs-only owner');
+    expect(result.errors).toContain('NIP-01 implemented claim cannot use docs-only proof');
+  });
+
+  it('rejects missing support boundary notes', () => {
+    const result = checkNipMatrix(
+      { nips: ['01'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [entry('01', { scopeNotes: 'TBD' })]
+      }
+    );
+
+    expect(result.errors).toContain('NIP-01 missing support boundary in scopeNotes');
+  });
+});
