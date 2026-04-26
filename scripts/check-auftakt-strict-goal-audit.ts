@@ -47,6 +47,22 @@ const REQUIRED_MEDIATION_LAYERS = [
 
 const REQUIRED_FIRST_PHASE_NAME = 'strict coordinator audit closure';
 
+const REQUIRED_PUBLISH_SETTLEMENT_AUDIT_EVIDENCE =
+  'Publish settlement now has core vocabulary and coordinator-owned local materialization, relay hint, and pending queue proof.';
+
+const REQUIRED_PUBLISH_SETTLEMENT_FILES = [
+  {
+    path: 'packages/core/src/settlement.ts',
+    text: 'reducePublishSettlement',
+    description: 'core publish settlement reducer'
+  },
+  {
+    path: 'packages/resonote/src/event-coordinator.ts',
+    text: 'settlement: reducePublishSettlement',
+    description: 'coordinator publish settlement return'
+  }
+];
+
 const AMBIGUOUS_STRICT_COMPLETION_PATTERNS = [
   /strict final completion is satisfied/i,
   /strict final target is satisfied/i,
@@ -97,6 +113,10 @@ function requireTextIncludes(
       addUnique(errors, `${path} is missing required ${description}: ${entry}`);
     }
   }
+}
+
+function findFileText(files: readonly StrictGoalAuditFile[], path: string): string | null {
+  return files.find((file) => file.path === path)?.text ?? null;
 }
 
 function isProductionSource(path: string): boolean {
@@ -198,6 +218,23 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
     errors.push(`${strictAudit.path} is missing first implementation phase name`);
   }
 
+  if (!strictAudit.text.includes(REQUIRED_PUBLISH_SETTLEMENT_AUDIT_EVIDENCE)) {
+    errors.push(
+      `${strictAudit.path} is missing coordinator-owned publish settlement implementation evidence`
+    );
+  }
+
+  for (const required of REQUIRED_PUBLISH_SETTLEMENT_FILES) {
+    const text = findFileText(files, required.path);
+    if (text === null) {
+      errors.push(`${required.path} is missing for strict publish settlement audit`);
+      continue;
+    }
+    if (!text.includes(required.text)) {
+      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
+    }
+  }
+
   if (AMBIGUOUS_STRICT_COMPLETION_PATTERNS.some((pattern) => pattern.test(strictAudit.text))) {
     errors.push(
       `${strictAudit.path} claims strict final completion without preserving scoped-vs-strict distinction`
@@ -211,9 +248,12 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
 }
 
 function collectFiles(root = process.cwd()): StrictGoalAuditFile[] {
-  const paths = [STRICT_GOAL_AUDIT_PATH, 'docs/auftakt/spec.md'].filter((path) =>
-    existsSync(join(root, path))
-  );
+  const paths = [
+    STRICT_GOAL_AUDIT_PATH,
+    'docs/auftakt/spec.md',
+    'packages/core/src/settlement.ts',
+    'packages/resonote/src/event-coordinator.ts'
+  ].filter((path) => existsSync(join(root, path)));
   return paths.map((path) => ({ path, text: readFileSync(join(root, path), 'utf8') }));
 }
 
