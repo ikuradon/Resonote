@@ -53,6 +53,7 @@ pnpm run check:auftakt:strict-closure
 Publish settlement now has core vocabulary and coordinator-owned local materialization, relay hint, and pending queue proof.
 Sync cursor incremental repair now persists Dexie ordered cursors and bounds fallback and negentropy repair through coordinator-owned runtime repair.
 Ordinary read capability verification now routes latest and backward coordinator reads through negentropy-first RelayGateway verification with REQ fallback.
+Broader outbox routing now uses coordinator-selected author, audience, explicit addressable, and durable addressable relay candidates while default-only suppresses broader candidates.
 `;
 
 const validRequiredProofFiles = [
@@ -76,6 +77,18 @@ const validRequiredProofFiles = [
   file(
     'packages/resonote/src/public-read-cutover.contract.test.ts',
     'attempts negentropy before ordinary latest REQ verification\nuses capability-aware gateway for backward event reads'
+  ),
+  file(
+    'packages/resonote/src/relay-selection-runtime.ts',
+    'addressableTargetCandidates\ngetByReplaceKey\ncollectAddressableTagReferences'
+  ),
+  file(
+    'packages/resonote/src/relay-selection-runtime.contract.test.ts',
+    'builds publish options from addressable explicit relay hints\nbuilds publish options from durable hints for local addressable targets\ndefault-only policy suppresses broader outbox publish candidates\nignores malformed addressable tags and invalid addressable relay hints'
+  ),
+  file(
+    'packages/resonote/src/relay-routing-publish.contract.test.ts',
+    'passes selected relays to reaction publish transport\npasses selected audience relays to mention publish transport\npasses addressable explicit relay hints to publish transport\npasses durable addressable target hints to publish transport'
   )
 ];
 
@@ -177,6 +190,24 @@ describe('checkStrictGoalAudit', () => {
     expect(result.ok).toBe(false);
     expect(result.errors).toContain(
       `${STRICT_GOAL_AUDIT_PATH} is missing ordinary read capability verification implementation evidence`
+    );
+  });
+
+  it('requires broader outbox routing implementation proof', () => {
+    const result = checkStrictGoalAudit([
+      file(
+        STRICT_GOAL_AUDIT_PATH,
+        validAuditText.replace(
+          'Broader outbox routing now uses coordinator-selected author, audience, explicit addressable, and durable addressable relay candidates while default-only suppresses broader candidates.',
+          'Broader outbox evidence removed.'
+        )
+      ),
+      ...validRequiredProofFiles
+    ]);
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain(
+      `${STRICT_GOAL_AUDIT_PATH} is missing broader outbox routing implementation evidence`
     );
   });
 

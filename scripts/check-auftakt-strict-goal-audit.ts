@@ -110,6 +110,62 @@ const REQUIRED_ORDINARY_READ_CAPABILITY_FILES = [
   }
 ];
 
+const REQUIRED_BROADER_OUTBOX_AUDIT_EVIDENCE =
+  'Broader outbox routing now uses coordinator-selected author, audience, explicit addressable, and durable addressable relay candidates while default-only suppresses broader candidates.';
+
+const REQUIRED_BROADER_OUTBOX_FILES = [
+  {
+    path: 'packages/resonote/src/relay-selection-runtime.ts',
+    text: 'addressableTargetCandidates',
+    description: 'addressable target candidate collector'
+  },
+  {
+    path: 'packages/resonote/src/relay-selection-runtime.ts',
+    text: 'collectAddressableTagReferences',
+    description: 'addressable tag parser'
+  },
+  {
+    path: 'packages/resonote/src/relay-selection-runtime.contract.test.ts',
+    text: 'builds publish options from addressable explicit relay hints',
+    description: 'addressable explicit relay selection contract'
+  },
+  {
+    path: 'packages/resonote/src/relay-selection-runtime.contract.test.ts',
+    text: 'builds publish options from durable hints for local addressable targets',
+    description: 'addressable durable relay selection contract'
+  },
+  {
+    path: 'packages/resonote/src/relay-selection-runtime.contract.test.ts',
+    text: 'default-only policy suppresses broader outbox publish candidates',
+    description: 'default-only broader outbox suppression contract'
+  },
+  {
+    path: 'packages/resonote/src/relay-selection-runtime.contract.test.ts',
+    text: 'ignores malformed addressable tags and invalid addressable relay hints',
+    description: 'malformed addressable tag suppression contract'
+  },
+  {
+    path: 'packages/resonote/src/relay-routing-publish.contract.test.ts',
+    text: 'passes selected relays to reaction publish transport',
+    description: 'reaction publish coordinator routing contract'
+  },
+  {
+    path: 'packages/resonote/src/relay-routing-publish.contract.test.ts',
+    text: 'passes selected audience relays to mention publish transport',
+    description: 'mention publish coordinator routing contract'
+  },
+  {
+    path: 'packages/resonote/src/relay-routing-publish.contract.test.ts',
+    text: 'passes addressable explicit relay hints to publish transport',
+    description: 'addressable explicit coordinator routing contract'
+  },
+  {
+    path: 'packages/resonote/src/relay-routing-publish.contract.test.ts',
+    text: 'passes durable addressable target hints to publish transport',
+    description: 'addressable durable coordinator routing contract'
+  }
+];
+
 const AMBIGUOUS_STRICT_COMPLETION_PATTERNS = [
   /strict final completion is satisfied/i,
   /strict final target is satisfied/i,
@@ -283,6 +339,10 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
     );
   }
 
+  if (!strictAudit.text.includes(REQUIRED_BROADER_OUTBOX_AUDIT_EVIDENCE)) {
+    errors.push(`${strictAudit.path} is missing broader outbox routing implementation evidence`);
+  }
+
   for (const required of REQUIRED_PUBLISH_SETTLEMENT_FILES) {
     const text = findFileText(files, required.path);
     if (text === null) {
@@ -316,6 +376,17 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
     }
   }
 
+  for (const required of REQUIRED_BROADER_OUTBOX_FILES) {
+    const text = findFileText(files, required.path);
+    if (text === null) {
+      errors.push(`${required.path} is missing for strict broader outbox routing audit`);
+      continue;
+    }
+    if (!text.includes(required.text)) {
+      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
+    }
+  }
+
   if (AMBIGUOUS_STRICT_COMPLETION_PATTERNS.some((pattern) => pattern.test(strictAudit.text))) {
     errors.push(
       `${strictAudit.path} claims strict final completion without preserving scoped-vs-strict distinction`
@@ -337,7 +408,10 @@ function collectFiles(root = process.cwd()): StrictGoalAuditFile[] {
     'packages/adapter-dexie/src/index.ts',
     'packages/resonote/src/runtime.ts',
     'packages/resonote/src/relay-repair.contract.test.ts',
-    'packages/resonote/src/public-read-cutover.contract.test.ts'
+    'packages/resonote/src/public-read-cutover.contract.test.ts',
+    'packages/resonote/src/relay-selection-runtime.ts',
+    'packages/resonote/src/relay-selection-runtime.contract.test.ts',
+    'packages/resonote/src/relay-routing-publish.contract.test.ts'
   ].filter((path) => existsSync(join(root, path)));
   return paths.map((path) => ({ path, text: readFileSync(join(root, path), 'utf8') }));
 }
