@@ -52,6 +52,34 @@ const AMBIGUOUS_STRICT_COMPLETION_PATTERNS = [
   /all strict final goals are satisfied/i
 ];
 
+const RAW_TRANSPORT_TOKENS = [
+  'getRxNostr',
+  'createRxBackwardReq',
+  'createRxForwardReq',
+  'createRxNostrSession',
+  'RxNostr'
+];
+
+const RAW_PLUGIN_HANDLE_TOKENS = [
+  'getRxNostr',
+  'getEventsDB',
+  'openEventsDb',
+  'createRxBackwardReq',
+  'createRxForwardReq',
+  'materializerQueue',
+  'DexieEventStore'
+];
+
+const APPROVED_RAW_TRANSPORT_FILES = new Set([
+  'packages/core/src/index.ts',
+  'packages/core/src/request-planning.ts',
+  'packages/core/src/relay-session.ts',
+  'packages/resonote/src/runtime.ts',
+  'src/shared/auftakt/cached-read.svelte.ts',
+  'src/shared/auftakt/resonote.ts',
+  'src/shared/nostr/client.ts'
+]);
+
 function addUnique(errors: string[], message: string): void {
   if (!errors.includes(message)) errors.push(message);
 }
@@ -66,6 +94,52 @@ function requireTextIncludes(
   for (const entry of required) {
     if (!text.includes(entry)) {
       addUnique(errors, `${path} is missing required ${description}: ${entry}`);
+    }
+  }
+}
+
+function isProductionSource(path: string): boolean {
+  return (
+    (path.startsWith('src/') || path.startsWith('packages/')) &&
+    /\.(ts|svelte)$/.test(path) &&
+    !path.endsWith('.test.ts') &&
+    !path.endsWith('.contract.test.ts')
+  );
+}
+
+function isProductionPluginSource(path: string): boolean {
+  return (
+    path.startsWith('packages/resonote/src/plugins/') &&
+    path.endsWith('.ts') &&
+    !path.endsWith('.test.ts') &&
+    !path.endsWith('.contract.test.ts')
+  );
+}
+
+function tokenPattern(token: string): RegExp {
+  return new RegExp(`\\b${token}\\b`, 'g');
+}
+
+function checkRawTransportMediation(errors: string[], files: readonly StrictGoalAuditFile[]): void {
+  for (const file of files) {
+    if (!isProductionSource(file.path)) continue;
+
+    if (!APPROVED_RAW_TRANSPORT_FILES.has(file.path)) {
+      for (const token of RAW_TRANSPORT_TOKENS) {
+        if (tokenPattern(token).test(file.text)) {
+          errors.push(
+            `${file.path} uses raw transport token ${token} outside an approved coordinator transport zone`
+          );
+        }
+      }
+    }
+
+    if (isProductionPluginSource(file.path)) {
+      for (const token of RAW_PLUGIN_HANDLE_TOKENS) {
+        if (tokenPattern(token).test(file.text)) {
+          errors.push(`${file.path} exposes raw plugin handle ${token}`);
+        }
+      }
     }
   }
 }
@@ -117,6 +191,8 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
       `${strictAudit.path} claims strict final completion without preserving scoped-vs-strict distinction`
     );
   }
+
+  checkRawTransportMediation(errors, files);
 
   return { ok: errors.length === 0, errors };
 }
