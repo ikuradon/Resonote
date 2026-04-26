@@ -51,13 +51,26 @@ pnpm run check:auftakt-migration -- --proof
 pnpm run check:auftakt:strict-closure
 
 Publish settlement now has core vocabulary and coordinator-owned local materialization, relay hint, and pending queue proof.
+Sync cursor incremental repair now persists Dexie ordered cursors and bounds fallback and negentropy repair through coordinator-owned runtime repair.
 `;
 
-const validPublishSettlementFiles = [
+const validRequiredProofFiles = [
   file('packages/core/src/settlement.ts', 'export function reducePublishSettlement() {}'),
   file(
     'packages/resonote/src/event-coordinator.ts',
     'return { settlement: reducePublishSettlement({ localMaterialized: true, relayAccepted: true, queued: false }) };'
+  ),
+  file(
+    'packages/adapter-dexie/src/index.ts',
+    'async putSyncCursor(record) { await this.db.sync_cursors.put(record); }'
+  ),
+  file(
+    'packages/resonote/src/runtime.ts',
+    'const cursor = await loadRepairSyncCursor(eventsDB, cursorState);'
+  ),
+  file(
+    'packages/resonote/src/relay-repair.contract.test.ts',
+    'resumes fallback repair from a persisted cursor after runtime recreation'
   )
 ];
 
@@ -75,7 +88,7 @@ describe('checkStrictGoalAudit', () => {
         STRICT_GOAL_AUDIT_PATH,
         validAuditText.replace('NDK-like API convenience', 'NDK API row removed')
       ),
-      ...validPublishSettlementFiles
+      ...validRequiredProofFiles
     ]);
 
     expect(result.ok).toBe(false);
@@ -90,7 +103,7 @@ describe('checkStrictGoalAudit', () => {
         STRICT_GOAL_AUDIT_PATH,
         `${validAuditText}\nStrict final completion is Satisfied for all goals.\n`
       ),
-      ...validPublishSettlementFiles
+      ...validRequiredProofFiles
     ]);
 
     expect(result.ok).toBe(false);
@@ -102,7 +115,7 @@ describe('checkStrictGoalAudit', () => {
   it('passes a complete strict goal gap audit artifact', () => {
     const result = checkStrictGoalAudit([
       file(STRICT_GOAL_AUDIT_PATH, validAuditText),
-      ...validPublishSettlementFiles
+      ...validRequiredProofFiles
     ]);
 
     expect(result).toEqual({ ok: true, errors: [] });
@@ -117,7 +130,7 @@ describe('checkStrictGoalAudit', () => {
           'Publish settlement evidence removed.'
         )
       ),
-      ...validPublishSettlementFiles
+      ...validRequiredProofFiles
     ]);
 
     expect(result.ok).toBe(false);
@@ -126,10 +139,28 @@ describe('checkStrictGoalAudit', () => {
     );
   });
 
+  it('requires sync cursor incremental repair implementation proof', () => {
+    const result = checkStrictGoalAudit([
+      file(
+        STRICT_GOAL_AUDIT_PATH,
+        validAuditText.replace(
+          'Sync cursor incremental repair now persists Dexie ordered cursors and bounds fallback and negentropy repair through coordinator-owned runtime repair.',
+          'Sync cursor evidence removed.'
+        )
+      ),
+      ...validRequiredProofFiles
+    ]);
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain(
+      `${STRICT_GOAL_AUDIT_PATH} is missing sync cursor incremental repair implementation evidence`
+    );
+  });
+
   it('allows raw transport tokens only in approved internal transport zones', () => {
     const result = checkStrictGoalAudit([
       file(STRICT_GOAL_AUDIT_PATH, validAuditText),
-      ...validPublishSettlementFiles,
+      ...validRequiredProofFiles,
       file('packages/resonote/src/runtime.ts', 'const rxNostr = await runtime.getRxNostr();'),
       file('src/shared/nostr/client.ts', 'createRxNostrSession({ defaultRelays: [] });'),
       file('packages/core/src/relay-session.ts', 'export function createRxNostrSession() {}')
@@ -141,7 +172,7 @@ describe('checkStrictGoalAudit', () => {
   it('flags raw transport usage in app production code', () => {
     const result = checkStrictGoalAudit([
       file(STRICT_GOAL_AUDIT_PATH, validAuditText),
-      ...validPublishSettlementFiles,
+      ...validRequiredProofFiles,
       file('src/features/comments/application/leaky-transport.ts', 'await getRxNostr();')
     ]);
 
@@ -154,7 +185,7 @@ describe('checkStrictGoalAudit', () => {
   it('flags raw storage and transport handles in production plugins', () => {
     const result = checkStrictGoalAudit([
       file(STRICT_GOAL_AUDIT_PATH, validAuditText),
-      ...validPublishSettlementFiles,
+      ...validRequiredProofFiles,
       file(
         'packages/resonote/src/plugins/leaky-plugin.ts',
         'api.registerFlow("leaky", { getEventsDB, createRxBackwardReq });'
@@ -173,7 +204,7 @@ describe('checkStrictGoalAudit', () => {
   it('requires spec verdict wording to point strict claims to the strict gap audit', () => {
     const result = checkStrictGoalAudit([
       file(STRICT_GOAL_AUDIT_PATH, validAuditText),
-      ...validPublishSettlementFiles,
+      ...validRequiredProofFiles,
       file(
         'docs/auftakt/spec.md',
         '### 14.3 監査判定マトリクス\n| strict single coordinator model | Satisfied | complete |'
@@ -189,7 +220,7 @@ describe('checkStrictGoalAudit', () => {
   it('accepts spec wording that links scoped completion to strict gap status', () => {
     const result = checkStrictGoalAudit([
       file(STRICT_GOAL_AUDIT_PATH, validAuditText),
-      ...validPublishSettlementFiles,
+      ...validRequiredProofFiles,
       file(
         'docs/auftakt/spec.md',
         '### 14.3 監査判定マトリクス\nStrict final gap details live in docs/auftakt/2026-04-26-strict-goal-gap-audit.md.\nScoped-Satisfied'

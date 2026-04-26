@@ -63,6 +63,27 @@ const REQUIRED_PUBLISH_SETTLEMENT_FILES = [
   }
 ];
 
+const REQUIRED_SYNC_CURSOR_REPAIR_AUDIT_EVIDENCE =
+  'Sync cursor incremental repair now persists Dexie ordered cursors and bounds fallback and negentropy repair through coordinator-owned runtime repair.';
+
+const REQUIRED_SYNC_CURSOR_REPAIR_FILES = [
+  {
+    path: 'packages/adapter-dexie/src/index.ts',
+    text: 'putSyncCursor',
+    description: 'Dexie sync cursor writer'
+  },
+  {
+    path: 'packages/resonote/src/runtime.ts',
+    text: 'loadRepairSyncCursor',
+    description: 'runtime sync cursor load'
+  },
+  {
+    path: 'packages/resonote/src/relay-repair.contract.test.ts',
+    text: 'resumes fallback repair from a persisted cursor after runtime recreation',
+    description: 'restart-safe repair cursor contract'
+  }
+];
+
 const AMBIGUOUS_STRICT_COMPLETION_PATTERNS = [
   /strict final completion is satisfied/i,
   /strict final target is satisfied/i,
@@ -224,10 +245,27 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
     );
   }
 
+  if (!strictAudit.text.includes(REQUIRED_SYNC_CURSOR_REPAIR_AUDIT_EVIDENCE)) {
+    errors.push(
+      `${strictAudit.path} is missing sync cursor incremental repair implementation evidence`
+    );
+  }
+
   for (const required of REQUIRED_PUBLISH_SETTLEMENT_FILES) {
     const text = findFileText(files, required.path);
     if (text === null) {
       errors.push(`${required.path} is missing for strict publish settlement audit`);
+      continue;
+    }
+    if (!text.includes(required.text)) {
+      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
+    }
+  }
+
+  for (const required of REQUIRED_SYNC_CURSOR_REPAIR_FILES) {
+    const text = findFileText(files, required.path);
+    if (text === null) {
+      errors.push(`${required.path} is missing for strict sync cursor repair audit`);
       continue;
     }
     if (!text.includes(required.text)) {
@@ -252,7 +290,10 @@ function collectFiles(root = process.cwd()): StrictGoalAuditFile[] {
     STRICT_GOAL_AUDIT_PATH,
     'docs/auftakt/spec.md',
     'packages/core/src/settlement.ts',
-    'packages/resonote/src/event-coordinator.ts'
+    'packages/resonote/src/event-coordinator.ts',
+    'packages/adapter-dexie/src/index.ts',
+    'packages/resonote/src/runtime.ts',
+    'packages/resonote/src/relay-repair.contract.test.ts'
   ].filter((path) => existsSync(join(root, path)));
   return paths.map((path) => ({ path, text: readFileSync(join(root, path), 'utf8') }));
 }
