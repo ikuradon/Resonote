@@ -13,6 +13,7 @@ export interface StrictGoalAuditResult {
 }
 
 export const STRICT_GOAL_AUDIT_PATH = 'docs/auftakt/2026-04-26-strict-goal-gap-audit.md';
+const CANONICAL_SPEC_PATH = 'docs/auftakt/spec.md';
 
 const REQUIRED_AUDIT_SECTIONS = [
   '## Strict Final Goal',
@@ -144,6 +145,17 @@ function checkRawTransportMediation(errors: string[], files: readonly StrictGoal
   }
 }
 
+function checkCanonicalSpecWording(errors: string[], files: readonly StrictGoalAuditFile[]): void {
+  const spec = files.find((file) => file.path === CANONICAL_SPEC_PATH);
+  if (!spec) return;
+  if (!spec.text.includes('### 14.3')) return;
+  if (spec.text.includes(STRICT_GOAL_AUDIT_PATH)) return;
+
+  errors.push(
+    `${CANONICAL_SPEC_PATH} must reference ${STRICT_GOAL_AUDIT_PATH} when presenting Auftakt goal verdicts`
+  );
+}
+
 export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): StrictGoalAuditResult {
   const errors: string[] = [];
   const strictAudit = files.find((file) => file.path === STRICT_GOAL_AUDIT_PATH);
@@ -192,6 +204,7 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
     );
   }
 
+  checkCanonicalSpecWording(errors, files);
   checkRawTransportMediation(errors, files);
 
   return { ok: errors.length === 0, errors };

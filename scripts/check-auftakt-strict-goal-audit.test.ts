@@ -133,4 +133,31 @@ describe('checkStrictGoalAudit', () => {
       'packages/resonote/src/plugins/leaky-plugin.ts exposes raw plugin handle createRxBackwardReq'
     );
   });
+
+  it('requires spec verdict wording to point strict claims to the strict gap audit', () => {
+    const result = checkStrictGoalAudit([
+      file(STRICT_GOAL_AUDIT_PATH, validAuditText),
+      file(
+        'docs/auftakt/spec.md',
+        '### 14.3 監査判定マトリクス\n| strict single coordinator model | Satisfied | complete |'
+      )
+    ]);
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain(
+      'docs/auftakt/spec.md must reference docs/auftakt/2026-04-26-strict-goal-gap-audit.md when presenting Auftakt goal verdicts'
+    );
+  });
+
+  it('accepts spec wording that links scoped completion to strict gap status', () => {
+    const result = checkStrictGoalAudit([
+      file(STRICT_GOAL_AUDIT_PATH, validAuditText),
+      file(
+        'docs/auftakt/spec.md',
+        '### 14.3 監査判定マトリクス\nStrict final gap details live in docs/auftakt/2026-04-26-strict-goal-gap-audit.md.\nScoped-Satisfied'
+      )
+    ]);
+
+    expect(result).toEqual({ ok: true, errors: [] });
+  });
 });
