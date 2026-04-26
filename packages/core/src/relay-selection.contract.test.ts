@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildRelaySelectionPlan,
   normalizeRelaySelectionPolicy,
   parseNip65RelayListTags,
   relayListEntriesToSelectionCandidates,
@@ -85,5 +86,114 @@ describe('relay selection NIP-65 parsing', () => {
       includeAudienceRelays: true
     });
     expect(overridden.allowTemporaryHints).toBe(true);
+  });
+});
+
+describe('relay selection strategy planning', () => {
+  it('uses only defaults for default-only unless temporary hints are explicitly allowed', () => {
+    const plan = buildRelaySelectionPlan({
+      intent: 'read',
+      policy: { strategy: 'default-only' },
+      candidates: [
+        { relay: 'wss://default.example', source: 'default', role: 'read' },
+        { relay: 'wss://hint.example', source: 'temporary-hint', role: 'temporary' },
+        { relay: 'wss://nip65.example', source: 'nip65-read', role: 'read' }
+      ]
+    });
+
+    const optInPlan = buildRelaySelectionPlan({
+      intent: 'read',
+      policy: { strategy: 'default-only', allowTemporaryHints: true },
+      candidates: [
+        { relay: 'wss://default.example', source: 'default', role: 'read' },
+        { relay: 'wss://hint.example', source: 'temporary-hint', role: 'temporary' }
+      ]
+    });
+
+    expect(plan).toMatchObject({
+      readRelays: ['wss://default.example/'],
+      temporaryRelays: []
+    });
+    expect(optInPlan.temporaryRelays).toEqual(['wss://hint.example/']);
+  });
+
+  it('clips conservative outbox plans through explicit budgets', () => {
+    const plan = buildRelaySelectionPlan({
+      intent: 'read',
+      policy: {
+        strategy: 'conservative-outbox',
+        maxReadRelays: 2,
+        maxTemporaryRelays: 1
+      },
+      candidates: [
+        { relay: 'wss://default-a.example', source: 'default', role: 'read' },
+        { relay: 'wss://default-b.example', source: 'default', role: 'read' },
+        { relay: 'wss://durable.example', source: 'durable-hint', role: 'read' },
+        { relay: 'wss://temporary-a.example', source: 'temporary-hint', role: 'temporary' },
+        { relay: 'wss://temporary-b.example', source: 'temporary-hint', role: 'temporary' }
+      ]
+    });
+
+    expect(plan.readRelays).toEqual(['wss://default-a.example/', 'wss://default-b.example/']);
+    expect(plan.temporaryRelays).toEqual(['wss://temporary-a.example/']);
+    expect(plan.diagnostics).toContainEqual(
+      expect.objectContaining({
+        relay: 'wss://durable.example/',
+        clipped: true,
+        reason: 'clipped-by-policy'
+      })
+    );
+  });
+
+  it('strict outbox keeps full fan-out unless hard budgets are configured', () => {
+    const candidates = [
+      { relay: 'wss://author-a.example', source: 'nip65-write' as const, role: 'write' as const },
+      { relay: 'wss://author-b.example', source: 'nip65-write' as const, role: 'write' as const },
+      { relay: 'wss://audience-a.example', source: 'audience' as const, role: 'write' as const },
+      { relay: 'wss://audience-b.example', source: 'audience' as const, role: 'write' as const }
+    ];
+
+    const full = buildRelaySelectionPlan({
+      intent: 'reply',
+      policy: { strategy: 'strict-outbox' },
+      candidates
+    });
+    const clipped = buildRelaySelectionPlan({
+      intent: 'reply',
+      policy: { strategy: 'strict-outbox', maxWriteRelays: 2 },
+      candidates
+    });
+
+    expect(full.writeRelays).toEqual([
+      'wss://author-a.example/',
+      'wss://author-b.example/',
+      'wss://audience-a.example/',
+      'wss://audience-b.example/'
+    ]);
+    expect(clipped.writeRelays).toEqual(['wss://author-a.example/', 'wss://author-b.example/']);
+  });
+
+  it('produces deterministic plans independent of input order', () => {
+    const left = buildRelaySelectionPlan({
+      intent: 'read',
+      policy: { strategy: 'conservative-outbox', maxReadRelays: 3 },
+      candidates: [
+        { relay: 'wss://z.example', source: 'durable-hint', role: 'read' },
+        { relay: 'wss://a.example', source: 'default', role: 'read' },
+        { relay: 'wss://m.example', source: 'default', role: 'read' }
+      ]
+    });
+    const right = buildRelaySelectionPlan({
+      intent: 'read',
+      policy: { strategy: 'conservative-outbox', maxReadRelays: 3 },
+      candidates: [
+        { relay: 'wss://m.example', source: 'default', role: 'read' },
+        { relay: 'wss://z.example', source: 'durable-hint', role: 'read' },
+        { relay: 'wss://a.example', source: 'default', role: 'read' }
+      ]
+    });
+
+    expect(right.readRelays).toEqual(left.readRelays);
+    expect(right.diagnostics).toEqual(left.diagnostics);
   });
 });

@@ -198,6 +198,12 @@ function normalizeAndFilterCandidates(
   return candidates.flatMap((candidate) => {
     const relay = normalizeRelayUrl(candidate.relay);
     if (!relay) return [];
+    if (
+      policy.strategy === 'default-only' &&
+      (candidate.source === 'nip65-read' || candidate.source === 'nip65-write')
+    ) {
+      return [];
+    }
     if (candidate.source === 'temporary-hint' && !policy.allowTemporaryHints) return [];
     if (candidate.source === 'durable-hint' && !policy.includeDurableHints) return [];
     if (candidate.source === 'audience' && !policy.includeAudienceRelays) return [];
