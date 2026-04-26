@@ -69,7 +69,6 @@ export default defineConfig({
         'src/shared/browser/stores.ts',
         'src/shared/browser/toast.ts',
         'src/shared/content/resolution.ts',
-        'src/shared/nostr/cached-query.ts',
         'src/shared/nostr/content-link.ts',
         'src/shared/nostr/nip19-decode.ts',
         'src/shared/nostr/relays.ts',
