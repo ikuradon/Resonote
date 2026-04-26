@@ -21,6 +21,15 @@ describe('DexieEventStore schema', () => {
       'replaceable_heads',
       'sync_cursors'
     ]);
+    expect(store.db.sync_cursors.schema.indexes.map((index) => index.name).sort()).toEqual(
+      [
+        '[cursor_created_at+cursor_id]',
+        '[relay+request_key]',
+        'relay',
+        'request_key',
+        'updated_at'
+      ].sort()
+    );
   });
 
   it('stores events with tag rows and reads by id', async () => {

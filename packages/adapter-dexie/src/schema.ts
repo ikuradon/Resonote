@@ -67,6 +67,8 @@ export interface DexieSyncCursorRecord {
   readonly key: string;
   readonly relay: string;
   readonly request_key: string;
+  readonly cursor_created_at?: number;
+  readonly cursor_id?: string;
   readonly updated_at: number;
 }
 
@@ -119,10 +121,16 @@ export class AuftaktDexieDatabase extends Dexie {
       migration_state: 'key,version,source_db_name,dexie_only_writes',
       quarantine: 'key,event_id,relay_url,reason,created_at'
     };
-    this.version(1).stores(versionOneStores);
-    this.version(2).stores({
+    const versionTwoStores = {
       ...versionOneStores,
       relay_capabilities: 'relay_url,nip11_status,nip11_expires_at,learned_at,updated_at'
+    };
+    this.version(1).stores(versionOneStores);
+    this.version(2).stores(versionTwoStores);
+    this.version(3).stores({
+      ...versionTwoStores,
+      sync_cursors:
+        'key,relay,request_key,[relay+request_key],updated_at,[cursor_created_at+cursor_id]'
     });
   }
 }

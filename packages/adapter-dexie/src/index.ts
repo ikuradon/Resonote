@@ -57,6 +57,14 @@ export interface RelayCapabilityRecordInput {
   readonly updatedAt: number;
 }
 
+export interface SyncCursorRecordInput {
+  readonly key: string;
+  readonly relay: string;
+  readonly requestKey: string;
+  readonly cursor: OrderedEventCursor;
+  readonly updatedAt: number;
+}
+
 export interface MigrationStateInput {
   readonly version: number;
   readonly sourceDbName: string;
@@ -240,6 +248,34 @@ export class DexieEventStore {
       kind: event.kind,
       tags: event.tags
     }));
+  }
+
+  async getSyncCursor(key: string): Promise<OrderedEventCursor | null> {
+    const record = await this.db.sync_cursors.get(key);
+    if (
+      !record ||
+      typeof record.cursor_created_at !== 'number' ||
+      typeof record.cursor_id !== 'string' ||
+      record.cursor_id.length === 0
+    ) {
+      return null;
+    }
+
+    return {
+      created_at: record.cursor_created_at,
+      id: record.cursor_id
+    };
+  }
+
+  async putSyncCursor(record: SyncCursorRecordInput): Promise<void> {
+    await this.db.sync_cursors.put({
+      key: record.key,
+      relay: record.relay,
+      request_key: record.requestKey,
+      cursor_created_at: record.cursor.created_at,
+      cursor_id: record.cursor.id,
+      updated_at: record.updatedAt
+    });
   }
 
   async deleteByIds(ids: readonly string[]): Promise<void> {
