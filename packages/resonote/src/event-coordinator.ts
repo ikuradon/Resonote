@@ -378,6 +378,16 @@ async function readLocalVisibleEvents(
   return [...events.values()];
 }
 
+function mergeLocalCandidates(
+  hotEvents: readonly StoredEvent[],
+  durableEvents: readonly StoredEvent[]
+): StoredEvent[] {
+  const events = new Map<string, StoredEvent>();
+  for (const event of hotEvents) events.set(event.id, event);
+  for (const event of durableEvents) events.set(event.id, event);
+  return [...events.values()];
+}
+
 async function readLocalVisibleFilter(
   filter: Record<string, unknown>,
   hotIndex: HotEventIndex,
@@ -402,19 +412,30 @@ async function readLocalVisibleFilter(
     const kinds = readNumberArray(filter.kinds);
     const [tagKey, tagValues] = tagFilters[0]!;
     const tagName = tagKey.slice(1);
-    const events = await Promise.all(
+    const hotEvents = readStringArray(tagValues).flatMap((tagValue) => {
+      if (kinds.length === 0) return hotIndex.getByTagValue(`${tagName}:${tagValue}`);
+      return kinds.flatMap((kind) => hotIndex.getByTagValue(`${tagName}:${tagValue}`, kind));
+    });
+    const durableEvents = await Promise.all(
       readStringArray(tagValues).flatMap((tagValue) => {
         if (kinds.length === 0) return [store.getByTagValue?.(`${tagName}:${tagValue}`)];
         return kinds.map((kind) => store.getByTagValue?.(`${tagName}:${tagValue}`, kind));
       })
     );
-    return events.flatMap((entry) => entry ?? []);
+    return mergeLocalCandidates(
+      hotEvents,
+      durableEvents.flatMap((entry) => entry ?? [])
+    );
   }
 
   const kinds = readNumberArray(filter.kinds);
   if (kinds.length > 0 && store.getAllByKind) {
-    const events = await Promise.all(kinds.map((kind) => store.getAllByKind?.(kind)));
-    return events.flatMap((entry) => entry ?? []);
+    const hotEvents = kinds.flatMap((kind) => hotIndex.getByKind(kind));
+    const durableEvents = await Promise.all(kinds.map((kind) => store.getAllByKind?.(kind)));
+    return mergeLocalCandidates(
+      hotEvents,
+      durableEvents.flatMap((entry) => entry ?? [])
+    );
   }
 
   return [];

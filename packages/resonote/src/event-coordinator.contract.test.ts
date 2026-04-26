@@ -100,6 +100,61 @@ describe('EventCoordinator read policy', () => {
     expect(storeGet).not.toHaveBeenCalled();
   });
 
+  it('prefills tag reads from hot index while still checking durable store', async () => {
+    const storeGetByTagValue = vi.fn(async () => []);
+    const coordinator = createEventCoordinator({
+      hotIndex: createHotEventIndex(),
+      store: {
+        getById: vi.fn(async () => null),
+        getByTagValue: storeGetByTagValue,
+        putWithReconcile: vi.fn()
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+    coordinator.applyLocalEvent({
+      id: 'hot-tagged',
+      pubkey: 'p1',
+      created_at: 1,
+      kind: 1111,
+      tags: [['e', 'root']],
+      content: ''
+    });
+
+    const result = await coordinator.read(
+      { kinds: [1111], '#e': ['root'] },
+      { policy: 'cacheOnly' }
+    );
+
+    expect(result.events).toEqual([expect.objectContaining({ id: 'hot-tagged' })]);
+    expect(storeGetByTagValue).toHaveBeenCalledWith('e:root', 1111);
+  });
+
+  it('prefills kind reads from hot index while still checking durable store', async () => {
+    const storeGetAllByKind = vi.fn(async () => []);
+    const coordinator = createEventCoordinator({
+      hotIndex: createHotEventIndex(),
+      store: {
+        getById: vi.fn(async () => null),
+        getAllByKind: storeGetAllByKind,
+        putWithReconcile: vi.fn()
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+    coordinator.applyLocalEvent({
+      id: 'hot-kind',
+      pubkey: 'p1',
+      created_at: 1,
+      kind: 1111,
+      tags: [],
+      content: ''
+    });
+
+    const result = await coordinator.read({ kinds: [1111] }, { policy: 'cacheOnly' });
+
+    expect(result.events).toEqual([expect.objectContaining({ id: 'hot-kind' })]);
+    expect(storeGetAllByKind).toHaveBeenCalledWith(1111);
+  });
+
   it('records relay hint when a relay event materializes', async () => {
     const recordRelayHint = vi.fn(async () => {});
     const coordinator = createEventCoordinator({
