@@ -6,21 +6,37 @@ export {
   sortResonoteTimelineByPlayPosition
 } from './plugins/timeline-plugin.js';
 export type {
+  AddressableHandle,
+  AddressableHandleInput,
   CommentFilterKinds,
   CommentSubscriptionRefs,
   DeletionEvent,
   EmojiCategory,
+  EntityFetchOptions,
+  EntityHandleState,
+  EntityReadResult,
+  EventHandle,
+  EventHandleInput,
   LatestReadDriver,
+  NormalizedRelayHint,
   PendingDrainResult,
   RelayCapabilityPacket,
   RelayCapabilitySnapshot,
+  RelayHintsHandle,
+  RelayHintsReadResult,
+  RelaySetHandle,
+  RelaySetSnapshot,
+  RelaySetSubject,
   ResonoteCoordinator,
   ResonoteCoordinatorPlugin,
   ResonoteCoordinatorPluginApi,
   ResonoteCoordinatorPluginApiVersion,
   ResonoteCoordinatorPluginRegistration,
   RetryableSignedEvent,
-  SubscriptionHandle
+  SubscriptionHandle,
+  UserHandle,
+  UserHandleInput,
+  UserProfileReadResult
 } from './runtime.js';
 export {
   buildCommentContentFilters,

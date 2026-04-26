@@ -13,6 +13,7 @@ import type {
   RelayObservationPacket,
   RelayObservationRuntime,
   RelayObservationSnapshot,
+  RelaySelectionCandidate,
   RelaySelectionPolicyOptions,
   RequestKey,
   StoredEvent
@@ -34,6 +35,7 @@ import {
   type NegentropyEventRef,
   observeRelayStatuses as observeRelayStatusesImpl,
   type OfflineDeliveryDecision,
+  parseNip65RelayListTags,
   type QueryRuntime,
   type ReconcileEmission,
   reconcileNegentropyRepairSubjects,
@@ -56,6 +58,20 @@ import {
 import type { EventParameters } from 'nostr-typedef';
 import { Observable } from 'rxjs';
 
+import {
+  type AddressableHandle,
+  type AddressableHandleInput,
+  buildRelaySetSnapshot,
+  createEntityHandleFactories,
+  type EntityHandleRuntime,
+  type EventHandle,
+  type EventHandleInput,
+  type RelayHintsHandle,
+  type RelaySetHandle,
+  type RelaySetSubject,
+  type UserHandle,
+  type UserHandleInput
+} from './entity-handles.js';
 import { createEventCoordinator } from './event-coordinator.js';
 import { ingestRelayEvent, type QuarantineRecord } from './event-ingress.js';
 import { createMaterializerQueue } from './materializer-queue.js';
@@ -91,10 +107,29 @@ import {
   buildPublishRelaySendOptions,
   buildReadRelayOverlay,
   type PublishRelaySendOptions,
+  RELAY_LIST_KIND,
   RESONOTE_DEFAULT_RELAY_SELECTION_POLICY
 } from './relay-selection-runtime.js';
 
 export type { CommentSubscriptionRefs, SubscriptionHandle };
+export type {
+  AddressableHandle,
+  AddressableHandleInput,
+  EntityFetchOptions,
+  EntityHandleState,
+  EntityReadResult,
+  EventHandle,
+  EventHandleInput,
+  NormalizedRelayHint,
+  RelayHintsHandle,
+  RelayHintsReadResult,
+  RelaySetHandle,
+  RelaySetSnapshot,
+  RelaySetSubject,
+  UserHandle,
+  UserHandleInput,
+  UserProfileReadResult
+} from './entity-handles.js';
 export type { RelayCapabilityPacket, RelayCapabilitySnapshot } from '@auftakt/core';
 
 type RuntimeFilter = Record<string, unknown>;
@@ -1397,6 +1432,7 @@ export interface ResonoteRuntime {
     getById(id: string): Promise<StoredEvent | null>;
     getAllByKind(kind: number): Promise<StoredEvent[]>;
     listNegentropyEventRefs(): Promise<NegentropyEventRef[]>;
+    isDeleted?(id: string, pubkey: string): Promise<boolean>;
     recordRelayHint?(hint: {
       readonly eventId: string;
       readonly relayUrl: string;
@@ -1495,6 +1531,11 @@ export interface ResonoteCoordinator<TResult = unknown, TLatestResult = unknown>
   observeRelayConnectionStates(onPacket: (packet: RelayObservationPacket) => void): Promise<{
     unsubscribe(): void;
   }>;
+  getEvent(input: EventHandleInput): EventHandle;
+  getUser(input: UserHandleInput): UserHandle;
+  getAddressable(input: AddressableHandleInput): AddressableHandle;
+  getRelaySet(subject: RelaySetSubject): RelaySetHandle;
+  getRelayHints(eventId: string): RelayHintsHandle;
   openEventsDb(): ReturnType<ResonoteRuntime['getEventsDB']>;
   fetchProfileCommentEvents(
     pubkey: string,
@@ -1593,6 +1634,10 @@ export interface CreateResonoteCoordinatorOptions<TResult, TLatestResult> {
   readonly relayStatusRuntime: RelayStatusRuntime;
   readonly relayCapabilityRuntime?: RelayCapabilityRuntime;
   readonly relaySelectionPolicy?: RelaySelectionPolicyOptions;
+  readonly entityHandleRuntime?: Pick<
+    EntityHandleRuntime,
+    'read' | 'snapshotRelaySet' | 'isDeleted'
+  >;
 }
 
 export type PublishTransportOptions = PublishRelaySendOptions;
@@ -1913,7 +1958,8 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
   pendingPublishQueueRuntime,
   relayStatusRuntime,
   relayCapabilityRuntime,
-  relaySelectionPolicy: configuredRelaySelectionPolicy
+  relaySelectionPolicy: configuredRelaySelectionPolicy,
+  entityHandleRuntime
 }: CreateResonoteCoordinatorOptions<TResult, TLatestResult>): ResonoteCoordinator<
   TResult,
   TLatestResult
@@ -2217,6 +2263,44 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       await db.recordRelayHint?.(hint);
     }
   };
+  const entityHandles = createEntityHandleFactories({
+    read:
+      entityHandleRuntime?.read ??
+      (async (filters, options, temporaryRelays) => {
+        const resolvedOptions = await resolveReadOptions(
+          coordinatorReadRuntime,
+          filters,
+          {
+            timeoutMs: options.timeoutMs,
+            rejectOnError: options.rejectOnError
+          },
+          'read',
+          relaySelectionPolicy,
+          temporaryRelays
+        );
+        const coordinator = createRuntimeEventCoordinator(coordinatorReadRuntime, resolvedOptions);
+        return coordinator.read(filters, {
+          policy: options.cacheOnly === true ? 'cacheOnly' : 'localFirst'
+        });
+      }),
+    isDeleted:
+      entityHandleRuntime?.isDeleted ??
+      (async (id, pubkey) => {
+        const db = await runtime.getEventsDB();
+        return (await db.isDeleted?.(id, pubkey)) === true;
+      }),
+    openStore: () => runtime.getEventsDB(),
+    snapshotRelaySet:
+      entityHandleRuntime?.snapshotRelaySet ??
+      (async (subject) => {
+        const candidates = await buildRelaySetCandidates(runtime, subject);
+        return buildRelaySetSnapshot({
+          subject,
+          policy: relaySelectionPolicy,
+          candidates
+        });
+      })
+  });
 
   return {
     fetchBackwardEvents: (filters, options) =>
@@ -2280,6 +2364,11 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
     },
     observeRelayConnectionStates: (onPacket) =>
       observeRelayStatusesImpl(relayObservationRuntime, onPacket),
+    getEvent: entityHandles.getEvent,
+    getUser: entityHandles.getUser,
+    getAddressable: entityHandles.getAddressable,
+    getRelaySet: entityHandles.getRelaySet,
+    getRelayHints: entityHandles.getRelayHints,
     openEventsDb: () => runtime.getEventsDB(),
     fetchProfileCommentEvents: async (pubkey, until, limit = 20) => {
       const filter = until
@@ -3514,4 +3603,72 @@ export async function fetchRelayListSources(
   }
 
   return { relayListEvents, followListEvents };
+}
+
+async function buildRelaySetCandidates(
+  runtime: ResonoteRuntime,
+  subject: RelaySetSubject
+): Promise<RelaySelectionCandidate[]> {
+  const candidates: RelaySelectionCandidate[] = [];
+  const defaults = runtime.getDefaultRelays ? await runtime.getDefaultRelays() : [];
+  candidates.push(
+    ...[...defaults].map((relay) => ({
+      relay,
+      source: 'default' as const,
+      role: 'read' as const
+    }))
+  );
+
+  const db = await runtime.getEventsDB();
+  if (subject.type === 'event') {
+    candidates.push(
+      ...(subject.relayHints ?? []).map((relay) => ({
+        relay,
+        source: 'temporary-hint' as const,
+        role: 'temporary' as const
+      }))
+    );
+    const hints = (await db.getRelayHints?.(subject.id)) ?? [];
+    candidates.push(
+      ...hints.map((hint) => ({
+        relay: hint.relayUrl,
+        source: 'durable-hint' as const,
+        role: 'read' as const
+      }))
+    );
+  } else if (subject.type === 'user') {
+    const relayList = await db.getByPubkeyAndKind(subject.pubkey, RELAY_LIST_KIND);
+    const entries = relayList ? parseNip65RelayListTags(relayList.tags) : [];
+    candidates.push(
+      ...entries.flatMap((entry) =>
+        entry.write
+          ? [
+              {
+                relay: entry.relay,
+                source: 'nip65-write' as const,
+                role: 'read' as const
+              }
+            ]
+          : []
+      )
+    );
+  } else {
+    const relayList = await db.getByPubkeyAndKind(subject.pubkey, RELAY_LIST_KIND);
+    const entries = relayList ? parseNip65RelayListTags(relayList.tags) : [];
+    candidates.push(
+      ...entries.flatMap((entry) =>
+        entry.write
+          ? [
+              {
+                relay: entry.relay,
+                source: 'nip65-write' as const,
+                role: 'read' as const
+              }
+            ]
+          : []
+      )
+    );
+  }
+
+  return candidates;
 }
