@@ -33,6 +33,25 @@ The strict redesign matrix is checked by `pnpm run check:auftakt:nips` using
 | NIP-77 | internal-only | implemented (internal-only)                      | `packages/resonote/src/runtime.ts`                                    | `packages/resonote/src/relay-repair.contract.test.ts`<br>`packages/resonote/src/public-api.contract.test.ts`                                        | negentropy repair only。public/package root surfaces は leak-free を維持                                                                                                                                              |
 | NIP-B0 | public        | implemented                                      | `src/server/api/podcast.ts`                                           | `src/server/api/podcast.test.ts`                                                                                                                    | Resonote bookmark mapping / podcast resolution flow                                                                                                                                                                   |
 
+## Canonical JSON Matrix Coverage
+
+This companion section mirrors the NIP identifiers present in
+`docs/auftakt/nip-matrix.json`. The JSON matrix remains canonical for level,
+status, owner, proof, priority, and scope notes; this list exists so
+`pnpm run check:auftakt:nips` can detect documentation drift without rewriting
+Markdown.
+
+NIP-01, NIP-02, NIP-03, NIP-04, NIP-05, NIP-06, NIP-07, NIP-08, NIP-09, NIP-10,
+NIP-11, NIP-13, NIP-14, NIP-15, NIP-17, NIP-18, NIP-19, NIP-21, NIP-22, NIP-23,
+NIP-24, NIP-25, NIP-26, NIP-27, NIP-28, NIP-29, NIP-30, NIP-31, NIP-32, NIP-34,
+NIP-35, NIP-36, NIP-37, NIP-38, NIP-39, NIP-40, NIP-42, NIP-43, NIP-44, NIP-45,
+NIP-46, NIP-47, NIP-48, NIP-49, NIP-50, NIP-51, NIP-52, NIP-53, NIP-54, NIP-55,
+NIP-56, NIP-57, NIP-58, NIP-59, NIP-5A, NIP-60, NIP-61, NIP-62, NIP-64, NIP-65,
+NIP-66, NIP-68, NIP-69, NIP-70, NIP-71, NIP-72, NIP-73, NIP-75, NIP-77, NIP-78,
+NIP-7D, NIP-84, NIP-85, NIP-86, NIP-87, NIP-88, NIP-89, NIP-90, NIP-92, NIP-94,
+NIP-96, NIP-98, NIP-99, NIP-A0, NIP-A4, NIP-B0, NIP-B7, NIP-BE, NIP-C0, NIP-C7,
+NIP-EE
+
 ## Audit Verdict Matrix
 
 | 目標 (Goal)                                 | 判定 (Verdict) | 理由・理由                                                                                                                                                                 |

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 export interface NipInventory {
   sourceUrl: string;
@@ -83,6 +83,19 @@ export function checkNipMatrix(
   return { ok: errors.length === 0, errors };
 }
 
+export function checkNipStatusDocsSync(
+  matrix: NipMatrix,
+  statusMarkdown: string
+): { ok: boolean; errors: string[] } {
+  const errors: string[] = [];
+  for (const entry of matrix.entries) {
+    if (!statusMarkdown.includes(`NIP-${entry.nip}`)) {
+      errors.push(`docs/auftakt/status-verification.md missing NIP-${entry.nip}`);
+    }
+  }
+  return { ok: errors.length === 0, errors };
+}
+
 function validateInventory(inventory: NipInventory): string[] {
   const errors: string[] = [];
   if (!inventory.sourceUrl) errors.push('Inventory missing sourceUrl');
@@ -141,8 +154,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   ) as NipInventory;
   const matrix = JSON.parse(readFileSync('docs/auftakt/nip-matrix.json', 'utf8')) as NipMatrix;
   const result = checkNipMatrix(inventory, matrix);
-  if (!result.ok) {
-    console.error(result.errors.join('\n'));
+  const docsPath = 'docs/auftakt/status-verification.md';
+  const docsResult = existsSync(docsPath)
+    ? checkNipStatusDocsSync(matrix, readFileSync(docsPath, 'utf8'))
+    : { ok: false, errors: [`Missing ${docsPath}`] };
+  const errors = [...result.errors, ...docsResult.errors];
+  if (errors.length > 0) {
+    console.error(errors.join('\n'));
     process.exit(1);
   }
 }

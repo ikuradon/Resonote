@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { checkNipMatrix } from './check-auftakt-nips.js';
+import { checkNipMatrix, checkNipStatusDocsSync } from './check-auftakt-nips.js';
 
 function entry(
   nip: string,
@@ -110,5 +110,21 @@ describe('NIP matrix entry validation', () => {
     );
 
     expect(result.errors).toContain('NIP-01 missing support boundary in scopeNotes');
+  });
+});
+
+describe('checkNipStatusDocsSync', () => {
+  it('reports matrix NIPs missing from status-verification docs', () => {
+    const result = checkNipStatusDocsSync(
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [entry('01'), entry('02')]
+      },
+      '| NIP-01 | public | partial |'
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain('docs/auftakt/status-verification.md missing NIP-02');
   });
 });
