@@ -167,7 +167,11 @@ export function createEntityHandleFactories(runtime: EntityHandleRuntime): Entit
           const event = result.events[0] ?? null;
           const profile = parseProfile(event);
           const readResult = entityReadResult(profile, result.settlement, false, event);
-          return { ...readResult, profile };
+          return {
+            ...readResult,
+            state: deriveEntityHandleState({ value: event, settlement: result.settlement }),
+            profile
+          };
         }
       };
     },

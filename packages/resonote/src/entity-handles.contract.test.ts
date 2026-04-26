@@ -243,3 +243,47 @@ describe('EventHandle.fetch', () => {
     expect(result.state).toBe('missing');
   });
 });
+
+describe('UserHandle.fetchProfile', () => {
+  it('fetches kind 0 profile events and returns parsed profile plus settlement', async () => {
+    const profileEvent = makeEvent('8'.repeat(64), {
+      pubkey: '9'.repeat(64),
+      kind: 0,
+      content: JSON.stringify({ name: 'Alice', picture: 'https://example.com/a.png' })
+    });
+    const read = vi.fn(async () => ({
+      events: [profileEvent],
+      settlement: LOCAL_SETTLEMENT
+    }));
+    const { coordinator } = createCoordinatorFixture({ read });
+
+    const result = await coordinator.getUser({ pubkey: '9'.repeat(64) }).fetchProfile();
+
+    expect(read).toHaveBeenCalledWith(
+      [{ kinds: [0], authors: ['9'.repeat(64)], limit: 1 }],
+      {},
+      []
+    );
+    expect(result.profile).toEqual({ name: 'Alice', picture: 'https://example.com/a.png' });
+    expect(result.sourceEvent).toBe(profileEvent);
+    expect(result.state).toBe('local');
+  });
+
+  it('keeps source event and settlement when profile JSON is malformed', async () => {
+    const profileEvent = makeEvent('a'.repeat(64), {
+      pubkey: 'b'.repeat(64),
+      kind: 0,
+      content: '{not-json'
+    });
+    const { coordinator } = createCoordinatorFixture({
+      read: vi.fn(async () => ({ events: [profileEvent], settlement: LOCAL_SETTLEMENT }))
+    });
+
+    const result = await coordinator.getUser({ pubkey: 'b'.repeat(64) }).fetchProfile();
+
+    expect(result.profile).toBeNull();
+    expect(result.sourceEvent).toBe(profileEvent);
+    expect(result.settlement).toBe(LOCAL_SETTLEMENT);
+    expect(result.state).toBe('local');
+  });
+});
