@@ -142,6 +142,8 @@ const semanticGuardPolicies = [
     ),
     allowedFiles: [
       'src/shared/auftakt/resonote.ts',
+      'src/shared/auftakt/cached-read.test.ts',
+      'src/shared/auftakt/relay-capability.test.ts',
       'src/shared/nostr/materialized-latest.ts',
       'src/shared/nostr/materialized-latest.test.ts',
       'src/shared/nostr/relays-config.ts',
