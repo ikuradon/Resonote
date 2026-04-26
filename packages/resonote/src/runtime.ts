@@ -2323,16 +2323,9 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       const events = await fetchBackwardEventsFromReadRuntime<StoredEvent>(
         coordinatorReadRuntime,
         [{ ids: [eventId] }],
-        relayHints.length > 0
-          ? {
-              overlay: {
-                relays: relayHints,
-                includeDefaultReadRelays: true
-              },
-              timeoutMs: 10_000
-            }
-          : { timeoutMs: 10_000 },
-        relaySelectionPolicy
+        { timeoutMs: 10_000 },
+        relaySelectionPolicy,
+        relayHints
       );
       return (events[0] as never) ?? null;
     },
