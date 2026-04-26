@@ -84,6 +84,32 @@ const REQUIRED_SYNC_CURSOR_REPAIR_FILES = [
   }
 ];
 
+const REQUIRED_ORDINARY_READ_CAPABILITY_AUDIT_EVIDENCE =
+  'Ordinary read capability verification now routes latest and backward coordinator reads through negentropy-first RelayGateway verification with REQ fallback.';
+
+const REQUIRED_ORDINARY_READ_CAPABILITY_FILES = [
+  {
+    path: 'packages/resonote/src/runtime.ts',
+    text: 'createOrdinaryReadRelayGateway',
+    description: 'ordinary read relay gateway helper'
+  },
+  {
+    path: 'packages/resonote/src/runtime.ts',
+    text: 'verifyOrdinaryReadRelayCandidates',
+    description: 'ordinary read coordinator gateway verifier'
+  },
+  {
+    path: 'packages/resonote/src/public-read-cutover.contract.test.ts',
+    text: 'attempts negentropy before ordinary latest REQ verification',
+    description: 'latest ordinary read negentropy contract'
+  },
+  {
+    path: 'packages/resonote/src/public-read-cutover.contract.test.ts',
+    text: 'uses capability-aware gateway for backward event reads',
+    description: 'backward ordinary read gateway contract'
+  }
+];
+
 const AMBIGUOUS_STRICT_COMPLETION_PATTERNS = [
   /strict final completion is satisfied/i,
   /strict final target is satisfied/i,
@@ -251,6 +277,12 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
     );
   }
 
+  if (!strictAudit.text.includes(REQUIRED_ORDINARY_READ_CAPABILITY_AUDIT_EVIDENCE)) {
+    errors.push(
+      `${strictAudit.path} is missing ordinary read capability verification implementation evidence`
+    );
+  }
+
   for (const required of REQUIRED_PUBLISH_SETTLEMENT_FILES) {
     const text = findFileText(files, required.path);
     if (text === null) {
@@ -266,6 +298,17 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
     const text = findFileText(files, required.path);
     if (text === null) {
       errors.push(`${required.path} is missing for strict sync cursor repair audit`);
+      continue;
+    }
+    if (!text.includes(required.text)) {
+      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
+    }
+  }
+
+  for (const required of REQUIRED_ORDINARY_READ_CAPABILITY_FILES) {
+    const text = findFileText(files, required.path);
+    if (text === null) {
+      errors.push(`${required.path} is missing for strict ordinary read capability audit`);
       continue;
     }
     if (!text.includes(required.text)) {
@@ -293,7 +336,8 @@ function collectFiles(root = process.cwd()): StrictGoalAuditFile[] {
     'packages/resonote/src/event-coordinator.ts',
     'packages/adapter-dexie/src/index.ts',
     'packages/resonote/src/runtime.ts',
-    'packages/resonote/src/relay-repair.contract.test.ts'
+    'packages/resonote/src/relay-repair.contract.test.ts',
+    'packages/resonote/src/public-read-cutover.contract.test.ts'
   ].filter((path) => existsSync(join(root, path)));
   return paths.map((path) => ({ path, text: readFileSync(join(root, path), 'utf8') }));
 }

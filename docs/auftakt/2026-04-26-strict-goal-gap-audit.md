@@ -81,7 +81,7 @@ It excludes:
 
 ## Follow-Up Candidates
 
-1. Capability-aware ordinary read verification.
+1. Capability-aware ordinary read verification. `Implemented in this slice; keep ordinary read gateway regression gates active.`
 2. Coordinator-owned publish settlement. `Implemented in this slice; keep regression gates active.`
 3. Sync cursor incremental repair. `Implemented in this slice; keep restart repair regression gates active.`
 4. Broader outbox routing.
@@ -93,6 +93,7 @@ It excludes:
 - `pnpm run check:auftakt:strict-goal-audit`
 - `pnpm run check:auftakt-migration -- --proof`
 - `pnpm run check:auftakt:nips`
+- Ordinary read capability verification now routes latest and backward coordinator reads through negentropy-first RelayGateway verification with REQ fallback.
 - `pnpm run check:auftakt:strict-closure`
 - `pnpm run test:auftakt:core`
 - `pnpm run test:auftakt:storage`

@@ -52,6 +52,7 @@ pnpm run check:auftakt:strict-closure
 
 Publish settlement now has core vocabulary and coordinator-owned local materialization, relay hint, and pending queue proof.
 Sync cursor incremental repair now persists Dexie ordered cursors and bounds fallback and negentropy repair through coordinator-owned runtime repair.
+Ordinary read capability verification now routes latest and backward coordinator reads through negentropy-first RelayGateway verification with REQ fallback.
 `;
 
 const validRequiredProofFiles = [
@@ -66,11 +67,15 @@ const validRequiredProofFiles = [
   ),
   file(
     'packages/resonote/src/runtime.ts',
-    'const cursor = await loadRepairSyncCursor(eventsDB, cursorState);'
+    'const cursor = await loadRepairSyncCursor(eventsDB, cursorState);\ncreateOrdinaryReadRelayGateway\nverifyOrdinaryReadRelayCandidates'
   ),
   file(
     'packages/resonote/src/relay-repair.contract.test.ts',
     'resumes fallback repair from a persisted cursor after runtime recreation'
+  ),
+  file(
+    'packages/resonote/src/public-read-cutover.contract.test.ts',
+    'attempts negentropy before ordinary latest REQ verification\nuses capability-aware gateway for backward event reads'
   )
 ];
 
@@ -154,6 +159,24 @@ describe('checkStrictGoalAudit', () => {
     expect(result.ok).toBe(false);
     expect(result.errors).toContain(
       `${STRICT_GOAL_AUDIT_PATH} is missing sync cursor incremental repair implementation evidence`
+    );
+  });
+
+  it('requires ordinary read capability verification implementation proof', () => {
+    const result = checkStrictGoalAudit([
+      file(
+        STRICT_GOAL_AUDIT_PATH,
+        validAuditText.replace(
+          'Ordinary read capability verification now routes latest and backward coordinator reads through negentropy-first RelayGateway verification with REQ fallback.',
+          'Ordinary read capability evidence removed.'
+        )
+      ),
+      ...validRequiredProofFiles
+    ]);
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain(
+      `${STRICT_GOAL_AUDIT_PATH} is missing ordinary read capability verification implementation evidence`
     );
   });
 
