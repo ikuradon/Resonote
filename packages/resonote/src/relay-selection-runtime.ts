@@ -22,6 +22,7 @@ export interface RelaySelectionRuntime {
   getDefaultRelays?(): Promise<readonly string[]> | readonly string[];
   getEventsDB(): Promise<{
     getByPubkeyAndKind?(pubkey: string, kind: number): Promise<StoredEvent | null>;
+    getByReplaceKey?(pubkey: string, kind: number, dTag: string): Promise<StoredEvent | null>;
     getRelayHints?(eventId: string): Promise<
       Array<{
         readonly eventId: string;
@@ -53,6 +54,12 @@ export interface RelaySelectionPublishEvent {
 }
 
 type RelaySelectionDb = Awaited<ReturnType<RelaySelectionRuntime['getEventsDB']>>;
+
+interface AddressableTagReference {
+  readonly kind: number;
+  readonly pubkey: string;
+  readonly dTag: string;
+}
 
 export async function buildReadRelayOverlay(
   runtime: RelaySelectionRuntime,
@@ -120,6 +127,7 @@ export async function buildPublishRelaySendOptions(
     if (typeof input.event.pubkey === 'string' && pubkey === input.event.pubkey) continue;
     candidates.push(...(await audienceRelayCandidates(db, pubkey)));
   }
+  candidates.push(...(await addressableTargetCandidates(db, tags)));
 
   const plan = buildRelaySelectionPlan({
     intent: publishIntentForKind(input.event.kind, tags),
@@ -195,6 +203,21 @@ async function audienceRelayCandidates(
   );
 }
 
+async function addressableTargetCandidates(
+  db: RelaySelectionDb,
+  tags: readonly (readonly string[])[]
+): Promise<RelaySelectionCandidate[]> {
+  if (typeof db.getByReplaceKey !== 'function') return [];
+
+  const candidates: RelaySelectionCandidate[] = [];
+  for (const reference of collectAddressableTagReferences(tags)) {
+    const target = await db.getByReplaceKey(reference.pubkey, reference.kind, reference.dTag);
+    if (!target) continue;
+    candidates.push(...(await durableHintCandidates(db, target.id, 'write')));
+  }
+  return candidates;
+}
+
 function collectFilterStrings(filters: readonly Record<string, unknown>[], key: string): string[] {
   const values = new Set<string>();
   for (const filter of filters) {
@@ -216,10 +239,52 @@ function collectTagValues(tags: readonly (readonly string[])[], names: Set<strin
   return [...values].sort();
 }
 
+function collectAddressableTagReferences(
+  tags: readonly (readonly string[])[]
+): AddressableTagReference[] {
+  const values = new Map<string, AddressableTagReference>();
+  for (const tag of tags) {
+    if (tag[0] !== 'a' || typeof tag[1] !== 'string') continue;
+    const parsed = parseAddressableTagValue(tag[1]);
+    if (!parsed) continue;
+    values.set(`${parsed.kind}:${parsed.pubkey}:${parsed.dTag}`, parsed);
+  }
+  return [...values.values()].sort((left, right) => {
+    const kindOrder = left.kind - right.kind;
+    if (kindOrder !== 0) return kindOrder;
+    const pubkeyOrder = left.pubkey.localeCompare(right.pubkey);
+    if (pubkeyOrder !== 0) return pubkeyOrder;
+    return left.dTag.localeCompare(right.dTag);
+  });
+}
+
+function parseAddressableTagValue(value: string): AddressableTagReference | null {
+  const firstSeparator = value.indexOf(':');
+  const secondSeparator = firstSeparator === -1 ? -1 : value.indexOf(':', firstSeparator + 1);
+  if (firstSeparator <= 0 || secondSeparator <= firstSeparator + 1) return null;
+
+  const kind = Number(value.slice(0, firstSeparator));
+  const pubkey = value.slice(firstSeparator + 1, secondSeparator);
+  const dTag = value.slice(secondSeparator + 1);
+  if (!Number.isInteger(kind) || kind < 0) return null;
+  if (pubkey.length === 0 || dTag.length === 0) return null;
+
+  return { kind, pubkey, dTag };
+}
+
 function collectExplicitRelayHints(tags: readonly (readonly string[])[]): string[] {
   const values = new Set<string>();
   for (const tag of tags) {
     if ((tag[0] === 'e' || tag[0] === 'q' || tag[0] === 'p') && typeof tag[2] === 'string') {
+      values.add(tag[2]);
+      continue;
+    }
+    if (
+      tag[0] === 'a' &&
+      typeof tag[1] === 'string' &&
+      parseAddressableTagValue(tag[1]) &&
+      typeof tag[2] === 'string'
+    ) {
       values.add(tag[2]);
     }
   }

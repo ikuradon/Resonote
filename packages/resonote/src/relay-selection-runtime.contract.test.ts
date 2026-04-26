@@ -28,18 +28,29 @@ function event(overrides: Partial<StoredEvent>): StoredEvent {
 }
 
 function createRuntimeFixture() {
-  const getRelayHints = vi.fn(async (eventId: string) =>
-    eventId === 'target'
-      ? [
-          {
-            eventId: 'target',
-            relayUrl: 'wss://durable.example',
-            source: 'seen' as const,
-            lastSeenAt: 1
-          }
-        ]
-      : []
-  );
+  const getRelayHints = vi.fn(async (eventId: string) => {
+    if (eventId === 'target') {
+      return [
+        {
+          eventId: 'target',
+          relayUrl: 'wss://durable.example',
+          source: 'seen' as const,
+          lastSeenAt: 1
+        }
+      ];
+    }
+    if (eventId === 'addressable-target') {
+      return [
+        {
+          eventId: 'addressable-target',
+          relayUrl: 'wss://addressable-durable.example',
+          source: 'seen' as const,
+          lastSeenAt: 2
+        }
+      ];
+    }
+    return [];
+  });
   const getByPubkeyAndKind = vi.fn(async (pubkey: string, kind: number) =>
     kind === 10002 && pubkey === 'alice'
       ? event({
@@ -52,6 +63,17 @@ function createRuntimeFixture() {
         })
       : null
   );
+  const getByReplaceKey = vi.fn(async (pubkey: string, kind: number, dTag: string) =>
+    pubkey === 'bob' && kind === 30023 && dTag === 'article'
+      ? event({
+          id: 'addressable-target',
+          pubkey,
+          kind,
+          tags: [['d', dTag]],
+          content: 'addressable article'
+        })
+      : null
+  );
 
   return {
     async getDefaultRelays() {
@@ -60,11 +82,13 @@ function createRuntimeFixture() {
     async getEventsDB() {
       return {
         getRelayHints,
-        getByPubkeyAndKind
+        getByPubkeyAndKind,
+        getByReplaceKey
       };
     },
     getRelayHints,
-    getByPubkeyAndKind
+    getByPubkeyAndKind,
+    getByReplaceKey
   };
 }
 
@@ -185,6 +209,130 @@ describe('resonote relay selection runtime', () => {
         'wss://durable.example/'
       ],
       includeDefaultReadRelays: false
+    });
+  });
+
+  it('builds addressable read overlays from author relay-list write relays', async () => {
+    const runtime = createRuntimeFixture();
+
+    const overlay = await buildReadRelayOverlay(runtime, {
+      intent: 'read',
+      filters: [{ kinds: [30023], authors: ['alice'], '#d': ['article'], limit: 1 }],
+      policy
+    });
+
+    expect(runtime.getByPubkeyAndKind).toHaveBeenCalledWith('alice', 10002);
+    expect(overlay).toEqual({
+      relays: ['wss://default.example/', 'wss://alice-write.example/'],
+      includeDefaultReadRelays: false
+    });
+  });
+
+  it('builds publish options from addressable explicit relay hints', async () => {
+    const runtime = createRuntimeFixture();
+
+    const options = await buildPublishRelaySendOptions(runtime, {
+      event: event({
+        id: 'reply-to-addressable',
+        pubkey: 'alice',
+        kind: 1111,
+        tags: [['a', '30023:bob:remote', 'wss://addressable-explicit.example']]
+      }),
+      policy
+    });
+
+    expect(runtime.getByReplaceKey).toHaveBeenCalledWith('bob', 30023, 'remote');
+    expect(options).toEqual({
+      on: {
+        relays: [
+          'wss://alice-write.example/',
+          'wss://default.example/',
+          'wss://addressable-explicit.example/'
+        ],
+        defaultWriteRelays: false
+      }
+    });
+  });
+
+  it('builds publish options from durable hints for local addressable targets', async () => {
+    const runtime = createRuntimeFixture();
+
+    const options = await buildPublishRelaySendOptions(runtime, {
+      event: event({
+        id: 'reply-to-local-addressable',
+        pubkey: 'alice',
+        kind: 1111,
+        tags: [['a', '30023:bob:article']]
+      }),
+      policy
+    });
+
+    expect(runtime.getByReplaceKey).toHaveBeenCalledWith('bob', 30023, 'article');
+    expect(runtime.getRelayHints).toHaveBeenCalledWith('addressable-target');
+    expect(options).toEqual({
+      on: {
+        relays: [
+          'wss://alice-write.example/',
+          'wss://default.example/',
+          'wss://addressable-durable.example/'
+        ],
+        defaultWriteRelays: false
+      }
+    });
+  });
+
+  it('default-only policy suppresses broader outbox publish candidates', async () => {
+    const runtime = createRuntimeFixture();
+
+    const options = await buildPublishRelaySendOptions(runtime, {
+      event: event({
+        id: 'broad-publish',
+        pubkey: 'alice',
+        kind: 1111,
+        tags: [
+          ['e', 'target', 'wss://explicit-target.example'],
+          ['p', 'bob', 'wss://explicit-pubkey.example'],
+          ['a', '30023:bob:article', 'wss://addressable-explicit.example']
+        ]
+      }),
+      policy: { strategy: 'default-only' }
+    });
+
+    expect(options).toEqual({
+      on: {
+        relays: ['wss://default.example/'],
+        defaultWriteRelays: false
+      }
+    });
+  });
+
+  it('ignores malformed addressable tags and invalid addressable relay hints', async () => {
+    const runtime = createRuntimeFixture();
+
+    const options = await buildPublishRelaySendOptions(runtime, {
+      event: event({
+        id: 'malformed-addressable',
+        pubkey: 'alice',
+        kind: 1111,
+        tags: [
+          ['a', '30023:bob', 'wss://malformed-explicit.example'],
+          ['a', 'not-a-kind:bob:article', 'wss://invalid-kind.example'],
+          ['a', '30023:bob:article', 'https://not-websocket.example']
+        ]
+      }),
+      policy
+    });
+
+    expect(runtime.getByReplaceKey).toHaveBeenCalledWith('bob', 30023, 'article');
+    expect(options).toEqual({
+      on: {
+        relays: [
+          'wss://alice-write.example/',
+          'wss://default.example/',
+          'wss://addressable-durable.example/'
+        ],
+        defaultWriteRelays: false
+      }
     });
   });
 
