@@ -204,7 +204,7 @@ describe('@auftakt/resonote built-in plugins', () => {
       }
     });
 
-    const result = await coordinator.fetchNostrEventById<typeof fetchedEvent>('target-event', []);
+    const result = await coordinator.fetchNostrEventById<typeof fetchedEvent>(fetchedEvent.id, []);
 
     expect(result).toEqual(fetchedEvent);
     expect(storedEvents).toEqual([fetchedEvent]);

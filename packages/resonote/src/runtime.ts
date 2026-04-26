@@ -1414,6 +1414,26 @@ async function fetchLatestEventFromReadRuntime(
   }
 }
 
+async function fetchNostrEventByIdFromReadRuntime<TEvent>(
+  runtime: CoordinatorReadRuntime,
+  eventId: string,
+  relayHints: readonly string[],
+  relaySelectionPolicy: RelaySelectionPolicyOptions
+): Promise<TEvent | null> {
+  try {
+    const events = await fetchBackwardEventsFromReadRuntime<StoredEvent>(
+      runtime,
+      [{ ids: [eventId] }],
+      { timeoutMs: 10_000 },
+      relaySelectionPolicy,
+      relayHints
+    );
+    return (events.find((event) => event.id === eventId) as TEvent | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function resolveReadOptions(
   runtime: CoordinatorReadRuntime,
   filters: readonly RuntimeFilter[],
@@ -2441,20 +2461,13 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
         flowRegistry,
         CONTENT_RESOLUTION_FLOW
       ).searchEpisodeBookmarkByGuid(pubkey, guid),
-    fetchNostrEventById: async (eventId: string, relayHints: readonly string[]) => {
-      const eventsDB = await runtime.getEventsDB();
-      const cached = await eventsDB.getById(eventId);
-      if (cached) return cached as never;
-
-      const events = await fetchBackwardEventsFromReadRuntime<StoredEvent>(
+    fetchNostrEventById: (eventId: string, relayHints: readonly string[]) =>
+      fetchNostrEventByIdFromReadRuntime<never>(
         coordinatorReadRuntime,
-        [{ ids: [eventId] }],
-        { timeoutMs: 10_000 },
-        relaySelectionPolicy,
-        relayHints
-      );
-      return (events[0] as never) ?? null;
-    },
+        eventId,
+        relayHints,
+        relaySelectionPolicy
+      ),
     fetchNotificationTargetPreview: async (eventId: string) => {
       const direct = await fetchEventById<{ content: string }>(queryRuntime, eventId, []);
       if (direct) return direct.content;

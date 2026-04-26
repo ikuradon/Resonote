@@ -180,4 +180,33 @@ describe('@auftakt/resonote public read cutover', () => {
       })
     ]);
   });
+
+  it('still verifies cached public by-id reads with temporary relay hints', async () => {
+    const localEvent = finalizeEvent(
+      {
+        kind: 1,
+        content: 'local event',
+        tags: [],
+        created_at: 44
+      },
+      RELAY_SECRET_KEY
+    );
+    const { coordinator, createdRequests } = createCoordinatorFixture({
+      defaultRelays: ['wss://default.example'],
+      getById: async (id) => (id === localEvent.id ? localEvent : null)
+    });
+
+    const result = await coordinator.fetchNostrEventById<typeof localEvent>(localEvent.id, [
+      'wss://temporary.example'
+    ]);
+
+    expect(result).toEqual(localEvent);
+    expect(createdRequests[0]?.options).toEqual({
+      on: {
+        relays: ['wss://temporary.example/', 'wss://default.example/'],
+        defaultReadRelays: false
+      }
+    });
+    expect(createdRequests[0]?.emitted).toEqual([{ ids: [localEvent.id] }]);
+  });
 });
