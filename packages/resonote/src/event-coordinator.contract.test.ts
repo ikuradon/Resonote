@@ -636,7 +636,13 @@ describe('EventCoordinator read policy', () => {
       sig: 'sig'
     };
     const recordRelayHint = vi.fn(async () => {});
+    const calls: string[] = [];
+    const putWithReconcile = vi.fn(async () => {
+      calls.push('materialize');
+      return { stored: true };
+    });
     const publish = vi.fn(async (_event, handlers) => {
+      calls.push('publish');
       await handlers.onAck({ eventId: 'published', relayUrl: 'wss://relay.example', ok: true });
     });
     const coordinator = createEventCoordinator({
@@ -644,14 +650,25 @@ describe('EventCoordinator read policy', () => {
       pendingPublishes: { add: vi.fn(async () => {}) },
       store: {
         getById: vi.fn(async () => null),
-        putWithReconcile: vi.fn(async () => ({ stored: true })),
+        putWithReconcile,
         recordRelayHint
       },
       relay: { verify: vi.fn(async () => []) }
     });
 
-    await expect(coordinator.publish(event)).resolves.toEqual({ queued: false, ok: true });
+    await expect(coordinator.publish(event)).resolves.toEqual({
+      queued: false,
+      ok: true,
+      settlement: {
+        phase: 'settled',
+        state: 'confirmed',
+        durability: 'relay',
+        reason: 'relay-accepted'
+      }
+    });
 
+    expect(calls).toEqual(['materialize', 'publish']);
+    expect(putWithReconcile).toHaveBeenCalledWith(event);
     expect(publish).toHaveBeenCalledWith(event, expect.any(Object));
     expect(recordRelayHint).toHaveBeenCalledWith({
       eventId: 'published',
@@ -659,6 +676,7 @@ describe('EventCoordinator read policy', () => {
       source: 'published',
       lastSeenAt: expect.any(Number)
     });
+    expect(recordRelayHint).toHaveBeenCalledTimes(1);
   });
 
   it('queues retryable publish failures through coordinator pending storage', async () => {
@@ -688,5 +706,74 @@ describe('EventCoordinator read policy', () => {
 
     await expect(coordinator.publish(event)).rejects.toThrow('offline');
     expect(add).toHaveBeenCalledWith(event);
+  });
+
+  it('returns queued settlement when no publish transport is available', async () => {
+    const event = {
+      id: 'queued-no-transport',
+      pubkey: 'alice',
+      created_at: 20,
+      kind: 1,
+      tags: [],
+      content: 'publish',
+      sig: 'sig'
+    };
+    const add = vi.fn(async () => {});
+    const coordinator = createEventCoordinator({
+      pendingPublishes: { add },
+      store: {
+        getById: vi.fn(async () => null),
+        putWithReconcile: vi.fn(async () => ({ stored: true }))
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+
+    await expect(coordinator.publish(event)).resolves.toEqual({
+      queued: true,
+      ok: false,
+      settlement: {
+        phase: 'pending',
+        state: 'queued',
+        durability: 'queued',
+        reason: 'queued-offline'
+      }
+    });
+    expect(add).toHaveBeenCalledWith(event);
+  });
+
+  it('returns degraded settlement when local materialization fails before publish', async () => {
+    const event = {
+      id: 'degraded-publish',
+      pubkey: 'alice',
+      created_at: 20,
+      kind: 1,
+      tags: [],
+      content: 'publish',
+      sig: 'sig'
+    };
+    const publish = vi.fn(async () => {});
+    const coordinator = createEventCoordinator({
+      publishTransport: { publish },
+      pendingPublishes: { add: vi.fn(async () => {}) },
+      store: {
+        getById: vi.fn(async () => null),
+        putWithReconcile: vi.fn(async () => {
+          throw new Error('indexeddb unavailable');
+        })
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+
+    await expect(coordinator.publish(event)).resolves.toEqual({
+      queued: false,
+      ok: true,
+      settlement: {
+        phase: 'partial',
+        state: 'retrying',
+        durability: 'degraded',
+        reason: 'materialization-degraded'
+      }
+    });
+    expect(publish).toHaveBeenCalledWith(event, expect.any(Object));
   });
 });

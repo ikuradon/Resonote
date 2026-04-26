@@ -1,4 +1,9 @@
-import { reduceReadSettlement, type StoredEvent } from '@auftakt/core';
+import {
+  type PublishSettlement,
+  reducePublishSettlement,
+  reduceReadSettlement,
+  type StoredEvent
+} from '@auftakt/core';
 
 import { createHotEventIndex, type HotEventIndex } from './hot-event-index.js';
 import { createMaterializerQueue, type MaterializerTask } from './materializer-queue.js';
@@ -120,6 +125,7 @@ export interface EventCoordinatorPendingPublishes {
 export interface EventCoordinatorPublishResult {
   readonly queued: boolean;
   readonly ok: boolean;
+  readonly settlement: PublishSettlement;
 }
 
 export function createEventCoordinator(deps: {
@@ -203,7 +209,9 @@ export function createEventCoordinator(deps: {
           result = await deps.store.putWithReconcile(event);
         } catch {
           hotIndex.applyVisible(event);
-          await recordSeenHint(event.id, relayUrl);
+          if (relayUrl) {
+            await recordSeenHint(event.id, relayUrl);
+          }
           materializeResult = { stored: false, durability: 'degraded' };
           return;
         }
@@ -214,7 +222,9 @@ export function createEventCoordinator(deps: {
         }
 
         hotIndex.applyVisible(event);
-        await recordSeenHint(event.id, relayUrl);
+        if (relayUrl) {
+          await recordSeenHint(event.id, relayUrl);
+        }
         materializeResult = { stored: true, durability: 'durable' };
       }
     });
@@ -296,9 +306,20 @@ export function createEventCoordinator(deps: {
   }
 
   async function publish(event: StoredEvent): Promise<EventCoordinatorPublishResult> {
+    const materialized = await materialize(event, '');
+
     if (!deps.publishTransport) {
       await deps.pendingPublishes?.add(event);
-      return { queued: true, ok: false };
+      return {
+        queued: true,
+        ok: false,
+        settlement: reducePublishSettlement({
+          localMaterialized: materialized.stored,
+          relayAccepted: false,
+          queued: true,
+          materializationDurability: materialized.durability
+        })
+      };
     }
 
     try {
@@ -313,7 +334,16 @@ export function createEventCoordinator(deps: {
           });
         }
       });
-      return { queued: false, ok: true };
+      return {
+        queued: false,
+        ok: true,
+        settlement: reducePublishSettlement({
+          localMaterialized: materialized.stored,
+          relayAccepted: materialized.durability !== 'degraded',
+          queued: false,
+          materializationDurability: materialized.durability
+        })
+      };
     } catch (error) {
       await deps.pendingPublishes?.add(event);
       throw error;
