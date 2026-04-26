@@ -335,3 +335,42 @@ describe('AddressableHandle.fetch', () => {
     expect(result.state).toBe('deleted');
   });
 });
+
+describe('RelayHintsHandle.fetch', () => {
+  it('returns normalized read-only durable relay hints sorted by recency', async () => {
+    const eventId = '1'.repeat(64);
+    const { coordinator } = createCoordinatorFixture({
+      relayHints: [
+        {
+          eventId,
+          relayUrl: 'wss://older.example',
+          source: 'seen',
+          lastSeenAt: 1
+        },
+        {
+          eventId,
+          relayUrl: 'not a relay',
+          source: 'hinted',
+          lastSeenAt: 3
+        },
+        {
+          eventId,
+          relayUrl: 'wss://newer.example/',
+          source: 'published',
+          lastSeenAt: 5
+        }
+      ]
+    });
+
+    const result = await coordinator.getRelayHints(eventId).fetch();
+
+    expect(result).toEqual({
+      eventId,
+      hints: [
+        { eventId, relayUrl: 'wss://newer.example/', source: 'published', lastSeenAt: 5 },
+        { eventId, relayUrl: 'wss://older.example/', source: 'seen', lastSeenAt: 1 }
+      ]
+    });
+    expect('recordRelayHint' in result).toBe(false);
+  });
+});
