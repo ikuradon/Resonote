@@ -1,7 +1,7 @@
 import { type ReadSettlement, reduceReadSettlement, type StoredEvent } from '@auftakt/core';
 import { describe, expect, it, vi } from 'vitest';
 
-import { deriveEntityHandleState } from './entity-handles.js';
+import { buildRelaySetSnapshot, deriveEntityHandleState } from './entity-handles.js';
 import { createResonoteCoordinator, type EntityHandleState } from './runtime.js';
 
 const LOCAL_SETTLEMENT = reduceReadSettlement({
@@ -107,8 +107,8 @@ function createCoordinatorFixture(
     entityHandleRuntime: {
       read,
       isDeleted: options.isDeleted,
-      snapshotRelaySet: async () => ({
-        subject: { type: 'event', id: 'event'.padEnd(64, '0') },
+      snapshotRelaySet: async (subject) => ({
+        subject,
         readRelays: ['wss://default.example/'],
         writeRelays: [],
         temporaryRelays: [],
@@ -372,5 +372,50 @@ describe('RelayHintsHandle.fetch', () => {
       ]
     });
     expect('recordRelayHint' in result).toBe(false);
+  });
+});
+
+describe('RelaySetHandle.snapshot', () => {
+  it('returns high-level relay selection snapshots without raw transport objects', async () => {
+    const subject = {
+      type: 'event' as const,
+      id: '2'.repeat(64),
+      relayHints: ['wss://hint.example/']
+    };
+    const { coordinator } = createCoordinatorFixture();
+
+    const result = await coordinator.getRelaySet(subject).snapshot();
+
+    expect(result).toMatchObject({
+      subject,
+      readRelays: ['wss://default.example/'],
+      writeRelays: [],
+      temporaryRelays: [],
+      diagnostics: []
+    });
+    expect('session' in result).toBe(false);
+    expect('transportSubscription' in result).toBe(false);
+    expect('routingIndex' in result).toBe(false);
+  });
+
+  it('builds relay set snapshots through the core relay selection planner', () => {
+    const eventId = '3'.repeat(64);
+    const snapshot = buildRelaySetSnapshot({
+      subject: { type: 'event', id: eventId, relayHints: ['wss://temporary.example/'] },
+      policy: {
+        strategy: 'conservative-outbox',
+        maxReadRelays: 1,
+        maxTemporaryRelays: 1
+      },
+      candidates: [
+        { relay: 'wss://default.example/', source: 'default', role: 'read' },
+        { relay: 'wss://durable.example/', source: 'durable-hint', role: 'read' },
+        { relay: 'wss://temporary.example/', source: 'temporary-hint', role: 'temporary' }
+      ]
+    });
+
+    expect(snapshot.readRelays).toEqual(['wss://default.example/']);
+    expect(snapshot.temporaryRelays).toEqual(['wss://temporary.example/']);
+    expect(snapshot.diagnostics.some((diagnostic) => diagnostic.clipped)).toBe(true);
   });
 });
