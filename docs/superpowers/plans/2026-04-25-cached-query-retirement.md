@@ -1,5 +1,11 @@
 # Cached Query Retirement Implementation Plan
 
+> Status: Partially implemented at the time of the 2026-04-26 completion audit.
+> The cached read bridge moved to `src/shared/auftakt/cached-read.svelte.ts`, but
+> `pnpm run check:auftakt-complete` still required semantic guard and active
+> stale-reference cleanup. See
+> `docs/auftakt/2026-04-26-april-doc-completion-audit.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Delete the retired `src/shared/nostr/cached-query*` bridge and keep cached read behavior behind `$shared/auftakt/resonote.js`.

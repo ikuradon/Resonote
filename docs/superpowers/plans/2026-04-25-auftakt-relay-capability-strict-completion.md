@@ -1,5 +1,11 @@
 # Auftakt Relay Capability Strict Completion Implementation Plan
 
+> Status: Partially implemented at the time of the 2026-04-26 completion audit.
+> Runtime behavior and contract tests exist, but
+> `src/shared/auftakt/relay-capability.test.ts` still needed semantic guard
+> allowlist cleanup before the full completion gate could pass. See
+> `docs/auftakt/2026-04-26-april-doc-completion-audit.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Strictly complete the remaining relay capability queue acceptance gaps by adding coordinator ingress in-flight duplicate suppression and fixing the remaining TypeScript check failure.
