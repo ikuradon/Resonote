@@ -60,6 +60,9 @@ describe('@auftakt/resonote public api contract', () => {
         expect(name).not.toMatch(pattern);
       }
     }
+    expect(exportNames).toContain('createResonoteCoordinator');
+    expect(exportNames).not.toContain('buildReadRelayOverlay');
+    expect(exportNames).not.toContain('buildPublishRelaySendOptions');
     expect(exportNames).not.toContain('RESONOTE_DEFAULT_RELAY_SELECTION_POLICY');
   });
 

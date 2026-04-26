@@ -58,7 +58,9 @@ describe('@auftakt/core public api contract', () => {
         filterNegentropyEventRefs: expect.any(Function),
         normalizeRelayLifecycleOptions: expect.any(Function),
         normalizeRelaySelectionPolicy: expect.any(Function),
+        normalizeRelayUrl: expect.any(Function),
         parseNip65RelayListTags: expect.any(Function),
+        relayListEntriesToSelectionCandidates: expect.any(Function),
         reconcileReplayRepairSubjects: expect.any(Function),
         reduceReadSettlement: expect.any(Function),
         validateRelayEvent: expect.any(Function)
