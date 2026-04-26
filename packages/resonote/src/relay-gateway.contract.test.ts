@@ -71,4 +71,32 @@ describe('RelayGateway verification planner', () => {
       }
     ]);
   });
+
+  it('falls back to REQ when local negentropy refs cannot be listed', async () => {
+    const event = { id: 'event-from-req', created_at: 123 };
+    const requestNegentropySync = vi.fn(async () => ({
+      capability: 'supported' as const,
+      messageHex: JSON.stringify({ remoteOnlyIds: ['should-not-be-used'] })
+    }));
+    const fetchByReq = vi.fn(async () => [event]);
+
+    const gateway = createRelayGateway({
+      requestNegentropySync,
+      fetchByReq,
+      listLocalRefs: async () => {
+        throw new Error('refs unavailable');
+      }
+    });
+
+    const result = await gateway.verify([{ kinds: [1] }], { relayUrl: 'wss://relay.example/' });
+
+    expect(result).toEqual({
+      strategy: 'fallback-req',
+      candidates: [{ event, relayUrl: 'wss://relay.example/' }]
+    });
+    expect(requestNegentropySync).not.toHaveBeenCalled();
+    expect(fetchByReq).toHaveBeenCalledWith([{ kinds: [1] }], {
+      relayUrl: 'wss://relay.example/'
+    });
+  });
 });

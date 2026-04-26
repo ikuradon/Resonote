@@ -35,7 +35,13 @@ export function createRelayGateway(deps: {
       filters: readonly Record<string, unknown>[],
       options: { readonly relayUrl: string }
     ): Promise<RelayGatewayResult> {
-      const localRefs = await deps.listLocalRefs(filters);
+      let localRefs: readonly { readonly id: string; readonly created_at: number }[];
+      try {
+        localRefs = await deps.listLocalRefs(filters);
+      } catch {
+        const events = await deps.fetchByReq(filters, options);
+        return { strategy: 'fallback-req', candidates: toCandidates(events, options.relayUrl) };
+      }
       const negentropy = await deps.requestNegentropySync({
         relayUrl: options.relayUrl,
         filter: filters[0] ?? {},
