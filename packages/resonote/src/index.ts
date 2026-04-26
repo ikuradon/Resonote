@@ -31,6 +31,7 @@ export type {
   ResonoteCoordinatorPlugin,
   ResonoteCoordinatorPluginApi,
   ResonoteCoordinatorPluginApiVersion,
+  ResonoteCoordinatorPluginModels,
   ResonoteCoordinatorPluginRegistration,
   RetryableSignedEvent,
   SubscriptionHandle,

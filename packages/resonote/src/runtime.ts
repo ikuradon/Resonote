@@ -1692,8 +1692,17 @@ export interface RelayCapabilityRuntime {
 
 export type ResonoteCoordinatorPluginApiVersion = 'v1';
 
+export interface ResonoteCoordinatorPluginModels {
+  getEvent(input: EventHandleInput): EventHandle;
+  getUser(input: UserHandleInput): UserHandle;
+  getAddressable(input: AddressableHandleInput): AddressableHandle;
+  getRelaySet(subject: RelaySetSubject): RelaySetHandle;
+  getRelayHints(eventId: string): RelayHintsHandle;
+}
+
 export interface ResonoteCoordinatorPluginApi {
   readonly apiVersion: ResonoteCoordinatorPluginApiVersion;
+  readonly models: ResonoteCoordinatorPluginModels;
   registerProjection(definition: ProjectionDefinition): void;
   registerReadModel<TReadModel>(name: string, readModel: TReadModel): void;
   registerFlow<TFlow>(name: string, flow: TFlow): void;
@@ -2034,10 +2043,12 @@ function createPendingPluginRegistrations(): PendingPluginRegistrations {
 }
 
 function createPluginRegistrationApi(
-  pending: PendingPluginRegistrations
+  pending: PendingPluginRegistrations,
+  models: ResonoteCoordinatorPluginModels
 ): ResonoteCoordinatorPluginApi {
   return {
     apiVersion: RESONOTE_COORDINATOR_PLUGIN_API_VERSION,
+    models,
     registerProjection(definition) {
       pending.projections.push(definition);
     },
@@ -2250,6 +2261,44 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
     fetchRelayInformation:
       relayCapabilityRuntime?.fetchRelayInformation ?? fetchNip11RelayInformation
   });
+  const entityHandles = createEntityHandleFactories({
+    read:
+      entityHandleRuntime?.read ??
+      (async (filters, options, temporaryRelays) => {
+        const resolvedOptions = await resolveReadOptions(
+          coordinatorReadRuntime,
+          filters,
+          {
+            timeoutMs: options.timeoutMs,
+            rejectOnError: options.rejectOnError
+          },
+          'read',
+          relaySelectionPolicy,
+          temporaryRelays
+        );
+        const coordinator = createRuntimeEventCoordinator(coordinatorReadRuntime, resolvedOptions);
+        return coordinator.read(filters, {
+          policy: options.cacheOnly === true ? 'cacheOnly' : 'localFirst'
+        });
+      }),
+    isDeleted:
+      entityHandleRuntime?.isDeleted ??
+      (async (id, pubkey) => {
+        const db = await runtime.getEventsDB();
+        return (await db.isDeleted?.(id, pubkey)) === true;
+      }),
+    openStore: () => runtime.getEventsDB(),
+    snapshotRelaySet:
+      entityHandleRuntime?.snapshotRelaySet ??
+      (async (subject) => {
+        const candidates = await buildRelaySetCandidates(runtime, subject);
+        return buildRelaySetSnapshot({
+          subject,
+          policy: relaySelectionPolicy,
+          candidates
+        });
+      })
+  });
 
   const registerPlugin = async (
     plugin: ResonoteCoordinatorPlugin
@@ -2261,7 +2310,7 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
         throw new Error(`Unsupported plugin API version for ${plugin.name}: ${plugin.apiVersion}`);
       }
 
-      await plugin.setup(createPluginRegistrationApi(pending));
+      await plugin.setup(createPluginRegistrationApi(pending, entityHandles));
       commitPluginRegistrations(projectionRegistry, readModelRegistry, flowRegistry, pending);
 
       return {
@@ -2289,7 +2338,7 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
         throw new Error(`Unsupported plugin API version for ${plugin.name}: ${plugin.apiVersion}`);
       }
 
-      const setupResult = plugin.setup(createPluginRegistrationApi(pending));
+      const setupResult = plugin.setup(createPluginRegistrationApi(pending, entityHandles));
       if (isPromiseLike(setupResult)) {
         throw new Error(`Built-in plugin setup must be synchronous: ${plugin.name}`);
       }
@@ -2503,44 +2552,6 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       await db.recordRelayHint?.(hint);
     }
   };
-  const entityHandles = createEntityHandleFactories({
-    read:
-      entityHandleRuntime?.read ??
-      (async (filters, options, temporaryRelays) => {
-        const resolvedOptions = await resolveReadOptions(
-          coordinatorReadRuntime,
-          filters,
-          {
-            timeoutMs: options.timeoutMs,
-            rejectOnError: options.rejectOnError
-          },
-          'read',
-          relaySelectionPolicy,
-          temporaryRelays
-        );
-        const coordinator = createRuntimeEventCoordinator(coordinatorReadRuntime, resolvedOptions);
-        return coordinator.read(filters, {
-          policy: options.cacheOnly === true ? 'cacheOnly' : 'localFirst'
-        });
-      }),
-    isDeleted:
-      entityHandleRuntime?.isDeleted ??
-      (async (id, pubkey) => {
-        const db = await runtime.getEventsDB();
-        return (await db.isDeleted?.(id, pubkey)) === true;
-      }),
-    openStore: () => runtime.getEventsDB(),
-    snapshotRelaySet:
-      entityHandleRuntime?.snapshotRelaySet ??
-      (async (subject) => {
-        const candidates = await buildRelaySetCandidates(runtime, subject);
-        return buildRelaySetSnapshot({
-          subject,
-          policy: relaySelectionPolicy,
-          candidates
-        });
-      })
-  });
 
   const publishSignedEventFromCoordinator = async (params: EventParameters): Promise<void> => {
     const options = await buildPublishRelaySendOptions(runtime, {

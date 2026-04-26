@@ -55,6 +55,7 @@ function createTestCoordinator() {
 describe('@auftakt/resonote plugin isolation', () => {
   it('does not expose raw relay or raw storage handles to plugins', async () => {
     const observedKeys: string[][] = [];
+    const observedModelKeys: string[][] = [];
     const coordinator = createTestCoordinator();
 
     await coordinator.registerPlugin({
@@ -62,14 +63,23 @@ describe('@auftakt/resonote plugin isolation', () => {
       apiVersion: 'v1',
       setup(api) {
         observedKeys.push(Object.keys(api).sort());
+        observedModelKeys.push(Object.keys(api.models).sort());
       }
     });
 
     expect(observedKeys[0]).toEqual([
       'apiVersion',
+      'models',
       'registerFlow',
       'registerProjection',
       'registerReadModel'
+    ]);
+    expect(observedModelKeys[0]).toEqual([
+      'getAddressable',
+      'getEvent',
+      'getRelayHints',
+      'getRelaySet',
+      'getUser'
     ]);
     expect(observedKeys[0]).not.toContain('getRxNostr');
     expect(observedKeys[0]).not.toContain('getEventsDB');
@@ -79,6 +89,11 @@ describe('@auftakt/resonote plugin isolation', () => {
     expect(observedKeys[0]).not.toContain('getRelaySet');
     expect(observedKeys[0]).not.toContain('getRelayHints');
     expect(observedKeys[0]).not.toContain('openEventsDb');
+    expect(observedModelKeys[0]).not.toContain('getRxNostr');
+    expect(observedModelKeys[0]).not.toContain('getEventsDB');
+    expect(observedModelKeys[0]).not.toContain('openEventsDb');
+    expect(observedModelKeys[0]).not.toContain('materializerQueue');
+    expect(observedModelKeys[0]).not.toContain('relayGateway');
   });
 
   it('provides plugins only registration functions and no coordinator handles', async () => {
@@ -104,12 +119,32 @@ describe('@auftakt/resonote plugin isolation', () => {
       setup(api) {
         expect(Object.keys(api).sort()).toEqual([
           'apiVersion',
+          'models',
           'registerFlow',
           'registerProjection',
           'registerReadModel'
         ]);
+        expect(Object.keys(api.models).sort()).toEqual([
+          'getAddressable',
+          'getEvent',
+          'getRelayHints',
+          'getRelaySet',
+          'getUser'
+        ]);
         for (const key of forbiddenKeys) {
           expect(api).not.toHaveProperty(key);
+        }
+        const rawModelForbiddenKeys = [
+          'getRxNostr',
+          'createRxBackwardReq',
+          'createRxForwardReq',
+          'getEventsDB',
+          'openEventsDb',
+          'materializerQueue',
+          'relayGateway'
+        ];
+        for (const key of rawModelForbiddenKeys) {
+          expect(api.models).not.toHaveProperty(key);
         }
       }
     });
