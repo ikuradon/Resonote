@@ -1379,6 +1379,41 @@ async function fetchBackwardEventsFromReadRuntime<TEvent>(
   return result.events as TEvent[];
 }
 
+function selectNewestVisibleEvent<TEvent extends StoredEvent>(
+  events: readonly TEvent[]
+): TEvent | null {
+  return (
+    [...events].sort((left, right) => {
+      if (right.created_at !== left.created_at) return right.created_at - left.created_at;
+      return right.id.localeCompare(left.id);
+    })[0] ?? null
+  );
+}
+
+async function fetchLatestEventFromReadRuntime(
+  runtime: CoordinatorReadRuntime,
+  pubkey: string,
+  kind: number,
+  relaySelectionPolicy: RelaySelectionPolicyOptions
+): Promise<LatestEventSnapshot | null> {
+  const filters: RuntimeFilter[] = [{ kinds: [kind], authors: [pubkey], limit: 1 }];
+
+  try {
+    const resolvedOptions = await resolveReadOptions(
+      runtime,
+      filters,
+      { timeoutMs: 10_000 },
+      'read',
+      relaySelectionPolicy
+    );
+    const coordinator = createRuntimeEventCoordinator(runtime, resolvedOptions);
+    const result = await coordinator.read(filters, { policy: 'localFirst' });
+    return selectNewestVisibleEvent(result.events);
+  } catch {
+    return null;
+  }
+}
+
 async function resolveReadOptions(
   runtime: CoordinatorReadRuntime,
   filters: readonly RuntimeFilter[],
@@ -1990,7 +2025,8 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       );
       return events.at(-1) ?? null;
     },
-    fetchLatestEvent: (pubkey, kind) => runtime.fetchLatestEvent(pubkey, kind),
+    fetchLatestEvent: (pubkey, kind) =>
+      fetchLatestEventFromReadRuntime(coordinatorReadRuntime, pubkey, kind, relaySelectionPolicy),
     getEventsDB: () => runtime.getEventsDB()
   };
   const sessionRuntime = runtime as unknown as SessionRuntime<StoredEvent>;
@@ -2352,7 +2388,8 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
     retryPendingPublishes: async () => {
       await retryQueuedSignedPublishes(publishTransportRuntime, pendingPublishQueueRuntime);
     },
-    fetchLatestEvent: (pubkey, kind) => relayStatusRuntime.fetchLatestEvent(pubkey, kind),
+    fetchLatestEvent: (pubkey, kind) =>
+      fetchLatestEventFromReadRuntime(coordinatorReadRuntime, pubkey, kind, relaySelectionPolicy),
     setDefaultRelays: async (urls) => {
       await relayCapabilityRegistry.prefetchDefaultRelays(urls);
       await applyRelayCapabilitiesToRuntime(runtime, relayCapabilityRegistry, urls);
