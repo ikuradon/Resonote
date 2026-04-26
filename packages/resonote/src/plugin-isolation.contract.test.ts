@@ -81,6 +81,40 @@ describe('@auftakt/resonote plugin isolation', () => {
     expect(observedKeys[0]).not.toContain('openEventsDb');
   });
 
+  it('provides plugins only registration functions and no coordinator handles', async () => {
+    const coordinator = createTestCoordinator();
+    const forbiddenKeys = [
+      'getRxNostr',
+      'createRxBackwardReq',
+      'createRxForwardReq',
+      'getEventsDB',
+      'openEventsDb',
+      'materializerQueue',
+      'relayGateway',
+      'getEvent',
+      'getUser',
+      'getAddressable',
+      'getRelaySet',
+      'getRelayHints'
+    ];
+
+    await coordinator.registerPlugin({
+      name: 'assert-plugin-api-shape',
+      apiVersion: 'v1',
+      setup(api) {
+        expect(Object.keys(api).sort()).toEqual([
+          'apiVersion',
+          'registerFlow',
+          'registerProjection',
+          'registerReadModel'
+        ]);
+        for (const key of forbiddenKeys) {
+          expect(api).not.toHaveProperty(key);
+        }
+      }
+    });
+  });
+
   it('disables a throwing plugin without crashing later registrations', async () => {
     const coordinator = createTestCoordinator();
 
