@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { checkNipMatrix, checkNipStatusDocsSync } from './check-auftakt-nips.js';
+import {
+  assertNoRewriteOnRefreshFailure,
+  checkNipMatrix,
+  checkNipStatusDocsSync,
+  proposeInventoryDrift
+} from './check-auftakt-nips.js';
 
 function entry(
   nip: string,
@@ -126,5 +131,37 @@ describe('checkNipStatusDocsSync', () => {
 
     expect(result.ok).toBe(false);
     expect(result.errors).toContain('docs/auftakt/status-verification.md missing NIP-02');
+  });
+});
+
+describe('refresh safety helpers', () => {
+  it('does not rewrite docs when official fetch fails', async () => {
+    const writes: string[] = [];
+    const result = await assertNoRewriteOnRefreshFailure({
+      fetchOfficialInventory: async () => {
+        throw new Error('network unavailable');
+      },
+      writeFile: async (path) => {
+        writes.push(path);
+      }
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toEqual(['Official inventory fetch failed: network unavailable']);
+    expect(writes).toEqual([]);
+  });
+
+  it('reports inventory drift without auto-promoting support status', () => {
+    const result = proposeInventoryDrift(
+      { sourceUrl: 'source', sourceDate: '2026-04-24', nips: ['01', '02'] },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [entry('01', { status: 'not-started' })]
+      }
+    );
+
+    expect(result.addedNips).toEqual(['02']);
+    expect(result.statusPromotions).toEqual([]);
   });
 });

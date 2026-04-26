@@ -148,6 +148,38 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   return errors;
 }
 
+export async function assertNoRewriteOnRefreshFailure(input: {
+  readonly fetchOfficialInventory: () => Promise<NipInventory>;
+  readonly writeFile: (path: string, contents: string) => Promise<void>;
+}): Promise<{ ok: boolean; errors: string[] }> {
+  try {
+    await input.fetchOfficialInventory();
+    return { ok: true, errors: [] };
+  } catch (error) {
+    return {
+      ok: false,
+      errors: [`Official inventory fetch failed: ${normalizeErrorMessage(error)}`]
+    };
+  }
+}
+
+export function proposeInventoryDrift(
+  inventory: NipInventory,
+  matrix: NipMatrix
+): { addedNips: string[]; removedNips: string[]; statusPromotions: string[] } {
+  const inventoryNips = new Set(inventory.nips);
+  const matrixNips = new Set(matrix.entries.map((entry) => entry.nip));
+  return {
+    addedNips: inventory.nips.filter((nip) => !matrixNips.has(nip)),
+    removedNips: matrix.entries.map((entry) => entry.nip).filter((nip) => !inventoryNips.has(nip)),
+    statusPromotions: []
+  };
+}
+
+function normalizeErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const inventory = JSON.parse(
     readFileSync('docs/auftakt/nips-inventory.json', 'utf8')
