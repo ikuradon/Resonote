@@ -4,11 +4,14 @@
  * Covers: write operations, read operations, multi-relay behavior,
  * and unstable connection scenarios.
  */
+import 'fake-indexeddb/auto';
+
 import { finalizeEvent, generateSecretKey, getPublicKey } from '@auftakt/core';
 import { type EventSigner, MockPool, type MockRelay } from '@ikuradon/tsunagiya';
 import { EventBuilder, waitFor } from '@ikuradon/tsunagiya/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { resetEventsDB } from './event-db.js';
 import {
   COMMENT_KIND,
   METADATA_KIND,
@@ -25,11 +28,13 @@ let relays: MockRelay[];
 let signer: EventSigner;
 let pubkey: string;
 let sk: Uint8Array;
+let dbCounter = 0;
 
 beforeEach(() => {
   pool = new MockPool();
   relays = TEST_RELAYS.map((url) => pool.relay(url));
   pool.install();
+  resetEventsDB(`resonote-relay-integration-${dbCounter++}`);
 
   sk = generateSecretKey();
   pubkey = getPublicKey(sk);

@@ -1,9 +1,12 @@
+import 'fake-indexeddb/auto';
+
 import { finalizeEvent, generateSecretKey, getPublicKey } from '@auftakt/core';
 import { createRuntimeRequestKey } from '@auftakt/core';
 import { type EventSigner, MockPool, type MockRelay } from '@ikuradon/tsunagiya';
 import { EventBuilder, waitFor } from '@ikuradon/tsunagiya/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { resetEventsDB } from './event-db.js';
 import { TEST_RELAYS } from './test-relays.js';
 
 vi.mock('./relays.js', () => ({ DEFAULT_RELAYS: TEST_RELAYS }));
@@ -13,11 +16,13 @@ let relays: MockRelay[];
 let signer: EventSigner;
 let pubkey: string;
 let sk: Uint8Array;
+let dbCounter = 0;
 
 beforeEach(() => {
   pool = new MockPool();
   relays = TEST_RELAYS.map((url) => pool.relay(url));
   pool.install();
+  resetEventsDB(`resonote-client-integration-${dbCounter++}`);
 
   sk = generateSecretKey();
   pubkey = getPublicKey(sk);
@@ -169,9 +174,13 @@ describe('logical requestKey replay identity (integration)', () => {
       });
 
       req.emit({ kinds: [1], authors: [pubkey] });
+      await waitFor(() => relays[0].received.some((message) => message[0] === 'REQ'), {
+        timeout: 5_000
+      });
 
       const event = await EventBuilder.kind(1).content('forward').createdAt(3000).buildWith(signer);
       relays[0].store(event);
+      relays[0].broadcast(event);
       await waitFor(() => receivedIds.includes(event.id), { timeout: 5_000 });
 
       sub.unsubscribe();
