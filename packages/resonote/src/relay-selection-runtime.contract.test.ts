@@ -266,4 +266,96 @@ describe('coordinator read relay selection integration', () => {
       }
     });
   });
+
+  it('applies coordinator relay selection policy overrides to by-id reads', async () => {
+    const createdRequests: Array<{ options: unknown; emitted: unknown[] }> = [];
+    const runtime = {
+      async fetchLatestEvent() {
+        return null;
+      },
+      async getDefaultRelays() {
+        return ['wss://default.example'];
+      },
+      async getEventsDB() {
+        return {
+          getByPubkeyAndKind: async () => null,
+          getManyByPubkeysAndKind: async () => [],
+          getByReplaceKey: async () => null,
+          getByTagValue: async () => [],
+          getById: async () => null,
+          getAllByKind: async () => [],
+          listNegentropyEventRefs: async () => [],
+          getRelayHints: async () => [
+            {
+              eventId: 'target',
+              relayUrl: 'wss://durable.example',
+              source: 'seen' as const,
+              lastSeenAt: 1
+            }
+          ],
+          deleteByIds: async () => {},
+          clearAll: async () => {},
+          put: async () => true,
+          putWithReconcile: async () => ({ stored: true, emissions: [] })
+        };
+      },
+      async getRxNostr() {
+        return {
+          use(_req: { emit(input: unknown): void }, options: unknown) {
+            const entry = { options, emitted: [] as unknown[] };
+            createdRequests.push(entry);
+            return {
+              subscribe(observer: { complete?: () => void }) {
+                queueMicrotask(() => observer.complete?.());
+                return { unsubscribe() {} };
+              }
+            };
+          }
+        };
+      },
+      createRxBackwardReq() {
+        return {
+          emit(input: unknown) {
+            createdRequests.at(-1)?.emitted.push(input);
+          },
+          over() {}
+        };
+      },
+      createRxForwardReq() {
+        return { emit() {}, over() {} };
+      },
+      uniq: () => ({}) as unknown,
+      merge: () => ({}) as unknown,
+      getRelayConnectionState: async () => null,
+      observeRelayConnectionStates: async () => ({ unsubscribe() {} })
+    };
+
+    const coordinator = createResonoteCoordinator({
+      runtime,
+      relaySelectionPolicy: { strategy: 'default-only' },
+      cachedFetchByIdRuntime: {
+        cachedFetchById: async () => ({ event: null, settlement: null }),
+        invalidateFetchByIdCache: () => {}
+      },
+      cachedLatestRuntime: { useCachedLatest: () => null },
+      publishTransportRuntime: { castSigned: async () => {} },
+      pendingPublishQueueRuntime: {
+        addPendingPublish: async () => {},
+        drainPendingPublishes: async () => ({ emissions: [], settledCount: 0, retryingCount: 0 })
+      },
+      relayStatusRuntime: {
+        fetchLatestEvent: async () => null,
+        setDefaultRelays: async () => {}
+      }
+    });
+
+    await coordinator.fetchNostrEventById('target', []);
+
+    expect(createdRequests[0]?.options).toEqual({
+      on: {
+        relays: ['wss://default.example/'],
+        defaultReadRelays: false
+      }
+    });
+  });
 });

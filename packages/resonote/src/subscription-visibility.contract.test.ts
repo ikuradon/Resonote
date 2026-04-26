@@ -18,8 +18,10 @@ interface RelayObserver {
 
 class CapturingRelaySession {
   readonly observers: RelayObserver[] = [];
+  readonly useOptions: unknown[] = [];
 
-  use(): Observable<{ event: unknown; from?: string }> {
+  use(_req?: unknown, options?: unknown): Observable<{ event: unknown; from?: string }> {
+    this.useOptions.push(options);
     return new Observable((subscriber) => {
       const observer: RelayObserver = {
         next: (packet) => subscriber.next(packet),
@@ -81,13 +83,20 @@ function invalidRelayEvent() {
   };
 }
 
-function createCoordinatorFixture() {
+function createCoordinatorFixture(
+  options: {
+    relaySelectionPolicy?: Parameters<typeof createResonoteCoordinator>[0]['relaySelectionPolicy'];
+  } = {}
+) {
   const relaySession = new CapturingRelaySession();
   const materialized: StoredEvent[] = [];
   const quarantined: unknown[] = [];
   const runtime: ResonoteRuntime = {
     async fetchLatestEvent() {
       return null;
+    },
+    async getDefaultRelays() {
+      return ['wss://default.example'];
     },
     async getEventsDB() {
       return {
@@ -166,6 +175,7 @@ function createCoordinatorFixture() {
 
   const coordinator = createResonoteCoordinator({
     runtime,
+    relaySelectionPolicy: options.relaySelectionPolicy,
     cachedFetchByIdRuntime: {
       cachedFetchById: async () => ({ event: null, settlement: null }),
       invalidateFetchByIdCache: () => {}
@@ -249,5 +259,27 @@ describe('@auftakt/resonote subscription visibility', () => {
     expect(onMentionPacket).toHaveBeenCalledWith({ event, from: 'wss://relay.example' });
     expect(materialized).toEqual([event]);
     expect(quarantined).toHaveLength(1);
+  });
+
+  it('applies coordinator relay selection policy overrides to subscription routing', async () => {
+    const { coordinator, relaySession } = createCoordinatorFixture({
+      relaySelectionPolicy: {
+        strategy: 'default-only',
+        includeDefaultFallback: false
+      }
+    });
+    const refs = await coordinator.loadCommentSubscriptionDeps();
+
+    startCommentSubscription(
+      refs,
+      [{ kinds: [1111], '#I': ['spotify:track:abc'] }],
+      null,
+      vi.fn(),
+      vi.fn()
+    );
+
+    await waitFor(() => relaySession.useOptions.length > 0);
+
+    expect(relaySession.useOptions[0]).toBeUndefined();
   });
 });

@@ -13,6 +13,7 @@ import type {
   RelayObservationPacket,
   RelayObservationRuntime,
   RelayObservationSnapshot,
+  RelaySelectionPolicyOptions,
   RequestKey,
   StoredEvent
 } from '@auftakt/core';
@@ -90,7 +91,8 @@ import {
   buildPublishRelaySendOptions,
   buildReadRelayOverlay,
   type PublishRelaySendOptions,
-  RESONOTE_DEFAULT_RELAY_SELECTION_POLICY} from './relay-selection-runtime.js';
+  RESONOTE_DEFAULT_RELAY_SELECTION_POLICY
+} from './relay-selection-runtime.js';
 
 export type { CommentSubscriptionRefs, SubscriptionHandle };
 export type { RelayCapabilityPacket, RelayCapabilitySnapshot } from '@auftakt/core';
@@ -241,7 +243,7 @@ const NULL_CACHE_TTL_MS = 30_000;
 const cachedFetchStates = new WeakMap<CoordinatorReadRuntime, CachedFetchState>();
 const subscriptionRegistries = new WeakMap<
   SessionRuntime<StoredEvent>,
-  CoordinatorSubscriptionRegistry
+  Map<string, CoordinatorSubscriptionRegistry>
 >();
 
 const unsupportedNegentropyRelaysByRuntime = new WeakMap<object, Set<string>>();
@@ -303,7 +305,10 @@ class CoordinatorSubscriptionRegistry {
   private readonly entries = new Map<string, SharedSubscriptionEntry>();
   private rawSessionPromise: Promise<RelaySessionLike> | null = null;
 
-  constructor(private readonly runtime: SessionRuntime<StoredEvent>) {}
+  constructor(
+    private readonly runtime: SessionRuntime<StoredEvent>,
+    private readonly relaySelectionPolicy: RelaySelectionPolicyOptions = RESONOTE_DEFAULT_RELAY_SELECTION_POLICY
+  ) {}
 
   createRelaySession(): RelaySessionLike {
     return {
@@ -503,7 +508,7 @@ class CoordinatorSubscriptionRegistry {
     const overlay = await buildReadRelayOverlay(this.runtime, {
       intent: 'subscribe',
       filters: entry.filters,
-      policy: RESONOTE_DEFAULT_RELAY_SELECTION_POLICY
+      policy: this.relaySelectionPolicy
     });
 
     if (!overlay) return undefined;
@@ -544,20 +549,40 @@ class CoordinatorSubscriptionRegistry {
 }
 
 function getCoordinatorSubscriptionRegistry(
-  runtime: SessionRuntime<StoredEvent>
+  runtime: SessionRuntime<StoredEvent>,
+  relaySelectionPolicy: RelaySelectionPolicyOptions = RESONOTE_DEFAULT_RELAY_SELECTION_POLICY
 ): CoordinatorSubscriptionRegistry {
-  const existing = subscriptionRegistries.get(runtime);
+  const policyKey = relaySelectionPolicyRegistryKey(relaySelectionPolicy);
+  const byPolicy =
+    subscriptionRegistries.get(runtime) ?? new Map<string, CoordinatorSubscriptionRegistry>();
+  const existing = byPolicy.get(policyKey);
   if (existing) return existing;
 
-  const registry = new CoordinatorSubscriptionRegistry(runtime);
-  subscriptionRegistries.set(runtime, registry);
+  const registry = new CoordinatorSubscriptionRegistry(runtime, relaySelectionPolicy);
+  byPolicy.set(policyKey, registry);
+  subscriptionRegistries.set(runtime, byPolicy);
   return registry;
 }
 
+function relaySelectionPolicyRegistryKey(policy: RelaySelectionPolicyOptions): string {
+  return JSON.stringify({
+    strategy: policy.strategy,
+    maxReadRelays: policy.maxReadRelays ?? null,
+    maxWriteRelays: policy.maxWriteRelays ?? null,
+    maxTemporaryRelays: policy.maxTemporaryRelays ?? null,
+    maxAudienceRelays: policy.maxAudienceRelays ?? null,
+    includeDefaultFallback: policy.includeDefaultFallback ?? null,
+    allowTemporaryHints: policy.allowTemporaryHints ?? null,
+    includeDurableHints: policy.includeDurableHints ?? null,
+    includeAudienceRelays: policy.includeAudienceRelays ?? null
+  });
+}
+
 function createRegistryBackedSessionRuntime(
-  runtime: SessionRuntime<StoredEvent>
+  runtime: SessionRuntime<StoredEvent>,
+  relaySelectionPolicy: RelaySelectionPolicyOptions = RESONOTE_DEFAULT_RELAY_SELECTION_POLICY
 ): SessionRuntime<StoredEvent> {
-  const registry = getCoordinatorSubscriptionRegistry(runtime);
+  const registry = getCoordinatorSubscriptionRegistry(runtime, relaySelectionPolicy);
   return {
     fetchBackwardEvents: <TOutput = StoredEvent>(
       filters: readonly RuntimeFilter[],
@@ -566,7 +591,8 @@ function createRegistryBackedSessionRuntime(
       fetchBackwardEventsFromReadRuntime<TOutput>(
         runtime as unknown as CoordinatorReadRuntime,
         filters,
-        options
+        options,
+        relaySelectionPolicy
       ),
     fetchBackwardFirst: async <TOutput = StoredEvent>(
       filters: readonly RuntimeFilter[],
@@ -575,7 +601,8 @@ function createRegistryBackedSessionRuntime(
       const events = await fetchBackwardEventsFromReadRuntime<TOutput>(
         runtime as unknown as CoordinatorReadRuntime,
         filters,
-        options
+        options,
+        relaySelectionPolicy
       );
       return events.at(-1) ?? null;
     },
@@ -1295,9 +1322,18 @@ function performInvalidateFetchByIdCache(runtime: CoordinatorReadRuntime, eventI
 async function fetchBackwardEventsFromReadRuntime<TEvent>(
   runtime: CoordinatorReadRuntime,
   filters: readonly RuntimeFilter[],
-  options?: FetchBackwardOptions
+  options?: FetchBackwardOptions,
+  relaySelectionPolicy: RelaySelectionPolicyOptions = RESONOTE_DEFAULT_RELAY_SELECTION_POLICY,
+  temporaryRelays: readonly string[] = []
 ): Promise<TEvent[]> {
-  const resolvedOptions = await resolveReadOptions(runtime, filters, options, 'read');
+  const resolvedOptions = await resolveReadOptions(
+    runtime,
+    filters,
+    options,
+    'read',
+    relaySelectionPolicy,
+    temporaryRelays
+  );
   const coordinator = createRuntimeEventCoordinator(runtime, resolvedOptions);
   const result = await coordinator.read([...filters], { policy: 'localFirst' });
 
@@ -1312,14 +1348,17 @@ async function resolveReadOptions(
   runtime: CoordinatorReadRuntime,
   filters: readonly RuntimeFilter[],
   options: FetchBackwardOptions | undefined,
-  intent: 'read' | 'subscribe' | 'repair'
+  intent: 'read' | 'subscribe' | 'repair',
+  relaySelectionPolicy: RelaySelectionPolicyOptions = RESONOTE_DEFAULT_RELAY_SELECTION_POLICY,
+  temporaryRelays: readonly string[] = []
 ): Promise<FetchBackwardOptions | undefined> {
   if (options?.overlay) return options;
 
   const overlay = await buildReadRelayOverlay(runtime, {
     intent,
     filters,
-    policy: RESONOTE_DEFAULT_RELAY_SELECTION_POLICY
+    temporaryRelays,
+    policy: relaySelectionPolicy
   });
 
   if (!overlay) return options;
@@ -1553,6 +1592,7 @@ export interface CreateResonoteCoordinatorOptions<TResult, TLatestResult> {
   readonly pendingPublishQueueRuntime: PendingPublishQueueRuntime;
   readonly relayStatusRuntime: RelayStatusRuntime;
   readonly relayCapabilityRuntime?: RelayCapabilityRuntime;
+  readonly relaySelectionPolicy?: RelaySelectionPolicyOptions;
 }
 
 export type PublishTransportOptions = PublishRelaySendOptions;
@@ -1872,11 +1912,14 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
   publishTransportRuntime,
   pendingPublishQueueRuntime,
   relayStatusRuntime,
-  relayCapabilityRuntime
+  relayCapabilityRuntime,
+  relaySelectionPolicy: configuredRelaySelectionPolicy
 }: CreateResonoteCoordinatorOptions<TResult, TLatestResult>): ResonoteCoordinator<
   TResult,
   TLatestResult
 > {
+  const relaySelectionPolicy =
+    configuredRelaySelectionPolicy ?? RESONOTE_DEFAULT_RELAY_SELECTION_POLICY;
   const coordinatorReadRuntime = runtime as unknown as CoordinatorReadRuntime;
   const queryRuntime: QueryRuntime<StoredEvent> = {
     fetchBackwardEvents: <TOutput = StoredEvent>(
@@ -1886,7 +1929,8 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       fetchBackwardEventsFromReadRuntime<TOutput>(
         coordinatorReadRuntime,
         filters,
-        cloneFetchBackwardOptions(options)
+        cloneFetchBackwardOptions(options),
+        relaySelectionPolicy
       ),
     fetchBackwardFirst: async <TOutput = StoredEvent>(
       filters: readonly RuntimeFilter[],
@@ -1895,7 +1939,8 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       const events = await fetchBackwardEventsFromReadRuntime<TOutput>(
         coordinatorReadRuntime,
         filters,
-        cloneFetchBackwardOptions(options)
+        cloneFetchBackwardOptions(options),
+        relaySelectionPolicy
       );
       return events.at(-1) ?? null;
     },
@@ -1903,7 +1948,10 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
     getEventsDB: () => runtime.getEventsDB()
   };
   const sessionRuntime = runtime as unknown as SessionRuntime<StoredEvent>;
-  const registrySessionRuntime = createRegistryBackedSessionRuntime(sessionRuntime);
+  const registrySessionRuntime = createRegistryBackedSessionRuntime(
+    sessionRuntime,
+    relaySelectionPolicy
+  );
   const materializedSubscriptionRuntime =
     createMaterializedSubscriptionRuntime(registrySessionRuntime);
   const relayObservationRuntime = registrySessionRuntime as RelayObservationRuntime;
@@ -2175,13 +2223,15 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       fetchBackwardEventsFromReadRuntime<never>(
         coordinatorReadRuntime,
         filters,
-        cloneFetchBackwardOptions(options)
+        cloneFetchBackwardOptions(options),
+        relaySelectionPolicy
       ),
     fetchBackwardFirst: async (filters, options) => {
       const events = await fetchBackwardEventsFromReadRuntime<never>(
         coordinatorReadRuntime,
         filters,
-        cloneFetchBackwardOptions(options)
+        cloneFetchBackwardOptions(options),
+        relaySelectionPolicy
       );
       return events.at(-1) ?? null;
     },
@@ -2200,7 +2250,7 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
         publishHintRecorder,
         await buildPublishRelaySendOptions(runtime, {
           event: params,
-          policy: RESONOTE_DEFAULT_RELAY_SELECTION_POLICY
+          policy: relaySelectionPolicy
         })
       ),
     publishSignedEvents: (params) =>
@@ -2212,7 +2262,7 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
         async (event) =>
           buildPublishRelaySendOptions(runtime, {
             event,
-            policy: RESONOTE_DEFAULT_RELAY_SELECTION_POLICY
+            policy: relaySelectionPolicy
           })
       ),
     retryPendingPublishes: async () => {
@@ -2281,7 +2331,8 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
               },
               timeoutMs: 10_000
             }
-          : { timeoutMs: 10_000 }
+          : { timeoutMs: 10_000 },
+        relaySelectionPolicy
       );
       return (events[0] as never) ?? null;
     },

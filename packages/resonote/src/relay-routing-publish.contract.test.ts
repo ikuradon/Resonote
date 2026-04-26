@@ -104,4 +104,45 @@ describe('coordinator publish relay routing', () => {
       }
     });
   });
+
+  it('applies coordinator relay selection policy overrides to publish routing', async () => {
+    const castSigned = vi.fn(async () => {});
+    const event = {
+      id: 'reply',
+      pubkey: 'alice',
+      created_at: 10,
+      kind: 1111,
+      tags: [['e', 'target', 'wss://explicit-target.example']],
+      content: 'reply',
+      sig: 'sig'
+    } satisfies NostrEvent;
+
+    const coordinator = createResonoteCoordinator({
+      runtime: createRuntime(),
+      relaySelectionPolicy: { strategy: 'default-only' },
+      cachedFetchByIdRuntime: {
+        cachedFetchById: async () => ({ event: null, settlement: null }),
+        invalidateFetchByIdCache: () => {}
+      },
+      cachedLatestRuntime: { useCachedLatest: () => null },
+      publishTransportRuntime: { castSigned },
+      pendingPublishQueueRuntime: {
+        addPendingPublish: async () => {},
+        drainPendingPublishes: async () => ({ emissions: [], settledCount: 0, retryingCount: 0 })
+      },
+      relayStatusRuntime: {
+        fetchLatestEvent: async () => null,
+        setDefaultRelays: async () => {}
+      }
+    });
+
+    await coordinator.publishSignedEvent(event as EventParameters);
+
+    expect(castSigned).toHaveBeenCalledWith(event, {
+      on: {
+        relays: ['wss://default.example/'],
+        defaultWriteRelays: false
+      }
+    });
+  });
 });
