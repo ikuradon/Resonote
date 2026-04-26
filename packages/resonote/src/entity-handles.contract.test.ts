@@ -39,6 +39,7 @@ function createCoordinatorFixture(
       readonly source: 'seen' | 'hinted' | 'published' | 'repaired';
       readonly lastSeenAt: number;
     }>;
+    readonly isDeleted?: (id: string, pubkey: string) => Promise<boolean>;
   } = {}
 ) {
   const getEventsDB = vi.fn(async () => ({
@@ -105,6 +106,7 @@ function createCoordinatorFixture(
     },
     entityHandleRuntime: {
       read,
+      isDeleted: options.isDeleted,
       snapshotRelaySet: async () => ({
         subject: { type: 'event', id: 'event'.padEnd(64, '0') },
         readRelays: ['wss://default.example/'],
@@ -285,5 +287,51 @@ describe('UserHandle.fetchProfile', () => {
     expect(result.sourceEvent).toBe(profileEvent);
     expect(result.settlement).toBe(LOCAL_SETTLEMENT);
     expect(result.state).toBe('local');
+  });
+});
+
+describe('AddressableHandle.fetch', () => {
+  it('fetches parameterized replaceable events by kind author and d tag', async () => {
+    const event = makeEvent('c'.repeat(64), {
+      pubkey: 'd'.repeat(64),
+      kind: 30023,
+      tags: [['d', 'article']]
+    });
+    const read = vi.fn(async () => ({ events: [event], settlement: LOCAL_SETTLEMENT }));
+    const { coordinator } = createCoordinatorFixture({ read });
+
+    const result = await coordinator
+      .getAddressable({ kind: 30023, pubkey: 'd'.repeat(64), d: 'article' })
+      .fetch();
+
+    expect(read).toHaveBeenCalledWith(
+      [{ kinds: [30023], authors: ['d'.repeat(64)], '#d': ['article'], limit: 1 }],
+      {},
+      []
+    );
+    expect(result.value).toBe(event);
+    expect(result.state).toBe('local');
+  });
+
+  it('maps proven deletion visibility to deleted state without returning the event value', async () => {
+    const event = makeEvent('e'.repeat(64), {
+      pubkey: 'f'.repeat(64),
+      kind: 30023,
+      tags: [['d', 'deleted']]
+    });
+    const isDeleted = vi.fn(async () => true);
+    const { coordinator } = createCoordinatorFixture({
+      read: vi.fn(async () => ({ events: [event], settlement: LOCAL_SETTLEMENT })),
+      isDeleted
+    });
+
+    const result = await coordinator
+      .getAddressable({ kind: 30023, pubkey: 'f'.repeat(64), d: 'deleted' })
+      .fetch({ cacheOnly: true });
+
+    expect(isDeleted).toHaveBeenCalledWith('e'.repeat(64), 'f'.repeat(64));
+    expect(result.value).toBeNull();
+    expect(result.sourceEvent).toBeNull();
+    expect(result.state).toBe('deleted');
   });
 });
