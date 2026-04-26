@@ -184,23 +184,37 @@ export class DexieEventStore {
   }
 
   async getMaxCreatedAt(kind: number, pubkey?: string): Promise<number | null> {
-    const records = pubkey
-      ? await this.db.events.where('[pubkey+kind]').equals([pubkey, kind]).toArray()
+    const record = pubkey
+      ? await this.db.events
+          .where('[pubkey+kind+created_at]')
+          .between([pubkey, kind, Dexie.minKey], [pubkey, kind, Dexie.maxKey])
+          .reverse()
+          .first()
       : await this.db.events
           .where('[kind+created_at]')
           .between([kind, Dexie.minKey], [kind, Dexie.maxKey])
-          .toArray();
+          .reverse()
+          .first();
 
-    if (records.length === 0) return null;
-    return Math.max(...records.map((record) => record.created_at));
+    return record?.created_at ?? null;
   }
 
   async listOrderedEvents(options: OrderedEventTraversalOptions = {}): Promise<NostrEvent[]> {
     const limit = normalizeTraversalLimit(options.limit);
     if (limit === 0) return [];
 
-    const kindSet = options.kinds?.length ? new Set(options.kinds) : null;
     const direction = options.direction ?? 'asc';
+    const kinds = [...new Set(options.kinds ?? [])];
+
+    if (kinds.length > 0) {
+      const records = (
+        await Promise.all(
+          kinds.map((kind) => listOrderedEventsByKind(this.db, kind, options, limit))
+        )
+      ).flat();
+      return mergeOrderedTraversalRecords(records, direction, limit).map(toNostrEvent);
+    }
+
     const ordered =
       direction === 'desc'
         ? await this.db.events.orderBy('[created_at+id]').reverse().toArray()
@@ -208,7 +222,6 @@ export class DexieEventStore {
 
     return ordered
       .filter((event) => isBeyondCursor(event, options.cursor, direction))
-      .filter((event) => !kindSet || kindSet.has(event.kind))
       .slice(0, limit)
       .map(toNostrEvent);
   }
@@ -606,6 +619,43 @@ function normalizeTraversalLimit(limit: number | undefined): number {
   if (limit === undefined) return Number.POSITIVE_INFINITY;
   if (!Number.isFinite(limit) || limit <= 0) return 0;
   return Math.floor(limit);
+}
+
+async function listOrderedEventsByKind(
+  db: AuftaktDexieDatabase,
+  kind: number,
+  options: OrderedEventTraversalOptions,
+  limit: number
+): Promise<DexieEventRecord[]> {
+  const direction = options.direction ?? 'asc';
+  const collection = db.events
+    .where('[kind+created_at]')
+    .between([kind, Dexie.minKey], [kind, Dexie.maxKey]);
+  const ordered = direction === 'desc' ? collection.reverse() : collection;
+  const records = await ordered.toArray();
+
+  return records
+    .filter((event) => isBeyondCursor(event, options.cursor, direction))
+    .slice(0, limit);
+}
+
+function mergeOrderedTraversalRecords(
+  records: readonly DexieEventRecord[],
+  direction: OrderedEventTraversalDirection,
+  limit: number
+): DexieEventRecord[] {
+  return [...records]
+    .sort((left, right) => {
+      const createdAtDelta =
+        direction === 'desc'
+          ? right.created_at - left.created_at
+          : left.created_at - right.created_at;
+      if (createdAtDelta !== 0) return createdAtDelta;
+      return direction === 'desc'
+        ? right.id.localeCompare(left.id)
+        : left.id.localeCompare(right.id);
+    })
+    .slice(0, limit);
 }
 
 function isBeyondCursor(

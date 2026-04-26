@@ -21,6 +21,16 @@ describe('DexieEventStore schema', () => {
       'replaceable_heads',
       'sync_cursors'
     ]);
+    expect(store.db.events.schema.indexes.map((index) => index.name).sort()).toEqual(
+      [
+        '[created_at+id]',
+        '[kind+created_at]',
+        '[pubkey+kind]',
+        '[pubkey+kind+created_at]',
+        '[pubkey+kind+d_tag]',
+        'tag_values'
+      ].sort()
+    );
     expect(store.db.sync_cursors.schema.indexes.map((index) => index.name).sort()).toEqual(
       [
         '[cursor_created_at+cursor_id]',

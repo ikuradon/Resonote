@@ -125,6 +125,13 @@ export class AuftaktDexieDatabase extends Dexie {
       ...versionOneStores,
       relay_capabilities: 'relay_url,nip11_status,nip11_expires_at,learned_at,updated_at'
     };
+    const versionFourStores = {
+      ...versionTwoStores,
+      events:
+        'id,[pubkey+kind],[pubkey+kind+created_at],[pubkey+kind+d_tag],[kind+created_at],[created_at+id],*tag_values',
+      sync_cursors:
+        'key,relay,request_key,[relay+request_key],updated_at,[cursor_created_at+cursor_id]'
+    };
     this.version(1).stores(versionOneStores);
     this.version(2).stores(versionTwoStores);
     this.version(3).stores({
@@ -132,5 +139,6 @@ export class AuftaktDexieDatabase extends Dexie {
       sync_cursors:
         'key,relay,request_key,[relay+request_key],updated_at,[cursor_created_at+cursor_id]'
     });
+    this.version(4).stores(versionFourStores);
   }
 }
