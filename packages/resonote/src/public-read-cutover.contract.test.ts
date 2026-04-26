@@ -9,6 +9,18 @@ interface RequestRecord {
   readonly emitted: unknown[];
 }
 
+interface NegentropyRequestRecord {
+  readonly relayUrl: string;
+  readonly filter: Record<string, unknown>;
+  readonly initialMessageHex: string;
+}
+
+interface NegentropyFixtureResult {
+  readonly capability: 'supported' | 'unsupported' | 'failed';
+  readonly messageHex?: string;
+  readonly reason?: string;
+}
+
 function createCoordinatorFixture({
   defaultRelays = ['wss://default.example'],
   getById = async () => null,
@@ -17,7 +29,8 @@ function createCoordinatorFixture({
   relayEvents = [],
   putWithReconcile = async () => ({ stored: true, emissions: [] }),
   putQuarantine = async () => {},
-  relayStatusFetchLatestEvent = async () => null
+  relayStatusFetchLatestEvent = async () => null,
+  negentropyResult
 }: {
   defaultRelays?: readonly string[];
   getById?: (id: string) => Promise<unknown>;
@@ -37,8 +50,12 @@ function createCoordinatorFixture({
     pubkey: string,
     kind: number
   ) => Promise<{ tags: string[][]; content: string; created_at: number } | null>;
+  negentropyResult?:
+    | NegentropyFixtureResult
+    | ((request: NegentropyRequestRecord) => Promise<NegentropyFixtureResult>);
 } = {}) {
   const createdRequests: RequestRecord[] = [];
+  const negentropyRequests: NegentropyRequestRecord[] = [];
   const relayStatusLatest = vi.fn(relayStatusFetchLatestEvent);
 
   const coordinator = createResonoteCoordinator({
@@ -60,26 +77,52 @@ function createCoordinatorFixture({
         putWithReconcile: async (event: unknown) => putWithReconcile(event),
         putQuarantine: async (record: unknown) => putQuarantine(record)
       }),
-      getRxNostr: async () => ({
-        use(_req: { emit(input: unknown): void }, options: unknown) {
-          const entry = { options, emitted: [] as unknown[] };
-          createdRequests.push(entry);
-          return {
+      getRxNostr: async () => {
+        const rxNostr: {
+          use(
+            req: { emit(input: unknown): void },
+            options: unknown
+          ): {
             subscribe(observer: {
               next?: (packet: { event: unknown; from?: string }) => void;
               complete?: () => void;
-            }) {
-              queueMicrotask(() => {
-                for (const event of relayEvents) {
-                  observer.next?.({ event, from: 'wss://relay.example' });
-                }
-                observer.complete?.();
-              });
-              return { unsubscribe() {} };
-            }
+            }): { unsubscribe(): void };
+          };
+          requestNegentropySync?(
+            request: NegentropyRequestRecord
+          ): Promise<NegentropyFixtureResult>;
+        } = {
+          use(_req: { emit(input: unknown): void }, options: unknown) {
+            const entry = { options, emitted: [] as unknown[] };
+            createdRequests.push(entry);
+            return {
+              subscribe(observer: {
+                next?: (packet: { event: unknown; from?: string }) => void;
+                complete?: () => void;
+              }) {
+                queueMicrotask(() => {
+                  for (const event of relayEvents) {
+                    observer.next?.({ event, from: 'wss://relay.example' });
+                  }
+                  observer.complete?.();
+                });
+                return { unsubscribe() {} };
+              }
+            };
+          }
+        };
+
+        if (negentropyResult !== undefined) {
+          rxNostr.requestNegentropySync = async (request) => {
+            negentropyRequests.push(request);
+            return typeof negentropyResult === 'function'
+              ? negentropyResult(request)
+              : negentropyResult;
           };
         }
-      }),
+
+        return rxNostr;
+      },
       createRxBackwardReq: () => ({
         emit(input: unknown) {
           createdRequests.at(-1)?.emitted.push(input);
@@ -112,7 +155,7 @@ function createCoordinatorFixture({
     }
   });
 
-  return { coordinator, createdRequests, relayStatusLatest };
+  return { coordinator, createdRequests, relayStatusLatest, negentropyRequests };
 }
 
 describe('@auftakt/resonote public read cutover', () => {
@@ -152,6 +195,78 @@ describe('@auftakt/resonote public read cutover', () => {
     ]);
   });
 
+  it('attempts negentropy before ordinary latest REQ verification', async () => {
+    const relayEvent = finalizeEvent(
+      {
+        kind: 0,
+        content: 'relay metadata via negentropy',
+        tags: [],
+        created_at: 124
+      },
+      RELAY_SECRET_KEY
+    );
+    const materialized: unknown[] = [];
+    const { coordinator, createdRequests, negentropyRequests } = createCoordinatorFixture({
+      relayEvents: [relayEvent],
+      negentropyResult: {
+        capability: 'supported',
+        messageHex: JSON.stringify({ remoteOnlyIds: [relayEvent.id] })
+      },
+      putWithReconcile: async (event) => {
+        materialized.push(event);
+        return { stored: true, emissions: [] };
+      }
+    });
+
+    const result = await coordinator.fetchLatestEvent(relayEvent.pubkey, 0);
+
+    expect(result).toMatchObject({
+      content: 'relay metadata via negentropy',
+      created_at: 124,
+      tags: []
+    });
+    expect(negentropyRequests).toEqual([
+      {
+        relayUrl: 'wss://default.example/',
+        filter: { kinds: [0], authors: [relayEvent.pubkey], limit: 1 },
+        initialMessageHex: '[]'
+      }
+    ]);
+    expect(createdRequests[0]?.emitted).toEqual([{ ids: [relayEvent.id] }]);
+    expect(materialized).toEqual([relayEvent]);
+  });
+
+  it('falls back to REQ when ordinary latest negentropy fails', async () => {
+    const relayEvent = finalizeEvent(
+      {
+        kind: 0,
+        content: 'relay metadata via fallback',
+        tags: [],
+        created_at: 125
+      },
+      RELAY_SECRET_KEY
+    );
+    const { coordinator, createdRequests, negentropyRequests } = createCoordinatorFixture({
+      relayEvents: [relayEvent],
+      negentropyResult: {
+        capability: 'failed',
+        reason: 'timeout'
+      }
+    });
+
+    const result = await coordinator.fetchLatestEvent(relayEvent.pubkey, 0);
+
+    expect(result).toMatchObject({
+      content: 'relay metadata via fallback',
+      created_at: 125,
+      tags: []
+    });
+    expect(negentropyRequests).toHaveLength(1);
+    expect(createdRequests[0]?.emitted).toEqual([
+      { kinds: [0], authors: [relayEvent.pubkey], limit: 1 }
+    ]);
+  });
+
   it('quarantines malformed latest relay candidates and returns null', async () => {
     const quarantined: unknown[] = [];
     const materialized: unknown[] = [];
@@ -174,11 +289,50 @@ describe('@auftakt/resonote public read cutover', () => {
     expect(materialized).toEqual([]);
     expect(quarantined).toEqual([
       expect.objectContaining({
-        relayUrl: 'wss://relay.example',
+        relayUrl: 'wss://default.example/',
         eventId: 'not-a-valid-event',
         rawEvent: { id: 'not-a-valid-event' }
       })
     ]);
+  });
+
+  it('uses capability-aware gateway for backward event reads', async () => {
+    const relayEvent = finalizeEvent(
+      {
+        kind: 1,
+        content: 'backward relay event',
+        tags: [],
+        created_at: 126
+      },
+      RELAY_SECRET_KEY
+    );
+    const materialized: unknown[] = [];
+    const { coordinator, createdRequests, negentropyRequests } = createCoordinatorFixture({
+      relayEvents: [relayEvent],
+      negentropyResult: {
+        capability: 'supported',
+        messageHex: JSON.stringify({ remoteOnlyIds: [relayEvent.id] })
+      },
+      putWithReconcile: async (event) => {
+        materialized.push(event);
+        return { stored: true, emissions: [] };
+      }
+    });
+
+    const events = await coordinator.fetchBackwardEvents<typeof relayEvent>([
+      { kinds: [1], limit: 20 }
+    ]);
+
+    expect(events).toEqual([relayEvent]);
+    expect(negentropyRequests).toEqual([
+      {
+        relayUrl: 'wss://default.example/',
+        filter: { kinds: [1], limit: 20 },
+        initialMessageHex: '[]'
+      }
+    ]);
+    expect(createdRequests[0]?.emitted).toEqual([{ ids: [relayEvent.id] }]);
+    expect(materialized).toEqual([relayEvent]);
   });
 
   it('still verifies cached public by-id reads with temporary relay hints', async () => {
@@ -201,12 +355,23 @@ describe('@auftakt/resonote public read cutover', () => {
     ]);
 
     expect(result).toEqual(localEvent);
-    expect(createdRequests[0]?.options).toEqual({
-      on: {
-        relays: ['wss://temporary.example/', 'wss://default.example/'],
-        defaultReadRelays: false
+    expect(createdRequests.map((request) => request.options)).toEqual([
+      {
+        on: {
+          relays: ['wss://temporary.example/'],
+          defaultReadRelays: false
+        }
+      },
+      {
+        on: {
+          relays: ['wss://default.example/'],
+          defaultReadRelays: false
+        }
       }
-    });
-    expect(createdRequests[0]?.emitted).toEqual([{ ids: [localEvent.id] }]);
+    ]);
+    expect(createdRequests.map((request) => request.emitted)).toEqual([
+      [{ ids: [localEvent.id] }],
+      [{ ids: [localEvent.id] }]
+    ]);
   });
 });

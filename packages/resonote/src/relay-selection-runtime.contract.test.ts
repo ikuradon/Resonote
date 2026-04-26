@@ -283,12 +283,20 @@ describe('coordinator read relay selection integration', () => {
 
     await coordinator.fetchNostrEventById('target', []);
 
-    expect(createdRequests[0]?.options).toEqual({
-      on: {
-        relays: ['wss://default.example/', 'wss://durable.example/'],
-        defaultReadRelays: false
+    expect(createdRequests.map((request) => request.options)).toEqual([
+      {
+        on: {
+          relays: ['wss://default.example/'],
+          defaultReadRelays: false
+        }
+      },
+      {
+        on: {
+          relays: ['wss://durable.example/'],
+          defaultReadRelays: false
+        }
       }
-    });
+    ]);
   });
 
   it('applies coordinator relay selection policy overrides to by-id reads', async () => {
@@ -466,11 +474,25 @@ describe('coordinator read relay selection integration', () => {
 
     await coordinator.fetchNostrEventById('target', ['wss://temporary.example']);
 
-    expect(createdRequests[0]?.options).toEqual({
-      on: {
-        relays: ['wss://temporary.example/', 'wss://default.example/', 'wss://durable.example/'],
-        defaultReadRelays: false
+    expect(createdRequests.map((request) => request.options)).toEqual([
+      {
+        on: {
+          relays: ['wss://temporary.example/'],
+          defaultReadRelays: false
+        }
+      },
+      {
+        on: {
+          relays: ['wss://default.example/'],
+          defaultReadRelays: false
+        }
+      },
+      {
+        on: {
+          relays: ['wss://durable.example/'],
+          defaultReadRelays: false
+        }
       }
-    });
+    ]);
   });
 });

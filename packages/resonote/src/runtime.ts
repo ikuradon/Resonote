@@ -960,13 +960,8 @@ function createRuntimeEventCoordinator(
   return createEventCoordinator({
     materializerQueue: createMaterializerQueue(),
     relayGateway: {
-      verify: async (filters, verifyOptions) => {
-        const candidates = await fetchRelayCandidateEventsFromRuntime(runtime, filters, {
-          overlay: options?.overlay,
-          rejectOnError: options?.rejectOnError,
-          timeoutMs: options?.timeoutMs,
-          scope: `coordinator:runtime-read:${verifyOptions.reason}`
-        });
+      verify: async (filters) => {
+        const candidates = await verifyOrdinaryReadRelayCandidates(runtime, filters, options);
         return { candidates };
       }
     },
@@ -974,6 +969,162 @@ function createRuntimeEventCoordinator(
     store: createCoordinatorStore(runtime),
     relay: {
       verify: async () => []
+    }
+  });
+}
+
+function createOrdinaryReadRelayGateway(
+  runtime: CoordinatorReadRuntime,
+  options?: FetchBackwardOptions
+) {
+  return createRelayGateway({
+    requestNegentropySync: async ({ relayUrl, filter, initialMessageHex }) => {
+      const session = (await runtime.getRxNostr()) as Partial<NegentropySessionRuntime>;
+      if (typeof session.requestNegentropySync !== 'function') {
+        return {
+          capability: 'unsupported' as const,
+          reason: 'missing-negentropy'
+        };
+      }
+
+      try {
+        return await session.requestNegentropySync({
+          relayUrl,
+          filter,
+          initialMessageHex
+        });
+      } catch (error) {
+        return {
+          capability: 'failed' as const,
+          reason: error instanceof Error ? error.message : 'negentropy-error'
+        };
+      }
+    },
+    fetchByReq: async (filters, requestOptions) =>
+      fetchRelayCandidateEventsFromRelay(
+        runtime as ResonoteRuntime,
+        filters,
+        requestOptions.relayUrl,
+        options?.timeoutMs,
+        'coordinator:ordinary-read:gateway'
+      ),
+    listLocalRefs: async (filters) => {
+      const db = await runtime.getEventsDB();
+      return filterNegentropyEventRefs(await db.listNegentropyEventRefs(), filters);
+    }
+  });
+}
+
+async function verifyOrdinaryReadRelayCandidates(
+  runtime: CoordinatorReadRuntime,
+  filters: readonly RuntimeFilter[],
+  options: FetchBackwardOptions | undefined
+): Promise<Array<{ event: unknown; relayUrl: string }>> {
+  if (filters.length === 0) return [];
+
+  const relayUrls = await selectOrdinaryReadVerificationRelays(runtime, options);
+  if (relayUrls.length === 0) {
+    return fetchRelayCandidateEventsFromDefaultReadRelays(runtime, filters, options);
+  }
+
+  const gateway = createOrdinaryReadRelayGateway(runtime, options);
+  const results = await Promise.all(
+    relayUrls.map(async (relayUrl) => {
+      try {
+        return await gateway.verify(filters, { relayUrl });
+      } catch (error) {
+        if (options?.rejectOnError) throw error;
+        return { strategy: 'fallback-req' as const, candidates: [] };
+      }
+    })
+  );
+
+  return results.flatMap((result) => result.candidates);
+}
+
+async function selectOrdinaryReadVerificationRelays(
+  runtime: CoordinatorReadRuntime,
+  options: FetchBackwardOptions | undefined
+): Promise<string[]> {
+  const relays: string[] = [];
+  const addRelays = (values: readonly string[]) => {
+    for (const relay of values) {
+      if (!relays.includes(relay)) relays.push(relay);
+    }
+  };
+
+  if (options?.overlay) {
+    addRelays(options.overlay.relays);
+    if (options.overlay.includeDefaultReadRelays !== true) return relays;
+  }
+
+  if (typeof runtime.getDefaultRelays === 'function') {
+    addRelays(await runtime.getDefaultRelays());
+  }
+
+  if (relays.length > 0) return relays;
+
+  const session = (await runtime.getRxNostr()) as Partial<{
+    getDefaultRelays(): Record<string, { read: boolean }>;
+  }>;
+  const sessionDefaults = Object.entries(session.getDefaultRelays?.() ?? {})
+    .filter(([, config]) => config.read)
+    .map(([relayUrl]) => relayUrl);
+  addRelays(sessionDefaults);
+
+  return relays;
+}
+
+async function fetchRelayCandidateEventsFromDefaultReadRelays(
+  runtime: CoordinatorReadRuntime,
+  filters: readonly RuntimeFilter[],
+  options: FetchBackwardOptions | undefined
+): Promise<Array<{ event: unknown; relayUrl: string }>> {
+  if (filters.length === 0) return [];
+
+  const rxNostr = await runtime.getRxNostr();
+  const req = runtime.createRxBackwardReq({
+    requestKey: createRuntimeRequestKey({
+      mode: 'backward',
+      filters,
+      scope: 'coordinator:ordinary-read:default-read-relays'
+    })
+  });
+  const candidates: Array<{ event: unknown; relayUrl: string }> = [];
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timeout = setTimeout(() => finish(), options?.timeoutMs ?? 10_000);
+    const sub = rxNostr.use(req).subscribe({
+      next: (packet) => {
+        candidates.push({
+          event: packet.event,
+          relayUrl: typeof packet.from === 'string' ? packet.from : ''
+        });
+      },
+      complete: () => finish(),
+      error: (error) => {
+        if (options?.rejectOnError) {
+          finish(error);
+          return;
+        }
+        finish();
+      }
+    });
+
+    for (const filter of filters) req.emit(filter);
+    req.over();
+
+    function finish(error?: unknown) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      sub.unsubscribe();
+      if (error !== undefined) {
+        reject(error);
+        return;
+      }
+      resolve(candidates);
     }
   });
 }
@@ -3087,75 +3238,6 @@ async function fetchRelayCandidateEventsFromRelay(
       settled = true;
       clearTimeout(timeout);
       sub.unsubscribe();
-      resolve(candidates);
-    }
-  });
-}
-
-async function fetchRelayCandidateEventsFromRuntime(
-  runtime: CoordinatorReadRuntime,
-  filters: readonly RuntimeFilter[],
-  options: {
-    readonly overlay?: RelayReadOverlayOptions;
-    readonly rejectOnError?: boolean;
-    readonly timeoutMs?: number;
-    readonly scope: string;
-  }
-): Promise<Array<{ event: unknown; relayUrl: string }>> {
-  if (filters.length === 0) return [];
-
-  const rxNostr = await runtime.getRxNostr();
-  const req = runtime.createRxBackwardReq({
-    requestKey: createRuntimeRequestKey({
-      mode: 'backward',
-      filters,
-      overlay: options.overlay,
-      scope: options.scope
-    })
-  });
-  const candidates: Array<{ event: unknown; relayUrl: string }> = [];
-  const useOptions =
-    options.overlay && options.overlay.relays.length > 0
-      ? {
-          on: {
-            relays: options.overlay.relays,
-            defaultReadRelays: options.overlay.includeDefaultReadRelays ?? true
-          }
-        }
-      : undefined;
-
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const timeout = setTimeout(() => finish(), options.timeoutMs ?? 10_000);
-    const sub = rxNostr.use(req, useOptions).subscribe({
-      next: (packet) => {
-        candidates.push({
-          event: packet.event,
-          relayUrl: typeof packet.from === 'string' ? packet.from : ''
-        });
-      },
-      complete: () => finish(),
-      error: (error) => {
-        if (options.rejectOnError) {
-          finish(error);
-          return;
-        }
-        finish();
-      }
-    });
-
-    for (const filter of filters) req.emit(filter);
-    req.over();
-
-    function finish(error?: unknown) {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      sub.unsubscribe();
-      if (error !== undefined) {
-        reject(error);
-        return;
-      }
       resolve(candidates);
     }
   });
