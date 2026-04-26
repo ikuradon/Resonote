@@ -694,4 +694,58 @@ describe('@auftakt/resonote relay repair contract', () => {
       kind: 5
     });
   });
+
+  it('uses the saved cursor as the negentropy lower bound after runtime recreation', async () => {
+    const filter = { authors: ['pubkey-a'], kinds: [1] };
+    const cursorEvent = makeEvent(hexId('7'), { created_at: 700 });
+    const missingEvent = makeEvent(hexId('8'), { created_at: 800 });
+    const dbName = `relay-repair-negentropy-cursor-${Date.now()}-${Math.random()}`;
+    const setup = await createRuntimeFixture({
+      dbName,
+      initialEvents: [cursorEvent]
+    });
+    const requestKey = createNegentropyRepairRequestKey({
+      filters: [filter],
+      relayUrl: repairRelayUrl,
+      scope: 'timeline:repair:negentropy'
+    });
+
+    await setup.eventsDB.putSyncCursor({
+      key: repairCursorKey(repairRelayUrl, requestKey),
+      relay: repairRelayUrl,
+      requestKey,
+      cursor: {
+        created_at: cursorEvent.created_at,
+        id: cursorEvent.id
+      },
+      updatedAt: 1
+    });
+    setup.eventsDB.db.close();
+
+    const restarted = await createRuntimeFixture({
+      dbName,
+      negentropyResult: {
+        capability: 'supported',
+        messageHex: encodeNegentropyIdList([cursorEvent.id, missingEvent.id])
+      },
+      relayEventsById: {
+        [missingEvent.id]: missingEvent
+      }
+    });
+
+    const result = await repairEventsFromRelay(restarted.runtime, {
+      filters: [filter],
+      relayUrl: repairRelayUrl,
+      timeoutMs: 10
+    });
+
+    expect(restarted.negentropyRequests).toHaveLength(1);
+    expect(restarted.negentropyRequests[0]?.filter).toMatchObject({
+      authors: ['pubkey-a'],
+      kinds: [1],
+      since: cursorEvent.created_at
+    });
+    expect(result.repairedIds).toEqual([missingEvent.id]);
+    expect(restarted.materialized).toEqual([missingEvent]);
+  });
 });

@@ -3256,10 +3256,17 @@ export async function repairEventsFromRelay(
     return fallbackRepairEventsFromRelay(runtime, options, 'unsupported');
   }
 
+  const cursorState = createRepairSyncCursorState({
+    relayUrl: options.relayUrl,
+    filters: options.filters,
+    scope: 'timeline:repair:negentropy'
+  });
+  const cursor = await loadRepairSyncCursor(eventsDB, cursorState);
+  const filters = withRepairSyncCursorFilters(options.filters, cursor);
   const localRefs = await eventsDB.listNegentropyEventRefs();
   const missingIds = new Set<string>();
 
-  for (const filter of options.filters) {
+  for (const filter of filters) {
     const selectedLocal = filterNegentropyEventRefs(localRefs, [filter]);
 
     let transportResult: NegentropyTransportResult;
@@ -3311,8 +3318,9 @@ export async function repairEventsFromRelay(
     runtime,
     options.relayUrl,
     repairCandidates,
-    null
+    cursor
   );
+  await advanceRepairSyncCursor(eventsDB, cursorState, materialized.repairedEvents);
 
   return {
     strategy: 'negentropy',
