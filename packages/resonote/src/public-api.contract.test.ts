@@ -48,7 +48,11 @@ describe('@auftakt/resonote public api contract', () => {
       /^getRxNostr$/,
       /^useReq/i,
       /^rawRequest/i,
-      /^relayRequest/i
+      /^relayRequest/i,
+      /^getRelayHints$/,
+      /^recordRelayHint$/,
+      /^buildReadRelayOverlay$/,
+      /^buildPublishRelaySendOptions$/
     ];
 
     for (const name of exportNames) {
@@ -56,6 +60,7 @@ describe('@auftakt/resonote public api contract', () => {
         expect(name).not.toMatch(pattern);
       }
     }
+    expect(exportNames).not.toContain('RESONOTE_DEFAULT_RELAY_SELECTION_POLICY');
   });
 
   it('does not expose raw negentropy protocol names', async () => {

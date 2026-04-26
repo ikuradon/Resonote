@@ -66,8 +66,10 @@ The strict redesign matrix is checked by `pnpm run check:auftakt:nips` using
   は app-specific extension として別扱いにする。
 - **NIP-77** は `packages/resonote/src/public-api.contract.test.ts` を leak
   guard として併記し、internal-only claim を proof-backed に保つ。
-- **NIP-65** は `src/features/relays/application/relay-actions.test.ts` を write
-  proof、`src/shared/browser/relays-fetch.test.ts` を read proof
+- **NIP-65** は `packages/core/src/relay-selection.contract.test.ts` を
+  parser / strategy proof、`packages/resonote/src/relay-selection-runtime.contract.test.ts`
+  を coordinator input proof、`src/features/relays/application/relay-actions.test.ts`
+  を write proof、`src/shared/browser/relays-fetch.test.ts` を read proof
   として分離し、kind:3 fallback は `kind:10002` に relay entry がない場合に限る
   bounded behavior として扱う。
 - Task 8 監査では `buildCommentContentFilters()`, `startCommentSubscription()`,
