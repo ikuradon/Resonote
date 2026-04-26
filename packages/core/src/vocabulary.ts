@@ -100,6 +100,24 @@ export interface ReadSettlement {
   readonly reason: ReadSettlementReason;
 }
 
+export type PublishSettlementPhase = 'pending' | 'partial' | 'settled';
+export type PublishSettlementState = 'confirmed' | 'queued' | 'retrying' | 'rejected';
+export type PublishSettlementDurability = 'local' | 'queued' | 'relay' | 'degraded';
+export type PublishSettlementReason =
+  | 'local-materialized'
+  | 'relay-accepted'
+  | 'queued-offline'
+  | 'retrying-offline'
+  | 'rejected-offline'
+  | 'materialization-degraded';
+
+export interface PublishSettlement {
+  readonly phase: PublishSettlementPhase;
+  readonly state: PublishSettlementState;
+  readonly durability: PublishSettlementDurability;
+  readonly reason: PublishSettlementReason;
+}
+
 export type NegentropyCapability = 'supported' | 'unsupported' | 'failed';
 
 export interface NegentropyTransportResult {

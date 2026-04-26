@@ -169,8 +169,8 @@ export {
   startMergedLiveSubscription,
   subscribeDualFilterStreams
 } from './request-planning.js';
-export type { ReadSettlementReducerInput } from './settlement.js';
-export { reduceReadSettlement } from './settlement.js';
+export type { PublishSettlementReducerInput, ReadSettlementReducerInput } from './settlement.js';
+export { reducePublishSettlement, reduceReadSettlement } from './settlement.js';
 export type {
   AggregateSessionReason,
   AggregateSessionState,
@@ -188,6 +188,11 @@ export type {
   ProjectionRegistry,
   ProjectionSortCapability,
   ProjectionTraversalOptions,
+  PublishSettlement,
+  PublishSettlementDurability,
+  PublishSettlementPhase,
+  PublishSettlementReason,
+  PublishSettlementState,
   QueryDescriptor,
   ReadSettlement,
   ReadSettlementLocalProvenance,
