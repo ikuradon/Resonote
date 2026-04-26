@@ -194,3 +194,52 @@ describe('entity handle settlement state derivation', () => {
     }
   );
 });
+
+describe('EventHandle.fetch', () => {
+  it('delegates by-id reads with temporary relay hints and returns settlement state', async () => {
+    const event = makeEvent('6'.repeat(64), { content: 'from relay' });
+    const read = vi.fn(async () => ({
+      events: [event],
+      settlement: reduceReadSettlement({
+        localSettled: true,
+        relaySettled: true,
+        relayRequired: true,
+        relayHit: true
+      })
+    }));
+    const { coordinator } = createCoordinatorFixture({ read });
+
+    const result = await coordinator
+      .getEvent({ id: '6'.repeat(64), relayHints: ['wss://temporary.example/', 'not a relay'] })
+      .fetch({ timeoutMs: 1234 });
+
+    expect(read).toHaveBeenCalledWith([{ ids: ['6'.repeat(64)] }], { timeoutMs: 1234 }, [
+      'wss://temporary.example/'
+    ]);
+    expect(result).toMatchObject({
+      value: event,
+      sourceEvent: event,
+      state: 'relay-confirmed',
+      settlement: { phase: 'settled', provenance: 'relay', reason: 'relay-repair' }
+    });
+  });
+
+  it('returns missing state for settled misses', async () => {
+    const { coordinator } = createCoordinatorFixture({
+      read: vi.fn(async () => ({
+        events: [],
+        settlement: reduceReadSettlement({
+          localSettled: true,
+          relaySettled: true,
+          relayRequired: true
+        })
+      }))
+    });
+
+    const result = await coordinator.getEvent({ id: '7'.repeat(64) }).fetch();
+
+    expect(result.value).toBeNull();
+    expect(result.sourceEvent).toBeNull();
+    expect(result.state).toBe('missing');
+  });
+});
