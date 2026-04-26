@@ -125,6 +125,14 @@ interface CoordinatorReadRuntime {
       readonly source: 'seen' | 'hinted' | 'published' | 'repaired';
       readonly lastSeenAt: number;
     }): Promise<void>;
+    getRelayHints?(eventId: string): Promise<
+      Array<{
+        readonly eventId: string;
+        readonly relayUrl: string;
+        readonly source: 'seen' | 'hinted' | 'published' | 'repaired';
+        readonly lastSeenAt: number;
+      }>
+    >;
     putQuarantine?(record: QuarantineRecord): Promise<void>;
     put(event: StoredEvent): Promise<unknown>;
     putWithReconcile?(event: StoredEvent): Promise<{
@@ -136,6 +144,7 @@ interface CoordinatorReadRuntime {
     putRelayCapability?(record: RelayCapabilityRecord): Promise<void>;
   }>;
   getRxNostr(): Promise<NegentropySessionRuntime>;
+  getDefaultRelays?(): Promise<readonly string[]> | readonly string[];
   createRxBackwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): {
     emit(input: unknown): void;
     over(): void;
@@ -1308,6 +1317,14 @@ export interface ResonoteRuntime {
       readonly source: 'seen' | 'hinted' | 'published' | 'repaired';
       readonly lastSeenAt: number;
     }): Promise<void>;
+    getRelayHints?(eventId: string): Promise<
+      Array<{
+        readonly eventId: string;
+        readonly relayUrl: string;
+        readonly source: 'seen' | 'hinted' | 'published' | 'repaired';
+        readonly lastSeenAt: number;
+      }>
+    >;
     deleteByIds(ids: string[]): Promise<void>;
     clearAll(): Promise<void>;
     put(event: StoredEvent): Promise<unknown>;
@@ -1320,6 +1337,7 @@ export interface ResonoteRuntime {
     putRelayCapability?(record: RelayCapabilityRecord): Promise<void>;
   }>;
   getRxNostr(): Promise<unknown>;
+  getDefaultRelays?(): Promise<readonly string[]> | readonly string[];
   createRxBackwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): unknown;
   createRxForwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): unknown;
   uniq(): unknown;

@@ -98,6 +98,15 @@ const CONSERVATIVE_PRIORITIES: Record<RelayCandidateSource, number> = {
   audience: 20
 };
 
+const CONSERVATIVE_WRITE_PRIORITIES: Record<RelayCandidateSource, number> = {
+  'temporary-hint': 60,
+  'nip65-write': 60,
+  default: 50,
+  'durable-hint': 40,
+  audience: 20,
+  'nip65-read': 10
+};
+
 export function normalizeRelaySelectionPolicy(
   options: RelaySelectionPolicyOptions
 ): NormalizedRelaySelectionPolicy {
@@ -254,7 +263,9 @@ function sortCandidates(
   policy: NormalizedRelaySelectionPolicy
 ): RelaySelectionCandidate[] {
   return [...candidates].sort((left, right) => {
-    const priority = sourcePriority(policy, right.source) - sourcePriority(policy, left.source);
+    const priority =
+      sourcePriority(policy, right.source, right.role) -
+      sourcePriority(policy, left.source, left.role);
     if (priority !== 0) return priority;
     const roleOrder = rolePriority(left.role) - rolePriority(right.role);
     if (roleOrder !== 0) return roleOrder;
@@ -264,9 +275,11 @@ function sortCandidates(
 
 function sourcePriority(
   policy: NormalizedRelaySelectionPolicy,
-  source: RelayCandidateSource
+  source: RelayCandidateSource,
+  role: RelaySelectionRole
 ): number {
   if (policy.strategy === 'strict-outbox') return STRICT_PRIORITIES[source];
+  if (role === 'write') return CONSERVATIVE_WRITE_PRIORITIES[source];
   return CONSERVATIVE_PRIORITIES[source];
 }
 
