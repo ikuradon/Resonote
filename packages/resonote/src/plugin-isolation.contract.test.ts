@@ -73,6 +73,12 @@ describe('@auftakt/resonote plugin isolation', () => {
     ]);
     expect(observedKeys[0]).not.toContain('getRxNostr');
     expect(observedKeys[0]).not.toContain('getEventsDB');
+    expect(observedKeys[0]).not.toContain('getEvent');
+    expect(observedKeys[0]).not.toContain('getUser');
+    expect(observedKeys[0]).not.toContain('getAddressable');
+    expect(observedKeys[0]).not.toContain('getRelaySet');
+    expect(observedKeys[0]).not.toContain('getRelayHints');
+    expect(observedKeys[0]).not.toContain('openEventsDb');
   });
 
   it('disables a throwing plugin without crashing later registrations', async () => {

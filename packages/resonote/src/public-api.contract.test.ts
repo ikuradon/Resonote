@@ -36,11 +36,17 @@ describe('@auftakt/resonote public api contract', () => {
   it('does not expose raw request-style runtime API names', async () => {
     const mod = await import('@auftakt/resonote');
     const exportNames = Object.keys(mod);
+    const source = readFileSync(packageIndexPath, 'utf8');
 
     expect(exportNames).toContain('createResonoteCoordinator');
     expect(exportNames).toContain('registerPlugin');
     expect(exportNames).toContain('RESONOTE_COORDINATOR_PLUGIN_API_VERSION');
     expect(exportNames).not.toContain('ResonoteRuntime');
+    expect(source).toMatch(/\bEventHandle\b/);
+    expect(source).toMatch(/\bUserHandle\b/);
+    expect(source).toMatch(/\bAddressableHandle\b/);
+    expect(source).toMatch(/\bRelaySetHandle\b/);
+    expect(source).toMatch(/\bRelayHintsHandle\b/);
 
     const forbidden = [
       /^createRxBackwardReq$/,
@@ -64,6 +70,13 @@ describe('@auftakt/resonote public api contract', () => {
     expect(exportNames).not.toContain('buildReadRelayOverlay');
     expect(exportNames).not.toContain('buildPublishRelaySendOptions');
     expect(exportNames).not.toContain('RESONOTE_DEFAULT_RELAY_SELECTION_POLICY');
+    expect(exportNames).not.toContain('getEvent');
+    expect(exportNames).not.toContain('getUser');
+    expect(exportNames).not.toContain('getAddressable');
+    expect(exportNames).not.toContain('getRelaySet');
+    expect(exportNames).not.toContain('getRelayHints');
+    expect(exportNames).not.toContain('createEntityHandleFactories');
+    expect(exportNames).not.toContain('buildRelaySetSnapshot');
   });
 
   it('does not expose raw negentropy protocol names', async () => {
