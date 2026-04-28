@@ -15,6 +15,7 @@ import {
   registerPlugin as registerPluginHelper,
   type RelayCapabilityPacket,
   type RelayCapabilitySnapshot,
+  type RelayMetricSnapshot,
   RESONOTE_COORDINATOR_PLUGIN_API_VERSION,
   type ResonoteCoordinator,
   type ResonoteCoordinatorPlugin,
@@ -24,6 +25,7 @@ import {
   retryPendingPublishes as retryPendingPublishesHelper,
   setDefaultRelays as setDefaultRelaysHelper,
   snapshotRelayCapabilities as snapshotRelayCapabilitiesHelper,
+  snapshotRelayMetrics as snapshotRelayMetricsHelper,
   startCommentDeletionReconcile as startCommentDeletionReconcileImpl,
   startCommentSubscription as startCommentSubscriptionImpl,
   startMergedCommentSubscription as startMergedCommentSubscriptionImpl,
@@ -127,6 +129,7 @@ export type {
   EmojiCategory,
   RelayCapabilityPacket,
   RelayCapabilitySnapshot,
+  RelayMetricSnapshot,
   SubscriptionHandle,
   UseCachedLatestResult
 };
@@ -391,6 +394,10 @@ export async function snapshotRelayCapabilities(
   urls: readonly string[]
 ): Promise<RelayCapabilitySnapshot[]> {
   return snapshotRelayCapabilitiesHelper(coordinator, urls);
+}
+
+export async function snapshotRelayMetrics(): Promise<RelayMetricSnapshot[]> {
+  return snapshotRelayMetricsHelper(coordinator);
 }
 
 export async function observeRelayCapabilities(onPacket: (packet: RelayCapabilityPacket) => void) {

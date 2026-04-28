@@ -2,6 +2,8 @@ import type {
   NamedRegistration,
   NamedRegistrationRegistry,
   NegentropyTransportResult,
+  Nip66RelayDiscovery,
+  Nip66RelayMonitorAnnouncement,
   OrderedEventCursor,
   ProjectionDefinition,
   ReadSettlement,
@@ -23,6 +25,7 @@ import { createNamedRegistrationRegistry, createProjectionRegistry } from '@auft
 import {
   buildRequestExecutionPlan,
   cacheEvent,
+  calculateNip66RelayScore,
   createNegentropyRepairRequestKey,
   createRuntimeRequestKey,
   type EventSubscriptionRefs as CommentSubscriptionRefs,
@@ -34,9 +37,13 @@ import {
   type LatestEventSnapshot,
   loadEventSubscriptionDeps,
   type NegentropyEventRef,
+  NIP66_RELAY_DISCOVERY_KIND,
+  NIP66_RELAY_MONITOR_ANNOUNCEMENT_KIND,
   observeRelayStatuses as observeRelayStatusesImpl,
   type OfflineDeliveryDecision,
   parseNip65RelayListTags,
+  parseNip66RelayDiscoveryEvent,
+  parseNip66RelayMonitorAnnouncement,
   type QueryRuntime,
   type ReconcileEmission,
   reconcileNegentropyRepairSubjects,
@@ -145,6 +152,23 @@ export interface FetchBackwardOptions {
   readonly overlay?: RelayReadOverlayOptions;
   readonly timeoutMs?: number;
   readonly rejectOnError?: boolean;
+}
+
+export interface RelayMetricSnapshot {
+  readonly relayUrl: string;
+  readonly monitorPubkey: string;
+  readonly score: number;
+  readonly updatedAt: number;
+  readonly supportedNips: readonly number[];
+  readonly requirements: readonly string[];
+  readonly networkTypes: readonly string[];
+  readonly relayTypes: readonly string[];
+  readonly topics: readonly string[];
+  readonly geohashes: readonly string[];
+  readonly rttOpenMs: number | null;
+  readonly rttReadMs: number | null;
+  readonly rttWriteMs: number | null;
+  readonly monitorAnnouncement: Nip66RelayMonitorAnnouncement | null;
 }
 
 export interface CachedFetchByIdRuntime<TResult> {
@@ -1835,6 +1859,7 @@ export interface ResonoteCoordinator<TResult = unknown, TLatestResult = unknown>
   observeRelayCapabilities(
     onPacket: (packet: RelayCapabilityPacket) => void
   ): Promise<{ unsubscribe(): void }>;
+  snapshotRelayMetrics(): Promise<RelayMetricSnapshot[]>;
   fetchRelayListEvents(
     pubkey: string,
     relayListKind: number,
@@ -2748,6 +2773,7 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
     observeRelayStatuses: (onPacket) => observeRelayStatusesImpl(relayObservationRuntime, onPacket),
     snapshotRelayCapabilities: (urls) => relayCapabilityRegistry.snapshot(urls),
     observeRelayCapabilities: (onPacket) => relayCapabilityRegistry.observe(onPacket),
+    snapshotRelayMetrics: () => snapshotRelayMetricsFromStore(runtime),
     fetchRelayListEvents: (pubkey, relayListKind, followKind) =>
       getRegisteredFlow<RelayListFlow>(flowRegistry, RELAY_LIST_FLOW).fetchRelayListEvents(
         pubkey,
@@ -2796,6 +2822,46 @@ export function useCachedLatest<TResult>(
     return createLatestReadDriver(coordinatorOrRuntime, pubkey, kind) as TResult;
   }
   return coordinatorOrRuntime.useCachedLatest(pubkey, kind);
+}
+
+async function snapshotRelayMetricsFromStore(runtime: {
+  getEventsDB(): Promise<{ getAllByKind(kind: number): Promise<StoredEvent[]> }>;
+}): Promise<RelayMetricSnapshot[]> {
+  const db = await runtime.getEventsDB();
+  const [discoveryEvents, monitorEvents] = await Promise.all([
+    db.getAllByKind(NIP66_RELAY_DISCOVERY_KIND),
+    db.getAllByKind(NIP66_RELAY_MONITOR_ANNOUNCEMENT_KIND)
+  ]);
+  const announcements = new Map<string, Nip66RelayMonitorAnnouncement>();
+  for (const event of monitorEvents) {
+    const announcement = parseNip66RelayMonitorAnnouncement(event);
+    if (!announcement) continue;
+    const existing = announcements.get(announcement.monitorPubkey);
+    if (!existing || existing.createdAt < announcement.createdAt) {
+      announcements.set(announcement.monitorPubkey, announcement);
+    }
+  }
+
+  return discoveryEvents
+    .map(parseNip66RelayDiscoveryEvent)
+    .filter((discovery): discovery is Nip66RelayDiscovery => discovery !== null)
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .map((discovery) => ({
+      relayUrl: discovery.relayUrl,
+      monitorPubkey: discovery.monitorPubkey,
+      score: calculateNip66RelayScore(discovery),
+      updatedAt: discovery.createdAt,
+      supportedNips: discovery.supportedNips,
+      requirements: discovery.requirements,
+      networkTypes: discovery.networkTypes,
+      relayTypes: discovery.relayTypes,
+      topics: discovery.topics,
+      geohashes: discovery.geohashes,
+      rttOpenMs: discovery.rttOpenMs,
+      rttReadMs: discovery.rttReadMs,
+      rttWriteMs: discovery.rttWriteMs,
+      monitorAnnouncement: announcements.get(discovery.monitorPubkey) ?? null
+    }));
 }
 
 export async function castSigned(
@@ -2853,6 +2919,12 @@ export async function observeRelayCapabilities(
   onPacket: (packet: RelayCapabilityPacket) => void
 ): Promise<{ unsubscribe(): void }> {
   return coordinator.observeRelayCapabilities(onPacket);
+}
+
+export async function snapshotRelayMetrics(
+  coordinator: Pick<ResonoteCoordinator, 'snapshotRelayMetrics'>
+): Promise<RelayMetricSnapshot[]> {
+  return coordinator.snapshotRelayMetrics();
 }
 
 export async function fetchBackwardEvents<TEvent>(

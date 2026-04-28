@@ -415,6 +415,58 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-66 seeded relay metrics claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['66'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('66', {
+            level: 'internal',
+            status: 'partial',
+            owner: 'packages/resonote/src/plugins/built-in-plugins.ts',
+            proof: 'packages/resonote/src/built-in-plugins.contract.test.ts',
+            priority: 'P1',
+            scopeNotes: 'Relay metrics read model seeded'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-66 must stay implemented after relay metrics read-model coverage'
+    );
+    expect(result.errors).toContain('NIP-66 owner must be packages/resonote/src/runtime.ts');
+    expect(result.errors).toContain(
+      'NIP-66 proof must be packages/resonote/src/relay-metrics-nip66.contract.test.ts'
+    );
+    expect(result.errors).toContain('NIP-66 scopeNotes must not use stale seeded/partial wording');
+  });
+
+  it('accepts the implemented NIP-66 relay metrics claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['66'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('66', {
+            level: 'internal',
+            status: 'implemented',
+            owner: 'packages/resonote/src/runtime.ts',
+            proof: 'packages/resonote/src/relay-metrics-nip66.contract.test.ts',
+            priority: 'P1',
+            scopeNotes:
+              'Coordinator-local relay metrics parse NIP-66 kind:30166 discovery and kind:10166 monitor announcements; absence of metrics never blocks relay operation.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-70 protected-event policy claims', () => {
     const result = checkNipMatrix(
       { nips: ['70'], sourceUrl: 'source', sourceDate: '2026-04-24' },

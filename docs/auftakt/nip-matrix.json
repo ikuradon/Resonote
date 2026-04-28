@@ -545,11 +545,11 @@
     {
       "nip": "66",
       "level": "internal",
-      "status": "partial",
-      "owner": "packages/resonote/src/plugins/built-in-plugins.ts",
-      "proof": "packages/resonote/src/built-in-plugins.contract.test.ts",
+      "status": "implemented",
+      "owner": "packages/resonote/src/runtime.ts",
+      "proof": "packages/resonote/src/relay-metrics-nip66.contract.test.ts",
       "priority": "P1",
-      "scopeNotes": "Relay metrics read model seeded"
+      "scopeNotes": "Coordinator-local relay metrics parse NIP-66 kind:30166 discovery and kind:10166 monitor announcements; absence of metrics never blocks relay operation."
     },
     {
       "nip": "68",

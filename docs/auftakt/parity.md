@@ -36,6 +36,7 @@
 | `observeRelayStatuses`           | `documented`               | Yes     | -                                           | -           |
 | `snapshotRelayCapabilities`      | `documented`               | Yes     | -                                           | -           |
 | `observeRelayCapabilities`       | `documented`               | Yes     | -                                           | -           |
+| `snapshotRelayMetrics`           | `documented`               | Yes     | -                                           | -           |
 | `fetchRelayListEvents`           | `documented`               | Yes     | -                                           | -           |
 | `fetchRelayListSources`          | `undocumented-but-allowed` | No      | `relays.svelte.ts fallback absorption`      | `allowlist` |
 | `clearStoredEvents`              | `undocumented-but-allowed` | No      | `coordinator-mediated storage maintenance`  | `allowlist` |
@@ -62,12 +63,13 @@
 | `EmojiCategory`           | `documented in spec §6` | Yes     | Return type for `fetchCustomEmojiCategories`           |
 | `RelayCapabilityPacket`   | `documented in spec §6` | Yes     | Packet type for `observeRelayCapabilities`             |
 | `RelayCapabilitySnapshot` | `documented in spec §6` | Yes     | Return type for `snapshotRelayCapabilities`            |
+| `RelayMetricSnapshot`     | `documented in spec §6` | Yes     | Return type for `snapshotRelayMetrics`                 |
 | `SubscriptionHandle`      | `supporting-only`       | No      | Return type for subscription starters                  |
 | `UseCachedLatestResult`   | `documented in spec §6` | Yes     | Return type for `useCachedLatest`                      |
 
 ## 3. Allowed Non-§6 Surfaces
 
-- **Spec §6 Documented APIs missing from code**: None. All 31 APIs are present in `src/shared/auftakt/resonote.ts`.
+- **Spec §6 Documented APIs missing from code**: None. All 32 APIs are present in `src/shared/auftakt/resonote.ts`.
 - **Façade value exports intentionally outside Spec §6**:
   - `fetchProfileMetadataSources` (Value)
   - `fetchNotificationTargetPreview` (Value)

@@ -46,6 +46,9 @@ export {
   verifyDeletionTargets
 } from './reconcile.js';
 export type {
+  Nip66RelayDiscovery,
+  Nip66RelayMonitorAnnouncement,
+  Nip66RelayMonitorTimeout,
   RelayCapabilityLearningEvent,
   RelayCapabilityNip11Status,
   RelayCapabilityOverride,
@@ -58,7 +61,12 @@ export type {
 } from './relay-capability.js';
 export {
   calculateEffectiveRelayCapability,
+  calculateNip66RelayScore,
+  NIP66_RELAY_DISCOVERY_KIND,
+  NIP66_RELAY_MONITOR_ANNOUNCEMENT_KIND,
   normalizeRelayCapabilitySnapshot,
+  parseNip66RelayDiscoveryEvent,
+  parseNip66RelayMonitorAnnouncement,
   parseRelayLimitClosedReason
 } from './relay-capability.js';
 export type {

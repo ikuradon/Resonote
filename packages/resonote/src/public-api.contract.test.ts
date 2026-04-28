@@ -121,6 +121,7 @@ describe('@auftakt/resonote public api contract', () => {
         'searchEpisodeBookmarkByGuid',
         'setDefaultRelays',
         'snapshotRelayCapabilities',
+        'snapshotRelayMetrics',
         'snapshotRelayStatuses',
         'sortResonoteTimelineByPlayPosition',
         'startCommentDeletionReconcile',

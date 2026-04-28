@@ -58,6 +58,8 @@ const REQUIRED_NIP18_OWNER = 'src/features/comments/application/comment-actions.
 const REQUIRED_NIP18_PROOF = 'src/features/comments/application/comment-actions.test.ts';
 const REQUIRED_NIP30_OWNER = 'packages/resonote/src/runtime.ts';
 const REQUIRED_NIP30_PROOF = 'packages/resonote/src/custom-emoji.contract.test.ts';
+const REQUIRED_NIP66_OWNER = 'packages/resonote/src/runtime.ts';
+const REQUIRED_NIP66_PROOF = 'packages/resonote/src/relay-metrics-nip66.contract.test.ts';
 const REQUIRED_RELAY_SESSION_OWNER = 'packages/core/src/relay-session.ts';
 const REQUIRED_RELAY_SESSION_PROOF = 'packages/core/src/relay-session.contract.test.ts';
 
@@ -259,6 +261,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === '42') {
     errors.push(...validateNip42MatrixEntry(entry));
   }
+  if (entry.nip === '66') {
+    errors.push(...validateNip66MatrixEntry(entry));
+  }
   if (entry.nip === '70') {
     errors.push(...validateNip70MatrixEntry(entry));
   }
@@ -321,6 +326,26 @@ function validateNip42MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|not yet implemented/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-42 scopeNotes must not use stale not-started wording');
+  }
+  return errors;
+}
+
+function validateNip66MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-66 must stay implemented after relay metrics read-model coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP66_OWNER) {
+    errors.push(`NIP-66 owner must be ${REQUIRED_NIP66_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP66_PROOF) {
+    errors.push(`NIP-66 proof must be ${REQUIRED_NIP66_PROOF}`);
+  }
+  if (!/30166|10166|relay metrics|monitor/i.test(entry.scopeNotes)) {
+    errors.push('NIP-66 scopeNotes must mention discovery and monitor metric coverage');
+  }
+  if (/partial|seeded|pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-66 scopeNotes must not use stale seeded/partial wording');
   }
   return errors;
 }
