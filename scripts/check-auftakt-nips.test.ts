@@ -1088,6 +1088,56 @@ describe('NIP matrix entry validation', () => {
 
     expect(result.errors).toEqual([]);
   });
+
+  it('rejects stale NIP-98 HTTP auth pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['98'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('98', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P2',
+            scopeNotes: 'HTTP auth pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain('NIP-98 must stay implemented after HTTP auth helper coverage');
+    expect(result.errors).toContain('NIP-98 owner must be packages/core/src/nip98-http-auth.ts');
+    expect(result.errors).toContain(
+      'NIP-98 proof must be packages/core/src/nip98-http-auth.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-98 scopeNotes must not use stale HTTP-auth-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-98 HTTP auth helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['98'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('98', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip98-http-auth.ts',
+            proof: 'packages/core/src/nip98-http-auth.contract.test.ts',
+            priority: 'P2',
+            scopeNotes:
+              'Core NIP-98 HTTP auth helpers build and parse kind:27235 events, sign Nostr Authorization headers, hash payload SHA-256 tags, and validate URL/method/time windows.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
 });
 
 describe('checkNipStatusDocsSync', () => {

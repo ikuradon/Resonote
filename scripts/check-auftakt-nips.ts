@@ -80,6 +80,8 @@ const REQUIRED_NIP66_OWNER = 'packages/resonote/src/runtime.ts';
 const REQUIRED_NIP66_PROOF = 'packages/resonote/src/relay-metrics-nip66.contract.test.ts';
 const REQUIRED_NIP78_OWNER = 'packages/core/src/nip78-application-data.ts';
 const REQUIRED_NIP78_PROOF = 'packages/core/src/nip78-application-data.contract.test.ts';
+const REQUIRED_NIP98_OWNER = 'packages/core/src/nip98-http-auth.ts';
+const REQUIRED_NIP98_PROOF = 'packages/core/src/nip98-http-auth.contract.test.ts';
 const REQUIRED_RELAY_SESSION_OWNER = 'packages/core/src/relay-session.ts';
 const REQUIRED_RELAY_SESSION_PROOF = 'packages/core/src/relay-session.contract.test.ts';
 
@@ -319,6 +321,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '78') {
     errors.push(...validateNip78MatrixEntry(entry));
+  }
+  if (entry.nip === '98') {
+    errors.push(...validateNip98MatrixEntry(entry));
   }
   return errors;
 }
@@ -707,6 +712,32 @@ function validateNip78MatrixEntry(entry: NipMatrixEntry): string[] {
     )
   ) {
     errors.push('NIP-78 scopeNotes must not use stale application-data-pending wording');
+  }
+  return errors;
+}
+
+function validateNip98MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-98 must stay implemented after HTTP auth helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP98_OWNER) {
+    errors.push(`NIP-98 owner must be ${REQUIRED_NIP98_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP98_PROOF) {
+    errors.push(`NIP-98 proof must be ${REQUIRED_NIP98_PROOF}`);
+  }
+  if (
+    !/27235|HTTP auth/i.test(entry.scopeNotes) ||
+    !/Authorization|Nostr/i.test(entry.scopeNotes) ||
+    !/(payload|SHA-256)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-98 scopeNotes must mention kind:27235 HTTP auth, Nostr Authorization, and payload hash coverage'
+    );
+  }
+  if (/not-started|pending|http auth pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-98 scopeNotes must not use stale HTTP-auth-pending wording');
   }
   return errors;
 }

@@ -734,11 +734,11 @@
     {
       "nip": "98",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip98-http-auth.ts",
+      "proof": "packages/core/src/nip98-http-auth.contract.test.ts",
       "priority": "P2",
-      "scopeNotes": "HTTP auth pending"
+      "scopeNotes": "Core NIP-98 HTTP auth helpers build and parse kind:27235 events, sign Nostr Authorization headers, hash payload SHA-256 tags, and validate URL/method/time windows"
     },
     {
       "nip": "99",

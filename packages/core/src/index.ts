@@ -154,6 +154,29 @@ export {
   parseNip78Identifier
 } from './nip78-application-data.js';
 export type {
+  BuildNip98HttpAuthEventInput,
+  Nip98HttpAuthSnapshot,
+  Nip98HttpAuthValidationFailureReason,
+  Nip98HttpAuthValidationResult,
+  Nip98PayloadInput,
+  SignNip98HttpAuthInput,
+  ValidateNip98HttpAuthOptions
+} from './nip98-http-auth.js';
+export {
+  buildNip98AuthorizationHeader,
+  buildNip98HttpAuthEvent,
+  decodeNip98AuthorizationHeader,
+  encodeNip98AuthorizationHeader,
+  hashNip98Payload,
+  isNip98PayloadHash,
+  NIP98_AUTHORIZATION_SCHEME,
+  NIP98_DEFAULT_TIME_WINDOW_SECONDS,
+  NIP98_HTTP_AUTH_KIND,
+  parseNip98HttpAuthEvent,
+  signNip98HttpAuthEvent,
+  validateNip98HttpAuthEvent
+} from './nip98-http-auth.js';
+export type {
   DeletionEventLike,
   DeletionReconcileResult,
   OfflineDeliveryDecision,
