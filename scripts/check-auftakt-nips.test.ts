@@ -423,6 +423,56 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-23 long-form pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['23'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('23', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P2',
+            scopeNotes: 'Long-form rendering and indexing pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain('NIP-23 must stay implemented after long-form model coverage');
+    expect(result.errors).toContain('NIP-23 owner must be packages/core/src/nip23-long-form.ts');
+    expect(result.errors).toContain(
+      'NIP-23 proof must be packages/core/src/nip23-long-form.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-23 scopeNotes must not use stale long-form-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-23 long-form claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['23'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('23', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip23-long-form.ts',
+            proof: 'packages/core/src/nip23-long-form.contract.test.ts',
+            priority: 'P2',
+            scopeNotes:
+              'Core NIP-23 long-form model builds and parses kind:30023 articles and kind:30024 drafts with d tag identifiers, Markdown content, standardized title/image/summary/published_at metadata, topics, and reference tags.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-27 text-reference pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['27'], sourceUrl: 'source', sourceDate: '2026-04-24' },

@@ -56,6 +56,21 @@ export {
   parseNip21Uri,
   toNip21Uri
 } from './nip21-uri.js';
+export type {
+  BuildNip23LongFormInput,
+  Nip23LongFormKind,
+  Nip23LongFormMetadata,
+  Nip23LongFormSnapshot
+} from './nip23-long-form.js';
+export {
+  buildNip23LongFormEvent,
+  isNip23LongFormKind,
+  NIP23_LONG_FORM_DRAFT_KIND,
+  NIP23_LONG_FORM_KIND,
+  NIP23_LONG_FORM_KINDS,
+  parseNip23LongFormEvent,
+  parseNip23LongFormMetadata
+} from './nip23-long-form.js';
 export type { Nip27ReferenceTagName, Nip27TextReference } from './nip27-references.js';
 export { buildNip27ReferenceTags, extractNip27References } from './nip27-references.js';
 export {

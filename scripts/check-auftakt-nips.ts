@@ -62,6 +62,8 @@ const REQUIRED_NIP30_OWNER = 'packages/resonote/src/runtime.ts';
 const REQUIRED_NIP30_PROOF = 'packages/resonote/src/custom-emoji.contract.test.ts';
 const REQUIRED_NIP21_OWNER = 'packages/core/src/nip21-uri.ts';
 const REQUIRED_NIP21_PROOF = 'packages/core/src/nip21-uri.contract.test.ts';
+const REQUIRED_NIP23_OWNER = 'packages/core/src/nip23-long-form.ts';
+const REQUIRED_NIP23_PROOF = 'packages/core/src/nip23-long-form.contract.test.ts';
 const REQUIRED_NIP27_OWNER = 'packages/core/src/nip27-references.ts';
 const REQUIRED_NIP27_PROOF = 'packages/core/src/nip27-references.contract.test.ts';
 const REQUIRED_NIP31_OWNER = 'packages/core/src/nip31-alt.ts';
@@ -285,6 +287,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === '21') {
     errors.push(...validateNip21MatrixEntry(entry));
   }
+  if (entry.nip === '23') {
+    errors.push(...validateNip23MatrixEntry(entry));
+  }
   if (entry.nip === '27') {
     errors.push(...validateNip27MatrixEntry(entry));
   }
@@ -409,6 +414,34 @@ function validateNip21MatrixEntry(entry: NipMatrixEntry): string[] {
     /not-started|pending|belongs app routing layer/i.test(`${entry.status} ${entry.scopeNotes}`)
   ) {
     errors.push('NIP-21 scopeNotes must not use stale routing-pending wording');
+  }
+  return errors;
+}
+
+function validateNip23MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-23 must stay implemented after long-form model coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP23_OWNER) {
+    errors.push(`NIP-23 owner must be ${REQUIRED_NIP23_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP23_PROOF) {
+    errors.push(`NIP-23 proof must be ${REQUIRED_NIP23_PROOF}`);
+  }
+  if (
+    !/30023|30024|long-form/i.test(entry.scopeNotes) ||
+    !/(d tag|identifier)/i.test(entry.scopeNotes) ||
+    !/(title|summary|published_at|topic)/i.test(entry.scopeNotes)
+  ) {
+    errors.push('NIP-23 scopeNotes must mention kind:30023/30024 long-form metadata and d tags');
+  }
+  if (
+    /not-started|pending|long-form rendering and indexing pending/i.test(
+      `${entry.status} ${entry.scopeNotes}`
+    )
+  ) {
+    errors.push('NIP-23 scopeNotes must not use stale long-form-pending wording');
   }
   return errors;
 }

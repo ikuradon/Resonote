@@ -176,11 +176,11 @@
     {
       "nip": "23",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip23-long-form.ts",
+      "proof": "packages/core/src/nip23-long-form.contract.test.ts",
       "priority": "P2",
-      "scopeNotes": "Long-form rendering and indexing pending"
+      "scopeNotes": "Core NIP-23 long-form model builds and parses kind:30023 articles and kind:30024 drafts with d tag identifiers, Markdown content, standardized title/image/summary/published_at metadata, topics, and reference tags"
     },
     {
       "nip": "24",
