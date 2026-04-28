@@ -47,6 +47,10 @@ const RETIRED_CACHED_READ_SPECIFIERS = [
   `./${RETIRED_CACHED_READ_BASENAME}.svelte.js`
 ];
 const APRIL_COMPLETION_AUDIT_PATH = 'docs/auftakt/2026-04-26-april-doc-completion-audit.md';
+const STATUS_VERIFICATION_PATH = 'docs/auftakt/status-verification.md';
+const LEGACY_STRICT_REDESIGN_AUDIT_PATH =
+  'docs/auftakt/2026-04-24-strict-redesign-integrated-audit.md';
+const CURRENT_STRICT_GOAL_AUDIT_PATH = 'docs/auftakt/2026-04-26-strict-goal-gap-audit.md';
 const STALE_APRIL_COMPLETION_AUDIT_MARKERS = [
   {
     marker: 'Not complete until `pnpm run check:auftakt-complete` passes',
@@ -80,6 +84,8 @@ const STALE_APRIL_COMPLETION_AUDIT_MARKERS = [
     message: `${APRIL_COMPLETION_AUDIT_PATH} still describes final verification as pending`
   }
 ];
+const LEGACY_STRICT_AUDIT_HISTORICAL_MARKER =
+  'Historical baseline. Current strict goal status and guard truth live in';
 
 function addUnique(errors: string[], message: string): void {
   if (!errors.includes(message)) {
@@ -176,6 +182,25 @@ export function checkStrictClosure(files: readonly StrictClosureFile[]): StrictC
           addUnique(errors, staleMarker.message);
         }
       }
+    }
+    if (file.path === STATUS_VERIFICATION_PATH) {
+      if (file.text.includes(LEGACY_STRICT_REDESIGN_AUDIT_PATH)) {
+        errors.push(
+          `${STATUS_VERIFICATION_PATH} points strict audit readers at the superseded 2026-04-24 audit`
+        );
+      }
+      if (!file.text.includes(CURRENT_STRICT_GOAL_AUDIT_PATH)) {
+        errors.push(`${STATUS_VERIFICATION_PATH} must link the current strict goal audit`);
+      }
+    }
+    if (
+      file.path === LEGACY_STRICT_REDESIGN_AUDIT_PATH &&
+      (!file.text.includes(LEGACY_STRICT_AUDIT_HISTORICAL_MARKER) ||
+        !file.text.includes(CURRENT_STRICT_GOAL_AUDIT_PATH))
+    ) {
+      errors.push(
+        `${LEGACY_STRICT_REDESIGN_AUDIT_PATH} must be marked as a historical baseline linked to the current strict goal audit`
+      );
     }
     if (file.path === 'src/shared/nostr/pending-publishes.ts' && file.text.includes("from 'idb'")) {
       errors.push('src/shared/nostr/pending-publishes.ts still uses standalone idb storage');

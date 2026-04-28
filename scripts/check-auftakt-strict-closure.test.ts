@@ -256,6 +256,31 @@ describe('checkStrictClosure', () => {
     expect(result.errors).toContain(`${auditPath} still describes final verification as pending`);
   });
 
+  it('flags stale current-status references to the superseded strict redesign audit', () => {
+    const statusPath = 'docs/auftakt/status-verification.md';
+    const legacyAuditPath = 'docs/auftakt/2026-04-24-strict-redesign-integrated-audit.md';
+    const result = checkStrictClosure([
+      file(statusPath, `For that audit, see ${legacyAuditPath}.`),
+      file(legacyAuditPath, '# Auftakt Strict Redesign Integrated Audit\n\nOld findings.'),
+      file(
+        'packages/resonote/src/event-coordinator.ts',
+        'import { createMaterializerQueue } from "./materializer-queue.js";'
+      ),
+      file(
+        'packages/resonote/src/runtime.ts',
+        'import { createRelayGateway } from "./relay-gateway.js";'
+      )
+    ]);
+
+    expect(result.errors).toContain(
+      `${statusPath} points strict audit readers at the superseded 2026-04-24 audit`
+    );
+    expect(result.errors).toContain(`${statusPath} must link the current strict goal audit`);
+    expect(result.errors).toContain(
+      `${legacyAuditPath} must be marked as a historical baseline linked to the current strict goal audit`
+    );
+  });
+
   it('ignores archived docs that mention retired cached read bridges', () => {
     const retiredImport = `$shared/nostr/${retiredCachedReadSlug}.js`;
     const result = checkStrictClosure([

@@ -2,6 +2,10 @@
 
 Date: 2026-04-24
 
+> Historical baseline. Current strict goal status and guard truth live in
+> `docs/auftakt/2026-04-26-strict-goal-gap-audit.md`. The Partial/Missing items
+> below are preserved as 2026-04-24 findings, not current verdicts.
+
 This audit checks Auftakt against the stricter redesign goal set, not only the
 current scoped `docs/auftakt/spec.md` surface. The current scoped verification
 can be true for the brownfield facade while this stricter audit still fails the
