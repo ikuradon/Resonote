@@ -42,10 +42,7 @@ const canonicalScope = {
   exclude: ['unrelated UI refactors', 'raw app-facing negentropy APIs']
 };
 
-const forbiddenConsumerSpecifiers = [
-  '$shared/nostr/gateway.js',
-  '$shared/nostr/user-relays.js'
-];
+const forbiddenConsumerSpecifiers = ['$shared/nostr/gateway.js', '$shared/nostr/user-relays.js'];
 
 const targetedConsumerScopes = [
   {
@@ -163,7 +160,9 @@ function collectResidualLegacyAliasState() {
 
   const aliases = residualLegacyAliasPolicies.map((policy) => {
     const importers = filesBySpecifier
-      .filter(({ specifiers }) => policy.specifiers.some((specifier) => specifiers.includes(specifier)))
+      .filter(({ specifiers }) =>
+        policy.specifiers.some((specifier) => specifiers.includes(specifier))
+      )
       .map(({ file }) => file)
       .sort();
 
@@ -237,7 +236,9 @@ function collectTargetedConsumerState() {
 }
 
 function collectSemanticGuardState() {
-  const files = [...new Set(['src', 'packages'].flatMap((target) => walk(target, { includeTests: true })))].sort();
+  const files = [
+    ...new Set(['src', 'packages'].flatMap((target) => walk(target, { includeTests: true })))
+  ].sort();
 
   const entries = semanticGuardPolicies.map((policy) => {
     const hits = files.flatMap((file) => {
@@ -307,7 +308,9 @@ function extractFacadeValueExports(source) {
     names.add(match[1]);
   }
 
-  for (const match of stripped.matchAll(/^\s*export\s+(?:const|let|var|class)\s+([A-Za-z0-9_]+)/gm)) {
+  for (const match of stripped.matchAll(
+    /^\s*export\s+(?:const|let|var|class)\s+([A-Za-z0-9_]+)/gm
+  )) {
     names.add(match[1]);
   }
 
@@ -366,6 +369,25 @@ function extractAllowlistedUndocumentedValueExports(paritySource) {
   return [...names].sort();
 }
 
+/**
+ * @param {string} paritySource
+ * @returns {string[]}
+ */
+function extractParityListedUndocumentedValueExports(paritySource) {
+  const section = sliceSection(paritySource, '## 3.', '## 4.');
+  /** @type {Set<string>} */
+  const names = new Set();
+
+  for (const line of section.split('\n')) {
+    const match = line.match(/^\s*-\s*`([^`]+)`\s*\(Value\)\s*$/);
+    if (match) {
+      names.add(match[1]);
+    }
+  }
+
+  return [...names].sort();
+}
+
 function collectFacadeParityState() {
   const specSource = readFileSync(SPEC_PATH, 'utf8');
   const paritySource = readFileSync(PARITY_PATH, 'utf8');
@@ -374,14 +396,23 @@ function collectFacadeParityState() {
   const documentedApis = extractDocumentedSpecApiNames(specSource);
   const facadeValueExports = extractFacadeValueExports(facadeSource);
   const allowlistedUndocumentedExports = extractAllowlistedUndocumentedValueExports(paritySource);
+  const parityListedUndocumentedExports = extractParityListedUndocumentedValueExports(paritySource);
 
   const missingDocumentedApis = documentedApis.filter((name) => !facadeValueExports.includes(name));
-  const undocumentedFacadeExports = facadeValueExports.filter((name) => !documentedApis.includes(name));
+  const undocumentedFacadeExports = facadeValueExports.filter(
+    (name) => !documentedApis.includes(name)
+  );
   const undocumentedWithoutPolicy = undocumentedFacadeExports.filter(
     (name) => !allowlistedUndocumentedExports.includes(name)
   );
   const staleAllowlistEntries = allowlistedUndocumentedExports.filter(
     (name) => !undocumentedFacadeExports.includes(name)
+  );
+  const staleParitySurfaceEntries = parityListedUndocumentedExports.filter(
+    (name) => !undocumentedFacadeExports.includes(name)
+  );
+  const paritySurfaceOmissions = undocumentedFacadeExports.filter(
+    (name) => !parityListedUndocumentedExports.includes(name)
   );
 
   const violations = [
@@ -394,7 +425,14 @@ function collectFacadeParityState() {
         `${FACADE_PATH}: undocumented façade value export requires explicit policy/allowlist coverage: ${name}`
     ),
     ...staleAllowlistEntries.map(
-      (name) => `${PARITY_PATH}: allowlisted undocumented export no longer matches façade export inventory: ${name}`
+      (name) =>
+        `${PARITY_PATH}: allowlisted undocumented export no longer matches façade export inventory: ${name}`
+    ),
+    ...staleParitySurfaceEntries.map(
+      (name) => `${PARITY_PATH}: undocumented surface list names non-exported façade value: ${name}`
+    ),
+    ...paritySurfaceOmissions.map(
+      (name) => `${PARITY_PATH}: undocumented surface list omits façade value export: ${name}`
     )
   ];
 
@@ -406,6 +444,9 @@ function collectFacadeParityState() {
     undocumentedFacadeExports,
     undocumentedWithoutPolicy,
     staleAllowlistEntries,
+    parityListedUndocumentedExports,
+    staleParitySurfaceEntries,
+    paritySurfaceOmissions,
     violations
   };
 }
@@ -462,7 +503,9 @@ function collectCompanionCoverageState(consumerState) {
     const rowViolations = [];
 
     if (!entry.surfaceExists) {
-      rowViolations.push(`${entry.surface}: companion surface declared in spec §13.3 but file is missing`);
+      rowViolations.push(
+        `${entry.surface}: companion surface declared in spec §13.3 but file is missing`
+      );
     }
 
     if (!entry.coveredByTargetedScope) {
@@ -631,7 +674,9 @@ if (proof) {
   console.log(`   Documented spec §6 APIs: ${facadeParityState.documentedApis.length}`);
   console.log(`   Façade value exports: ${facadeParityState.facadeValueExports.length}`);
   console.log(`   Missing documented APIs: ${facadeParityState.missingDocumentedApis.length}`);
-  console.log(`   Undocumented façade exports: ${facadeParityState.undocumentedFacadeExports.length}`);
+  console.log(
+    `   Undocumented façade exports: ${facadeParityState.undocumentedFacadeExports.length}`
+  );
   console.log(
     `   Allowlisted undocumented exports: ${facadeParityState.allowlistedUndocumentedExports.length}`
   );
@@ -675,7 +720,9 @@ if (proof) {
   console.log(`Stale matrix entries: ${ownershipState.orphanedEntries.length}`);
 } else if (report === 'consumers') {
   console.log('Remaining targeted consumer cutover report:');
-  console.log(`Interpretation: façade surface is canonical; FAIL means residual cutover work remains in targeted scopes.`);
+  console.log(
+    `Interpretation: façade surface is canonical; FAIL means residual cutover work remains in targeted scopes.`
+  );
   console.log(`Included scope: ${canonicalScope.include.join(' | ')}`);
   console.log(`Excluded scope: ${canonicalScope.exclude.join(' | ')}`);
   console.log(`Status: ${consumerState.violations.length === 0 ? 'PASS' : 'FAIL'}`);
@@ -702,8 +749,15 @@ if (proof) {
   console.log(
     `Undocumented exports without policy: ${facadeParityState.undocumentedWithoutPolicy.length}`
   );
-  console.log(`Allowlisted undocumented exports: ${facadeParityState.allowlistedUndocumentedExports.length}`);
+  console.log(
+    `Allowlisted undocumented exports: ${facadeParityState.allowlistedUndocumentedExports.length}`
+  );
   console.log(`Stale allowlist entries: ${facadeParityState.staleAllowlistEntries.length}`);
+  console.log(
+    `Undocumented surface list entries: ${facadeParityState.parityListedUndocumentedExports.length}`
+  );
+  console.log(`Stale surface list entries: ${facadeParityState.staleParitySurfaceEntries.length}`);
+  console.log(`Surface list omissions: ${facadeParityState.paritySurfaceOmissions.length}`);
   if (facadeParityState.undocumentedFacadeExports.length > 0) {
     console.log(`undocumented=${facadeParityState.undocumentedFacadeExports.join(',')}`);
   }

@@ -65,16 +65,18 @@
 | `SubscriptionHandle`      | `supporting-only`       | No      | Return type for subscription starters                  |
 | `UseCachedLatestResult`   | `documented in spec §6` | Yes     | Return type for `useCachedLatest`                      |
 
-## 3. Missing Surfaces
+## 3. Allowed Non-§6 Surfaces
 
 - **Spec §6 Documented APIs missing from code**: None. All 31 APIs are present in `src/shared/auftakt/resonote.ts`.
-- **Code Exports missing from Spec §6**:
+- **Façade value exports intentionally outside Spec §6**:
   - `fetchProfileMetadataSources` (Value)
   - `fetchNotificationTargetPreview` (Value)
   - `fetchRelayListSources` (Value)
   - `clearStoredEvents` (Value)
   - `countStoredEventsByKinds` (Value)
-  - `getCommentCacheRepository` (Value)
+  - `deleteCommentEventsByIds` (Value)
+  - `readCommentEventsByTag` (Value)
+  - `storeCommentEvent` (Value)
   - `readStoredFollowGraph` (Value)
   - `registerPlugin` (Value)
   - `parseCommentContent` (Value)
