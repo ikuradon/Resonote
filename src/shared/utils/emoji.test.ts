@@ -10,6 +10,8 @@ describe('isEmojiTag', () => {
   it('should reject invalid emoji tags', () => {
     expect(isEmojiTag(['emoji', 'sushi'])).toBe(false);
     expect(isEmojiTag(['e', 'abc123'])).toBe(false);
+    expect(isEmojiTag(['emoji', 'fire-hot', 'https://example.com/fire.png'])).toBe(false);
+    expect(isEmojiTag(['emoji', 'fire', ''])).toBe(false);
   });
 });
 
@@ -24,6 +26,7 @@ describe('isShortcode', () => {
     expect(isShortcode('+')).toBe(false);
     expect(isShortcode('🔥')).toBe(false);
     expect(isShortcode(':has space:')).toBe(false);
+    expect(isShortcode(':fire-hot:')).toBe(false);
   });
 });
 
@@ -51,5 +54,9 @@ describe('addEmojiTag', () => {
     expect(
       addEmojiTag([['emoji', 'wave', 'https://example.com/wave.png']], 'wave', 'https://other')
     ).toEqual([['emoji', 'wave', 'https://example.com/wave.png']]);
+  });
+
+  it('should reject non-standard shortcode names', () => {
+    expect(addEmojiTag([], 'fire-hot', 'https://example.com/fire.png')).toEqual([]);
   });
 });

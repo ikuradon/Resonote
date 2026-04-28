@@ -3573,32 +3573,32 @@ function findDTag(tags: string[][]): string {
   return tags.find((tag) => tag[0] === 'd')?.[1] ?? '';
 }
 
+function isNip30EmojiTag(tag: string[]): tag is [string, string, string, ...string[]] {
+  return tag[0] === 'emoji' && /^[A-Za-z0-9_]+$/.test(tag[1] ?? '') && Boolean(tag[2]);
+}
+
 function buildCategoryFromEvent(event: Pick<StoredEvent, 'id' | 'tags'>): EmojiCategory | null {
   const setName =
     event.tags.find((tag) => tag[0] === 'title')?.[1] ??
     event.tags.find((tag) => tag[0] === 'd')?.[1] ??
     'Emoji Set';
 
-  const emojis = event.tags
-    .filter((tag) => tag[0] === 'emoji' && tag[1] && tag[2])
-    .map((tag) => ({
-      id: tag[1] as string,
-      name: tag[1] as string,
-      skins: [{ src: tag[2] as string }]
-    }));
+  const emojis = event.tags.filter(isNip30EmojiTag).map((tag) => ({
+    id: tag[1],
+    name: tag[1],
+    skins: [{ src: tag[2] }]
+  }));
 
   if (emojis.length === 0) return null;
   return { id: `set-${event.id.slice(0, 8)}`, name: setName, emojis };
 }
 
 function buildInlineCategory(listEvent: Pick<StoredEvent, 'tags'>): EmojiCategory | null {
-  const emojis = listEvent.tags
-    .filter((tag) => tag[0] === 'emoji' && tag[1] && tag[2])
-    .map((tag) => ({
-      id: tag[1] as string,
-      name: tag[1] as string,
-      skins: [{ src: tag[2] as string }]
-    }));
+  const emojis = listEvent.tags.filter(isNip30EmojiTag).map((tag) => ({
+    id: tag[1],
+    name: tag[1],
+    skins: [{ src: tag[2] }]
+  }));
 
   if (emojis.length === 0) return null;
   return { id: 'custom-inline', name: 'Custom', emojis };

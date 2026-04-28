@@ -1,5 +1,6 @@
 import { getProvider } from '$shared/content/registry.js';
 import type { ContentId } from '$shared/content/types.js';
+import { isEmojiTag } from '$shared/utils/emoji.js';
 import { sanitizeUrl } from '$shared/utils/url.js';
 
 import { decodeContentLink, type DecodedNip19, decodeNip19 } from './helpers.js';
@@ -57,7 +58,7 @@ function isDigitsOnly(s: string): boolean {
 // 4. Hashtags
 // Created fresh per call to avoid shared lastIndex state
 function createCombinedRe(): RegExp {
-  return /nostr:(npub1|nprofile1|nevent1|note1|ncontent1)[a-z0-9]+|https?:\/\/[^\s<>"]+|:([^:\s]+):|(?:^|(?<=\s))#([a-zA-Z0-9_\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]+)/g;
+  return /nostr:(npub1|nprofile1|nevent1|note1|ncontent1)[a-z0-9]+|https?:\/\/[^\s<>"]+|:([A-Za-z0-9_]+):|(?:^|(?<=\s))#([a-zA-Z0-9_\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]+)/g;
 }
 
 /** Trim trailing punctuation from a URL, preserving balanced parentheses. */
@@ -106,7 +107,7 @@ export function parseCommentContent(content: string, emojiTags: string[][]): Con
   // Build emoji map
   const emojiMap = new Map<string, string>();
   for (const tag of emojiTags) {
-    if (tag.length >= 3) {
+    if (isEmojiTag(tag)) {
       const safeUrl = sanitizeUrl(tag[2]);
       if (safeUrl) emojiMap.set(tag[1], safeUrl);
     }

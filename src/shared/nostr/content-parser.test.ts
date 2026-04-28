@@ -93,6 +93,14 @@ describe('parseCommentContent — emoji', () => {
     const result = parseCommentContent(':sushi:', []);
     expect(result).toEqual([{ type: 'text', value: ':sushi:' }]);
   });
+
+  it('ignores non-standard emoji tag names', () => {
+    const result = parseCommentContent(':fire-hot:', [
+      ['emoji', 'fire-hot', 'https://example.com/fire.png']
+    ]);
+
+    expect(result).toEqual([{ type: 'text', value: ':fire-hot:' }]);
+  });
 });
 
 describe('parseCommentContent — nostr URIs', () => {

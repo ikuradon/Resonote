@@ -265,6 +265,56 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-30 partial custom emoji claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['30'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('30', {
+            status: 'partial',
+            owner: 'packages/resonote/src/plugins/built-in-plugins.ts',
+            proof: 'packages/resonote/src/built-in-plugins.contract.test.ts',
+            priority: 'P1',
+            scopeNotes: 'Custom emoji catalog read model'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-30 must stay implemented after custom emoji read-model coverage'
+    );
+    expect(result.errors).toContain('NIP-30 owner must be packages/resonote/src/runtime.ts');
+    expect(result.errors).toContain(
+      'NIP-30 proof must be packages/resonote/src/custom-emoji.contract.test.ts'
+    );
+    expect(result.errors).toContain('NIP-30 scopeNotes must not use stale partial wording');
+  });
+
+  it('accepts the implemented NIP-30 custom emoji claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['30'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('30', {
+            status: 'implemented',
+            owner: 'packages/resonote/src/runtime.ts',
+            proof: 'packages/resonote/src/custom-emoji.contract.test.ts',
+            priority: 'P1',
+            scopeNotes:
+              'Custom emoji tags enforce NIP-30 shortcode names and the coordinator read model resolves kind:10030 lists plus kind:30030 emoji sets.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-42 not-started AUTH relay claims', () => {
     const result = checkNipMatrix(
       { nips: ['42'], sourceUrl: 'source', sourceDate: '2026-04-24' },

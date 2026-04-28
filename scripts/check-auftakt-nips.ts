@@ -54,6 +54,8 @@ const REQUIRED_NIP05_OWNER = 'src/shared/nostr/nip05.ts';
 const REQUIRED_NIP05_PROOF = 'src/shared/nostr/nip05.test.ts';
 const REQUIRED_NIP07_OWNER = 'src/shared/nostr/client.ts';
 const REQUIRED_NIP07_PROOF = 'src/shared/nostr/client-integration.test.ts';
+const REQUIRED_NIP30_OWNER = 'packages/resonote/src/runtime.ts';
+const REQUIRED_NIP30_PROOF = 'packages/resonote/src/custom-emoji.contract.test.ts';
 const REQUIRED_RELAY_SESSION_OWNER = 'packages/core/src/relay-session.ts';
 const REQUIRED_RELAY_SESSION_PROOF = 'packages/core/src/relay-session.contract.test.ts';
 
@@ -246,11 +248,34 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === '07') {
     errors.push(...validateNip07MatrixEntry(entry));
   }
+  if (entry.nip === '30') {
+    errors.push(...validateNip30MatrixEntry(entry));
+  }
   if (entry.nip === '42') {
     errors.push(...validateNip42MatrixEntry(entry));
   }
   if (entry.nip === '70') {
     errors.push(...validateNip70MatrixEntry(entry));
+  }
+  return errors;
+}
+
+function validateNip30MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-30 must stay implemented after custom emoji read-model coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP30_OWNER) {
+    errors.push(`NIP-30 owner must be ${REQUIRED_NIP30_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP30_PROOF) {
+    errors.push(`NIP-30 proof must be ${REQUIRED_NIP30_PROOF}`);
+  }
+  if (!/shortcode|10030|30030|emoji/i.test(entry.scopeNotes)) {
+    errors.push('NIP-30 scopeNotes must mention shortcode and emoji list/set coverage');
+  }
+  if (/partial|pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-30 scopeNotes must not use stale partial wording');
   }
   return errors;
 }

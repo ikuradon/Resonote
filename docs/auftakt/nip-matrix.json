@@ -239,11 +239,11 @@
     {
       "nip": "30",
       "level": "public",
-      "status": "partial",
-      "owner": "packages/resonote/src/plugins/built-in-plugins.ts",
-      "proof": "packages/resonote/src/built-in-plugins.contract.test.ts",
+      "status": "implemented",
+      "owner": "packages/resonote/src/runtime.ts",
+      "proof": "packages/resonote/src/custom-emoji.contract.test.ts",
       "priority": "P1",
-      "scopeNotes": "Custom emoji catalog read model"
+      "scopeNotes": "Custom emoji tags enforce NIP-30 shortcode names and the coordinator read model resolves kind:10030 lists plus kind:30030 emoji sets"
     },
     {
       "nip": "31",
