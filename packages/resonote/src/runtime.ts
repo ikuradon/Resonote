@@ -1761,7 +1761,20 @@ export interface ResonoteCoordinator<TResult = unknown, TLatestResult = unknown>
   getAddressable(input: AddressableHandleInput): AddressableHandle;
   getRelaySet(subject: RelaySetSubject): RelaySetHandle;
   getRelayHints(eventId: string): RelayHintsHandle;
-  openEventsDb(): ReturnType<ResonoteRuntime['getEventsDB']>;
+  readCommentEventsByTag(tagQuery: string): Promise<StoredEvent[]>;
+  storeCommentEvent(event: StoredEvent): Promise<boolean>;
+  deleteCommentEventsByIds(ids: readonly string[]): Promise<void>;
+  readStoredFollowGraph(
+    pubkey: string,
+    followKind: number
+  ): Promise<{
+    currentUserFollowList: StoredEvent | null;
+    allFollowLists: StoredEvent[];
+  }>;
+  countStoredEventsByKinds(
+    kinds: readonly number[]
+  ): Promise<Array<{ readonly kind: number; readonly count: number }>>;
+  clearStoredEvents(): Promise<void>;
   fetchProfileCommentEvents(
     pubkey: string,
     until?: number,
@@ -2626,7 +2639,47 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
     getAddressable: entityHandles.getAddressable,
     getRelaySet: entityHandles.getRelaySet,
     getRelayHints: entityHandles.getRelayHints,
-    openEventsDb: () => runtime.getEventsDB(),
+    readCommentEventsByTag: async (tagQuery) => {
+      const db = await runtime.getEventsDB();
+      return db.getByTagValue(tagQuery);
+    },
+    storeCommentEvent: async (event) => {
+      const db = await runtime.getEventsDB();
+      return (await db.put(event)) !== false;
+    },
+    deleteCommentEventsByIds: async (ids) => {
+      if (ids.length === 0) return;
+      const db = await runtime.getEventsDB();
+      await db.deleteByIds([...ids]);
+    },
+    readStoredFollowGraph: async (pubkey, followKind) => {
+      const db = await runtime.getEventsDB();
+      const [currentUserFollowList, allFollowLists] = await Promise.all([
+        db.getByPubkeyAndKind(pubkey, followKind),
+        db.getAllByKind(followKind)
+      ]);
+
+      return {
+        currentUserFollowList,
+        allFollowLists
+      };
+    },
+    countStoredEventsByKinds: async (kinds) => {
+      const db = await runtime.getEventsDB();
+      return Promise.all(
+        kinds.map(async (kind) => {
+          const events = await db.getAllByKind(kind);
+          return {
+            kind,
+            count: events.length
+          };
+        })
+      );
+    },
+    clearStoredEvents: async () => {
+      const db = await runtime.getEventsDB();
+      await db.clearAll();
+    },
     fetchProfileCommentEvents: async (pubkey, until, limit = 20) => {
       const filter = until
         ? { kinds: [1111], authors: [pubkey], limit, until }

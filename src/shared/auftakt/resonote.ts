@@ -179,56 +179,32 @@ export function useCachedLatest(pubkey: string, kind: number): UseCachedLatestRe
 }
 
 export async function readCommentEventsByTag(tagQuery: string): Promise<CommentCacheEvent[]> {
-  const eventsDb = await coordinator.openEventsDb();
-  return eventsDb.getByTagValue(tagQuery);
+  return coordinator.readCommentEventsByTag(tagQuery);
 }
 
 export async function storeCommentEvent(event: CommentCacheEvent): Promise<boolean> {
-  const eventsDb = await coordinator.openEventsDb();
-  return (await eventsDb.put(event)) !== false;
+  return coordinator.storeCommentEvent(event);
 }
 
 export async function deleteCommentEventsByIds(ids: readonly string[]): Promise<void> {
-  if (ids.length === 0) return;
-  const eventsDb = await coordinator.openEventsDb();
-  await eventsDb.deleteByIds([...ids]);
+  return coordinator.deleteCommentEventsByIds(ids);
 }
 
 export async function readStoredFollowGraph(
   pubkey: string,
   followKind: number
 ): Promise<StoredFollowGraphSnapshot> {
-  const eventsDb = await coordinator.openEventsDb();
-  const [currentUserFollowList, allFollowLists] = await Promise.all([
-    eventsDb.getByPubkeyAndKind(pubkey, followKind),
-    eventsDb.getAllByKind(followKind)
-  ]);
-
-  return {
-    currentUserFollowList,
-    allFollowLists
-  };
+  return coordinator.readStoredFollowGraph(pubkey, followKind);
 }
 
 export async function countStoredEventsByKinds(
   kinds: readonly number[]
 ): Promise<StoredEventCount[]> {
-  const eventsDb = await coordinator.openEventsDb();
-  const counts = await Promise.all(
-    kinds.map(async (kind) => {
-      const events = await eventsDb.getAllByKind(kind);
-      return {
-        kind,
-        count: events.length
-      };
-    })
-  );
-  return counts;
+  return coordinator.countStoredEventsByKinds(kinds);
 }
 
 export async function clearStoredEvents(): Promise<void> {
-  const eventsDb = await coordinator.openEventsDb();
-  await eventsDb.clearAll();
+  return coordinator.clearStoredEvents();
 }
 
 export async function setPreferredRelays(urls: string[]): Promise<void> {

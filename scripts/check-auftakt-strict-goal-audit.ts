@@ -210,6 +210,9 @@ const REQUIRED_PLUGIN_MODEL_API_FILES = [
 const REQUIRED_STORAGE_HOT_PATH_AUDIT_EVIDENCE =
   'Storage hot-path hardening now proves Dexie kind-bounded traversal, projection reads, max-created lookups, and HotEventIndex kind, tag, replaceable, deletion, and relay-hint paths without broad event-table scans.';
 
+const REQUIRED_LOCAL_STORE_API_AUDIT_EVIDENCE =
+  'App-facing local comment, follow graph, and maintenance helpers now call coordinator-owned local store methods without exposing openEventsDb or raw event database handles.';
+
 const REQUIRED_STORAGE_HOT_PATH_FILES = [
   {
     path: 'packages/adapter-dexie/src/hot-path.contract.test.ts',
@@ -250,6 +253,34 @@ const REQUIRED_STORAGE_HOT_PATH_FILES = [
     path: 'packages/resonote/src/event-coordinator.contract.test.ts',
     text: 'prefills tag reads from hot index while still checking durable store',
     description: 'coordinator tag hot prefill contract'
+  }
+];
+
+const REQUIRED_LOCAL_STORE_API_FILES = [
+  {
+    path: 'packages/resonote/src/runtime.ts',
+    text: 'readCommentEventsByTag(tagQuery: string): Promise<StoredEvent[]>;',
+    description: 'coordinator local comment read API'
+  },
+  {
+    path: 'packages/resonote/src/runtime.ts',
+    text: 'clearStoredEvents(): Promise<void>;',
+    description: 'coordinator local maintenance API'
+  },
+  {
+    path: 'src/shared/auftakt/resonote.ts',
+    text: 'return coordinator.readCommentEventsByTag(tagQuery);',
+    description: 'facade local comment read mediation'
+  },
+  {
+    path: 'src/shared/auftakt/resonote.ts',
+    text: 'return coordinator.clearStoredEvents();',
+    description: 'facade local maintenance mediation'
+  },
+  {
+    path: 'packages/resonote/src/local-store-api.contract.test.ts',
+    text: 'keeps raw event database handles out of the public coordinator surface',
+    description: 'raw local store handle regression contract'
   }
 ];
 
@@ -440,6 +471,10 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
     );
   }
 
+  if (!strictAudit.text.includes(REQUIRED_LOCAL_STORE_API_AUDIT_EVIDENCE)) {
+    errors.push(`${strictAudit.path} is missing coordinator local store API evidence`);
+  }
+
   for (const required of REQUIRED_PUBLISH_SETTLEMENT_FILES) {
     const text = findFileText(files, required.path);
     if (text === null) {
@@ -506,6 +541,22 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
     }
   }
 
+  for (const required of REQUIRED_LOCAL_STORE_API_FILES) {
+    const text = findFileText(files, required.path);
+    if (text === null) {
+      errors.push(`${required.path} is missing for strict local store API audit`);
+      continue;
+    }
+    if (!text.includes(required.text)) {
+      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
+    }
+  }
+
+  const runtimeSource = findFileText(files, 'packages/resonote/src/runtime.ts');
+  if (runtimeSource && tokenPattern('openEventsDb').test(runtimeSource)) {
+    errors.push('packages/resonote/src/runtime.ts exposes raw local store handle openEventsDb');
+  }
+
   if (AMBIGUOUS_STRICT_COMPLETION_PATTERNS.some((pattern) => pattern.test(strictAudit.text))) {
     errors.push(
       `${strictAudit.path} claims strict final completion without preserving scoped-vs-strict distinction`
@@ -531,13 +582,15 @@ function collectFiles(root = process.cwd()): StrictGoalAuditFile[] {
     'packages/resonote/src/hot-event-index.ts',
     'packages/resonote/src/hot-event-index.contract.test.ts',
     'packages/resonote/src/event-coordinator.contract.test.ts',
+    'packages/resonote/src/local-store-api.contract.test.ts',
     'packages/resonote/src/plugin-api.contract.test.ts',
     'packages/resonote/src/plugin-isolation.contract.test.ts',
     'packages/resonote/src/relay-repair.contract.test.ts',
     'packages/resonote/src/public-read-cutover.contract.test.ts',
     'packages/resonote/src/relay-selection-runtime.ts',
     'packages/resonote/src/relay-selection-runtime.contract.test.ts',
-    'packages/resonote/src/relay-routing-publish.contract.test.ts'
+    'packages/resonote/src/relay-routing-publish.contract.test.ts',
+    'src/shared/auftakt/resonote.ts'
   ].filter((path) => existsSync(join(root, path)));
   return paths.map((path) => ({ path, text: readFileSync(join(root, path), 'utf8') }));
 }

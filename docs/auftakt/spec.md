@@ -722,15 +722,15 @@ Auftakt の 7 つの主要目標に対する現在の達成状況を以下に定
 と `Partial` の理由、および次フェーズ候補は
 `docs/auftakt/2026-04-26-strict-goal-gap-audit.md` を正とする。
 
-| 目標 (Goal)                                 | 判定 (Verdict)   | 理由・理由                                                                                                                                                         |
-| ------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| rx-nostr級 reconnect + REQ optimization     | Scoped-Satisfied | scoped contract tests および E2E proof によって再接続性と REQ 最適化が証明済み。厳格な ordinary-read negentropy-first 化は strict gap audit で後続候補として扱う。 |
-| NDK級 API convenience                       | Scoped-Satisfied | façade と高レベル API の整備、および leak guard による ergonomics 保護が証明済み。広範な NDK-style model system は strict gap audit で後続候補として扱う。         |
-| strfry的 local-first seamless processing    | Partial          | `ReadSettlement` / reconcile / tombstone の一貫した動作は証明済み。完全な local relay database abstraction と内部 raw transport 分類は strict gap audit で扱う。   |
-| scoped NIP compliance                       | Scoped-Satisfied | matrix + owner は定義済み。NIP-11 は runtime-only の限定的サポートであり、無制限の全 NIP 実装ではなく matrix-managed compliance として扱う。                       |
-| offline incremental + kind:5                | Partial          | kind:5/tombstone および pending publish proof は存在する。sync cursor と restart-safe incremental repair の全面 proof は strict gap audit で後続候補として扱う。   |
-| minimal core + plugin-based higher features | Scoped-Satisfied | public API 基盤の上で、高次機能の plugin 移行と隔離が証明済み。core primitive と app-facing runtime API の層分離は strict goal audit gate で維持する。             |
-| strict single coordinator model             | Scoped-Satisfied | packages/resonote への集約と全 API の inventory 監査が完了している。内部 coordinator transport helper の許容範囲は strict goal audit gate で分類する。             |
+| 目標 (Goal)                                 | 判定 (Verdict)   | 理由・理由                                                                                                                                                                          |
+| ------------------------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| rx-nostr級 reconnect + REQ optimization     | Scoped-Satisfied | scoped contract tests および E2E proof によって再接続性と REQ 最適化が証明済み。厳格な ordinary-read negentropy-first 化は strict gap audit で後続候補として扱う。                  |
+| NDK級 API convenience                       | Scoped-Satisfied | façade と高レベル API の整備、および leak guard による ergonomics 保護が証明済み。広範な NDK-style model system は strict gap audit で後続候補として扱う。                          |
+| strfry的 local-first seamless processing    | Partial          | `ReadSettlement` / reconcile / tombstone の一貫した動作は証明済み。完全な local relay database abstraction と内部 raw transport 分類は strict gap audit で扱う。                    |
+| scoped NIP compliance                       | Scoped-Satisfied | matrix + owner は定義済み。NIP-11 は runtime-only の限定的サポートであり、無制限の全 NIP 実装ではなく matrix-managed compliance として扱う。                                        |
+| offline incremental + kind:5                | Partial          | kind:5/tombstone および pending publish proof は存在する。sync cursor と restart-safe incremental repair の全面 proof は strict gap audit で後続候補として扱う。                    |
+| minimal core + plugin-based higher features | Scoped-Satisfied | public API 基盤の上で、高次機能の plugin 移行と隔離が証明済み。core primitive と app-facing runtime API の層分離は strict goal audit gate で維持する。                              |
+| strict single coordinator model             | Satisfied        | packages/resonote への集約と全 API の inventory 監査が完了している。app-facing local storage helper は coordinator-owned high-level method 経由であり、raw DB handle は公開しない。 |
 
 ### 14.4 準拠と完了の定義 (Definitions of Compliance & Completeness)
 

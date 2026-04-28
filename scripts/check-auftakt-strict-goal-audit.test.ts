@@ -56,6 +56,7 @@ Ordinary read capability verification now routes latest and backward coordinator
 Broader outbox routing now uses coordinator-selected author, audience, explicit addressable, and durable addressable relay candidates while default-only suppresses broader candidates.
 Plugin model API now gives extensions coordinator-mediated event, user, addressable, relay-set, and relay-hint handles without exposing raw storage or transport handles.
 Storage hot-path hardening now proves Dexie kind-bounded traversal, projection reads, max-created lookups, and HotEventIndex kind, tag, replaceable, deletion, and relay-hint paths without broad event-table scans.
+App-facing local comment, follow graph, and maintenance helpers now call coordinator-owned local store methods without exposing openEventsDb or raw event database handles.
 `;
 
 const validRequiredProofFiles = [
@@ -70,7 +71,7 @@ const validRequiredProofFiles = [
   ),
   file(
     'packages/resonote/src/runtime.ts',
-    'const cursor = await loadRepairSyncCursor(eventsDB, cursorState);\ncreateOrdinaryReadRelayGateway\nverifyOrdinaryReadRelayCandidates\nResonoteCoordinatorPluginModels\nreadonly models: ResonoteCoordinatorPluginModels\ncreatePluginRegistrationApi(pending, entityHandles)'
+    'const cursor = await loadRepairSyncCursor(eventsDB, cursorState);\ncreateOrdinaryReadRelayGateway\nverifyOrdinaryReadRelayCandidates\nResonoteCoordinatorPluginModels\nreadonly models: ResonoteCoordinatorPluginModels\ncreatePluginRegistrationApi(pending, entityHandles)\nreadCommentEventsByTag(tagQuery: string): Promise<StoredEvent[]>;\nclearStoredEvents(): Promise<void>;'
   ),
   file(
     'packages/resonote/src/relay-repair.contract.test.ts',
@@ -119,6 +120,14 @@ const validRequiredProofFiles = [
   file(
     'packages/resonote/src/event-coordinator.contract.test.ts',
     'prefills tag reads from hot index while still checking durable store\nprefills kind reads from hot index while still checking durable store'
+  ),
+  file(
+    'src/shared/auftakt/resonote.ts',
+    'return coordinator.readCommentEventsByTag(tagQuery);\nreturn coordinator.clearStoredEvents();'
+  ),
+  file(
+    'packages/resonote/src/local-store-api.contract.test.ts',
+    'keeps raw event database handles out of the public coordinator surface'
   )
 ];
 
@@ -274,6 +283,40 @@ describe('checkStrictGoalAudit', () => {
     expect(result.ok).toBe(false);
     expect(result.errors).toContain(
       `${STRICT_GOAL_AUDIT_PATH} is missing storage hot-path hardening implementation evidence`
+    );
+  });
+
+  it('requires coordinator local store api implementation proof', () => {
+    const result = checkStrictGoalAudit([
+      file(
+        STRICT_GOAL_AUDIT_PATH,
+        validAuditText.replace(
+          'App-facing local comment, follow graph, and maintenance helpers now call coordinator-owned local store methods without exposing openEventsDb or raw event database handles.',
+          'Local store API evidence removed.'
+        )
+      ),
+      ...validRequiredProofFiles
+    ]);
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain(
+      `${STRICT_GOAL_AUDIT_PATH} is missing coordinator local store API evidence`
+    );
+  });
+
+  it('rejects raw local store handles on the public coordinator runtime source', () => {
+    const result = checkStrictGoalAudit([
+      file(STRICT_GOAL_AUDIT_PATH, validAuditText),
+      ...validRequiredProofFiles.map((proofFile) =>
+        proofFile.path === 'packages/resonote/src/runtime.ts'
+          ? file(proofFile.path, `${proofFile.text}\nopenEventsDb(): unknown;`)
+          : proofFile
+      )
+    ]);
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain(
+      'packages/resonote/src/runtime.ts exposes raw local store handle openEventsDb'
     );
   });
 
