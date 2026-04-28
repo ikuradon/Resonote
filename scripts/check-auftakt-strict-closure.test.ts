@@ -210,6 +210,52 @@ describe('checkStrictClosure', () => {
     );
   });
 
+  it('flags stale April completion audit blockers after completion gate closure', () => {
+    const auditPath = 'docs/auftakt/2026-04-26-april-doc-completion-audit.md';
+    const result = checkStrictClosure([
+      file(
+        auditPath,
+        [
+          'Not complete until `pnpm run check:auftakt-complete` passes',
+          '| `docs/superpowers/specs/2026-04-25-cached-query-retirement-design.md`                                       | Partially Implemented |',
+          '| `docs/superpowers/plans/2026-04-25-auftakt-relay-capability-strict-completion.md`                           | Partially Implemented |',
+          '| `docs/superpowers/plans/2026-04-25-cached-query-retirement.md`                                              | Partially Implemented |',
+          'Complete Tasks 1 and 2, then reclassify as `Implemented`',
+          'Complete Task 1, then reclassify as `Implemented`',
+          'Run this after the implementation tasks:'
+        ].join('\n')
+      ),
+      file(
+        'packages/resonote/src/event-coordinator.ts',
+        'import { createMaterializerQueue } from "./materializer-queue.js";'
+      ),
+      file(
+        'packages/resonote/src/runtime.ts',
+        'import { createRelayGateway } from "./relay-gateway.js";'
+      )
+    ]);
+
+    expect(result.errors).toContain(
+      `${auditPath} still claims completion is blocked after the completion gate passed`
+    );
+    expect(result.errors).toContain(
+      `${auditPath} still marks cached-query retirement design as Partially Implemented`
+    );
+    expect(result.errors).toContain(
+      `${auditPath} still marks relay capability strict completion as Partially Implemented`
+    );
+    expect(result.errors).toContain(
+      `${auditPath} still marks cached-query retirement plan as Partially Implemented`
+    );
+    expect(result.errors).toContain(
+      `${auditPath} still asks to complete cached-query retirement tasks`
+    );
+    expect(result.errors).toContain(
+      `${auditPath} still asks to complete relay capability strict completion tasks`
+    );
+    expect(result.errors).toContain(`${auditPath} still describes final verification as pending`);
+  });
+
   it('ignores archived docs that mention retired cached read bridges', () => {
     const retiredImport = `$shared/nostr/${retiredCachedReadSlug}.js`;
     const result = checkStrictClosure([

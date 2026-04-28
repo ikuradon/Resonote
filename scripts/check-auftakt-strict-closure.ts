@@ -46,6 +46,40 @@ const RETIRED_CACHED_READ_SPECIFIERS = [
   `./${RETIRED_CACHED_READ_BASENAME}.js`,
   `./${RETIRED_CACHED_READ_BASENAME}.svelte.js`
 ];
+const APRIL_COMPLETION_AUDIT_PATH = 'docs/auftakt/2026-04-26-april-doc-completion-audit.md';
+const STALE_APRIL_COMPLETION_AUDIT_MARKERS = [
+  {
+    marker: 'Not complete until `pnpm run check:auftakt-complete` passes',
+    message: `${APRIL_COMPLETION_AUDIT_PATH} still claims completion is blocked after the completion gate passed`
+  },
+  {
+    marker:
+      '| `docs/superpowers/specs/2026-04-25-cached-query-retirement-design.md`                                       | Partially Implemented',
+    message: `${APRIL_COMPLETION_AUDIT_PATH} still marks cached-query retirement design as Partially Implemented`
+  },
+  {
+    marker:
+      '| `docs/superpowers/plans/2026-04-25-auftakt-relay-capability-strict-completion.md`                           | Partially Implemented',
+    message: `${APRIL_COMPLETION_AUDIT_PATH} still marks relay capability strict completion as Partially Implemented`
+  },
+  {
+    marker:
+      '| `docs/superpowers/plans/2026-04-25-cached-query-retirement.md`                                              | Partially Implemented',
+    message: `${APRIL_COMPLETION_AUDIT_PATH} still marks cached-query retirement plan as Partially Implemented`
+  },
+  {
+    marker: 'Complete Tasks 1 and 2, then reclassify as `Implemented`',
+    message: `${APRIL_COMPLETION_AUDIT_PATH} still asks to complete cached-query retirement tasks`
+  },
+  {
+    marker: 'Complete Task 1, then reclassify as `Implemented`',
+    message: `${APRIL_COMPLETION_AUDIT_PATH} still asks to complete relay capability strict completion tasks`
+  },
+  {
+    marker: 'Run this after the implementation tasks:',
+    message: `${APRIL_COMPLETION_AUDIT_PATH} still describes final verification as pending`
+  }
+];
 
 function addUnique(errors: string[], message: string): void {
   if (!errors.includes(message)) {
@@ -135,6 +169,13 @@ export function checkStrictClosure(files: readonly StrictClosureFile[]): StrictC
       REMOVED_PACKAGE_PATTERNS.some((pattern) => file.text.includes(pattern))
     ) {
       errors.push(`${file.path} mentions removed Auftakt package boundary`);
+    }
+    if (file.path === APRIL_COMPLETION_AUDIT_PATH) {
+      for (const staleMarker of STALE_APRIL_COMPLETION_AUDIT_MARKERS) {
+        if (file.text.includes(staleMarker.marker)) {
+          addUnique(errors, staleMarker.message);
+        }
+      }
     }
     if (file.path === 'src/shared/nostr/pending-publishes.ts' && file.text.includes("from 'idb'")) {
       errors.push('src/shared/nostr/pending-publishes.ts still uses standalone idb storage');
