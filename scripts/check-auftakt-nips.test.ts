@@ -631,6 +631,54 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-37 draft event pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['37'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('37', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P2',
+            scopeNotes: 'Draft event handling pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain('NIP-37 must stay implemented after draft-wrap model coverage');
+    expect(result.errors).toContain('NIP-37 owner must be packages/core/src/nip37-draft-wrap.ts');
+    expect(result.errors).toContain(
+      'NIP-37 proof must be packages/core/src/nip37-draft-wrap.contract.test.ts'
+    );
+    expect(result.errors).toContain('NIP-37 scopeNotes must not use stale draft-pending wording');
+  });
+
+  it('accepts the implemented NIP-37 draft-wrap claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['37'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('37', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip37-draft-wrap.ts',
+            proof: 'packages/core/src/nip37-draft-wrap.contract.test.ts',
+            priority: 'P2',
+            scopeNotes:
+              'Core NIP-37 draft-wrap helpers build and parse kind:31234 NIP-44 encrypted draft wrappers, blank deletion markers, NIP-40 expiration tags, and kind:10013 private relay tag JSON.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-40 expiration-compaction pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['40'], sourceUrl: 'source', sourceDate: '2026-04-24' },

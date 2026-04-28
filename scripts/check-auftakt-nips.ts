@@ -68,6 +68,8 @@ const REQUIRED_NIP31_OWNER = 'packages/core/src/nip31-alt.ts';
 const REQUIRED_NIP31_PROOF = 'packages/core/src/nip31-alt.contract.test.ts';
 const REQUIRED_NIP36_OWNER = 'packages/core/src/nip36-content-warning.ts';
 const REQUIRED_NIP36_PROOF = 'packages/core/src/nip36-content-warning.contract.test.ts';
+const REQUIRED_NIP37_OWNER = 'packages/core/src/nip37-draft-wrap.ts';
+const REQUIRED_NIP37_PROOF = 'packages/core/src/nip37-draft-wrap.contract.test.ts';
 const REQUIRED_NIP40_OWNER = 'packages/adapter-dexie/src/index.ts';
 const REQUIRED_NIP40_PROOF = 'packages/adapter-dexie/src/materialization.contract.test.ts';
 const REQUIRED_NIP51_OWNER = 'packages/core/src/nip51-list.ts';
@@ -295,6 +297,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === '36') {
     errors.push(...validateNip36MatrixEntry(entry));
   }
+  if (entry.nip === '37') {
+    errors.push(...validateNip37MatrixEntry(entry));
+  }
   if (entry.nip === '40') {
     errors.push(...validateNip40MatrixEntry(entry));
   }
@@ -506,6 +511,34 @@ function validateNip36MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|moderation pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-36 scopeNotes must not use stale moderation-pending wording');
+  }
+  return errors;
+}
+
+function validateNip37MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-37 must stay implemented after draft-wrap model coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP37_OWNER) {
+    errors.push(`NIP-37 owner must be ${REQUIRED_NIP37_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP37_PROOF) {
+    errors.push(`NIP-37 proof must be ${REQUIRED_NIP37_PROOF}`);
+  }
+  if (
+    !/31234|draft wrap/i.test(entry.scopeNotes) ||
+    !/10013|private relay/i.test(entry.scopeNotes) ||
+    !/(NIP-44|encrypted)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-37 scopeNotes must mention kind:31234 draft wraps, kind:10013 private relays, and encryption boundary'
+    );
+  }
+  if (
+    /not-started|pending|draft event handling pending/i.test(`${entry.status} ${entry.scopeNotes}`)
+  ) {
+    errors.push('NIP-37 scopeNotes must not use stale draft-pending wording');
   }
   return errors;
 }

@@ -71,6 +71,28 @@ export {
   NIP36_CONTENT_WARNING_TAG,
   parseNip36ContentWarning
 } from './nip36-content-warning.js';
+export type {
+  BuildNip37DraftDeletionInput,
+  BuildNip37DraftWrapInput,
+  BuildNip37PrivateRelayListInput,
+  EncryptNip37DraftWrapInput,
+  Nip37DraftWrapCrypto,
+  Nip37DraftWrapSnapshot,
+  Nip37PrivateRelayListSnapshot
+} from './nip37-draft-wrap.js';
+export {
+  buildNip37DraftDeletionEvent,
+  buildNip37DraftWrapEvent,
+  buildNip37PrivateRelayListEvent,
+  encryptNip37DraftWrap,
+  NIP37_DRAFT_WRAP_KIND,
+  NIP37_PRIVATE_RELAY_LIST_KIND,
+  parseNip37DraftWrapEvent,
+  parseNip37PrivateRelayListEvent,
+  parseNip37PrivateRelayTags,
+  parseNip37PrivateRelayTagsJson,
+  stringifyNip37PrivateRelayTags
+} from './nip37-draft-wrap.js';
 export {
   buildNip40ExpirationTag,
   hasNip40Expiration,

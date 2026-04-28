@@ -293,11 +293,11 @@
     {
       "nip": "37",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip37-draft-wrap.ts",
+      "proof": "packages/core/src/nip37-draft-wrap.contract.test.ts",
       "priority": "P2",
-      "scopeNotes": "Draft event handling pending"
+      "scopeNotes": "Core NIP-37 draft-wrap helpers build and parse kind:31234 NIP-44 encrypted draft wrappers, blank deletion markers, NIP-40 expiration tags, and kind:10013 private relay tag JSON"
     },
     {
       "nip": "38",
