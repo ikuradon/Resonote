@@ -87,6 +87,27 @@ const REQUIRED_SYNC_CURSOR_REPAIR_FILES = [
 const REQUIRED_ORDINARY_READ_CAPABILITY_AUDIT_EVIDENCE =
   'Ordinary read capability verification now routes latest and backward coordinator reads through negentropy-first RelayGateway verification with REQ fallback.';
 
+const REQUIRED_ADAPTIVE_REQ_AUDIT_EVIDENCE =
+  'Adaptive REQ optimization now reapplies learned relay max_filters and max_subscriptions limits to active shard queues without dropping failed shards.';
+
+const REQUIRED_ADAPTIVE_REQ_FILES = [
+  {
+    path: 'packages/core/src/relay-session.ts',
+    text: 'requeueRelayShardAfterCapabilityLearning',
+    description: 'adaptive learned-capability shard requeue implementation'
+  },
+  {
+    path: 'packages/core/src/relay-session.ts',
+    text: 'applyLearnedRelayCapability',
+    description: 'immediate learned relay capability application'
+  },
+  {
+    path: 'packages/core/src/relay-session.contract.test.ts',
+    text: 'adapts queued shards when a relay learns max_filters from CLOSED',
+    description: 'adaptive max_filters shard requeue contract'
+  }
+];
+
 const REQUIRED_ORDINARY_READ_CAPABILITY_FILES = [
   {
     path: 'packages/resonote/src/runtime.ts',
@@ -292,6 +313,10 @@ const AMBIGUOUS_STRICT_COMPLETION_PATTERNS = [
 
 const STALE_STRICT_GOAL_VERDICTS = [
   {
+    pattern: /^\|\s*rx-nostr-like reconnect and REQ optimization\s*\|\s*`?Scoped-Satisfied`?\s*\|/m,
+    message: `${STRICT_GOAL_AUDIT_PATH} must not leave rx-nostr-like reconnect and REQ optimization as Scoped-Satisfied after adaptive REQ proof closure`
+  },
+  {
     pattern: /^\|\s*strfry-like local-first event processing\s*\|\s*`?Partial`?\s*\|/m,
     message: `${STRICT_GOAL_AUDIT_PATH} must not mark strfry-like local-first event processing as Partial after coordinator/local-store proof closure`
   },
@@ -314,10 +339,19 @@ const STALE_STRICT_GOAL_FOLLOWUP_WORDING = [
   {
     pattern: /The API is ergonomic for current Resonote flows, not a broad NDK-style model system/,
     message: `${STRICT_GOAL_AUDIT_PATH} must not describe NDK-like API convenience as a remaining broad model-system gap after plugin model proof closure`
+  },
+  {
+    pattern: /Adaptive reconnect\/read policy beyond the current coordinator gateway behavior/,
+    message: `${STRICT_GOAL_AUDIT_PATH} must not describe adaptive REQ optimization as a remaining future transport-policy gap after shard requeue proof closure`
   }
 ];
 
 const STALE_CANONICAL_SPEC_PARTIAL_VERDICTS = [
+  {
+    pattern: /^\|\s*rx-nostr級 reconnect \+ REQ optimization\s*\|\s*Scoped-Satisfied\s*\|/m,
+    message:
+      'docs/auftakt/spec.md must not leave rx-nostr級 reconnect + REQ optimization as Scoped-Satisfied after adaptive REQ proof closure'
+  },
   {
     pattern: /^\|\s*strfry的 local-first seamless processing\s*\|\s*Partial\s*\|/m,
     message:
@@ -347,6 +381,11 @@ const STALE_CANONICAL_SPEC_PARTIAL_VERDICTS = [
     pattern: /広範な NDK-style model system は strict gap audit で後続候補として扱う/,
     message:
       'docs/auftakt/spec.md must not describe NDK-style model expansion as a pending follow-up after plugin model API proof closure'
+  },
+  {
+    pattern: /adaptive reconnect\/read policy は strict gap audit で後続候補として扱う/,
+    message:
+      'docs/auftakt/spec.md must not describe adaptive reconnect/read policy as a pending follow-up after adaptive REQ proof closure'
   }
 ];
 
@@ -524,6 +563,10 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
     );
   }
 
+  if (!strictAudit.text.includes(REQUIRED_ADAPTIVE_REQ_AUDIT_EVIDENCE)) {
+    errors.push(`${strictAudit.path} is missing adaptive REQ optimization implementation evidence`);
+  }
+
   if (!strictAudit.text.includes(REQUIRED_BROADER_OUTBOX_AUDIT_EVIDENCE)) {
     errors.push(`${strictAudit.path} is missing broader outbox routing implementation evidence`);
   }
@@ -568,6 +611,17 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
     const text = findFileText(files, required.path);
     if (text === null) {
       errors.push(`${required.path} is missing for strict ordinary read capability audit`);
+      continue;
+    }
+    if (!text.includes(required.text)) {
+      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
+    }
+  }
+
+  for (const required of REQUIRED_ADAPTIVE_REQ_FILES) {
+    const text = findFileText(files, required.path);
+    if (text === null) {
+      errors.push(`${required.path} is missing for strict adaptive REQ optimization audit`);
       continue;
     }
     if (!text.includes(required.text)) {
@@ -652,6 +706,8 @@ function collectFiles(root = process.cwd()): StrictGoalAuditFile[] {
     STRICT_GOAL_AUDIT_PATH,
     'docs/auftakt/spec.md',
     'packages/core/src/settlement.ts',
+    'packages/core/src/relay-session.ts',
+    'packages/core/src/relay-session.contract.test.ts',
     'packages/resonote/src/event-coordinator.ts',
     'packages/adapter-dexie/src/index.ts',
     'packages/adapter-dexie/src/hot-path.contract.test.ts',

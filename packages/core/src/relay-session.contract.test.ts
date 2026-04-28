@@ -746,6 +746,53 @@ describe('relay replay request identity contract', () => {
     session.dispose();
   });
 
+  it('adapts queued shards when a relay learns max_filters from CLOSED', async () => {
+    const filters = [{ ids: ['a'] }, { ids: ['b'] }, { ids: ['c'] }];
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100,
+      requestOptimizer: {
+        defaultMaxFiltersPerRequest: 2
+      }
+    });
+    const req = createRxBackwardReq({
+      requestKey: createRuntimeRequestKey({
+        mode: 'backward',
+        scope: 'contract:adaptive-max-filters',
+        filters
+      })
+    });
+
+    const sub = session.use(req).subscribe({});
+    req.emit(filters);
+    req.over();
+
+    await waitUntil(() => FakeWebSocket.instances.length > 0);
+    const socket = latestSocket();
+    socket.open();
+    await waitUntil(() => socket.sent.length === 1);
+
+    expect((socket.sent[0] as [string, string, ...unknown[]]).slice(2)).toEqual([
+      { ids: ['a'] },
+      { ids: ['b'] }
+    ]);
+
+    const failedSubId = (socket.sent[0] as [string, string, ...unknown[]])[1];
+    socket.message(['CLOSED', failedSubId, 'too many filters: max 1']);
+
+    await waitUntil(() => socket.sent.length === 4);
+    expect(
+      socket.sent.slice(1).map((packet) => (packet as [string, string, ...unknown[]]).slice(2))
+    ).toEqual([[{ ids: ['a'] }], [{ ids: ['b'] }], [{ ids: ['c'] }]]);
+    expect(session.getRelayCapabilitySnapshot(RELAY_URL)).toMatchObject({
+      maxFilters: 1,
+      source: 'learned'
+    });
+
+    sub.unsubscribe();
+    session.dispose();
+  });
+
   it('reconnect replays relay-specific shard policy for capability-aware queueing', async () => {
     const filters = [
       { authors: ['pubkey-c'], kinds: [1] },

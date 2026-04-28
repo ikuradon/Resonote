@@ -55,7 +55,7 @@ NIP-EE
 
 | 目標 (Goal)                                 | 判定 (Verdict)   | 理由・理由                                                                                                                                                    |
 | ------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| rx-nostr級 reconnect + REQ optimization     | Satisfied        | contract tests および E2E proof によって再接続性と REQ 最適化が証明済み。                                                                                     |
+| rx-nostr級 reconnect + REQ optimization     | Satisfied        | contract tests および E2E proof によって再接続性、capability-aware shard queueing、learned-limit adaptive REQ requeue が証明済み。                            |
 | NDK級 API convenience                       | Satisfied        | façade と高レベル API の整備、および leak guard による ergonomics 保護が証明済み。                                                                            |
 | strfry的 local-first seamless processing    | Satisfied        | `ReadSettlement` / reconcile / tombstone の一貫した動作が UI/Restart を含めて証明済み。                                                                       |
 | scoped NIP compliance                       | Scoped-Satisfied | matrix + owner は定義済み。NIP-01, 65 の proof gap は解消済み。NIP-11 は runtime-only の限定的サポートとして matrix-managed compliance に含める。             |

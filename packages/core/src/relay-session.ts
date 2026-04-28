@@ -422,6 +422,7 @@ interface ActiveRequestGroup {
   readonly transportSubIds: Map<string, Map<string, string>>;
   readonly relayShardQueues: Map<string, QueuedRelayShard[]>;
   readonly activeRelaySubIds: Map<string, Set<string>>;
+  readonly activeRelayShards: Map<string, Map<string, QueuedRelayShard>>;
   readonly cleanup: Array<() => void>;
   started: boolean;
   finished: boolean;
@@ -721,6 +722,7 @@ class RelaySession implements RxNostr {
       transportSubIds: new Map(),
       relayShardQueues: new Map(),
       activeRelaySubIds: new Map(),
+      activeRelayShards: new Map(),
       cleanup: [],
       started: false,
       finished: false
@@ -753,6 +755,11 @@ class RelaySession implements RxNostr {
               activeAcceptedSubscriptions: this.countActiveSubscriptions(from)
             });
             if (learned) {
+              const activeShard = this.getActiveRelayShard(group, from, incomingSubId);
+              this.applyLearnedRelayCapability(learned);
+              if (activeShard) {
+                this.requeueRelayShardAfterCapabilityLearning(group, from, activeShard, learned);
+              }
               this.capabilityLearningHandler?.(learned);
             }
           }
@@ -877,14 +884,24 @@ class RelaySession implements RxNostr {
       shardSubIds.set(shard.shardKey, subId);
       group.transportSubIds.set(relayUrl, shardSubIds);
       active.add(subId);
+      const activeShards =
+        group.activeRelayShards.get(relayUrl) ?? new Map<string, QueuedRelayShard>();
+      activeShards.set(subId, shard);
+      group.activeRelayShards.set(relayUrl, activeShards);
       this.trackRequestTransport(group.groupKey, subId, relayUrl);
       if (group.mode === 'backward') {
         group.pendingSubIds.add(subId);
       }
       await relay.send(['REQ', subId, ...shard.filters]);
+      if (group.relayShardQueues.get(relayUrl) !== queue) {
+        return;
+      }
       sent += 1;
     }
 
+    if (group.relayShardQueues.get(relayUrl) !== queue) {
+      return;
+    }
     group.relayShardQueues.set(relayUrl, queue);
     this.publishRelayCapability(relayUrl);
   }
@@ -899,6 +916,7 @@ class RelaySession implements RxNostr {
       }
     }
     group.activeRelaySubIds.get(relayUrl)?.clear();
+    group.activeRelayShards.get(relayUrl)?.clear();
     group.relayShardQueues.delete(relayUrl);
     this.publishRelayCapability(relayUrl);
     this.maybeScheduleIdleDisconnect(relayUrl);
@@ -917,6 +935,7 @@ class RelaySession implements RxNostr {
       }
     }
     group.activeRelaySubIds.get(relayUrl)?.clear();
+    group.activeRelayShards.get(relayUrl)?.clear();
     group.relayShardQueues.delete(relayUrl);
     this.publishRelayCapability(relayUrl);
     this.maybeScheduleIdleDisconnect(relayUrl);
@@ -924,6 +943,7 @@ class RelaySession implements RxNostr {
 
   private releaseRelaySubId(group: ActiveRequestGroup, relayUrl: string, subId: string): void {
     group.activeRelaySubIds.get(relayUrl)?.delete(subId);
+    group.activeRelayShards.get(relayUrl)?.delete(subId);
     const relaySubIds = group.transportSubIds.get(relayUrl);
     if (relaySubIds) {
       for (const [shardKey, trackedSubId] of relaySubIds.entries()) {
@@ -981,6 +1001,7 @@ class RelaySession implements RxNostr {
         this.untrackSubId(subId);
       }
       group.activeRelaySubIds.get(relayUrl)?.clear();
+      group.activeRelayShards.get(relayUrl)?.clear();
       group.relayShardQueues.delete(relayUrl);
       this.publishRelayCapability(relayUrl);
       this.maybeScheduleIdleDisconnect(relayUrl);
@@ -1342,6 +1363,64 @@ class RelaySession implements RxNostr {
     const set = this.relayNeedsReplay.get(relayUrl) ?? new Set<string>();
     set.add(groupKey);
     this.relayNeedsReplay.set(relayUrl, set);
+  }
+
+  private getActiveRelayShard(
+    group: ActiveRequestGroup,
+    relayUrl: string,
+    subId: string
+  ): QueuedRelayShard | undefined {
+    return group.activeRelayShards.get(relayUrl)?.get(subId);
+  }
+
+  private applyLearnedRelayCapability(event: RelayCapabilityLearningEvent): void {
+    const existing = this.relayCapabilities.get(event.relayUrl);
+    const learnedMaxFilters = event.kind === 'maxFilters' ? event.value : null;
+    const learnedMaxSubscriptions = event.kind === 'maxSubscriptions' ? event.value : null;
+    const source =
+      !existing || existing.source === 'unknown' || existing.source === 'learned'
+        ? 'learned'
+        : 'mixed';
+
+    this.relayCapabilities.set(event.relayUrl, {
+      relayUrl: event.relayUrl,
+      maxFilters: minNullable(existing?.maxFilters ?? null, learnedMaxFilters),
+      maxSubscriptions: minNullable(existing?.maxSubscriptions ?? null, learnedMaxSubscriptions),
+      supportedNips: [...(existing?.supportedNips ?? [])],
+      source,
+      expiresAt: existing?.expiresAt ?? null,
+      stale: existing?.stale ?? false
+    });
+    this.publishRelayCapability(event.relayUrl);
+  }
+
+  private requeueRelayShardAfterCapabilityLearning(
+    group: ActiveRequestGroup,
+    relayUrl: string,
+    failedShard: QueuedRelayShard,
+    learned: RelayCapabilityLearningEvent
+  ): void {
+    const currentQueue = group.relayShardQueues.get(relayUrl) ?? [];
+
+    if (learned.kind === 'maxSubscriptions') {
+      group.relayShardQueues.set(relayUrl, [failedShard, ...currentQueue]);
+      this.publishRelayCapability(relayUrl);
+      return;
+    }
+
+    const shardSize = Math.max(1, Math.floor(learned.value));
+    const retryFilters = [failedShard, ...currentQueue].flatMap((shard) => shard.filters);
+    const retryQueue: QueuedRelayShard[] = [];
+
+    for (let index = 0; index < retryFilters.length; index += shardSize) {
+      retryQueue.push({
+        shardKey: `${failedShard.shardKey}:adaptive:${retryQueue.length}`,
+        filters: retryFilters.slice(index, index + shardSize)
+      });
+    }
+
+    group.relayShardQueues.set(relayUrl, retryQueue);
+    this.publishRelayCapability(relayUrl);
   }
 
   private async restoreRelayStreams(relayUrl: string): Promise<void> {
