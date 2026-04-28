@@ -28,6 +28,27 @@ export {
   sortNegentropyEventRefsAsc
 } from './negentropy.js';
 export type {
+  BuildNip17ChatMessageInput,
+  BuildNip17ConversationGiftWrapsInput,
+  BuildNip17FileMessageInput,
+  Nip17ReplyTarget,
+  Nip17WrappedMessage
+} from './nip17-direct-message.js';
+export {
+  buildNip17ChatMessage,
+  buildNip17ConversationGiftWraps,
+  buildNip17DmRelayList,
+  buildNip17FileMessage,
+  conversationParticipants,
+  isNip17MessageKind,
+  isNip17Rumor,
+  NIP17_CHAT_MESSAGE_KIND,
+  NIP17_DM_RELAY_LIST_KIND,
+  NIP17_FILE_MESSAGE_KIND,
+  nip17ConversationKey,
+  parseNip17DmRelayListTags
+} from './nip17-direct-message.js';
+export type {
   BuildNip51ListEventInput,
   Nip51DeprecatedListKind,
   Nip51ListKind,

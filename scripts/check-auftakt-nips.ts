@@ -54,6 +54,8 @@ const REQUIRED_NIP05_OWNER = 'src/shared/nostr/nip05.ts';
 const REQUIRED_NIP05_PROOF = 'src/shared/nostr/nip05.test.ts';
 const REQUIRED_NIP07_OWNER = 'src/shared/nostr/client.ts';
 const REQUIRED_NIP07_PROOF = 'src/shared/nostr/client-integration.test.ts';
+const REQUIRED_NIP17_OWNER = 'packages/core/src/nip17-direct-message.ts';
+const REQUIRED_NIP17_PROOF = 'packages/core/src/nip17-direct-message.contract.test.ts';
 const REQUIRED_NIP18_OWNER = 'src/features/comments/application/comment-actions.ts';
 const REQUIRED_NIP18_PROOF = 'src/features/comments/application/comment-actions.test.ts';
 const REQUIRED_NIP30_OWNER = 'packages/resonote/src/runtime.ts';
@@ -256,6 +258,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === '07') {
     errors.push(...validateNip07MatrixEntry(entry));
   }
+  if (entry.nip === '17') {
+    errors.push(...validateNip17MatrixEntry(entry));
+  }
   if (entry.nip === '18') {
     errors.push(...validateNip18MatrixEntry(entry));
   }
@@ -276,6 +281,37 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '70') {
     errors.push(...validateNip70MatrixEntry(entry));
+  }
+  return errors;
+}
+
+function validateNip17MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-17 must stay implemented after private direct-message model coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP17_OWNER) {
+    errors.push(`NIP-17 owner must be ${REQUIRED_NIP17_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP17_PROOF) {
+    errors.push(`NIP-17 proof must be ${REQUIRED_NIP17_PROOF}`);
+  }
+  if (
+    !/kind:14/i.test(entry.scopeNotes) ||
+    !/kind:15/i.test(entry.scopeNotes) ||
+    !/(10050|DM relay)/i.test(entry.scopeNotes) ||
+    !/(gift wrap|NIP-59)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-17 scopeNotes must mention kind:14/15, DM relay list, and NIP-59 gift-wrap coverage'
+    );
+  }
+  if (
+    /not-started|pending|required|requires encrypted-event pipeline/i.test(
+      `${entry.status} ${entry.scopeNotes}`
+    )
+  ) {
+    errors.push('NIP-17 scopeNotes must not use stale encrypted-pipeline-pending wording');
   }
   return errors;
 }

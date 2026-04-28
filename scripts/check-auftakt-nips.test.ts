@@ -265,6 +265,60 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-17 encrypted-pipeline pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['17'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('17', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P2',
+            scopeNotes: 'Private DMs require encrypted-event pipeline'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-17 must stay implemented after private direct-message model coverage'
+    );
+    expect(result.errors).toContain(
+      'NIP-17 owner must be packages/core/src/nip17-direct-message.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-17 proof must be packages/core/src/nip17-direct-message.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-17 scopeNotes must not use stale encrypted-pipeline-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-17 private direct-message claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['17'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('17', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip17-direct-message.ts',
+            proof: 'packages/core/src/nip17-direct-message.contract.test.ts',
+            priority: 'P2',
+            scopeNotes:
+              'Core NIP-17 private direct-message model builds kind:14 chat and kind:15 file rumors, wraps each participant through NIP-59 gift wrap, and builds/parses kind:10050 DM relay lists.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-18 partial repost UI claims', () => {
     const result = checkNipMatrix(
       { nips: ['18'], sourceUrl: 'source', sourceDate: '2026-04-24' },

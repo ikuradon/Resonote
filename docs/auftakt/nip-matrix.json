@@ -131,11 +131,11 @@
     {
       "nip": "17",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip17-direct-message.ts",
+      "proof": "packages/core/src/nip17-direct-message.contract.test.ts",
       "priority": "P2",
-      "scopeNotes": "Private DMs require encrypted-event pipeline"
+      "scopeNotes": "Core NIP-17 private direct-message model builds kind:14 chat and kind:15 file rumors, wraps each participant through NIP-59 gift wrap, and builds/parses kind:10050 DM relay lists"
     },
     {
       "nip": "18",
