@@ -3,6 +3,7 @@ export {
   decodeNip19,
   finalizeEvent,
   generateSecretKey,
+  getEventHash,
   getPublicKey,
   hexToBytes,
   naddrEncode,
@@ -56,6 +57,26 @@ export {
   removeNip51ListTags,
   stringifyNip51PrivateTags
 } from './nip51-list.js';
+export type {
+  BuildNip59GiftWrapInput,
+  Nip59GiftWrapCrypto,
+  Nip59GiftWrapEvent,
+  Nip59GiftWrapResult,
+  Nip59Rumor,
+  Nip59SealEvent
+} from './nip59-gift-wrap.js';
+export {
+  buildNip59GiftWrap,
+  buildNip59Rumor,
+  isNip59GiftWrapEvent,
+  isNip59SealEvent,
+  NIP59_GIFT_WRAP_KIND,
+  NIP59_RANDOM_TIMESTAMP_WINDOW_SECONDS,
+  NIP59_SEAL_KIND,
+  parseNip59RumorJson,
+  parseNip59SealJson,
+  randomizeNip59Timestamp
+} from './nip59-gift-wrap.js';
 export type {
   DeletionEventLike,
   DeletionReconcileResult,

@@ -463,6 +463,60 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-59 gift-wrap required claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['59'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('59', {
+            level: 'internal',
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P1',
+            scopeNotes: 'Gift wrap required for private messaging support'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-59 must stay implemented after gift-wrap protocol coverage'
+    );
+    expect(result.errors).toContain('NIP-59 owner must be packages/core/src/nip59-gift-wrap.ts');
+    expect(result.errors).toContain(
+      'NIP-59 proof must be packages/core/src/nip59-gift-wrap.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-59 scopeNotes must not use stale required/not-started wording'
+    );
+  });
+
+  it('accepts the implemented NIP-59 gift-wrap protocol claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['59'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('59', {
+            level: 'internal',
+            status: 'implemented',
+            owner: 'packages/core/src/nip59-gift-wrap.ts',
+            proof: 'packages/core/src/nip59-gift-wrap.contract.test.ts',
+            priority: 'P1',
+            scopeNotes:
+              'Core NIP-59 gift-wrap protocol builds unsigned rumors, kind:13 seals with empty tags, kind:1059 gift wraps with recipient p-tags, randomized past timestamps, ephemeral wrapper keys, and injected NIP-44 encryption for future private-message flows'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-66 seeded relay metrics claims', () => {
     const result = checkNipMatrix(
       { nips: ['66'], sourceUrl: 'source', sourceDate: '2026-04-24' },

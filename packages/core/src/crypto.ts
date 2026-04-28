@@ -77,9 +77,13 @@ export function getPublicKey(secretKey: Uint8Array): string {
   return bytesToHex(schnorr.getPublicKey(secretKey));
 }
 
+export function getEventHash(event: UnsignedNostrEvent & { pubkey: string }): string {
+  return bytesToHex(sha256(new TextEncoder().encode(serializeEvent(event))));
+}
+
 export function finalizeEvent(event: UnsignedNostrEvent, secretKey: Uint8Array): SignedNostrEvent {
   const pubkey = getPublicKey(secretKey);
-  const id = bytesToHex(sha256(new TextEncoder().encode(serializeEvent({ ...event, pubkey }))));
+  const id = getEventHash({ ...event, pubkey });
   const sig = bytesToHex(schnorr.sign(id, secretKey));
   return { ...event, id, pubkey, sig };
 }
@@ -97,19 +101,13 @@ export async function verifier(event: Partial<SignedNostrEvent>): Promise<boolea
     return false;
   }
 
-  const serializedId = bytesToHex(
-    sha256(
-      new TextEncoder().encode(
-        serializeEvent({
-          pubkey: event.pubkey,
-          kind: event.kind,
-          created_at: event.created_at,
-          tags: event.tags as string[][],
-          content: event.content
-        })
-      )
-    )
-  );
+  const serializedId = getEventHash({
+    pubkey: event.pubkey,
+    kind: event.kind,
+    created_at: event.created_at,
+    tags: event.tags as string[][],
+    content: event.content
+  });
 
   if (serializedId != event.id) return false;
 

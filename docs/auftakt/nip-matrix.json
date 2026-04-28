@@ -482,11 +482,11 @@
     {
       "nip": "59",
       "level": "internal",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip59-gift-wrap.ts",
+      "proof": "packages/core/src/nip59-gift-wrap.contract.test.ts",
       "priority": "P1",
-      "scopeNotes": "Gift wrap required for private messaging support"
+      "scopeNotes": "Core NIP-59 gift-wrap protocol builds unsigned rumors, kind:13 seals with empty tags, kind:1059 gift wraps with recipient p-tags, randomized past timestamps, ephemeral wrapper keys, and injected NIP-44 encryption for future private-message flows"
     },
     {
       "nip": "5A",

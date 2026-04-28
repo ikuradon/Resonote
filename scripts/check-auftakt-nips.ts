@@ -60,6 +60,8 @@ const REQUIRED_NIP30_OWNER = 'packages/resonote/src/runtime.ts';
 const REQUIRED_NIP30_PROOF = 'packages/resonote/src/custom-emoji.contract.test.ts';
 const REQUIRED_NIP51_OWNER = 'packages/core/src/nip51-list.ts';
 const REQUIRED_NIP51_PROOF = 'packages/core/src/nip51-list.contract.test.ts';
+const REQUIRED_NIP59_OWNER = 'packages/core/src/nip59-gift-wrap.ts';
+const REQUIRED_NIP59_PROOF = 'packages/core/src/nip59-gift-wrap.contract.test.ts';
 const REQUIRED_NIP66_OWNER = 'packages/resonote/src/runtime.ts';
 const REQUIRED_NIP66_PROOF = 'packages/resonote/src/relay-metrics-nip66.contract.test.ts';
 const REQUIRED_RELAY_SESSION_OWNER = 'packages/core/src/relay-session.ts';
@@ -266,6 +268,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === '51') {
     errors.push(...validateNip51MatrixEntry(entry));
   }
+  if (entry.nip === '59') {
+    errors.push(...validateNip59MatrixEntry(entry));
+  }
   if (entry.nip === '66') {
     errors.push(...validateNip66MatrixEntry(entry));
   }
@@ -355,6 +360,26 @@ function validateNip51MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/partial|pending|not-started/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-51 scopeNotes must not use stale partial/pending wording');
+  }
+  return errors;
+}
+
+function validateNip59MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-59 must stay implemented after gift-wrap protocol coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP59_OWNER) {
+    errors.push(`NIP-59 owner must be ${REQUIRED_NIP59_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP59_PROOF) {
+    errors.push(`NIP-59 proof must be ${REQUIRED_NIP59_PROOF}`);
+  }
+  if (!/rumor|seal|gift wrap|1059|NIP-44/i.test(entry.scopeNotes)) {
+    errors.push('NIP-59 scopeNotes must mention rumor/seal/gift-wrap and NIP-44 coverage');
+  }
+  if (/not-started|pending|required/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-59 scopeNotes must not use stale required/not-started wording');
   }
   return errors;
 }
