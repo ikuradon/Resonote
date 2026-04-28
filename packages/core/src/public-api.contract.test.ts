@@ -6,9 +6,13 @@ import { describe, expect, it } from 'vitest';
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(currentDir, '..');
 
-function readPackageJson(): { exports?: Record<string, string | Record<string, string>> } {
+function readPackageJson(): {
+  exports?: Record<string, string | Record<string, string>>;
+} {
   const raw = readFileSync(resolve(packageRoot, 'package.json'), 'utf8');
-  return JSON.parse(raw) as { exports?: Record<string, string | Record<string, string>> };
+  return JSON.parse(raw) as {
+    exports?: Record<string, string | Record<string, string>>;
+  };
 }
 
 function assertNoPublicSubpathLeakage(
@@ -56,6 +60,13 @@ describe('@auftakt/core public api contract', () => {
         createRuntimeRequestKey: expect.any(Function),
         createRxNostrSession: expect.any(Function),
         filterNegentropyEventRefs: expect.any(Function),
+        naddrEncode: expect.any(Function),
+        neventEncode: expect.any(Function),
+        noteEncode: expect.any(Function),
+        nprofileEncode: expect.any(Function),
+        nrelayEncode: expect.any(Function),
+        nsecEncode: expect.any(Function),
+        npubEncode: expect.any(Function),
         normalizeRelayLifecycleOptions: expect.any(Function),
         normalizeRelaySelectionPolicy: expect.any(Function),
         normalizeRelayUrl: expect.any(Function),

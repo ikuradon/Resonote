@@ -47,6 +47,9 @@ const NON_IMPLEMENTED_STATUSES = new Set([
   'deprecated',
   'unrecommended'
 ]);
+const REQUIRED_NIP19_OWNER = 'packages/core/src/crypto.ts';
+const REQUIRED_NIP19_PROOF = 'src/shared/nostr/nip19-decode.test.ts';
+const REQUIRED_NIP19_PREFIXES = ['npub', 'nsec', 'note', 'nprofile', 'nevent', 'naddr', 'nrelay'];
 
 export function checkNipMatrix(
   inventory: NipInventory,
@@ -114,7 +117,9 @@ function validateInventory(inventory: NipInventory): string[] {
   for (const nip of inventory.nips) {
     if (seen.has(nip)) errors.push(`Duplicate inventory NIP-${nip}`);
     seen.add(nip);
-    if (nip !== nip.toUpperCase()) errors.push(`Inventory NIP-${nip} is not uppercase normalized`);
+    if (nip !== nip.toUpperCase()) {
+      errors.push(`Inventory NIP-${nip} is not uppercase normalized`);
+    }
   }
   const sorted = [...inventory.nips].sort();
   if (inventory.nips.join('\n') !== sorted.join('\n')) {
@@ -153,6 +158,31 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
     }
     if (entry.proof === DOCS_ONLY_OWNER) {
       errors.push(`NIP-${entry.nip} ${entry.status} claim cannot use docs-only proof`);
+    }
+  }
+  if (entry.nip === '19') {
+    errors.push(...validateNip19MatrixEntry(entry));
+  }
+  return errors;
+}
+
+function validateNip19MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-19 must stay implemented after complete standard prefix parser coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP19_OWNER) {
+    errors.push(`NIP-19 owner must be ${REQUIRED_NIP19_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP19_PROOF) {
+    errors.push(`NIP-19 proof must be ${REQUIRED_NIP19_PROOF}`);
+  }
+  if (/complete parser coverage pending|Entity vocabulary exists/i.test(entry.scopeNotes)) {
+    errors.push('NIP-19 scopeNotes must not use stale parser-coverage-pending wording');
+  }
+  for (const prefix of REQUIRED_NIP19_PREFIXES) {
+    if (!entry.scopeNotes.includes(prefix)) {
+      errors.push(`NIP-19 scopeNotes must mention ${prefix}`);
     }
   }
   return errors;

@@ -3,7 +3,7 @@ import { decodeNip19 } from '$shared/nostr/nip19-decode.js';
 
 import { fetchNostrEvent } from './fetch-event.js';
 
-/** Standard NIP-19 bech32 prefixes */
+/** Standard NIP-19 prefixes that this app route can resolve into Resonote pages */
 const STANDARD_NIP19_PREFIXES = ['npub1', 'nprofile1', 'nevent1', 'note1'];
 /** Resonote-specific bech32 prefixes (not part of NIP-19 standard) */
 const CUSTOM_PREFIXES = ['ncontent1'];
@@ -79,5 +79,9 @@ export async function resolveNip19Navigation(value: string): Promise<ResolveNip1
         return { kind: 'error', errorKey: 'nip19.not_found' };
       }
     }
+    case 'nsec':
+    case 'naddr':
+    case 'nrelay':
+      return { kind: 'error', errorKey: 'nip19.invalid' };
   }
 }

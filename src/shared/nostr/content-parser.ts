@@ -9,10 +9,21 @@ export type { DecodedNip19 };
 export type ContentSegment =
   | { type: 'text'; value: string }
   | { type: 'emoji'; shortcode: string; url: string }
-  | { type: 'nostr-link'; uri: string; decoded: NonNullable<DecodedNip19>; href: string }
-  | { type: 'content-link'; uri: string; contentId: ContentId; href: string; displayLabel: string }
+  | { type: 'nostr-link'; uri: string; decoded: LinkableNip19; href: string }
+  | {
+      type: 'content-link';
+      uri: string;
+      contentId: ContentId;
+      href: string;
+      displayLabel: string;
+    }
   | { type: 'url'; href: string }
   | { type: 'hashtag'; tag: string };
+
+type LinkableNip19 = Extract<
+  NonNullable<DecodedNip19>,
+  { type: 'npub' | 'nprofile' | 'note' | 'nevent' }
+>;
 
 const NSEC_RE = /nsec1[a-z0-9]{58}/i;
 
@@ -64,7 +75,7 @@ function trimUrlTrailing(url: string): string {
   return url.slice(0, end);
 }
 
-function nostrLinkHref(uri: string, decoded: NonNullable<DecodedNip19>): string {
+function nostrLinkHref(uri: string, decoded: LinkableNip19): string {
   switch (decoded.type) {
     case 'npub':
     case 'nprofile':
@@ -75,8 +86,14 @@ function nostrLinkHref(uri: string, decoded: NonNullable<DecodedNip19>): string 
   }
 }
 
+function isLinkableNip19(decoded: NonNullable<DecodedNip19>): decoded is LinkableNip19 {
+  return ['npub', 'nprofile', 'note', 'nevent'].includes(decoded.type);
+}
+
 function contentLinkHref(contentId: ContentId): string {
-  return `/${encodeURIComponent(contentId.platform)}/${encodeURIComponent(contentId.type)}/${encodeURIComponent(contentId.id)}`;
+  return `/${encodeURIComponent(contentId.platform)}/${encodeURIComponent(
+    contentId.type
+  )}/${encodeURIComponent(contentId.id)}`;
 }
 
 /**
@@ -106,7 +123,10 @@ export function parseCommentContent(content: string, emojiTags: string[][]): Con
 
     // Push text before this match
     if (matchStart > lastIndex) {
-      segments.push({ type: 'text', value: content.slice(lastIndex, matchStart) });
+      segments.push({
+        type: 'text',
+        value: content.slice(lastIndex, matchStart)
+      });
     }
 
     if (matchText.startsWith('nostr:')) {
@@ -132,7 +152,7 @@ export function parseCommentContent(content: string, emojiTags: string[][]): Con
       } else {
         // Other nostr: prefixes -> nostr-link
         const decoded = decodeNip19(uri);
-        if (decoded) {
+        if (decoded && isLinkableNip19(decoded)) {
           segments.push({
             type: 'nostr-link',
             uri,
@@ -229,6 +249,10 @@ export function extractContentTags(content: string): {
         if (!qMap.has(decoded.eventId)) {
           qMap.set(decoded.eventId, { eventId: decoded.eventId });
         }
+        break;
+      case 'nsec':
+      case 'naddr':
+      case 'nrelay':
         break;
     }
   }

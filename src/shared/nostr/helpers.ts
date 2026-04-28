@@ -34,9 +34,24 @@ export const DEFAULT_RELAYS: string[] =
 
 export type DecodedNip19 =
   | { type: 'npub'; pubkey: string }
+  | { type: 'nsec'; secretKey: string }
   | { type: 'nprofile'; pubkey: string; relays: string[] }
-  | { type: 'nevent'; eventId: string; relays: string[]; author?: string; kind?: number }
+  | {
+      type: 'nevent';
+      eventId: string;
+      relays: string[];
+      author?: string;
+      kind?: number;
+    }
   | { type: 'note'; eventId: string }
+  | {
+      type: 'naddr';
+      identifier: string;
+      pubkey: string;
+      kind: number;
+      relays: string[];
+    }
+  | { type: 'nrelay'; relay: string }
   | null;
 
 export function decodeNip19(str: string): DecodedNip19 {

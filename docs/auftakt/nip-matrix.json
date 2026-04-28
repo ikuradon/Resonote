@@ -149,11 +149,11 @@
     {
       "nip": "19",
       "level": "public",
-      "status": "partial",
-      "owner": "packages/core/src/vocabulary.ts",
-      "proof": "packages/core/src/public-api.contract.test.ts",
+      "status": "implemented",
+      "owner": "packages/core/src/crypto.ts",
+      "proof": "src/shared/nostr/nip19-decode.test.ts",
       "priority": "P0",
-      "scopeNotes": "Entity vocabulary exists; complete parser coverage pending"
+      "scopeNotes": "Core parser and encoders cover npub, nsec, note, nprofile, nevent, naddr, and nrelay; app routes expose the profile/event subset and keep nsec non-linkable"
     },
     {
       "nip": "21",

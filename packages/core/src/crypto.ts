@@ -5,7 +5,13 @@ import { bech32 } from '@scure/base';
 
 import type { Nip19Decoded, SignedNostrEvent, UnsignedNostrEvent } from './vocabulary.js';
 
-function encodeHexEntity(prefix: 'npub' | 'note', hex: string): string {
+type Nip19HexPrefix = 'npub' | 'nsec' | 'note';
+type Nip19TlvPrefix = 'nprofile' | 'nevent' | 'naddr' | 'nrelay';
+
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
+
+function encodeHexEntity(prefix: Nip19HexPrefix, hex: string): string {
   return bech32.encode(prefix, bech32.toWords(hexToBytes(hex)), 5000);
 }
 
@@ -16,7 +22,7 @@ function pushTlv(target: number[], type: number, payload: Uint8Array): void {
   target.push(type, payload.length, ...payload);
 }
 
-function encodeTlv(prefix: 'nprofile' | 'nevent', entries: Array<[number, Uint8Array]>): string {
+function encodeTlv(prefix: Nip19TlvPrefix, entries: Array<[number, Uint8Array]>): string {
   const bytes: number[] = [];
   for (const [type, payload] of [...entries].sort((left, right) => right[0] - left[0])) {
     pushTlv(bytes, type, payload);
@@ -24,19 +30,43 @@ function encodeTlv(prefix: 'nprofile' | 'nevent', entries: Array<[number, Uint8A
   return bech32.encode(prefix, bech32.toWords(Uint8Array.from(bytes)), 5000);
 }
 
-function decodeTlv(bytes: Uint8Array): Map<number, Uint8Array[]> {
+function decodeTlv(bytes: Uint8Array): Map<number, Uint8Array[]> | null {
   const entries = new Map<number, Uint8Array[]>();
   let index = 0;
   while (index < bytes.length) {
+    if (index + 2 > bytes.length) return null;
     const type = bytes[index];
     const length = bytes[index + 1];
-    const value = bytes.slice(index + 2, index + 2 + length);
+    const valueStart = index + 2;
+    const valueEnd = valueStart + length;
+    if (valueEnd > bytes.length) return null;
+    const value = bytes.slice(valueStart, valueEnd);
     const list = entries.get(type) ?? [];
     list.push(value);
     entries.set(type, list);
-    index += 2 + length;
+    index = valueEnd;
   }
   return entries;
+}
+
+function encodeKind(kind: number): Uint8Array {
+  const bytes = new Uint8Array(4);
+  new DataView(bytes.buffer).setUint32(0, kind, false);
+  return bytes;
+}
+
+function decodeKind(bytes: Uint8Array | undefined): number | undefined {
+  if (!bytes || bytes.length !== 4) return undefined;
+  return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(0, false);
+}
+
+function decodeRelayHints(entries: Map<number, Uint8Array[]>): string[] {
+  return (entries.get(1) ?? []).map((entry) => textDecoder.decode(entry));
+}
+
+function decodeHexBytes(bytes: Uint8Array | undefined): string | null {
+  if (!bytes || bytes.length !== 32) return null;
+  return bytesToHex(bytes);
 }
 
 function serializeEvent(event: UnsignedNostrEvent & { pubkey: string }): string {
@@ -100,6 +130,10 @@ export function npubEncode(pubkey: string): string {
   return encodeHexEntity('npub', pubkey);
 }
 
+export function nsecEncode(secretKey: string): string {
+  return encodeHexEntity('nsec', secretKey);
+}
+
 export function noteEncode(eventId: string): string {
   return encodeHexEntity('note', eventId);
 }
@@ -107,7 +141,7 @@ export function noteEncode(eventId: string): string {
 export function nprofileEncode(input: { pubkey: string; relays?: string[] }): string {
   const entries: Array<[number, Uint8Array]> = [[0, hexToBytes(input.pubkey)]];
   for (const relay of input.relays ?? []) {
-    entries.push([1, new TextEncoder().encode(relay)]);
+    entries.push([1, textEncoder.encode(relay)]);
   }
   return encodeTlv('nprofile', entries);
 }
@@ -120,15 +154,32 @@ export function neventEncode(input: {
 }): string {
   const entries: Array<[number, Uint8Array]> = [[0, hexToBytes(input.id)]];
   for (const relay of input.relays ?? []) {
-    entries.push([1, new TextEncoder().encode(relay)]);
+    entries.push([1, textEncoder.encode(relay)]);
   }
   if (input.author) entries.push([2, hexToBytes(input.author)]);
-  if (input.kind !== undefined) {
-    const kind = new Uint8Array(4);
-    new DataView(kind.buffer).setUint32(0, input.kind, false);
-    entries.push([3, kind]);
-  }
+  if (input.kind !== undefined) entries.push([3, encodeKind(input.kind)]);
   return encodeTlv('nevent', entries);
+}
+
+export function naddrEncode(input: {
+  identifier: string;
+  pubkey: string;
+  kind: number;
+  relays?: string[];
+}): string {
+  const entries: Array<[number, Uint8Array]> = [
+    [0, textEncoder.encode(input.identifier)],
+    [2, hexToBytes(input.pubkey)],
+    [3, encodeKind(input.kind)]
+  ];
+  for (const relay of input.relays ?? []) {
+    entries.push([1, textEncoder.encode(relay)]);
+  }
+  return encodeTlv('naddr', entries);
+}
+
+export function nrelayEncode(input: { relay: string }): string {
+  return encodeTlv('nrelay', [[0, textEncoder.encode(input.relay)]]);
 }
 
 export function decodeNip19(value: string): Nip19Decoded | null {
@@ -136,39 +187,62 @@ export function decodeNip19(value: string): Nip19Decoded | null {
     const decoded = bech32.decodeToBytes(value as `${string}1${string}`);
     switch (decoded.prefix) {
       case 'npub':
+        if (decoded.bytes.length !== 32) return null;
         return { type: 'npub', pubkey: bytesToHex(decoded.bytes) };
+      case 'nsec':
+        if (decoded.bytes.length !== 32) return null;
+        return { type: 'nsec', secretKey: bytesToHex(decoded.bytes) };
       case 'note':
+        if (decoded.bytes.length !== 32) return null;
         return { type: 'note', eventId: bytesToHex(decoded.bytes) };
       case 'nprofile': {
         const tlv = decodeTlv(decoded.bytes);
+        if (!tlv) return null;
         const pubkey = tlv.get(0)?.[0];
-        if (!pubkey) return null;
+        const decodedPubkey = decodeHexBytes(pubkey);
+        if (!decodedPubkey) return null;
         return {
           type: 'nprofile',
-          pubkey: bytesToHex(pubkey),
-          relays: (tlv.get(1) ?? []).map((entry) => new TextDecoder().decode(entry))
+          pubkey: decodedPubkey,
+          relays: decodeRelayHints(tlv)
         };
       }
       case 'nevent': {
         const tlv = decodeTlv(decoded.bytes);
+        if (!tlv) return null;
         const eventId = tlv.get(0)?.[0];
-        if (!eventId) return null;
+        const decodedEventId = decodeHexBytes(eventId);
+        if (!decodedEventId) return null;
         const author = tlv.get(2)?.[0];
-        const kindBytes = tlv.get(3)?.[0];
         return {
           type: 'nevent',
-          eventId: bytesToHex(eventId),
-          relays: (tlv.get(1) ?? []).map((entry) => new TextDecoder().decode(entry)),
-          author: author ? bytesToHex(author) : undefined,
-          kind:
-            kindBytes && kindBytes.length === 4
-              ? new DataView(
-                  kindBytes.buffer,
-                  kindBytes.byteOffset,
-                  kindBytes.byteLength
-                ).getUint32(0, false)
-              : undefined
+          eventId: decodedEventId,
+          relays: decodeRelayHints(tlv),
+          author: decodeHexBytes(author) ?? undefined,
+          kind: decodeKind(tlv.get(3)?.[0])
         };
+      }
+      case 'naddr': {
+        const tlv = decodeTlv(decoded.bytes);
+        if (!tlv) return null;
+        const identifier = tlv.get(0)?.[0];
+        const pubkey = decodeHexBytes(tlv.get(2)?.[0]);
+        const kind = decodeKind(tlv.get(3)?.[0]);
+        if (!identifier || !pubkey || kind === undefined) return null;
+        return {
+          type: 'naddr',
+          identifier: textDecoder.decode(identifier),
+          pubkey,
+          kind,
+          relays: decodeRelayHints(tlv)
+        };
+      }
+      case 'nrelay': {
+        const tlv = decodeTlv(decoded.bytes);
+        if (!tlv) return null;
+        const relay = tlv.get(0)?.[0] ?? tlv.get(1)?.[0];
+        if (!relay) return null;
+        return { type: 'nrelay', relay: textDecoder.decode(relay) };
       }
       default:
         return null;

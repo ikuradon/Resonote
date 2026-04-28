@@ -5,10 +5,13 @@ export {
   generateSecretKey,
   getPublicKey,
   hexToBytes,
+  naddrEncode,
   neventEncode,
   noteEncode,
   nprofileEncode,
   npubEncode,
+  nrelayEncode,
+  nsecEncode,
   verifier
 } from './crypto.js';
 export type {

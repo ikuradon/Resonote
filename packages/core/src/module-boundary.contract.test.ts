@@ -39,9 +39,9 @@ describe('@auftakt/core module boundaries', () => {
     const source = readCoreFile('index.ts');
 
     expect(source).not.toMatch(/export\s+\*\s+from/);
-    expect(source).toContain("from './settlement.js'");
-    expect(source).toContain("from './reconcile.js'");
-    expect(source).toContain("from './relay-request.js'");
-    expect(source).toContain("from './negentropy.js'");
+    expect(source).toMatch(/from\s+["']\.\/settlement\.js["']/);
+    expect(source).toMatch(/from\s+["']\.\/reconcile\.js["']/);
+    expect(source).toMatch(/from\s+["']\.\/relay-request\.js["']/);
+    expect(source).toMatch(/from\s+["']\.\/negentropy\.js["']/);
   });
 });

@@ -116,6 +116,56 @@ describe('NIP matrix entry validation', () => {
 
     expect(result.errors).toContain('NIP-01 missing support boundary in scopeNotes');
   });
+
+  it('rejects stale NIP-19 parser coverage claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['19'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('19', {
+            status: 'partial',
+            owner: 'packages/core/src/vocabulary.ts',
+            proof: 'packages/core/src/public-api.contract.test.ts',
+            priority: 'P0',
+            scopeNotes: 'Entity vocabulary exists; complete parser coverage pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-19 must stay implemented after complete standard prefix parser coverage'
+    );
+    expect(result.errors).toContain('NIP-19 owner must be packages/core/src/crypto.ts');
+    expect(result.errors).toContain('NIP-19 proof must be src/shared/nostr/nip19-decode.test.ts');
+    expect(result.errors).toContain(
+      'NIP-19 scopeNotes must not use stale parser-coverage-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-19 standard prefix parser claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['19'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('19', {
+            status: 'implemented',
+            owner: 'packages/core/src/crypto.ts',
+            proof: 'src/shared/nostr/nip19-decode.test.ts',
+            priority: 'P0',
+            scopeNotes:
+              'Core parser and encoders cover npub, nsec, note, nprofile, nevent, naddr, and nrelay; app routes expose the profile/event subset.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
 });
 
 describe('checkNipStatusDocsSync', () => {
