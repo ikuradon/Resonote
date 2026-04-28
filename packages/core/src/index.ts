@@ -109,6 +109,21 @@ export {
   stringifyNip51PrivateTags
 } from './nip51-list.js';
 export type {
+  BuildNip56ReportInput,
+  Nip56ReportSnapshot,
+  Nip56ReportTarget,
+  Nip56ReportTargetKind,
+  Nip56ReportType
+} from './nip56-report.js';
+export {
+  buildNip56ReportEvent,
+  isNip56ReportType,
+  NIP56_REPORT_KIND,
+  NIP56_REPORT_TYPES,
+  parseNip56ReportEvent,
+  parseNip56ReportTargets
+} from './nip56-report.js';
+export type {
   BuildNip59GiftWrapInput,
   Nip59GiftWrapCrypto,
   Nip59GiftWrapEvent,

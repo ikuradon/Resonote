@@ -825,6 +825,58 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-56 reporting pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['56'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('56', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P2',
+            scopeNotes: 'Reporting model pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-56 must stay implemented after core report model coverage'
+    );
+    expect(result.errors).toContain('NIP-56 owner must be packages/core/src/nip56-report.ts');
+    expect(result.errors).toContain(
+      'NIP-56 proof must be packages/core/src/nip56-report.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-56 scopeNotes must not use stale reporting-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-56 report model claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['56'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('56', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip56-report.ts',
+            proof: 'packages/core/src/nip56-report.contract.test.ts',
+            priority: 'P2',
+            scopeNotes:
+              'Core NIP-56 kind:1984 report model builds and parses typed p/e/x report tags, related pubkeys, media server tags, and NIP-32 label tags.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-59 gift-wrap required claims', () => {
     const result = checkNipMatrix(
       { nips: ['59'], sourceUrl: 'source', sourceDate: '2026-04-24' },

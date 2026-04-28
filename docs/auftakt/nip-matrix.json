@@ -455,11 +455,11 @@
     {
       "nip": "56",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip56-report.ts",
+      "proof": "packages/core/src/nip56-report.contract.test.ts",
       "priority": "P2",
-      "scopeNotes": "Reporting model pending"
+      "scopeNotes": "Core NIP-56 kind:1984 report model builds and parses typed p/e/x report tags, related pubkeys, media server tags, and NIP-32 label tags"
     },
     {
       "nip": "57",

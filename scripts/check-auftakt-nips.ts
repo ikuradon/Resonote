@@ -72,6 +72,8 @@ const REQUIRED_NIP40_OWNER = 'packages/adapter-dexie/src/index.ts';
 const REQUIRED_NIP40_PROOF = 'packages/adapter-dexie/src/materialization.contract.test.ts';
 const REQUIRED_NIP51_OWNER = 'packages/core/src/nip51-list.ts';
 const REQUIRED_NIP51_PROOF = 'packages/core/src/nip51-list.contract.test.ts';
+const REQUIRED_NIP56_OWNER = 'packages/core/src/nip56-report.ts';
+const REQUIRED_NIP56_PROOF = 'packages/core/src/nip56-report.contract.test.ts';
 const REQUIRED_NIP59_OWNER = 'packages/core/src/nip59-gift-wrap.ts';
 const REQUIRED_NIP59_PROOF = 'packages/core/src/nip59-gift-wrap.contract.test.ts';
 const REQUIRED_NIP66_OWNER = 'packages/resonote/src/runtime.ts';
@@ -300,6 +302,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '51') {
     errors.push(...validateNip51MatrixEntry(entry));
+  }
+  if (entry.nip === '56') {
+    errors.push(...validateNip56MatrixEntry(entry));
   }
   if (entry.nip === '59') {
     errors.push(...validateNip59MatrixEntry(entry));
@@ -589,6 +594,30 @@ function validateNip51MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/partial|pending|not-started/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-51 scopeNotes must not use stale partial/pending wording');
+  }
+  return errors;
+}
+
+function validateNip56MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-56 must stay implemented after core report model coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP56_OWNER) {
+    errors.push(`NIP-56 owner must be ${REQUIRED_NIP56_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP56_PROOF) {
+    errors.push(`NIP-56 proof must be ${REQUIRED_NIP56_PROOF}`);
+  }
+  if (
+    !/kind:1984|1984/i.test(entry.scopeNotes) ||
+    !/(report type|typed)/i.test(entry.scopeNotes) ||
+    !/(p|e|x).*tag/i.test(entry.scopeNotes)
+  ) {
+    errors.push('NIP-56 scopeNotes must mention kind:1984 typed p/e/x report tags');
+  }
+  if (/not-started|pending|reporting model pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-56 scopeNotes must not use stale reporting-pending wording');
   }
   return errors;
 }
