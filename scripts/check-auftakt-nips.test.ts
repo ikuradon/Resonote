@@ -415,6 +415,54 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-51 partial list claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['51'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('51', {
+            status: 'partial',
+            owner: 'packages/resonote/src/runtime.ts',
+            proof: 'packages/resonote/src/built-in-plugins.contract.test.ts',
+            priority: 'P1',
+            scopeNotes: 'Lists used for relay lists, emoji lists, bookmarks'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain('NIP-51 must stay implemented after core list model coverage');
+    expect(result.errors).toContain('NIP-51 owner must be packages/core/src/nip51-list.ts');
+    expect(result.errors).toContain(
+      'NIP-51 proof must be packages/core/src/nip51-list.contract.test.ts'
+    );
+    expect(result.errors).toContain('NIP-51 scopeNotes must not use stale partial/pending wording');
+  });
+
+  it('accepts the implemented NIP-51 list model claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['51'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('51', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip51-list.ts',
+            proof: 'packages/core/src/nip51-list.contract.test.ts',
+            priority: 'P1',
+            scopeNotes:
+              'Core NIP-51 list model covers standard lists, parameterized sets, deprecated list forms, metadata tags, chronological public tags, and private NIP-44/NIP-04 tag payload parsing used by relay, emoji, bookmark, and mute flows'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-66 seeded relay metrics claims', () => {
     const result = checkNipMatrix(
       { nips: ['66'], sourceUrl: 'source', sourceDate: '2026-04-24' },

@@ -58,6 +58,8 @@ const REQUIRED_NIP18_OWNER = 'src/features/comments/application/comment-actions.
 const REQUIRED_NIP18_PROOF = 'src/features/comments/application/comment-actions.test.ts';
 const REQUIRED_NIP30_OWNER = 'packages/resonote/src/runtime.ts';
 const REQUIRED_NIP30_PROOF = 'packages/resonote/src/custom-emoji.contract.test.ts';
+const REQUIRED_NIP51_OWNER = 'packages/core/src/nip51-list.ts';
+const REQUIRED_NIP51_PROOF = 'packages/core/src/nip51-list.contract.test.ts';
 const REQUIRED_NIP66_OWNER = 'packages/resonote/src/runtime.ts';
 const REQUIRED_NIP66_PROOF = 'packages/resonote/src/relay-metrics-nip66.contract.test.ts';
 const REQUIRED_RELAY_SESSION_OWNER = 'packages/core/src/relay-session.ts';
@@ -261,6 +263,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === '42') {
     errors.push(...validateNip42MatrixEntry(entry));
   }
+  if (entry.nip === '51') {
+    errors.push(...validateNip51MatrixEntry(entry));
+  }
   if (entry.nip === '66') {
     errors.push(...validateNip66MatrixEntry(entry));
   }
@@ -326,6 +331,30 @@ function validateNip42MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|not yet implemented/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-42 scopeNotes must not use stale not-started wording');
+  }
+  return errors;
+}
+
+function validateNip51MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-51 must stay implemented after core list model coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP51_OWNER) {
+    errors.push(`NIP-51 owner must be ${REQUIRED_NIP51_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP51_PROOF) {
+    errors.push(`NIP-51 proof must be ${REQUIRED_NIP51_PROOF}`);
+  }
+  if (
+    !/standard lists/i.test(entry.scopeNotes) ||
+    !/sets/i.test(entry.scopeNotes) ||
+    !/(private|NIP-44|NIP-04)/i.test(entry.scopeNotes)
+  ) {
+    errors.push('NIP-51 scopeNotes must mention list/set and private payload coverage');
+  }
+  if (/partial|pending|not-started/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-51 scopeNotes must not use stale partial/pending wording');
   }
   return errors;
 }

@@ -410,11 +410,11 @@
     {
       "nip": "51",
       "level": "public",
-      "status": "partial",
-      "owner": "packages/resonote/src/runtime.ts",
-      "proof": "packages/resonote/src/built-in-plugins.contract.test.ts",
+      "status": "implemented",
+      "owner": "packages/core/src/nip51-list.ts",
+      "proof": "packages/core/src/nip51-list.contract.test.ts",
       "priority": "P1",
-      "scopeNotes": "Lists used for relay lists, emoji lists, bookmarks"
+      "scopeNotes": "Core NIP-51 list model covers standard lists, parameterized sets, deprecated list forms, metadata tags, chronological public tags, and private NIP-44/NIP-04 tag payload parsing used by relay, emoji, bookmark, and mute flows"
     },
     {
       "nip": "52",

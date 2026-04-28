@@ -55,6 +55,7 @@ describe('@auftakt/core public api contract', () => {
     expect(mod).toEqual(
       expect.objectContaining({
         buildRelaySelectionPlan: expect.any(Function),
+        buildNip51ListEvent: expect.any(Function),
         buildRequestExecutionPlan: expect.any(Function),
         calculateRelayReconnectDelay: expect.any(Function),
         createRuntimeRequestKey: expect.any(Function),
@@ -70,6 +71,8 @@ describe('@auftakt/core public api contract', () => {
         normalizeRelayLifecycleOptions: expect.any(Function),
         normalizeRelaySelectionPolicy: expect.any(Function),
         normalizeRelayUrl: expect.any(Function),
+        parseNip51ListEvent: expect.any(Function),
+        parseNip51PrivateTagsJson: expect.any(Function),
         parseNip65RelayListTags: expect.any(Function),
         relayListEntriesToSelectionCandidates: expect.any(Function),
         reconcileReplayRepairSubjects: expect.any(Function),

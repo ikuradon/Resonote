@@ -3,6 +3,8 @@
  * Encapsulates infra (castSigned, getRxNostr).
  */
 
+import { buildNip51ListEvent } from '@auftakt/core';
+
 import { publishSignedEvent, setPreferredRelays } from '$shared/auftakt/resonote.js';
 import { createLogger } from '$shared/utils/logger.js';
 
@@ -20,7 +22,7 @@ export async function publishRelayList(entries: RelayEntry[]): Promise<string[]>
     return ['r', e.url, 'write'];
   });
 
-  await publishSignedEvent({ kind: RELAY_LIST_KIND, content: '', tags });
+  await publishSignedEvent(buildNip51ListEvent({ kind: RELAY_LIST_KIND, publicTags: tags }));
 
   const urls = entries.map((e) => e.url);
   await setPreferredRelays(urls);

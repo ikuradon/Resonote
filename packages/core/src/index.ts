@@ -27,6 +27,36 @@ export {
   sortNegentropyEventRefsAsc
 } from './negentropy.js';
 export type {
+  BuildNip51ListEventInput,
+  Nip51DeprecatedListKind,
+  Nip51ListKind,
+  Nip51ListMetadata,
+  Nip51ListSnapshot,
+  Nip51ListType,
+  Nip51PrivateContentEncryption,
+  Nip51SetKind,
+  Nip51StandardListKind
+} from './nip51-list.js';
+export {
+  appendNip51ListTag,
+  buildNip51ListEvent,
+  detectNip51PrivateContentEncryption,
+  getNip51ExpectedPublicTagNames,
+  isNip51ListKind,
+  isNip51MetadataTag,
+  isNip51SetKind,
+  isNip51StandardListKind,
+  NIP51_DEPRECATED_LIST_KINDS,
+  NIP51_SET_KINDS,
+  NIP51_STANDARD_LIST_KINDS,
+  parseNip51ListEvent,
+  parseNip51ListMetadata,
+  parseNip51PrivateTagsJson,
+  parseNip51PublicTags,
+  removeNip51ListTags,
+  stringifyNip51PrivateTags
+} from './nip51-list.js';
+export type {
   DeletionEventLike,
   DeletionReconcileResult,
   OfflineDeliveryDecision,
