@@ -731,6 +731,52 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-45 COUNT pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['45'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('45', {
+            level: 'internal',
+            status: 'not-started',
+            owner: 'packages/core/src/relay-session.ts',
+            proof: 'packages/core/src/relay-session.contract.test.ts',
+            priority: 'P2',
+            scopeNotes: 'COUNT support pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain('NIP-45 must stay implemented after COUNT transport coverage');
+    expect(result.errors).toContain('NIP-45 scopeNotes must not use stale COUNT-pending wording');
+  });
+
+  it('accepts the implemented NIP-45 COUNT transport claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['45'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('45', {
+            level: 'internal',
+            status: 'implemented',
+            owner: 'packages/core/src/relay-session.ts',
+            proof: 'packages/core/src/relay-session.contract.test.ts',
+            priority: 'P2',
+            scopeNotes:
+              'Core relay session sends NIP-45 COUNT requests, parses COUNT responses including approximate/HLL fields, and maps CLOSED or invalid payloads to unsupported/failed results.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-51 partial list claims', () => {
     const result = checkNipMatrix(
       { nips: ['51'], sourceUrl: 'source', sourceDate: '2026-04-24' },

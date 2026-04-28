@@ -88,6 +88,20 @@ export interface NegentropyRequestOptions {
   readonly timeoutMs?: number;
 }
 
+export interface CountRequestOptions {
+  readonly relayUrl: string;
+  readonly filters: readonly Filter[];
+  readonly timeoutMs?: number;
+}
+
+export interface CountResult {
+  readonly capability: 'supported' | 'unsupported' | 'failed';
+  readonly count?: number;
+  readonly approximate?: boolean;
+  readonly hll?: string;
+  readonly reason?: string;
+}
+
 export interface RelaySendOptions {
   signer?: EventSigner;
   on?: RelaySelectionOptions;
@@ -372,6 +386,7 @@ export interface RxNostr {
   createRelayCapabilityObservable(): Observable<RelayCapabilityPacket>;
   use(req: RelayRequest, options?: RelayUseOptions): Observable<EventPacket>;
   requestNegentropySync(options: NegentropyRequestOptions): Promise<NegentropyTransportResult>;
+  requestCount(options: CountRequestOptions): Promise<CountResult>;
   send(params: EventParameters, options?: RelaySendOptions): Observable<OkPacketAgainstEvent>;
   cast(params: EventParameters, options?: RelaySendOptions): Promise<void>;
   dispose(): void;
@@ -1168,6 +1183,98 @@ class RelaySession implements RxNostr {
     });
   }
 
+  async requestCount(options: CountRequestOptions): Promise<CountResult> {
+    if (options.filters.length === 0) {
+      return {
+        capability: 'failed',
+        reason: 'missing-filters'
+      };
+    }
+
+    const relay = this.getConnection(options.relayUrl);
+    const subId = createCountSubId();
+
+    try {
+      await relay.connect();
+    } catch {
+      return {
+        capability: 'failed',
+        reason: 'transport-connect-failed'
+      };
+    }
+
+    return new Promise<CountResult>((resolve) => {
+      let settled = false;
+      const cleanup: Array<() => void> = [];
+
+      const finish = (result: CountResult) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        for (const stop of cleanup.splice(0)) stop();
+        resolve(result);
+      };
+
+      const messageSub = this.messages.subscribe({
+        next: ({ from, message }) => {
+          if (from !== options.relayUrl || !Array.isArray(message)) return;
+          const [type, incomingSubId] = message as [string, string, ...unknown[]];
+          if (incomingSubId !== subId) return;
+
+          if (type === 'COUNT') {
+            const parsed = parseCountPayload(message[2]);
+            finish(
+              parsed ?? {
+                capability: 'failed',
+                reason: 'invalid-count-response'
+              }
+            );
+            return;
+          }
+
+          if (type === 'CLOSED') {
+            finish({
+              capability: 'unsupported',
+              reason: typeof message[2] === 'string' ? message[2] : 'relay-closed'
+            });
+          }
+        }
+      });
+      cleanup.push(() => messageSub.unsubscribe());
+
+      const stateSub = this.states.subscribe({
+        next: (packet) => {
+          if (packet.from !== options.relayUrl) return;
+          if (
+            packet.state === 'backoff' ||
+            packet.state === 'closed' ||
+            packet.state === 'degraded'
+          ) {
+            finish({
+              capability: 'failed',
+              reason: `relay-${packet.state}`
+            });
+          }
+        }
+      });
+      cleanup.push(() => stateSub.unsubscribe());
+
+      const timeout = setTimeout(() => {
+        finish({
+          capability: 'failed',
+          reason: 'timeout'
+        });
+      }, options.timeoutMs ?? this.eoseTimeout);
+
+      void relay.send(['COUNT', subId, ...options.filters]).catch(() => {
+        finish({
+          capability: 'failed',
+          reason: 'transport-send-failed'
+        });
+      });
+    });
+  }
+
   send(params: EventParameters, options?: RelaySendOptions): Observable<OkPacketAgainstEvent> {
     return new Observable<OkPacketAgainstEvent>((observer) => {
       const relayUrls = this.resolveWriteRelays(options?.on);
@@ -1915,6 +2022,31 @@ function createSubId(): string {
 
 function createNegentropySubId(): string {
   return `neg-${crypto.randomUUID()}`;
+}
+
+function createCountSubId(): string {
+  return `count-${crypto.randomUUID()}`;
+}
+
+function parseCountPayload(payload: unknown): CountResult | null {
+  if (!payload || typeof payload !== 'object') return null;
+  const record = payload as Record<string, unknown>;
+  if (typeof record.count !== 'number' || !Number.isSafeInteger(record.count) || record.count < 0) {
+    return null;
+  }
+  if ('approximate' in record && typeof record.approximate !== 'boolean') return null;
+  if (
+    'hll' in record &&
+    (typeof record.hll !== 'string' || !/^[0-9a-fA-F]{512}$/.test(record.hll))
+  ) {
+    return null;
+  }
+  return {
+    capability: 'supported',
+    count: record.count,
+    ...(typeof record.approximate === 'boolean' ? { approximate: record.approximate } : {}),
+    ...(typeof record.hll === 'string' ? { hll: record.hll } : {})
+  };
 }
 
 function minNullable(...values: Array<number | null | undefined>): number | null {

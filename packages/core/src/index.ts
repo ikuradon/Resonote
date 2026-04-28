@@ -224,6 +224,8 @@ export {
 } from './relay-selection.js';
 export type {
   ConnectionStatePacket,
+  CountRequestOptions,
+  CountResult,
   CreateRelayRequestOptions,
   CreateRelaySessionOptions,
   CreateRxNostrSessionOptions,

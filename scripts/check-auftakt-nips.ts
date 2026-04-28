@@ -295,6 +295,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === '42') {
     errors.push(...validateNip42MatrixEntry(entry));
   }
+  if (entry.nip === '45') {
+    errors.push(...validateNip45MatrixEntry(entry));
+  }
   if (entry.nip === '51') {
     errors.push(...validateNip51MatrixEntry(entry));
   }
@@ -536,6 +539,32 @@ function validateNip42MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|not yet implemented/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-42 scopeNotes must not use stale not-started wording');
+  }
+  return errors;
+}
+
+function validateNip45MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-45 must stay implemented after COUNT transport coverage');
+  }
+  if (entry.owner !== REQUIRED_RELAY_SESSION_OWNER) {
+    errors.push(`NIP-45 owner must be ${REQUIRED_RELAY_SESSION_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_RELAY_SESSION_PROOF) {
+    errors.push(`NIP-45 proof must be ${REQUIRED_RELAY_SESSION_PROOF}`);
+  }
+  if (
+    !/COUNT/i.test(entry.scopeNotes) ||
+    !/(request|response|transport)/i.test(entry.scopeNotes) ||
+    !/(CLOSED|unsupported|invalid)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-45 scopeNotes must mention COUNT request/response transport and CLOSED/invalid handling'
+    );
+  }
+  if (/not-started|pending|count support pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-45 scopeNotes must not use stale COUNT-pending wording');
   }
   return errors;
 }

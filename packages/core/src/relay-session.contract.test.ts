@@ -1393,6 +1393,108 @@ describe('relay replay request identity contract', () => {
     session.dispose();
   });
 
+  it('sends NIP-45 COUNT requests and resolves count responses', async () => {
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
+    const hll = '00'.repeat(256);
+
+    const pending = session.requestCount({
+      relayUrl: RELAY_URL,
+      filters: [{ kinds: [7], '#e': ['target-event'] }],
+      timeoutMs: 100
+    });
+
+    await waitUntil(() => FakeWebSocket.instances.length > 0);
+    const socket = latestSocket();
+    socket.open();
+    await waitUntil(() => socket.sent.length > 0);
+
+    const countPacket = socket.sent[0] as [string, string, Record<string, unknown>];
+    expect(countPacket[0]).toBe('COUNT');
+    expect(countPacket[1]).toMatch(/^count-/);
+    expect(countPacket[2]).toEqual({ '#e': ['target-event'], kinds: [7] });
+
+    socket.message(['COUNT', countPacket[1], { count: 12, approximate: true, hll }]);
+
+    await expect(pending).resolves.toEqual({
+      capability: 'supported',
+      count: 12,
+      approximate: true,
+      hll
+    });
+
+    session.dispose();
+  });
+
+  it('reports unsupported NIP-45 COUNT when relay closes the request', async () => {
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
+
+    const pending = session.requestCount({
+      relayUrl: RELAY_URL,
+      filters: [{ kinds: [1059], '#p': ['pubkey-a'] }],
+      timeoutMs: 100
+    });
+
+    await waitUntil(() => FakeWebSocket.instances.length > 0);
+    const socket = latestSocket();
+    socket.open();
+    await waitUntil(() => socket.sent.length > 0);
+
+    const countPacket = socket.sent[0] as [string, string, Record<string, unknown>];
+    socket.message(['CLOSED', countPacket[1], 'auth-required: cannot count DMs']);
+
+    await expect(pending).resolves.toEqual({
+      capability: 'unsupported',
+      reason: 'auth-required: cannot count DMs'
+    });
+
+    session.dispose();
+  });
+
+  it('rejects malformed NIP-45 COUNT payloads and empty local count requests', async () => {
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
+
+    await expect(
+      session.requestCount({
+        relayUrl: RELAY_URL,
+        filters: [],
+        timeoutMs: 100
+      })
+    ).resolves.toEqual({
+      capability: 'failed',
+      reason: 'missing-filters'
+    });
+
+    const pending = session.requestCount({
+      relayUrl: RELAY_URL,
+      filters: [{ kinds: [1] }],
+      timeoutMs: 100
+    });
+
+    await waitUntil(() => FakeWebSocket.instances.length > 0);
+    const socket = latestSocket();
+    socket.open();
+    await waitUntil(() => socket.sent.length > 0);
+
+    const countPacket = socket.sent[0] as [string, string, Record<string, unknown>];
+    socket.message(['COUNT', countPacket[1], { count: 1.5 }]);
+
+    await expect(pending).resolves.toEqual({
+      capability: 'failed',
+      reason: 'invalid-count-response'
+    });
+
+    session.dispose();
+  });
+
   it('rejects requests that omit canonical requestKey instead of inventing a legacy fallback', async () => {
     const session = createRxNostrSession({
       defaultRelays: [RELAY_URL],
