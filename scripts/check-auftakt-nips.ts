@@ -52,6 +52,8 @@ const REQUIRED_NIP19_PROOF = 'src/shared/nostr/nip19-decode.test.ts';
 const REQUIRED_NIP19_PREFIXES = ['npub', 'nsec', 'note', 'nprofile', 'nevent', 'naddr', 'nrelay'];
 const REQUIRED_NIP05_OWNER = 'src/shared/nostr/nip05.ts';
 const REQUIRED_NIP05_PROOF = 'src/shared/nostr/nip05.test.ts';
+const REQUIRED_NIP07_OWNER = 'src/shared/nostr/client.ts';
+const REQUIRED_NIP07_PROOF = 'src/shared/nostr/client-integration.test.ts';
 
 export function checkNipMatrix(
   inventory: NipInventory,
@@ -167,6 +169,29 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '05') {
     errors.push(...validateNip05MatrixEntry(entry));
+  }
+  if (entry.nip === '07') {
+    errors.push(...validateNip07MatrixEntry(entry));
+  }
+  return errors;
+}
+
+function validateNip07MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-07 must stay implemented after window.nostr publish integration coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP07_OWNER) {
+    errors.push(`NIP-07 owner must be ${REQUIRED_NIP07_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP07_PROOF) {
+    errors.push(`NIP-07 proof must be ${REQUIRED_NIP07_PROOF}`);
+  }
+  if (/partial/i.test(entry.status)) {
+    errors.push('NIP-07 status must not return to partial');
+  }
+  if (!/window\.nostr|nip07Signer/i.test(entry.scopeNotes)) {
+    errors.push('NIP-07 scopeNotes must mention the signer integration boundary');
   }
   return errors;
 }

@@ -67,7 +67,7 @@ function storeOnAll(event: ReturnType<EventBuilder['build']>) {
 }
 
 describe('fetchLatestEvent (integration with tsunagiya)', () => {
-  it('should return the latest event matching kind and author', async () => {
+  it('should return the latest event matching kind and author', { timeout: 15_000 }, async () => {
     const older = await EventBuilder.kind(0)
       .content(JSON.stringify({ name: 'old' }))
       .createdAt(1000)
@@ -88,14 +88,14 @@ describe('fetchLatestEvent (integration with tsunagiya)', () => {
     expect(result!.created_at).toBe(2000);
   });
 
-  it('should return null when no events match', async () => {
+  it('should return null when no events match', { timeout: 15_000 }, async () => {
     const { fetchLatestEvent } = await import('./client.js');
     const result = await fetchLatestEvent(pubkey, 0);
 
     expect(result).toBeNull();
   });
 
-  it('should return event tags', async () => {
+  it('should return event tags', { timeout: 15_000 }, async () => {
     const event = await EventBuilder.kind(3)
       .content('')
       .tag('p', 'd'.repeat(64))

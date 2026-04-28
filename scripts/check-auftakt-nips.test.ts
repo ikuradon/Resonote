@@ -214,6 +214,55 @@ describe('NIP matrix entry validation', () => {
 
     expect(result.errors).toEqual([]);
   });
+
+  it('rejects stale NIP-07 partial signer bridge claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['07'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('07', {
+            status: 'partial',
+            owner: 'src/shared/nostr/client.ts',
+            proof: 'src/shared/nostr/client.test.ts',
+            priority: 'P0',
+            scopeNotes: 'window.nostr signer bridge'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-07 must stay implemented after window.nostr publish integration coverage'
+    );
+    expect(result.errors).toContain(
+      'NIP-07 proof must be src/shared/nostr/client-integration.test.ts'
+    );
+    expect(result.errors).toContain('NIP-07 status must not return to partial');
+  });
+
+  it('accepts the implemented NIP-07 signer integration claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['07'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('07', {
+            status: 'implemented',
+            owner: 'src/shared/nostr/client.ts',
+            proof: 'src/shared/nostr/client-integration.test.ts',
+            priority: 'P0',
+            scopeNotes:
+              'window.nostr signing is routed through @auftakt/core nip07Signer and proven by relay publish integration.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
 });
 
 describe('checkNipStatusDocsSync', () => {

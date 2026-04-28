@@ -59,11 +59,11 @@
     {
       "nip": "07",
       "level": "public",
-      "status": "partial",
+      "status": "implemented",
       "owner": "src/shared/nostr/client.ts",
-      "proof": "src/shared/nostr/client.test.ts",
+      "proof": "src/shared/nostr/client-integration.test.ts",
       "priority": "P0",
-      "scopeNotes": "window.nostr signer bridge"
+      "scopeNotes": "window.nostr signing is routed through @auftakt/core nip07Signer and proven by relay publish integration"
     },
     {
       "nip": "08",
