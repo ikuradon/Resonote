@@ -41,11 +41,11 @@
     {
       "nip": "05",
       "level": "public",
-      "status": "not-started",
-      "owner": "src/shared/nostr",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "src/shared/nostr/nip05.ts",
+      "proof": "src/shared/nostr/nip05.test.ts",
       "priority": "P1",
-      "scopeNotes": "NIP-05 identity resolution remains app-facing work"
+      "scopeNotes": "Browser profile verification fetches nostr.json with timeout, cache, redirect rejection, and private-network domain guard"
     },
     {
       "nip": "06",

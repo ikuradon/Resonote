@@ -166,6 +166,54 @@ describe('NIP matrix entry validation', () => {
 
     expect(result.errors).toEqual([]);
   });
+
+  it('rejects stale NIP-05 not-started identity-resolution claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['05'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('05', {
+            status: 'not-started',
+            owner: 'src/shared/nostr',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P1',
+            scopeNotes: 'NIP-05 identity resolution remains app-facing work'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-05 must stay implemented after browser verification coverage'
+    );
+    expect(result.errors).toContain('NIP-05 owner must be src/shared/nostr/nip05.ts');
+    expect(result.errors).toContain('NIP-05 proof must be src/shared/nostr/nip05.test.ts');
+    expect(result.errors).toContain('NIP-05 scopeNotes must not use stale not-started wording');
+  });
+
+  it('accepts the implemented NIP-05 verification claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['05'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('05', {
+            status: 'implemented',
+            owner: 'src/shared/nostr/nip05.ts',
+            proof: 'src/shared/nostr/nip05.test.ts',
+            priority: 'P1',
+            scopeNotes:
+              'Browser profile verification fetches nostr.json with timeout, cache, redirect rejection, and private-network domain guard.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
 });
 
 describe('checkNipStatusDocsSync', () => {

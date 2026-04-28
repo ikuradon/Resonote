@@ -50,6 +50,8 @@ const NON_IMPLEMENTED_STATUSES = new Set([
 const REQUIRED_NIP19_OWNER = 'packages/core/src/crypto.ts';
 const REQUIRED_NIP19_PROOF = 'src/shared/nostr/nip19-decode.test.ts';
 const REQUIRED_NIP19_PREFIXES = ['npub', 'nsec', 'note', 'nprofile', 'nevent', 'naddr', 'nrelay'];
+const REQUIRED_NIP05_OWNER = 'src/shared/nostr/nip05.ts';
+const REQUIRED_NIP05_PROOF = 'src/shared/nostr/nip05.test.ts';
 
 export function checkNipMatrix(
   inventory: NipInventory,
@@ -162,6 +164,26 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '19') {
     errors.push(...validateNip19MatrixEntry(entry));
+  }
+  if (entry.nip === '05') {
+    errors.push(...validateNip05MatrixEntry(entry));
+  }
+  return errors;
+}
+
+function validateNip05MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-05 must stay implemented after browser verification coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP05_OWNER) {
+    errors.push(`NIP-05 owner must be ${REQUIRED_NIP05_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP05_PROOF) {
+    errors.push(`NIP-05 proof must be ${REQUIRED_NIP05_PROOF}`);
+  }
+  if (/not-started|remains app-facing work/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-05 scopeNotes must not use stale not-started wording');
   }
   return errors;
 }
