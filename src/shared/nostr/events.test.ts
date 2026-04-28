@@ -684,7 +684,8 @@ describe('buildContentReaction', () => {
     expect(event.tags).toEqual([
       ['i', 'spotify:track:abc123', 'https://open.spotify.com/track/abc123'],
       ['k', 'spotify:track'],
-      ['r', 'https://open.spotify.com/track/abc123']
+      ['r', 'https://open.spotify.com/track/abc123'],
+      ['alt', 'Resonote content reaction for spotify:track:abc123']
     ]);
   });
 
@@ -706,6 +707,10 @@ describe('buildContentReaction', () => {
     ]);
     expect(event.tags).toContainEqual(['k', 'spotify:episode']);
     expect(event.tags).toContainEqual(['r', 'https://open.spotify.com/episode/ep456']);
+    expect(event.tags).toContainEqual([
+      'alt',
+      'Resonote content reaction for spotify:episode:ep456'
+    ]);
   });
 });
 

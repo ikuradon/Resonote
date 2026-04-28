@@ -58,6 +58,13 @@ export {
 } from './nip21-uri.js';
 export type { Nip27ReferenceTagName, Nip27TextReference } from './nip27-references.js';
 export { buildNip27ReferenceTags, extractNip27References } from './nip27-references.js';
+export {
+  appendNip31AltTag,
+  buildNip31AltTag,
+  NIP31_ALT_TAG,
+  parseNip31AltTag,
+  withNip31AltTag
+} from './nip31-alt.js';
 export type {
   BuildNip51ListEventInput,
   Nip51DeprecatedListKind,

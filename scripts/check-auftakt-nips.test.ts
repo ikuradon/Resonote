@@ -525,6 +525,58 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-31 unknown-event pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['31'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('31', {
+            level: 'internal',
+            status: 'partial',
+            owner: 'packages/adapter-dexie/src/index.ts',
+            proof: 'packages/adapter-dexie/src/materialization.contract.test.ts',
+            priority: 'P2',
+            scopeNotes: 'Unknown events are storable; dedicated handling pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain('NIP-31 must stay implemented after alt-tag fallback coverage');
+    expect(result.errors).toContain('NIP-31 owner must be packages/core/src/nip31-alt.ts');
+    expect(result.errors).toContain(
+      'NIP-31 proof must be packages/core/src/nip31-alt.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-31 scopeNotes must not use stale unknown-event-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-31 alt-tag fallback claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['31'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('31', {
+            level: 'internal',
+            status: 'implemented',
+            owner: 'packages/core/src/nip31-alt.ts',
+            proof: 'packages/core/src/nip31-alt.contract.test.ts',
+            priority: 'P2',
+            scopeNotes:
+              'Core NIP-31 alt-tag fallback helpers parse and build human-readable summaries for unknown/custom events; kind:17 content reaction events now include an alt tag.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-42 not-started AUTH relay claims', () => {
     const result = checkNipMatrix(
       { nips: ['42'], sourceUrl: 'source', sourceDate: '2026-04-24' },

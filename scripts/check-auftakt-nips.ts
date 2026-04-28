@@ -64,6 +64,8 @@ const REQUIRED_NIP21_OWNER = 'packages/core/src/nip21-uri.ts';
 const REQUIRED_NIP21_PROOF = 'packages/core/src/nip21-uri.contract.test.ts';
 const REQUIRED_NIP27_OWNER = 'packages/core/src/nip27-references.ts';
 const REQUIRED_NIP27_PROOF = 'packages/core/src/nip27-references.contract.test.ts';
+const REQUIRED_NIP31_OWNER = 'packages/core/src/nip31-alt.ts';
+const REQUIRED_NIP31_PROOF = 'packages/core/src/nip31-alt.contract.test.ts';
 const REQUIRED_NIP51_OWNER = 'packages/core/src/nip51-list.ts';
 const REQUIRED_NIP51_PROOF = 'packages/core/src/nip51-list.contract.test.ts';
 const REQUIRED_NIP59_OWNER = 'packages/core/src/nip59-gift-wrap.ts';
@@ -277,6 +279,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === '30') {
     errors.push(...validateNip30MatrixEntry(entry));
   }
+  if (entry.nip === '31') {
+    errors.push(...validateNip31MatrixEntry(entry));
+  }
   if (entry.nip === '42') {
     errors.push(...validateNip42MatrixEntry(entry));
   }
@@ -420,6 +425,33 @@ function validateNip30MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/partial|pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-30 scopeNotes must not use stale partial wording');
+  }
+  return errors;
+}
+
+function validateNip31MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-31 must stay implemented after alt-tag fallback coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP31_OWNER) {
+    errors.push(`NIP-31 owner must be ${REQUIRED_NIP31_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP31_PROOF) {
+    errors.push(`NIP-31 proof must be ${REQUIRED_NIP31_PROOF}`);
+  }
+  if (
+    !/alt/i.test(entry.scopeNotes) ||
+    !/(unknown|custom)/i.test(entry.scopeNotes) ||
+    !/(fallback|human-readable)/i.test(entry.scopeNotes) ||
+    !/(content reaction|kind:17)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-31 scopeNotes must mention alt-tag fallback for unknown/custom content reaction events'
+    );
+  }
+  if (/partial|pending|dedicated handling pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-31 scopeNotes must not use stale unknown-event-pending wording');
   }
   return errors;
 }

@@ -248,11 +248,11 @@
     {
       "nip": "31",
       "level": "internal",
-      "status": "partial",
-      "owner": "packages/core/src/vocabulary.ts",
-      "proof": "packages/core/src/public-api.contract.test.ts",
+      "status": "implemented",
+      "owner": "packages/core/src/nip31-alt.ts",
+      "proof": "packages/core/src/nip31-alt.contract.test.ts",
       "priority": "P2",
-      "scopeNotes": "Unknown events are storable; dedicated handling pending"
+      "scopeNotes": "Core NIP-31 alt-tag fallback helpers parse and build human-readable summaries for unknown/custom events; kind:17 content reaction events now include an alt tag"
     },
     {
       "nip": "32",

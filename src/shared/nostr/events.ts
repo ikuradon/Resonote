@@ -1,3 +1,4 @@
+import { buildNip31AltTag } from '@auftakt/core';
 import type { Event as NostrEvent, EventParameters } from 'nostr-typedef';
 
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
@@ -265,7 +266,8 @@ export function buildContentReaction(
     tags: [
       ['i', value, hint],
       ['k', kind],
-      ['r', hint]
+      ['r', hint],
+      buildNip31AltTag(`Resonote content reaction for ${value}`)
     ]
   };
 }
