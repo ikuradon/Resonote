@@ -265,6 +265,60 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-18 partial repost UI claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['18'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('18', {
+            status: 'partial',
+            owner: 'packages/resonote/src/plugins/built-in-plugins.ts',
+            proof: 'packages/resonote/src/built-in-plugins.contract.test.ts',
+            priority: 'P1',
+            scopeNotes: 'Repost relay hints tracked as infrastructure; full UI model pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-18 must stay implemented after repost publish flow coverage'
+    );
+    expect(result.errors).toContain(
+      'NIP-18 owner must be src/features/comments/application/comment-actions.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-18 proof must be src/features/comments/application/comment-actions.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-18 scopeNotes must not use stale partial UI-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-18 repost publish claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['18'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('18', {
+            status: 'implemented',
+            owner: 'src/features/comments/application/comment-actions.ts',
+            proof: 'src/features/comments/application/comment-actions.test.ts',
+            priority: 'P1',
+            scopeNotes:
+              'NIP-18 kind:6 text-note and kind:16 generic repost builders require target relay hints; comment ReNote uses coordinator fetch-by-id before publish.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-30 partial custom emoji claims', () => {
     const result = checkNipMatrix(
       { nips: ['30'], sourceUrl: 'source', sourceDate: '2026-04-24' },

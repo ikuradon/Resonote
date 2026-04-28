@@ -140,11 +140,11 @@
     {
       "nip": "18",
       "level": "public",
-      "status": "partial",
-      "owner": "packages/resonote/src/plugins/built-in-plugins.ts",
-      "proof": "packages/resonote/src/built-in-plugins.contract.test.ts",
+      "status": "implemented",
+      "owner": "src/features/comments/application/comment-actions.ts",
+      "proof": "src/features/comments/application/comment-actions.test.ts",
       "priority": "P1",
-      "scopeNotes": "Repost relay hints tracked as infrastructure; full UI model pending"
+      "scopeNotes": "NIP-18 kind:6 text-note and kind:16 generic repost builders require target relay hints; comment ReNote uses coordinator fetch-by-id before publish."
     },
     {
       "nip": "19",

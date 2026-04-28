@@ -54,6 +54,8 @@ const REQUIRED_NIP05_OWNER = 'src/shared/nostr/nip05.ts';
 const REQUIRED_NIP05_PROOF = 'src/shared/nostr/nip05.test.ts';
 const REQUIRED_NIP07_OWNER = 'src/shared/nostr/client.ts';
 const REQUIRED_NIP07_PROOF = 'src/shared/nostr/client-integration.test.ts';
+const REQUIRED_NIP18_OWNER = 'src/features/comments/application/comment-actions.ts';
+const REQUIRED_NIP18_PROOF = 'src/features/comments/application/comment-actions.test.ts';
 const REQUIRED_NIP30_OWNER = 'packages/resonote/src/runtime.ts';
 const REQUIRED_NIP30_PROOF = 'packages/resonote/src/custom-emoji.contract.test.ts';
 const REQUIRED_RELAY_SESSION_OWNER = 'packages/core/src/relay-session.ts';
@@ -248,6 +250,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === '07') {
     errors.push(...validateNip07MatrixEntry(entry));
   }
+  if (entry.nip === '18') {
+    errors.push(...validateNip18MatrixEntry(entry));
+  }
   if (entry.nip === '30') {
     errors.push(...validateNip30MatrixEntry(entry));
   }
@@ -256,6 +261,26 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '70') {
     errors.push(...validateNip70MatrixEntry(entry));
+  }
+  return errors;
+}
+
+function validateNip18MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-18 must stay implemented after repost publish flow coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP18_OWNER) {
+    errors.push(`NIP-18 owner must be ${REQUIRED_NIP18_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP18_PROOF) {
+    errors.push(`NIP-18 proof must be ${REQUIRED_NIP18_PROOF}`);
+  }
+  if (!/kind:6|kind:16|relay hint|ReNote|fetch-by-id/i.test(entry.scopeNotes)) {
+    errors.push('NIP-18 scopeNotes must mention repost kind coverage and relay-hint boundary');
+  }
+  if (/partial|pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-18 scopeNotes must not use stale partial UI-pending wording');
   }
   return errors;
 }

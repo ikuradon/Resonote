@@ -4,15 +4,17 @@
  * UI components call these instead of directly importing castSigned/buildComment.
  */
 
-import { publishSignedEvent } from '$shared/auftakt/resonote.js';
+import { fetchNostrEventById, publishSignedEvent } from '$shared/auftakt/resonote.js';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import {
   buildComment,
   buildContentReaction,
   buildDeletion,
   buildReaction,
+  buildRepost,
   COMMENT_KIND,
-  CONTENT_REACTION_KIND
+  CONTENT_REACTION_KIND,
+  type RepostTargetEvent
 } from '$shared/nostr/events.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 
@@ -87,6 +89,31 @@ export async function sendReaction(params: SendReactionParams): Promise<void> {
   );
   await publishSignedEvent(eventParams);
   log.info('Reaction sent', { targetId: shortHex(params.comment.id) });
+}
+
+export interface SendRepostParams {
+  comment: Comment;
+  relayHint?: string;
+}
+
+/** Send a NIP-18 repost for a comment using the coordinator-local event body. */
+export async function sendRepost(params: SendRepostParams): Promise<void> {
+  const relayHint = params.relayHint ?? params.comment.relayHint;
+  if (!relayHint) {
+    throw new Error('Cannot repost without a relay hint for the target event');
+  }
+
+  const targetEvent = await fetchNostrEventById<RepostTargetEvent>(params.comment.id, [relayHint]);
+  if (!targetEvent) {
+    throw new Error('Cannot repost an event that is not available locally or from relay repair');
+  }
+
+  const eventParams = buildRepost(targetEvent, relayHint);
+  await publishSignedEvent(eventParams);
+  log.info('Repost sent', {
+    targetId: shortHex(params.comment.id),
+    targetKind: targetEvent.kind
+  });
 }
 
 export interface DeleteCommentParams {

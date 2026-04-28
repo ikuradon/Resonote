@@ -29,7 +29,8 @@ import { createLogger } from '$shared/utils/logger.js';
 import {
   deleteComment as deleteCommentAction,
   sendReaction as sendReactionAction,
-  sendReply as sendReplyAction
+  sendReply as sendReplyAction,
+  sendRepost as sendRepostAction
 } from '../application/comment-actions.js';
 
 const log = createLogger('comment-list-vm');
@@ -269,6 +270,23 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
     }
   }
 
+  async function sendRepost(comment: Comment) {
+    if (!auth.loggedIn || acting) return;
+    acting = comment.id;
+    try {
+      await sendRepostAction({
+        comment,
+        relayHint: comment.relayHint
+      });
+      toastSuccess(t('toast.repost_sent'));
+    } catch (err) {
+      log.error('Failed to send repost', err);
+      toastError(t('toast.repost_failed'));
+    } finally {
+      acting = null;
+    }
+  }
+
   function requestDelete(comment: Comment): void {
     deleteTarget = comment;
   }
@@ -454,6 +472,7 @@ export function createCommentListViewModel(options: CommentListViewModelOptions)
     hideCW,
     seekToPosition,
     sendReaction,
+    sendRepost,
     requestDelete,
     cancelDelete,
     confirmDelete,

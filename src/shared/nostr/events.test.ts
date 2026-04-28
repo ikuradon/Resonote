@@ -9,10 +9,12 @@ import {
   buildContentReaction,
   buildDeletion,
   buildReaction,
+  buildRepost,
   buildShare,
   COMMENT_KIND,
   extractDeletionTargets,
   formatPosition,
+  GENERIC_REPOST_KIND,
   parsePosition
 } from './events.js';
 
@@ -279,6 +281,61 @@ describe('buildShare', () => {
   it('should include t tags for hashtags', () => {
     const event = buildShare('#Music check this out', trackId, provider);
     expect(event.tags).toContainEqual(['t', 'music']);
+  });
+});
+
+describe('buildRepost', () => {
+  const target = {
+    id: 'event123abc',
+    pubkey: 'pubkey456def',
+    created_at: 1_700_000_000,
+    kind: 1,
+    tags: [['t', 'music']],
+    content: 'hello',
+    sig: 'sig123'
+  };
+
+  it('builds a NIP-18 kind:6 text-note repost with relay and pubkey hints', () => {
+    const event = buildRepost(target, 'wss://relay.example.com');
+    expect(event.kind).toBe(6);
+    expect(event.tags).toEqual([
+      ['e', 'event123abc', 'wss://relay.example.com'],
+      ['p', 'pubkey456def']
+    ]);
+    expect(JSON.parse(event.content)).toEqual(target);
+  });
+
+  it('builds a NIP-18 kind:16 generic repost with a k tag for non-kind:1 targets', () => {
+    const event = buildRepost({ ...target, kind: COMMENT_KIND }, 'wss://relay.example.com');
+    expect(event.kind).toBe(GENERIC_REPOST_KIND);
+    expect(event.tags).toEqual([
+      ['e', 'event123abc', 'wss://relay.example.com'],
+      ['p', 'pubkey456def'],
+      ['k', String(COMMENT_KIND)]
+    ]);
+    expect(JSON.parse(event.content)).toEqual({ ...target, kind: COMMENT_KIND });
+  });
+
+  it('adds an a tag when generic-reposting a replaceable event', () => {
+    const event = buildRepost(
+      { ...target, kind: 30030, tags: [['d', 'emoji-set']] },
+      'wss://relay.example.com'
+    );
+    expect(event.tags).toContainEqual([
+      'a',
+      '30030:pubkey456def:emoji-set',
+      'wss://relay.example.com'
+    ]);
+  });
+
+  it('keeps protected event content empty for NIP-70 targets', () => {
+    const event = buildRepost({ ...target, tags: [['-']] }, 'wss://relay.example.com');
+    expect(event.kind).toBe(6);
+    expect(event.content).toBe('');
+  });
+
+  it('requires a relay hint for the repost target e-tag', () => {
+    expect(() => buildRepost(target, '')).toThrow('relay hint');
   });
 });
 

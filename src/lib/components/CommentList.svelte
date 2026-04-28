@@ -407,6 +407,7 @@
               isRevealed={vm.isRevealed}
               {getPopoverId}
               onReaction={vm.sendReaction}
+              onRepost={vm.sendRepost}
               onDelete={vm.requestDelete}
               onReply={vm.startReply}
               onCancelReply={vm.cancelReply}
@@ -502,6 +503,7 @@
                   isRevealed={vm.isRevealed}
                   {getPopoverId}
                   onReaction={vm.sendReaction}
+                  onRepost={vm.sendRepost}
                   onDelete={vm.requestDelete}
                   onReply={vm.startReply}
                   onCancelReply={vm.cancelReply}
@@ -587,6 +589,7 @@
                   isRevealed={vm.isRevealed}
                   {getPopoverId}
                   onReaction={vm.sendReaction}
+                  onRepost={vm.sendRepost}
                   onDelete={vm.requestDelete}
                   onReply={vm.startReply}
                   onCancelReply={vm.cancelReply}

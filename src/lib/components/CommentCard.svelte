@@ -42,6 +42,7 @@
     isRevealed: (eventId: string) => boolean;
     getPopoverId: (commentId: string) => string;
     onReaction: (comment: Comment, reaction?: string, emojiUrl?: string) => void;
+    onRepost: (comment: Comment) => void;
     onDelete: (comment: Comment) => void;
     onReply: (comment: Comment) => void;
     onCancelReply: () => void;
@@ -85,6 +86,7 @@
     isRevealed,
     getPopoverId,
     onReaction,
+    onRepost,
     onDelete,
     onReply,
     onCancelReply,
@@ -115,6 +117,22 @@
     <path
       d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
     />
+  </svg>
+{/snippet}
+
+{#snippet repostIcon(sizeClass = 'h-4 w-4')}
+  <svg
+    aria-hidden="true"
+    class={sizeClass}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+  >
+    <path d="m17 2 4 4-4 4" />
+    <path d="M3 11V9a3 3 0 0 1 3-3h15" />
+    <path d="m7 22-4-4 4-4" />
+    <path d="M21 13v2a3 3 0 0 1-3 3H3" />
   </svg>
 {/snippet}
 
@@ -175,6 +193,15 @@
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
           </button>
+          <button
+            type="button"
+            onclick={() => onRepost(comment)}
+            disabled={acting}
+            class="rounded p-1 text-text-muted transition-colors hover:text-text-secondary disabled:opacity-50"
+            title={t('repost.title')}
+          >
+            {@render repostIcon()}
+          </button>
         {/if}
         <button
           type="button"
@@ -192,7 +219,7 @@
           authorPubkey={comment.pubkey}
           {isOwn}
           {canMute}
-          inlineActions={new Set(['reply', 'like'])}
+          inlineActions={new Set(['reply', 'like', 'renote'])}
           onQuote={onQuote ? () => onQuote(comment) : undefined}
           onMuteUser={() => onMute(comment.pubkey)}
           onDelete={() => onDelete(comment)}
@@ -309,25 +336,13 @@
         </button>
         <button
           type="button"
-          disabled
+          onclick={() => onRepost(comment)}
+          disabled={acting}
           aria-label="ReNote"
-          class="flex items-center gap-1 rounded-md border border-border-subtle px-2.5 py-1 text-xs text-text-muted opacity-50"
+          class="flex items-center gap-1 rounded-md border border-border-subtle px-2.5 py-1 text-xs text-text-muted transition-colors hover:text-text-secondary disabled:opacity-50"
+          title={t('repost.title')}
         >
-          <svg
-            aria-hidden="true"
-            class="h-3.5 w-3.5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path
-              d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z"
-            />
-            <path
-              d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"
-            />
-          </svg>
+          {@render repostIcon('h-3.5 w-3.5')}
         </button>
       {/if}
       <button
@@ -444,6 +459,7 @@
             {isRevealed}
             {getPopoverId}
             onReaction={(c: Comment, r?: string, u?: string) => onReaction(c, r, u)}
+            onRepost={(c: Comment) => onRepost(c)}
             onDelete={(c: Comment) => onDelete(c)}
             onReply={() => onReply(comment)}
             {onCancelReply}
