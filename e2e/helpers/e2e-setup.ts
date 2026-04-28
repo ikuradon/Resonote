@@ -4,7 +4,7 @@
  * Centralizes tsunagiya MockPool injection, window.nostr mock,
  * login simulation, and event injection to avoid duplication across test files.
  */
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import fs from 'fs';
 import { finalizeEvent, generateSecretKey, getPublicKey } from '@auftakt/core';
 import path from 'path';
@@ -136,6 +136,28 @@ export async function setupFullLogin(
   );
 }
 
+/**
+ * Set up read-only NIP-07-style login with getPublicKey only.
+ * Must be called before page.goto().
+ */
+export async function setupReadOnlyLogin(page: Page, pubkey: string): Promise<void> {
+  await page.addInitScript((pk: string) => {
+    const nostrMock = {
+      getPublicKey: async () => pk
+    };
+    try {
+      Object.defineProperty(window, 'nostr', {
+        value: nostrMock,
+        writable: false,
+        configurable: false
+      });
+    } catch {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).nostr = nostrMock;
+    }
+  }, pubkey);
+}
+
 function fakeNip44Encrypt(sk: Uint8Array, theirPubkey: string, plaintext: string): string {
   const payload = JSON.stringify({
     peer: theirPubkey,
@@ -160,13 +182,58 @@ function fakeNip44Decrypt(sk: Uint8Array, theirPubkey: string, ciphertext: strin
   return decoded.plaintext ?? '';
 }
 
+interface SimulateLoginOptions {
+  readonly method?: 'readOnly';
+  readonly timeoutMs?: number;
+}
+
 /**
- * Fire nlAuth login event. Call after page.goto() + waitForLoadState().
+ * Fire nlAuth login event after navigation and wait until the app consumes it.
+ *
+ * initAuth() is intentionally fire-and-forget from the root layout, so a single
+ * early event can be missed by slow preview runs. Re-dispatching until the
+ * logged-in shell appears keeps E2E setup deterministic without changing app
+ * behavior.
  */
-export async function simulateLogin(page: Page): Promise<void> {
-  await page.evaluate(() => {
-    document.dispatchEvent(new CustomEvent('nlAuth', { detail: { type: 'login' } }));
-  });
+export async function simulateLogin(page: Page, options: SimulateLoginOptions = {}): Promise<void> {
+  const timeoutMs = options.timeoutMs ?? 20_000;
+  const startedAt = Date.now();
+  const logoutButton = page.getByRole('button', { name: /Logout|ログアウト/ }).first();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    await page.evaluate((method?: 'readOnly') => {
+      document.dispatchEvent(new CustomEvent('nlAuth', { detail: { type: 'login', method } }));
+    }, options.method);
+
+    try {
+      await expect(logoutButton).toBeVisible({ timeout: 750 });
+      return;
+    } catch {
+      await page.waitForTimeout(250);
+    }
+  }
+
+  await expect(logoutButton).toBeVisible({ timeout: 1_000 });
+}
+
+export async function simulateReadOnlyLogin(page: Page, pubkey: string): Promise<void> {
+  await page.evaluate((pk: string) => {
+    const nostrMock = { getPublicKey: async () => pk };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (!(window as any).nostr) {
+      try {
+        Object.defineProperty(window, 'nostr', {
+          value: nostrMock,
+          writable: false,
+          configurable: false
+        });
+      } catch {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).nostr = nostrMock;
+      }
+    }
+  }, pubkey);
+  await simulateLogin(page, { method: 'readOnly' });
 }
 
 // ---------------------------------------------------------------------------

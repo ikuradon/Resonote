@@ -1,7 +1,13 @@
 import { finalizeEvent, generateSecretKey, getPublicKey } from '@auftakt/core';
 import { expect, test } from '@playwright/test';
 
-import { setupFullLogin, setupMockPool, simulateLogin } from './helpers/e2e-setup.js';
+import {
+  setupFullLogin,
+  setupMockPool,
+  setupReadOnlyLogin,
+  simulateLogin,
+  simulateReadOnlyLogin
+} from './helpers/e2e-setup.js';
 
 const trackUrl = '/spotify/track/4C6zDr6e86HYqLxPAhO8jA';
 const sk = generateSecretKey();
@@ -54,32 +60,26 @@ test.describe('Comment flow', () => {
 test.describe('Read-only login', () => {
   test.beforeEach(async ({ page }) => {
     await setupMockPool(page);
-    // No setupFullLogin — read-only mode has no signEvent
+    await setupReadOnlyLogin(page, testPubkey);
   });
 
-  test('should show comment form after read-only login', async ({ page }) => {
+  test('should keep comment form hidden after read-only login', async ({ page }) => {
     await page.goto(trackUrl);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
-    await page.evaluate(async (pubkey: string) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).nostr = { getPublicKey: async () => pubkey };
-      document.dispatchEvent(new CustomEvent('nlAuth', { detail: { type: 'login' } }));
-    }, testPubkey);
+    await simulateReadOnlyLogin(page, testPubkey);
 
-    const textarea = page.locator('textarea');
-    await expect(textarea).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('[data-testid="comment-login-prompt"]')).toBeVisible({
+      timeout: 10_000
+    });
+    await expect(page.locator('textarea')).toHaveCount(0);
   });
 
   test('should show NIP-44 warning on settings page', async ({ page }) => {
     await page.goto('/settings');
     await page.waitForLoadState('networkidle');
 
-    await page.evaluate(async (pubkey: string) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).nostr = { getPublicKey: async () => pubkey };
-      document.dispatchEvent(new CustomEvent('nlAuth', { detail: { type: 'login' } }));
-    }, testPubkey);
+    await simulateReadOnlyLogin(page, testPubkey);
 
     const nip44Warning = page.locator('text=NIP-44');
     await expect(nip44Warning).toBeVisible({ timeout: 10_000 });
@@ -89,11 +89,7 @@ test.describe('Read-only login', () => {
     await page.goto('/settings');
     await page.waitForLoadState('networkidle');
 
-    await page.evaluate(async (pubkey: string) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).nostr = { getPublicKey: async () => pubkey };
-      document.dispatchEvent(new CustomEvent('nlAuth', { detail: { type: 'login' } }));
-    }, testPubkey);
+    await simulateReadOnlyLogin(page, testPubkey);
 
     const relayHeading = page
       .locator('h2')

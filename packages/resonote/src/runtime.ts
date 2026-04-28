@@ -1893,10 +1893,7 @@ export interface PublishHintRecorder {
   }): Promise<void>;
 }
 
-export interface RetryableSignedEvent extends EventParameters {
-  readonly id: string;
-  readonly pubkey: string;
-  readonly created_at: number;
+export interface RetryableSignedEvent extends StoredEvent {
   readonly sig: string;
 }
 
