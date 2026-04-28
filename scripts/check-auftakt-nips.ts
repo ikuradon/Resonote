@@ -93,6 +93,16 @@ export function checkNipStatusDocsSync(
       errors.push(`docs/auftakt/status-verification.md missing NIP-${entry.nip}`);
     }
   }
+  if (/^\|\s*scoped NIP compliance\s*\|\s*Partial\s*\|/m.test(statusMarkdown)) {
+    errors.push(
+      'docs/auftakt/status-verification.md must not mark scoped NIP compliance as Partial after matrix proof closure'
+    );
+  }
+  if (!/^\|\s*scoped NIP compliance\s*\|\s*Scoped-Satisfied\s*\|/m.test(statusMarkdown)) {
+    errors.push(
+      'docs/auftakt/status-verification.md must mark scoped NIP compliance as Scoped-Satisfied'
+    );
+  }
   return { ok: errors.length === 0, errors };
 }
 

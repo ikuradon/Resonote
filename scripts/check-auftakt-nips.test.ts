@@ -126,11 +126,33 @@ describe('checkNipStatusDocsSync', () => {
         sourceDate: '2026-04-24',
         entries: [entry('01'), entry('02')]
       },
-      '| NIP-01 | public | partial |'
+      [
+        '| NIP-01 | public | partial |',
+        '| scoped NIP compliance | Scoped-Satisfied | proof |'
+      ].join('\n')
     );
 
     expect(result.ok).toBe(false);
     expect(result.errors).toContain('docs/auftakt/status-verification.md missing NIP-02');
+  });
+
+  it('rejects stale Partial scoped NIP compliance verdict wording', () => {
+    const result = checkNipStatusDocsSync(
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [entry('01')]
+      },
+      ['| NIP-01 | public | partial |', '| scoped NIP compliance | Partial | stale |'].join('\n')
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain(
+      'docs/auftakt/status-verification.md must not mark scoped NIP compliance as Partial after matrix proof closure'
+    );
+    expect(result.errors).toContain(
+      'docs/auftakt/status-verification.md must mark scoped NIP compliance as Scoped-Satisfied'
+    );
   });
 });
 
