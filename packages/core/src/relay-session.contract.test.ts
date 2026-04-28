@@ -1,4 +1,4 @@
-import type { RequestKey } from '@auftakt/core';
+import type { EventSigner, RequestKey, SignedEventShape, UnsignedEvent } from '@auftakt/core';
 import { createRuntimeRequestKey, REPAIR_REQUEST_COALESCING_SCOPE } from '@auftakt/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -63,6 +63,22 @@ class FakeWebSocket {
 const RELAY_URL = 'wss://relay.contract.test';
 const RELAY_B_URL = 'wss://relay-b.contract.test';
 const TEMP_RELAY_URL = 'wss://relay-temp.contract.test';
+
+function createContractSigner(pubkey = 'pubkey-a'): EventSigner {
+  let next = 0;
+  return {
+    getPublicKey: () => pubkey,
+    signEvent: (event: UnsignedEvent): SignedEventShape => {
+      next += 1;
+      return {
+        ...event,
+        pubkey,
+        id: `signed-event-${next}`,
+        sig: `signed-sig-${next}`
+      };
+    }
+  };
+}
 
 function latestSocket(): FakeWebSocket {
   const socket = FakeWebSocket.instances.at(-1);
@@ -295,6 +311,220 @@ describe('relay replay request identity contract', () => {
       notice: 'accepted',
       done: true
     });
+
+    sub.unsubscribe();
+    session.dispose();
+  });
+
+  it('answers NIP-42 AUTH challenges and retries auth-required EVENT writes', async () => {
+    const signer = createContractSigner('pubkey-auth');
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
+    const packets: Array<{
+      from: string;
+      eventId: string;
+      ok: boolean;
+      notice?: string;
+      done: boolean;
+    }> = [];
+    let completed = false;
+
+    const sub = session
+      .send(
+        {
+          kind: 1,
+          content: 'hello auth',
+          created_at: 1,
+          tags: []
+        },
+        { signer }
+      )
+      .subscribe({
+        next: (packet) => {
+          packets.push(packet);
+        },
+        complete: () => {
+          completed = true;
+        }
+      });
+
+    await waitUntil(() => FakeWebSocket.instances.length > 0);
+    const socket = latestSocket();
+    socket.open();
+    await waitUntil(() => socket.sent.length === 1);
+
+    const firstEventPacket = socket.sent[0] as ['EVENT', SignedEventShape];
+    expect(firstEventPacket[0]).toBe('EVENT');
+    socket.message(['AUTH', 'challenge-event']);
+    socket.message([
+      'OK',
+      firstEventPacket[1].id,
+      false,
+      'auth-required: authenticate before publishing'
+    ]);
+
+    await waitUntil(() => socket.sent.length === 2);
+    const authPacket = socket.sent[1] as ['AUTH', SignedEventShape];
+    expect(authPacket).toEqual([
+      'AUTH',
+      expect.objectContaining({
+        kind: 22242,
+        pubkey: 'pubkey-auth',
+        content: '',
+        tags: [
+          ['relay', RELAY_URL],
+          ['challenge', 'challenge-event']
+        ]
+      })
+    ]);
+
+    socket.message(['OK', authPacket[1].id, true, '']);
+    await waitUntil(() => socket.sent.length === 3);
+    expect(socket.sent[2]).toEqual(firstEventPacket);
+
+    socket.message(['OK', firstEventPacket[1].id, true, 'accepted']);
+    await waitUntil(() => completed);
+    expect(packets).toEqual([
+      {
+        from: RELAY_URL,
+        eventId: firstEventPacket[1].id,
+        ok: true,
+        notice: 'accepted',
+        done: true
+      }
+    ]);
+
+    sub.unsubscribe();
+    session.dispose();
+  });
+
+  it('authenticates before publishing NIP-70 protected events when a challenge is known', async () => {
+    const signer = createContractSigner('pubkey-protected');
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
+    const req = createRxForwardReq({
+      requestKey: 'rq:v1:contract-protected-auth-bootstrap' as RequestKey
+    });
+    const readSub = session.use(req, { signer }).subscribe({});
+
+    req.emit({ kinds: [1] });
+    await waitUntil(() => FakeWebSocket.instances.length > 0);
+    const socket = latestSocket();
+    socket.open();
+    await waitUntil(() => socket.sent.length === 1);
+    socket.message(['AUTH', 'challenge-protected']);
+
+    const writeSub = session
+      .send(
+        {
+          kind: 1,
+          content: 'protected',
+          created_at: 2,
+          tags: [['-']]
+        },
+        { signer }
+      )
+      .subscribe({});
+
+    await waitUntil(() => socket.sent.length === 2);
+    const authPacket = socket.sent[1] as ['AUTH', SignedEventShape];
+    expect(authPacket[0]).toBe('AUTH');
+    expect(authPacket[1]).toMatchObject({
+      kind: 22242,
+      pubkey: 'pubkey-protected',
+      tags: [
+        ['relay', RELAY_URL],
+        ['challenge', 'challenge-protected']
+      ]
+    });
+    socket.message(['OK', authPacket[1].id, true, '']);
+
+    await waitUntil(() => socket.sent.length === 3);
+    expect(socket.sent[2]).toEqual([
+      'EVENT',
+      expect.objectContaining({
+        pubkey: 'pubkey-protected',
+        content: 'protected',
+        tags: [['-']]
+      })
+    ]);
+
+    writeSub.unsubscribe();
+    readSub.unsubscribe();
+    session.dispose();
+  });
+
+  it('answers NIP-42 AUTH challenges and retries auth-required REQ shards', async () => {
+    const signer = createContractSigner('pubkey-reader');
+    const session = createRxNostrSession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
+    const req = createRxBackwardReq({
+      requestKey: 'rq:v1:contract-auth-required-req' as RequestKey
+    });
+    const received: string[] = [];
+    let completed = false;
+
+    const sub = session.use(req, { signer }).subscribe({
+      next: (packet) => {
+        received.push(packet.event.id);
+      },
+      complete: () => {
+        completed = true;
+      }
+    });
+
+    req.emit({ kinds: [4] });
+    req.over();
+
+    await waitUntil(() => FakeWebSocket.instances.length > 0);
+    const socket = latestSocket();
+    socket.open();
+    await waitUntil(() => socket.sent.length === 1);
+
+    const firstReq = socket.sent[0] as ['REQ', string, Record<string, unknown>];
+    socket.message(['AUTH', 'challenge-req']);
+    socket.message(['CLOSED', firstReq[1], 'auth-required: authenticate before reading']);
+
+    await waitUntil(() => socket.sent.length === 2);
+    const authPacket = socket.sent[1] as ['AUTH', SignedEventShape];
+    expect(authPacket[1]).toMatchObject({
+      kind: 22242,
+      pubkey: 'pubkey-reader',
+      tags: [
+        ['relay', RELAY_URL],
+        ['challenge', 'challenge-req']
+      ]
+    });
+    socket.message(['OK', authPacket[1].id, true, '']);
+
+    await waitUntil(() => socket.sent.length === 3);
+    const retriedReq = socket.sent[2] as ['REQ', string, Record<string, unknown>];
+    expect(retriedReq[0]).toBe('REQ');
+    expect(retriedReq[1]).not.toBe(firstReq[1]);
+    expect(retriedReq[2]).toEqual({ kinds: [4] });
+
+    socket.message([
+      'EVENT',
+      retriedReq[1],
+      {
+        id: 'auth-visible-event',
+        pubkey: 'pubkey-a',
+        content: 'dm',
+        created_at: 1,
+        tags: [],
+        kind: 4
+      }
+    ]);
+    socket.message(['EOSE', retriedReq[1]]);
+
+    await waitUntil(() => completed);
+    expect(received).toEqual(['auth-visible-event']);
 
     sub.unsubscribe();
     session.dispose();

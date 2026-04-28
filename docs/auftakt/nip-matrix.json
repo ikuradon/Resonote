@@ -329,11 +329,11 @@
     {
       "nip": "42",
       "level": "internal",
-      "status": "not-started",
+      "status": "implemented",
       "owner": "packages/core/src/relay-session.ts",
       "proof": "packages/core/src/relay-session.contract.test.ts",
       "priority": "P1",
-      "scopeNotes": "AUTH handling not yet implemented"
+      "scopeNotes": "Relay AUTH challenge storage, kind:22242 signing, AUTH OK handling, and auth-required EVENT/REQ retry in the core relay session"
     },
     {
       "nip": "43",
@@ -572,11 +572,11 @@
     {
       "nip": "70",
       "level": "internal",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/relay-session.ts",
+      "proof": "packages/core/src/relay-session.contract.test.ts",
       "priority": "P1",
-      "scopeNotes": "Protected event validation policy pending"
+      "scopeNotes": "Protected publish path recognizes the single-item - tag and authenticates before EVENT retry when relay policy requires NIP-42"
     },
     {
       "nip": "71",

@@ -54,6 +54,8 @@ const REQUIRED_NIP05_OWNER = 'src/shared/nostr/nip05.ts';
 const REQUIRED_NIP05_PROOF = 'src/shared/nostr/nip05.test.ts';
 const REQUIRED_NIP07_OWNER = 'src/shared/nostr/client.ts';
 const REQUIRED_NIP07_PROOF = 'src/shared/nostr/client-integration.test.ts';
+const REQUIRED_RELAY_SESSION_OWNER = 'packages/core/src/relay-session.ts';
+const REQUIRED_RELAY_SESSION_PROOF = 'packages/core/src/relay-session.contract.test.ts';
 
 export function checkNipMatrix(
   inventory: NipInventory,
@@ -243,6 +245,52 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '07') {
     errors.push(...validateNip07MatrixEntry(entry));
+  }
+  if (entry.nip === '42') {
+    errors.push(...validateNip42MatrixEntry(entry));
+  }
+  if (entry.nip === '70') {
+    errors.push(...validateNip70MatrixEntry(entry));
+  }
+  return errors;
+}
+
+function validateNip42MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-42 must stay implemented after relay AUTH retry coverage');
+  }
+  if (entry.owner !== REQUIRED_RELAY_SESSION_OWNER) {
+    errors.push(`NIP-42 owner must be ${REQUIRED_RELAY_SESSION_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_RELAY_SESSION_PROOF) {
+    errors.push(`NIP-42 proof must be ${REQUIRED_RELAY_SESSION_PROOF}`);
+  }
+  if (!/AUTH|22242|auth-required/i.test(entry.scopeNotes)) {
+    errors.push('NIP-42 scopeNotes must mention AUTH, kind:22242, or auth-required retry');
+  }
+  if (/not-started|pending|not yet implemented/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-42 scopeNotes must not use stale not-started wording');
+  }
+  return errors;
+}
+
+function validateNip70MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-70 must stay implemented after protected publish AUTH coverage');
+  }
+  if (entry.owner !== REQUIRED_RELAY_SESSION_OWNER) {
+    errors.push(`NIP-70 owner must be ${REQUIRED_RELAY_SESSION_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_RELAY_SESSION_PROOF) {
+    errors.push(`NIP-70 proof must be ${REQUIRED_RELAY_SESSION_PROOF}`);
+  }
+  if (!/protected|- tag|NIP-42|AUTH/i.test(entry.scopeNotes)) {
+    errors.push('NIP-70 scopeNotes must mention protected-event AUTH boundary');
+  }
+  if (/not-started|pending|validation policy/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-70 scopeNotes must not use stale policy-pending wording');
   }
   return errors;
 }

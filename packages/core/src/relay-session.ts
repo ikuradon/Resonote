@@ -78,6 +78,7 @@ export interface RelaySelectionOptions {
 
 export interface RelayUseOptions {
   on?: RelaySelectionOptions;
+  signer?: EventSigner;
 }
 
 export interface NegentropyRequestOptions {
@@ -423,9 +424,17 @@ interface ActiveRequestGroup {
   readonly relayShardQueues: Map<string, QueuedRelayShard[]>;
   readonly activeRelaySubIds: Map<string, Set<string>>;
   readonly activeRelayShards: Map<string, Map<string, QueuedRelayShard>>;
+  readonly authRetriedShardKeys: Map<string, Set<string>>;
   readonly cleanup: Array<() => void>;
+  signer?: EventSigner;
   started: boolean;
   finished: boolean;
+}
+
+interface RelayAuthState {
+  challenge?: string;
+  readonly authenticatedPubkeys: Set<string>;
+  readonly pendingByPubkey: Map<string, Promise<boolean>>;
 }
 
 class RelaySession implements RxNostr {
@@ -444,6 +453,7 @@ class RelaySession implements RxNostr {
   private readonly relayLifecyclePolicies = new Map<string, RelayLifecyclePolicy>();
   private readonly relayLifecycleOptions: NormalizedRelayLifecycleOptions;
   private readonly capabilityStates = new Subject<RelayCapabilityPacket>();
+  private readonly relayAuthStates = new Map<string, RelayAuthState>();
   private capabilityLearningHandler: ((event: RelayCapabilityLearningEvent) => void) | undefined;
   private disposed = false;
 
@@ -574,7 +584,8 @@ class RelaySession implements RxNostr {
           coalescingScope: req.coalescingScope,
           mode: req.mode,
           relayUrls,
-          filters: currentFilters
+          filters: currentFilters,
+          signer: options?.signer
         });
 
         if (consumer.currentGroupKey === group.groupKey) return;
@@ -674,6 +685,7 @@ class RelaySession implements RxNostr {
     mode: 'backward' | 'forward';
     relayUrls: string[];
     filters: Filter[];
+    signer?: EventSigner;
   }): ActiveRequestGroup {
     const overlay = {
       relays: input.relayUrls,
@@ -707,6 +719,7 @@ class RelaySession implements RxNostr {
     const existing = this.requestGroups.get(basePlan.logicalKey);
     if (existing) {
       existing.requestKeys.add(input.requestKey);
+      existing.signer ??= input.signer;
       return existing;
     }
 
@@ -723,7 +736,9 @@ class RelaySession implements RxNostr {
       relayShardQueues: new Map(),
       activeRelaySubIds: new Map(),
       activeRelayShards: new Map(),
+      authRetriedShardKeys: new Map(),
       cleanup: [],
+      signer: input.signer,
       started: false,
       finished: false
     };
@@ -744,6 +759,13 @@ class RelaySession implements RxNostr {
             consumer.observer.next({ from, event });
           }
           return;
+        }
+
+        if (type === 'CLOSED') {
+          const reason = typeof message[2] === 'string' ? message[2] : '';
+          if (this.retryRelayShardAfterAuthRequired(group, from, incomingSubId, reason)) {
+            return;
+          }
         }
 
         if ((type === 'EOSE' || type === 'CLOSED') && group.mode === 'backward') {
@@ -770,6 +792,13 @@ class RelaySession implements RxNostr {
               this.dropRelayPendingSubIds(group, from);
             })
             .finally(() => this.completeBackwardGroupIfDone(group));
+        }
+
+        if (type === 'CLOSED' && group.mode === 'forward') {
+          this.releaseRelaySubId(group, from, incomingSubId);
+          void this.pumpRelayShardQueue(group, from).catch(() => {
+            this.dropRelayPendingSubIds(group, from);
+          });
         }
       }
     });
@@ -819,6 +848,47 @@ class RelaySession implements RxNostr {
       maxFiltersPerShard: minNullable(capability?.maxFilters ?? null, relaySpecific, fallback),
       maxSubscriptions: capability?.maxSubscriptions ?? null
     };
+  }
+
+  private retryRelayShardAfterAuthRequired(
+    group: ActiveRequestGroup,
+    relayUrl: string,
+    subId: string,
+    reason: string
+  ): boolean {
+    if (!isAuthRequiredReason(reason) || !group.signer || !this.hasRelayAuthChallenge(relayUrl)) {
+      return false;
+    }
+
+    const activeShard = this.getActiveRelayShard(group, relayUrl, subId);
+    if (!activeShard) return false;
+
+    const retried = group.authRetriedShardKeys.get(relayUrl) ?? new Set<string>();
+    group.authRetriedShardKeys.set(relayUrl, retried);
+    if (retried.has(activeShard.shardKey)) return false;
+    retried.add(activeShard.shardKey);
+
+    const currentQueue = group.relayShardQueues.get(relayUrl) ?? [];
+    group.relayShardQueues.set(relayUrl, [activeShard, ...currentQueue]);
+    group.pendingSubIds.delete(subId);
+    this.releaseRelaySubId(group, relayUrl, subId);
+    this.publishRelayCapability(relayUrl);
+
+    void this.authenticateRelay(relayUrl, group.signer)
+      .then((authenticated) => {
+        if (!authenticated) {
+          this.dropRelayPendingSubIds(group, relayUrl);
+          this.completeBackwardGroupIfDone(group);
+          return;
+        }
+        return this.pumpRelayShardQueue(group, relayUrl);
+      })
+      .catch(() => {
+        this.dropRelayPendingSubIds(group, relayUrl);
+        this.completeBackwardGroupIfDone(group);
+      });
+
+    return true;
   }
 
   private startRequestGroup(group: ActiveRequestGroup): void {
@@ -876,6 +946,7 @@ class RelaySession implements RxNostr {
         : Math.max(0, maxSubscriptions - active.size);
 
     let sent = 0;
+    await this.authenticateRelayIfPossible(relayUrl, group.signer);
     while (queue.length > 0 && sent < availableSlots) {
       const shard = queue.shift();
       if (!shard) break;
@@ -1102,6 +1173,7 @@ class RelaySession implements RxNostr {
       const relayUrls = this.resolveWriteRelays(options?.on);
       const cleanup: Array<() => void> = [];
       const pendingRelays = new Set<string>();
+      const authRetriedRelays = new Set<string>();
       let eventId = '';
       let settled = false;
 
@@ -1112,19 +1184,60 @@ class RelaySession implements RxNostr {
       };
 
       const start = async () => {
-        const event = await this.signEvent(params, options?.signer);
+        const activeSigner = this.resolveEventSigner(params, options?.signer);
+        const event = await this.signEvent(params, activeSigner);
         eventId = event.id;
+
+        const rejectRelay = (url: string, notice?: string) => {
+          if (!pendingRelays.delete(url)) return;
+          observer.next({
+            from: url,
+            eventId,
+            ok: false,
+            notice,
+            done: pendingRelays.size === 0
+          });
+          finish();
+        };
+
+        const retryEventAfterAuthentication = async (url: string, notice?: string) => {
+          if (!activeSigner) {
+            rejectRelay(url, notice);
+            return;
+          }
+          const authenticated = await this.authenticateRelay(url, activeSigner).catch(() => false);
+          if (!authenticated) {
+            rejectRelay(url, notice);
+            return;
+          }
+          const relay = this.getConnection(url);
+          await relay.send(['EVENT', event]).catch(() => rejectRelay(url, notice));
+        };
 
         const messageSub = this.messages.subscribe({
           next: ({ from, message }) => {
             if (!relayUrls.includes(from) || !Array.isArray(message)) return;
             if (message[0] !== 'OK' || message[1] !== eventId) return;
+            const ok = Boolean(message[2]);
+            const notice = typeof message[3] === 'string' ? message[3] : undefined;
+            if (
+              !ok &&
+              activeSigner &&
+              notice &&
+              isAuthRequiredReason(notice) &&
+              this.hasRelayAuthChallenge(from) &&
+              !authRetriedRelays.has(from)
+            ) {
+              authRetriedRelays.add(from);
+              void retryEventAfterAuthentication(from, notice);
+              return;
+            }
             pendingRelays.delete(from);
             observer.next({
               from,
               eventId,
-              ok: Boolean(message[2]),
-              notice: typeof message[3] === 'string' ? message[3] : undefined,
+              ok,
+              notice,
               done: pendingRelays.size === 0
             });
             finish();
@@ -1157,17 +1270,12 @@ class RelaySession implements RxNostr {
         for (const url of relayUrls) pendingRelays.add(url);
         for (const url of relayUrls) {
           const relay = this.getConnection(url);
-          void relay.send(['EVENT', event]).catch(() => {
-            if (pendingRelays.delete(url)) {
-              observer.next({
-                from: url,
-                eventId,
-                ok: false,
-                done: pendingRelays.size === 0
-              });
-              finish();
+          void (async () => {
+            if (hasProtectedEventTag(event)) {
+              await this.authenticateRelayIfPossible(url, activeSigner);
             }
-          });
+            await relay.send(['EVENT', event]);
+          })().catch(() => rejectRelay(url));
         }
 
         const timeout = setTimeout(() => {
@@ -1484,7 +1592,7 @@ class RelaySession implements RxNostr {
         url,
         () => this.getRelayLifecyclePolicy(url),
         () => (this.relayGroupKeys.get(url)?.size ?? 0) > 0,
-        (from, message) => this.messages.next({ from, message }),
+        (from, message) => this.handleRelayMessage(from, message),
         (from, state, explicitReason) => {
           const reason =
             explicitReason ??
@@ -1502,6 +1610,135 @@ class RelaySession implements RxNostr {
       this.updateRelayObservation(url, 'idle', 'boot');
     }
     return connection;
+  }
+
+  private handleRelayMessage(from: string, message: unknown): void {
+    if (Array.isArray(message) && message[0] === 'AUTH' && typeof message[1] === 'string') {
+      const auth = this.getRelayAuthState(from);
+      if (auth.challenge !== message[1]) {
+        auth.challenge = message[1];
+        auth.authenticatedPubkeys.clear();
+        auth.pendingByPubkey.clear();
+      }
+    }
+    this.messages.next({ from, message });
+  }
+
+  private getRelayAuthState(relayUrl: string): RelayAuthState {
+    const existing = this.relayAuthStates.get(relayUrl);
+    if (existing) return existing;
+    const created: RelayAuthState = {
+      authenticatedPubkeys: new Set(),
+      pendingByPubkey: new Map()
+    };
+    this.relayAuthStates.set(relayUrl, created);
+    return created;
+  }
+
+  private hasRelayAuthChallenge(relayUrl: string): boolean {
+    return typeof this.relayAuthStates.get(relayUrl)?.challenge === 'string';
+  }
+
+  private async authenticateRelayIfPossible(
+    relayUrl: string,
+    signer: EventSigner | undefined
+  ): Promise<boolean> {
+    if (!signer || !this.hasRelayAuthChallenge(relayUrl)) return false;
+    try {
+      return await this.authenticateRelay(relayUrl, signer);
+    } catch {
+      return false;
+    }
+  }
+
+  private async authenticateRelay(relayUrl: string, signer: EventSigner): Promise<boolean> {
+    const auth = this.getRelayAuthState(relayUrl);
+    const challenge = auth.challenge;
+    if (!challenge) return false;
+
+    const pubkey = await signer.getPublicKey();
+    if (auth.challenge !== challenge) {
+      return this.authenticateRelay(relayUrl, signer);
+    }
+    if (auth.authenticatedPubkeys.has(pubkey)) return true;
+
+    const existing = auth.pendingByPubkey.get(pubkey);
+    if (existing) return existing;
+
+    const pending = this.performRelayAuthentication(relayUrl, signer, pubkey, challenge).finally(
+      () => {
+        const current = this.relayAuthStates.get(relayUrl);
+        if (current?.pendingByPubkey.get(pubkey) === pending) {
+          current.pendingByPubkey.delete(pubkey);
+        }
+      }
+    );
+    auth.pendingByPubkey.set(pubkey, pending);
+    return pending;
+  }
+
+  private async performRelayAuthentication(
+    relayUrl: string,
+    signer: EventSigner,
+    pubkey: string,
+    challenge: string
+  ): Promise<boolean> {
+    const relay = this.getConnection(relayUrl);
+    const event = await this.signUnsignedEvent(
+      {
+        kind: 22242,
+        content: '',
+        tags: [
+          ['relay', relayUrl],
+          ['challenge', challenge]
+        ],
+        created_at: Math.floor(Date.now() / 1000)
+      },
+      signer,
+      pubkey
+    );
+
+    return new Promise<boolean>((resolve) => {
+      let settled = false;
+      const cleanup: Array<() => void> = [];
+      const finish = (ok: boolean) => {
+        if (settled) return;
+        settled = true;
+        for (const stop of cleanup.splice(0)) stop();
+        if (ok && this.relayAuthStates.get(relayUrl)?.challenge === challenge) {
+          this.getRelayAuthState(relayUrl).authenticatedPubkeys.add(pubkey);
+        }
+        resolve(ok);
+      };
+
+      const messageSub = this.messages.subscribe({
+        next: ({ from, message }) => {
+          if (from !== relayUrl || !Array.isArray(message)) return;
+          if (message[0] !== 'OK' || message[1] !== event.id) return;
+          finish(Boolean(message[2]));
+        }
+      });
+      cleanup.push(() => messageSub.unsubscribe());
+
+      const stateSub = this.states.subscribe({
+        next: (packet) => {
+          if (packet.from !== relayUrl) return;
+          if (
+            packet.state === 'backoff' ||
+            packet.state === 'closed' ||
+            packet.state === 'degraded'
+          ) {
+            finish(false);
+          }
+        }
+      });
+      cleanup.push(() => stateSub.unsubscribe());
+
+      const timeout = setTimeout(() => finish(false), this.eoseTimeout);
+      cleanup.push(() => clearTimeout(timeout));
+
+      void relay.send(['AUTH', event]).catch(() => finish(false));
+    });
   }
 
   private resolveReadRelays(selection?: RelaySelectionOptions): string[] {
@@ -1563,9 +1800,16 @@ class RelaySession implements RxNostr {
     };
 
     const activeSigner = signer ?? nip07Signer();
-    const pubkey = await activeSigner.getPublicKey();
-    const signed = await activeSigner.signEvent(unsigned);
+    return this.signUnsignedEvent(unsigned, activeSigner);
+  }
 
+  private async signUnsignedEvent(
+    unsigned: UnsignedEvent,
+    signer: EventSigner,
+    pubkeyHint?: string
+  ): Promise<SignedEventShape> {
+    const pubkey = pubkeyHint ?? (await signer.getPublicKey());
+    const signed = await signer.signEvent(unsigned);
     if (typeof (signed as SignedEventShape).pubkey === 'string') {
       return signed as SignedEventShape;
     }
@@ -1576,6 +1820,23 @@ class RelaySession implements RxNostr {
       id: (signed as { id: string; sig: string }).id,
       sig: (signed as { id: string; sig: string }).sig
     };
+  }
+
+  private resolveEventSigner(
+    params: EventParameters,
+    signer?: EventSigner
+  ): EventSigner | undefined {
+    if (signer) return signer;
+    const candidate = params as Partial<SignedEventShape>;
+    if (
+      typeof candidate.id === 'string' &&
+      typeof candidate.sig === 'string' &&
+      typeof candidate.pubkey === 'string' &&
+      typeof candidate.created_at === 'number'
+    ) {
+      return undefined;
+    }
+    return nip07Signer();
   }
 }
 
@@ -1660,4 +1921,12 @@ function minNullable(...values: Array<number | null | undefined>): number | null
   const normalized = values.filter((value): value is number => typeof value === 'number');
   if (normalized.length === 0) return null;
   return Math.min(...normalized);
+}
+
+function isAuthRequiredReason(reason: string): boolean {
+  return reason.toLowerCase().startsWith('auth-required:');
+}
+
+function hasProtectedEventTag(event: Pick<SignedEventShape, 'tags'>): boolean {
+  return event.tags.some((tag) => tag.length === 1 && tag[0] === '-');
 }

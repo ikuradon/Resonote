@@ -264,6 +264,104 @@ describe('NIP matrix entry validation', () => {
 
     expect(result.errors).toEqual([]);
   });
+
+  it('rejects stale NIP-42 not-started AUTH relay claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['42'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('42', {
+            level: 'internal',
+            status: 'not-started',
+            owner: 'packages/core/src/relay-session.ts',
+            proof: 'packages/core/src/relay-session.contract.test.ts',
+            priority: 'P1',
+            scopeNotes: 'AUTH handling not yet implemented'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain('NIP-42 must stay implemented after relay AUTH retry coverage');
+    expect(result.errors).toContain('NIP-42 scopeNotes must not use stale not-started wording');
+  });
+
+  it('accepts the implemented NIP-42 relay AUTH retry claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['42'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('42', {
+            level: 'internal',
+            status: 'implemented',
+            owner: 'packages/core/src/relay-session.ts',
+            proof: 'packages/core/src/relay-session.contract.test.ts',
+            priority: 'P1',
+            scopeNotes:
+              'Relay AUTH challenge storage, kind:22242 signing, AUTH OK handling, and auth-required EVENT/REQ retry in the core relay session.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
+  it('rejects stale NIP-70 protected-event policy claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['70'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('70', {
+            level: 'internal',
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P1',
+            scopeNotes: 'Protected event validation policy pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-70 must stay implemented after protected publish AUTH coverage'
+    );
+    expect(result.errors).toContain('NIP-70 owner must be packages/core/src/relay-session.ts');
+    expect(result.errors).toContain(
+      'NIP-70 proof must be packages/core/src/relay-session.contract.test.ts'
+    );
+    expect(result.errors).toContain('NIP-70 scopeNotes must not use stale policy-pending wording');
+  });
+
+  it('accepts the implemented NIP-70 protected publish AUTH claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['70'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('70', {
+            level: 'internal',
+            status: 'implemented',
+            owner: 'packages/core/src/relay-session.ts',
+            proof: 'packages/core/src/relay-session.contract.test.ts',
+            priority: 'P1',
+            scopeNotes:
+              'Protected publish path recognizes the single-item - tag and authenticates before EVENT retry when relay policy requires NIP-42 AUTH.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
 });
 
 describe('checkNipStatusDocsSync', () => {
