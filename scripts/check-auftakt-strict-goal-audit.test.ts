@@ -169,14 +169,16 @@ describe('checkStrictGoalAudit', () => {
     );
   });
 
-  it('rejects stale Partial verdicts for strict proof-closed goals', () => {
+  it('rejects stale verdicts and follow-up wording for strict proof-closed goals', () => {
     const result = checkStrictGoalAudit([
       file(
         STRICT_GOAL_AUDIT_PATH,
         `${validAuditText}
 Ordinary reads are not uniformly defined as negentropy-first repair with REQ fallback.
+The API is ergonomic for current Resonote flows, not a broad NDK-style model system.
 | strfry-like local-first event processing | \`Partial\` | stale |
 | Offline incremental and kind:5 | \`Partial\` | stale |
+| NDK-like API convenience | \`Scoped-Satisfied\` | stale |
 `
       ),
       ...validRequiredProofFiles,
@@ -187,6 +189,8 @@ Ordinary reads are not uniformly defined as negentropy-first repair with REQ fal
           'Strict final gap details live in docs/auftakt/2026-04-26-strict-goal-gap-audit.md.',
           'と `Partial` の理由',
           '厳格な ordinary-read negentropy-first 化は strict gap audit で後続候補として扱う。',
+          '広範な NDK-style model system は strict gap audit で後続候補として扱う。',
+          '| NDK級 API convenience | Scoped-Satisfied | stale |',
           '| strfry的 local-first seamless processing | Partial | stale |',
           '| offline incremental + kind:5 | Partial | stale |'
         ].join('\n')
@@ -201,7 +205,13 @@ Ordinary reads are not uniformly defined as negentropy-first repair with REQ fal
       `${STRICT_GOAL_AUDIT_PATH} must not mark Offline incremental and kind:5 as Partial after sync cursor and kind:5 proof closure`
     );
     expect(result.errors).toContain(
+      `${STRICT_GOAL_AUDIT_PATH} must not leave NDK-like API convenience as Scoped-Satisfied after plugin model API proof closure`
+    );
+    expect(result.errors).toContain(
       `${STRICT_GOAL_AUDIT_PATH} must not describe ordinary read negentropy verification as an open follow-up after gateway proof closure`
+    );
+    expect(result.errors).toContain(
+      `${STRICT_GOAL_AUDIT_PATH} must not describe NDK-like API convenience as a remaining broad model-system gap after plugin model proof closure`
     );
     expect(result.errors).toContain(
       'docs/auftakt/spec.md must not mark strfry的 local-first seamless processing as Partial after strict proof closure'
@@ -214,6 +224,12 @@ Ordinary reads are not uniformly defined as negentropy-first repair with REQ fal
     );
     expect(result.errors).toContain(
       'docs/auftakt/spec.md must not describe ordinary read negentropy verification as a follow-up after gateway proof closure'
+    );
+    expect(result.errors).toContain(
+      'docs/auftakt/spec.md must not leave NDK級 API convenience as Scoped-Satisfied after plugin model API proof closure'
+    );
+    expect(result.errors).toContain(
+      'docs/auftakt/spec.md must not describe NDK-style model expansion as a pending follow-up after plugin model API proof closure'
     );
   });
 

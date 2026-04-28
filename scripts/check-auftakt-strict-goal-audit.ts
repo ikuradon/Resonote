@@ -290,7 +290,7 @@ const AMBIGUOUS_STRICT_COMPLETION_PATTERNS = [
   /all strict final goals are satisfied/i
 ];
 
-const STALE_STRICT_GOAL_PARTIAL_VERDICTS = [
+const STALE_STRICT_GOAL_VERDICTS = [
   {
     pattern: /^\|\s*strfry-like local-first event processing\s*\|\s*`?Partial`?\s*\|/m,
     message: `${STRICT_GOAL_AUDIT_PATH} must not mark strfry-like local-first event processing as Partial after coordinator/local-store proof closure`
@@ -298,6 +298,10 @@ const STALE_STRICT_GOAL_PARTIAL_VERDICTS = [
   {
     pattern: /^\|\s*Offline incremental and kind:5\s*\|\s*`?Partial`?\s*\|/m,
     message: `${STRICT_GOAL_AUDIT_PATH} must not mark Offline incremental and kind:5 as Partial after sync cursor and kind:5 proof closure`
+  },
+  {
+    pattern: /^\|\s*NDK-like API convenience\s*\|\s*`?Scoped-Satisfied`?\s*\|/m,
+    message: `${STRICT_GOAL_AUDIT_PATH} must not leave NDK-like API convenience as Scoped-Satisfied after plugin model API proof closure`
   }
 ];
 
@@ -306,6 +310,10 @@ const STALE_STRICT_GOAL_FOLLOWUP_WORDING = [
     pattern:
       /Ordinary reads are not uniformly defined as negentropy-first repair with REQ fallback/,
     message: `${STRICT_GOAL_AUDIT_PATH} must not describe ordinary read negentropy verification as an open follow-up after gateway proof closure`
+  },
+  {
+    pattern: /The API is ergonomic for current Resonote flows, not a broad NDK-style model system/,
+    message: `${STRICT_GOAL_AUDIT_PATH} must not describe NDK-like API convenience as a remaining broad model-system gap after plugin model proof closure`
   }
 ];
 
@@ -329,6 +337,16 @@ const STALE_CANONICAL_SPEC_PARTIAL_VERDICTS = [
     pattern: /厳格な ordinary-read negentropy-first 化は strict gap audit で後続候補として扱う/,
     message:
       'docs/auftakt/spec.md must not describe ordinary read negentropy verification as a follow-up after gateway proof closure'
+  },
+  {
+    pattern: /^\|\s*NDK級 API convenience\s*\|\s*Scoped-Satisfied\s*\|/m,
+    message:
+      'docs/auftakt/spec.md must not leave NDK級 API convenience as Scoped-Satisfied after plugin model API proof closure'
+  },
+  {
+    pattern: /広範な NDK-style model system は strict gap audit で後続候補として扱う/,
+    message:
+      'docs/auftakt/spec.md must not describe NDK-style model expansion as a pending follow-up after plugin model API proof closure'
   }
 ];
 
@@ -612,7 +630,7 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
     );
   }
 
-  for (const staleVerdict of STALE_STRICT_GOAL_PARTIAL_VERDICTS) {
+  for (const staleVerdict of STALE_STRICT_GOAL_VERDICTS) {
     if (staleVerdict.pattern.test(strictAudit.text)) {
       errors.push(staleVerdict.message);
     }
