@@ -113,6 +113,77 @@ export function checkNipStatusDocsSync(
   return { ok: errors.length === 0, errors };
 }
 
+export function checkCanonicalNipSpecSync(
+  matrix: NipMatrix,
+  specMarkdown: string
+): { ok: boolean; errors: string[] } {
+  const errors: string[] = [];
+  const entries = new Map(matrix.entries.map((entry) => [entry.nip, entry]));
+  for (const specEntry of extractImplementedNipSpecRows(specMarkdown)) {
+    const matrixEntry = entries.get(specEntry.nip);
+    if (!matrixEntry) {
+      errors.push(`docs/auftakt/nip-matrix.json missing canonical NIP-${specEntry.nip}`);
+      continue;
+    }
+    if (matrixEntry.status !== 'implemented') {
+      errors.push(
+        `docs/auftakt/nip-matrix.json NIP-${specEntry.nip} must match canonical spec status implemented`
+      );
+    }
+    if (matrixEntry.level !== specEntry.level) {
+      errors.push(
+        `docs/auftakt/nip-matrix.json NIP-${specEntry.nip} level must be ${specEntry.level}`
+      );
+    }
+    if (matrixEntry.owner !== specEntry.owner) {
+      errors.push(
+        `docs/auftakt/nip-matrix.json NIP-${specEntry.nip} owner must be ${specEntry.owner}`
+      );
+    }
+    if (!specEntry.proofs.includes(matrixEntry.proof)) {
+      errors.push(
+        `docs/auftakt/nip-matrix.json NIP-${specEntry.nip} proof must be one of ${specEntry.proofs.join(
+          ', '
+        )}`
+      );
+    }
+  }
+  return { ok: errors.length === 0, errors };
+}
+
+interface CanonicalNipSpecRow {
+  readonly nip: string;
+  readonly level: string;
+  readonly owner: string;
+  readonly proofs: string[];
+}
+
+function extractImplementedNipSpecRows(specMarkdown: string): CanonicalNipSpecRow[] {
+  const rows: CanonicalNipSpecRow[] = [];
+  for (const line of specMarkdown.split('\n')) {
+    const cells = line
+      .split('|')
+      .slice(1, -1)
+      .map((cell) => cell.trim());
+    if (cells.length < 5 || !/^NIP-[A-Z0-9]+$/.test(cells[0])) continue;
+    if (!/^implemented\b/.test(cells[2])) continue;
+    rows.push({
+      nip: cells[0].slice('NIP-'.length),
+      level: cells[1],
+      owner: stripMarkdownCode(cells[3]),
+      proofs: cells[4]
+        .split(/<br\s*\/?>/i)
+        .map(stripMarkdownCode)
+        .filter(Boolean)
+    });
+  }
+  return rows;
+}
+
+function stripMarkdownCode(value: string): string {
+  return value.replace(/`/g, '').trim();
+}
+
 function validateInventory(inventory: NipInventory): string[] {
   const errors: string[] = [];
   if (!inventory.sourceUrl) errors.push('Inventory missing sourceUrl');
@@ -277,7 +348,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const docsResult = existsSync(docsPath)
     ? checkNipStatusDocsSync(matrix, readFileSync(docsPath, 'utf8'))
     : { ok: false, errors: [`Missing ${docsPath}`] };
-  const errors = [...result.errors, ...docsResult.errors];
+  const specPath = 'docs/auftakt/spec.md';
+  const specResult = existsSync(specPath)
+    ? checkCanonicalNipSpecSync(matrix, readFileSync(specPath, 'utf8'))
+    : { ok: false, errors: [`Missing ${specPath}`] };
+  const errors = [...result.errors, ...docsResult.errors, ...specResult.errors];
   if (errors.length > 0) {
     console.error(errors.join('\n'));
     process.exit(1);

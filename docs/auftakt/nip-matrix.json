@@ -4,21 +4,21 @@
   "entries": [
     {
       "nip": "01",
-      "level": "internal",
-      "status": "partial",
+      "level": "public",
+      "status": "implemented",
       "owner": "packages/core/src/relay-session.ts",
       "proof": "packages/core/src/relay-session.contract.test.ts",
       "priority": "P0",
-      "scopeNotes": "Basic relay protocol, event validation, REQ/EVENT/EOSE/OK handling"
+      "scopeNotes": "Runtime-owned REQ/replay, EVENT/EOSE/OK handling, and publish acknowledgements as coordinator behavior only"
     },
     {
       "nip": "02",
       "level": "public",
-      "status": "partial",
-      "owner": "packages/resonote/src/runtime.ts",
-      "proof": "packages/resonote/src/built-in-plugins.contract.test.ts",
+      "status": "implemented",
+      "owner": "src/shared/browser/follows.svelte.ts",
+      "proof": "src/shared/browser/follows.test.ts",
       "priority": "P0",
-      "scopeNotes": "Follow-list reads used by Resonote flows"
+      "scopeNotes": "Public follow-list behavior; WoT filtering is Resonote behavior layered over kind:3"
     },
     {
       "nip": "03",
@@ -31,12 +31,12 @@
     },
     {
       "nip": "04",
-      "level": "scoped-out",
-      "status": "deprecated",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "level": "public-compat",
+      "status": "implemented",
+      "owner": "src/shared/browser/mute.svelte.ts",
+      "proof": "src/shared/browser/mute.test.ts",
       "priority": "P3",
-      "scopeNotes": "Deprecated encrypted DM; prefer NIP-17/44/59"
+      "scopeNotes": "Compatibility fallback for private mute-tag decryption only; no broad DM support claim"
     },
     {
       "nip": "05",
@@ -76,7 +76,7 @@
     },
     {
       "nip": "09",
-      "level": "internal",
+      "level": "public",
       "status": "implemented",
       "owner": "packages/adapter-dexie/src/index.ts",
       "proof": "packages/adapter-dexie/src/materialization.contract.test.ts",
@@ -86,20 +86,20 @@
     {
       "nip": "10",
       "level": "public",
-      "status": "partial",
-      "owner": "packages/resonote/src/runtime.ts",
-      "proof": "packages/resonote/src/built-in-plugins.contract.test.ts",
+      "status": "implemented",
+      "owner": "src/features/comments/application/comment-actions.ts",
+      "proof": "src/features/comments/application/comment-actions.test.ts",
       "priority": "P0",
-      "scopeNotes": "Text note thread/comment reads via coordinator flows"
+      "scopeNotes": "Reply threading and parent linkage are proven through comment action and reply-thread coverage"
     },
     {
       "nip": "11",
       "level": "internal",
-      "status": "partial",
-      "owner": "packages/core/src/request-planning.ts",
-      "proof": "packages/core/src/request-planning.contract.test.ts",
+      "status": "implemented",
+      "owner": "packages/core/src/relay-session.ts",
+      "proof": "packages/core/src/relay-session.contract.test.ts",
       "priority": "P0",
-      "scopeNotes": "Relay capability limits represented in request plans"
+      "scopeNotes": "Runtime-only relay request-limit policy shapes shard queueing and reconnect replay; no public relay metadata surface claim"
     },
     {
       "nip": "13",
@@ -167,11 +167,11 @@
     {
       "nip": "22",
       "level": "public",
-      "status": "partial",
-      "owner": "packages/resonote/src/runtime.ts",
-      "proof": "packages/resonote/src/built-in-plugins.contract.test.ts",
+      "status": "implemented",
+      "owner": "src/features/comments/application/comment-actions.ts",
+      "proof": "src/features/comments/application/comment-actions.test.ts",
       "priority": "P0",
-      "scopeNotes": "Comment filters and flows are coordinator-mediated"
+      "scopeNotes": "Comment kind:1111 event construction and publish path"
     },
     {
       "nip": "23",
@@ -194,11 +194,11 @@
     {
       "nip": "25",
       "level": "public",
-      "status": "partial",
-      "owner": "packages/resonote/src/runtime.ts",
-      "proof": "packages/resonote/src/built-in-plugins.contract.test.ts",
+      "status": "implemented",
+      "owner": "src/features/comments/application/comment-actions.ts",
+      "proof": "src/features/comments/application/comment-actions.test.ts",
       "priority": "P1",
-      "scopeNotes": "Reaction flow/hints partially covered"
+      "scopeNotes": "Reaction kind:7 event construction and publish path"
     },
     {
       "nip": "26",
@@ -346,12 +346,12 @@
     },
     {
       "nip": "44",
-      "level": "internal",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "level": "public",
+      "status": "implemented",
+      "owner": "src/shared/browser/mute.svelte.ts",
+      "proof": "src/shared/browser/mute.test.ts",
       "priority": "P1",
-      "scopeNotes": "Encrypted payload primitives pending; no decryption in compaction"
+      "scopeNotes": "Encrypted mute/private-tag path"
     },
     {
       "nip": "45",
@@ -535,12 +535,12 @@
     },
     {
       "nip": "65",
-      "level": "internal",
-      "status": "partial",
-      "owner": "packages/resonote/src/plugins/built-in-plugins.ts",
-      "proof": "packages/resonote/src/built-in-plugins.contract.test.ts",
+      "level": "public",
+      "status": "implemented",
+      "owner": "src/shared/browser/relays.svelte.ts",
+      "proof": "src/shared/browser/relays-fetch.test.ts",
       "priority": "P0",
-      "scopeNotes": "Relay list metadata used for hints/outbox"
+      "scopeNotes": "kind:10002 relay list read path and write path with kind:3 fallback only when kind:10002 yields no relay entries"
     },
     {
       "nip": "66",
@@ -599,11 +599,11 @@
     {
       "nip": "73",
       "level": "public",
-      "status": "partial",
-      "owner": "src/shared/content",
-      "proof": "src/shared/content",
+      "status": "implemented",
+      "owner": "src/shared/content/*.ts",
+      "proof": "src/shared/content/providers.test.ts",
       "priority": "P1",
-      "scopeNotes": "External content IDs are app content-provider owned"
+      "scopeNotes": "Canonical external content IDs via provider toNostrTag()"
     },
     {
       "nip": "75",
@@ -616,12 +616,12 @@
     },
     {
       "nip": "77",
-      "level": "internal",
-      "status": "partial",
-      "owner": "packages/resonote/src/relay-gateway.ts",
-      "proof": "packages/resonote/src/relay-gateway.contract.test.ts",
+      "level": "internal-only",
+      "status": "implemented",
+      "owner": "packages/resonote/src/runtime.ts",
+      "proof": "packages/resonote/src/relay-repair.contract.test.ts",
       "priority": "P0",
-      "scopeNotes": "Negentropy-first verification with REQ fallback"
+      "scopeNotes": "Internal-only negentropy repair capability; public/package root surfaces remain leak-free"
     },
     {
       "nip": "78",
@@ -770,11 +770,11 @@
     {
       "nip": "B0",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "src/server/api/podcast.ts",
+      "proof": "src/server/api/podcast.test.ts",
       "priority": "P2",
-      "scopeNotes": "Web bookmarks pending; Resonote bookmark flow partly separate"
+      "scopeNotes": "Resonote bookmark mapping and podcast resolution flow"
     },
     {
       "nip": "B7",

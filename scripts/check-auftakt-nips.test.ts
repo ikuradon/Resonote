@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   assertNoRewriteOnRefreshFailure,
+  checkCanonicalNipSpecSync,
   checkNipMatrix,
   checkNipStatusDocsSync,
   proposeInventoryDrift
@@ -300,6 +301,78 @@ describe('checkNipStatusDocsSync', () => {
     expect(result.errors).toContain(
       'docs/auftakt/status-verification.md must mark scoped NIP compliance as Scoped-Satisfied'
     );
+  });
+});
+
+describe('checkCanonicalNipSpecSync', () => {
+  const canonicalSpec = [
+    '| NIP    | Target Level | Current Status | Canonical Owner | Proof / Test Anchor | Scope Notes |',
+    '| ------ | ------------ | -------------- | --------------- | ------------------- | ----------- |',
+    '| NIP-10 | public | implemented | `src/features/comments/application/comment-actions.ts` | `src/features/comments/application/comment-actions.test.ts`<br>`e2e/reply-thread.test.ts` | reply threading |',
+    '| NIP-11 | internal | implemented (runtime-only bounded support) | `packages/core/src/relay-session.ts` | `packages/core/src/relay-session.contract.test.ts` | runtime-only |',
+    '| NIP-18 | public | partial | `packages/resonote/src/plugins/built-in-plugins.ts` | `packages/resonote/src/built-in-plugins.contract.test.ts` | not canonical implemented |'
+  ].join('\n');
+
+  it('rejects stale matrix rows that disagree with canonical implemented spec rows', () => {
+    const result = checkCanonicalNipSpecSync(
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('10', {
+            status: 'partial',
+            owner: 'packages/resonote/src/runtime.ts',
+            proof: 'packages/resonote/src/built-in-plugins.contract.test.ts',
+            priority: 'P0'
+          }),
+          entry('11', {
+            level: 'internal',
+            status: 'implemented',
+            owner: 'packages/core/src/relay-session.ts',
+            proof: 'packages/core/src/relay-session.contract.test.ts',
+            priority: 'P0'
+          })
+        ]
+      },
+      canonicalSpec
+    );
+
+    expect(result.errors).toContain(
+      'docs/auftakt/nip-matrix.json NIP-10 must match canonical spec status implemented'
+    );
+    expect(result.errors).toContain(
+      'docs/auftakt/nip-matrix.json NIP-10 owner must be src/features/comments/application/comment-actions.ts'
+    );
+    expect(result.errors).toContain(
+      'docs/auftakt/nip-matrix.json NIP-10 proof must be one of src/features/comments/application/comment-actions.test.ts, e2e/reply-thread.test.ts'
+    );
+  });
+
+  it('accepts implemented matrix rows whose proof is one canonical spec anchor', () => {
+    const result = checkCanonicalNipSpecSync(
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('10', {
+            status: 'implemented',
+            owner: 'src/features/comments/application/comment-actions.ts',
+            proof: 'e2e/reply-thread.test.ts',
+            priority: 'P0'
+          }),
+          entry('11', {
+            level: 'internal',
+            status: 'implemented',
+            owner: 'packages/core/src/relay-session.ts',
+            proof: 'packages/core/src/relay-session.contract.test.ts',
+            priority: 'P0'
+          })
+        ]
+      },
+      canonicalSpec
+    );
+
+    expect(result.errors).toEqual([]);
   });
 });
 
