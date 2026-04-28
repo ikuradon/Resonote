@@ -144,6 +144,16 @@ export {
   randomizeNip59Timestamp
 } from './nip59-gift-wrap.js';
 export type {
+  BuildNip78ApplicationDataInput,
+  Nip78ApplicationDataSnapshot
+} from './nip78-application-data.js';
+export {
+  buildNip78ApplicationDataEvent,
+  NIP78_APPLICATION_DATA_KIND,
+  parseNip78ApplicationDataEvent,
+  parseNip78Identifier
+} from './nip78-application-data.js';
+export type {
   DeletionEventLike,
   DeletionReconcileResult,
   OfflineDeliveryDecision,

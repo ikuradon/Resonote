@@ -626,11 +626,11 @@
     {
       "nip": "78",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip78-application-data.ts",
+      "proof": "packages/core/src/nip78-application-data.contract.test.ts",
       "priority": "P2",
-      "scopeNotes": "Application-specific data pending"
+      "scopeNotes": "Core NIP-78 application data model builds and parses kind:30078 addressable events with required d tags while preserving opaque content and custom tags"
     },
     {
       "nip": "7D",

@@ -1034,6 +1034,60 @@ describe('NIP matrix entry validation', () => {
 
     expect(result.errors).toEqual([]);
   });
+
+  it('rejects stale NIP-78 application data pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['78'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('78', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P2',
+            scopeNotes: 'Application-specific data pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-78 must stay implemented after application data model coverage'
+    );
+    expect(result.errors).toContain(
+      'NIP-78 owner must be packages/core/src/nip78-application-data.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-78 proof must be packages/core/src/nip78-application-data.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-78 scopeNotes must not use stale application-data-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-78 application data claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['78'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('78', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip78-application-data.ts',
+            proof: 'packages/core/src/nip78-application-data.contract.test.ts',
+            priority: 'P2',
+            scopeNotes:
+              'Core NIP-78 application data model builds and parses kind:30078 addressable events with required d tags while preserving opaque content and custom tags.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
 });
 
 describe('checkNipStatusDocsSync', () => {

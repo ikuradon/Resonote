@@ -78,6 +78,8 @@ const REQUIRED_NIP59_OWNER = 'packages/core/src/nip59-gift-wrap.ts';
 const REQUIRED_NIP59_PROOF = 'packages/core/src/nip59-gift-wrap.contract.test.ts';
 const REQUIRED_NIP66_OWNER = 'packages/resonote/src/runtime.ts';
 const REQUIRED_NIP66_PROOF = 'packages/resonote/src/relay-metrics-nip66.contract.test.ts';
+const REQUIRED_NIP78_OWNER = 'packages/core/src/nip78-application-data.ts';
+const REQUIRED_NIP78_PROOF = 'packages/core/src/nip78-application-data.contract.test.ts';
 const REQUIRED_RELAY_SESSION_OWNER = 'packages/core/src/relay-session.ts';
 const REQUIRED_RELAY_SESSION_PROOF = 'packages/core/src/relay-session.contract.test.ts';
 
@@ -314,6 +316,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '70') {
     errors.push(...validateNip70MatrixEntry(entry));
+  }
+  if (entry.nip === '78') {
+    errors.push(...validateNip78MatrixEntry(entry));
   }
   return errors;
 }
@@ -678,6 +683,30 @@ function validateNip70MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|validation policy/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-70 scopeNotes must not use stale policy-pending wording');
+  }
+  return errors;
+}
+
+function validateNip78MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-78 must stay implemented after application data model coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP78_OWNER) {
+    errors.push(`NIP-78 owner must be ${REQUIRED_NIP78_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP78_PROOF) {
+    errors.push(`NIP-78 proof must be ${REQUIRED_NIP78_PROOF}`);
+  }
+  if (!/30078|addressable/i.test(entry.scopeNotes) || !/d tag/i.test(entry.scopeNotes)) {
+    errors.push('NIP-78 scopeNotes must mention kind:30078 addressable events and d tags');
+  }
+  if (
+    /not-started|pending|application-specific data pending/i.test(
+      `${entry.status} ${entry.scopeNotes}`
+    )
+  ) {
+    errors.push('NIP-78 scopeNotes must not use stale application-data-pending wording');
   }
   return errors;
 }
