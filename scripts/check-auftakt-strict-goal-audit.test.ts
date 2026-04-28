@@ -56,6 +56,7 @@ Ordinary read capability verification now routes latest and backward coordinator
 Adaptive REQ optimization now reapplies learned relay max_filters and max_subscriptions limits to active shard queues without dropping failed shards.
 Broader outbox routing now uses coordinator-selected author, audience, explicit addressable, and durable addressable relay candidates while default-only suppresses broader candidates.
 Plugin model API now gives extensions coordinator-mediated event, user, addressable, relay-set, and relay-hint handles without exposing raw storage or transport handles.
+Minimal core plus plugin extension proof now keeps protocol primitives in @auftakt/core while production app and plugin APIs stay coordinator-mediated.
 Storage hot-path hardening now proves Dexie kind-bounded traversal, projection reads, max-created lookups, and HotEventIndex kind, tag, replaceable, deletion, and relay-hint paths without broad event-table scans.
 App-facing local comment, follow graph, and maintenance helpers now call coordinator-owned local store methods without exposing openEventsDb or raw event database handles.
 `;
@@ -69,6 +70,10 @@ const validRequiredProofFiles = [
   file(
     'packages/core/src/relay-session.contract.test.ts',
     'adapts queued shards when a relay learns max_filters from CLOSED'
+  ),
+  file(
+    'packages/core/src/module-boundary.contract.test.ts',
+    'uses explicit package-root exports instead of wildcard re-exports'
   ),
   file(
     'packages/resonote/src/event-coordinator.ts',
@@ -107,8 +112,12 @@ const validRequiredProofFiles = [
     'lets plugins register read models backed by coordinator model handles\nResonoteCoordinatorPluginModels'
   ),
   file(
+    'packages/resonote/src/public-api.contract.test.ts',
+    'does not expose raw request-style runtime API names'
+  ),
+  file(
     'packages/resonote/src/plugin-isolation.contract.test.ts',
-    'getAddressable\ngetEvent\ngetRelayHints\ngetRelaySet\ngetUser\nmaterializerQueue'
+    'does not expose raw relay or raw storage handles to plugins\ngetAddressable\ngetEvent\ngetRelayHints\ngetRelaySet\ngetUser\nmaterializerQueue'
   ),
   file(
     'packages/adapter-dexie/src/hot-path.contract.test.ts',
@@ -190,6 +199,7 @@ Adaptive reconnect/read policy beyond the current coordinator gateway behavior r
 | strfry-like local-first event processing | \`Partial\` | stale |
 | Offline incremental and kind:5 | \`Partial\` | stale |
 | NDK-like API convenience | \`Scoped-Satisfied\` | stale |
+| Minimal core plus plugin extensions | \`Scoped-Satisfied\` | stale |
 `
       ),
       ...validRequiredProofFiles,
@@ -204,6 +214,7 @@ Adaptive reconnect/read policy beyond the current coordinator gateway behavior r
           '広範な NDK-style model system は strict gap audit で後続候補として扱う。',
           '| rx-nostr級 reconnect + REQ optimization | Scoped-Satisfied | stale |',
           '| NDK級 API convenience | Scoped-Satisfied | stale |',
+          '| minimal core + plugin-based higher features | Scoped-Satisfied | stale |',
           '| strfry的 local-first seamless processing | Partial | stale |',
           '| offline incremental + kind:5 | Partial | stale |'
         ].join('\n')
@@ -222,6 +233,9 @@ Adaptive reconnect/read policy beyond the current coordinator gateway behavior r
     );
     expect(result.errors).toContain(
       `${STRICT_GOAL_AUDIT_PATH} must not leave NDK-like API convenience as Scoped-Satisfied after plugin model API proof closure`
+    );
+    expect(result.errors).toContain(
+      `${STRICT_GOAL_AUDIT_PATH} must not leave Minimal core plus plugin extensions as Scoped-Satisfied after core/plugin boundary proof closure`
     );
     expect(result.errors).toContain(
       `${STRICT_GOAL_AUDIT_PATH} must not describe ordinary read negentropy verification as an open follow-up after gateway proof closure`
@@ -249,6 +263,9 @@ Adaptive reconnect/read policy beyond the current coordinator gateway behavior r
     );
     expect(result.errors).toContain(
       'docs/auftakt/spec.md must not leave NDK級 API convenience as Scoped-Satisfied after plugin model API proof closure'
+    );
+    expect(result.errors).toContain(
+      'docs/auftakt/spec.md must not leave minimal core + plugin-based higher features as Scoped-Satisfied after core/plugin boundary proof closure'
     );
     expect(result.errors).toContain(
       'docs/auftakt/spec.md must not describe NDK-style model expansion as a pending follow-up after plugin model API proof closure'
@@ -372,6 +389,24 @@ Adaptive reconnect/read policy beyond the current coordinator gateway behavior r
     expect(result.ok).toBe(false);
     expect(result.errors).toContain(
       `${STRICT_GOAL_AUDIT_PATH} is missing plugin model API implementation evidence`
+    );
+  });
+
+  it('requires minimal core and plugin boundary proof', () => {
+    const result = checkStrictGoalAudit([
+      file(
+        STRICT_GOAL_AUDIT_PATH,
+        validAuditText.replace(
+          'Minimal core plus plugin extension proof now keeps protocol primitives in @auftakt/core while production app and plugin APIs stay coordinator-mediated.',
+          'Minimal core boundary evidence removed.'
+        )
+      ),
+      ...validRequiredProofFiles
+    ]);
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain(
+      `${STRICT_GOAL_AUDIT_PATH} is missing minimal core/plugin boundary evidence`
     );
   });
 

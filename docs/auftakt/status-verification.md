@@ -60,7 +60,7 @@ NIP-EE
 | strfry的 local-first seamless processing    | Satisfied        | `ReadSettlement` / reconcile / tombstone の一貫した動作が UI/Restart を含めて証明済み。                                                                       |
 | scoped NIP compliance                       | Scoped-Satisfied | matrix + owner は定義済み。NIP-01, 65 の proof gap は解消済み。NIP-11 は runtime-only の限定的サポートとして matrix-managed compliance に含める。             |
 | offline incremental + kind:5                | Satisfied        | kind:5/tombstone および restart/incremental proof が完了。                                                                                                    |
-| minimal core + plugin-based higher features | Satisfied        | public API 基盤の上で、高次機能の plugin 移行と隔離が証明済み。                                                                                               |
+| minimal core + plugin-based higher features | Satisfied        | core primitive と production app/plugin API の層分離、および高次機能の plugin 移行と隔離が証明済み。                                                          |
 | strict single coordinator model             | Satisfied        | packages/resonote への集約と全 API の inventory 監査が完了し、local storage helper も coordinator-owned high-level method 経由で raw DB handle を公開しない。 |
 
 ## Definitions of Compliance & Completeness

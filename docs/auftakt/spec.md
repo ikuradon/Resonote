@@ -729,7 +729,7 @@ Auftakt の 7 つの主要目標に対する現在の達成状況を以下に定
 | strfry的 local-first seamless processing    | Satisfied        | `ReadSettlement` / reconcile / tombstone の一貫した動作、coordinator/local store mediation、materialized visibility、および raw transport 分類は strict goal audit gate で証明済み。                                   |
 | scoped NIP compliance                       | Scoped-Satisfied | matrix + owner は定義済み。NIP-11 は runtime-only の限定的サポートであり、無制限の全 NIP 実装ではなく matrix-managed compliance として扱う。                                                                           |
 | offline incremental + kind:5                | Satisfied        | kind:5/tombstone、pending publish、sync cursor、および restart-safe incremental repair の proof は strict goal audit gate で証明済み。                                                                                 |
-| minimal core + plugin-based higher features | Scoped-Satisfied | public API 基盤の上で、高次機能の plugin 移行と隔離が証明済み。core primitive と app-facing runtime API の層分離は strict goal audit gate で維持する。                                                                 |
+| minimal core + plugin-based higher features | Satisfied        | core primitive は `@auftakt/core` に閉じ、production app/plugin API は coordinator/plugin registry 経由に保たれることを strict goal audit gate で証明済み。                                                            |
 | strict single coordinator model             | Satisfied        | packages/resonote への集約と全 API の inventory 監査が完了している。app-facing local storage helper は coordinator-owned high-level method 経由であり、raw DB handle は公開しない。                                    |
 
 ### 14.4 準拠と完了の定義 (Definitions of Compliance & Completeness)

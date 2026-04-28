@@ -190,6 +190,9 @@ const REQUIRED_BROADER_OUTBOX_FILES = [
 const REQUIRED_PLUGIN_MODEL_API_AUDIT_EVIDENCE =
   'Plugin model API now gives extensions coordinator-mediated event, user, addressable, relay-set, and relay-hint handles without exposing raw storage or transport handles.';
 
+const REQUIRED_MINIMAL_CORE_PLUGIN_AUDIT_EVIDENCE =
+  'Minimal core plus plugin extension proof now keeps protocol primitives in @auftakt/core while production app and plugin APIs stay coordinator-mediated.';
+
 const REQUIRED_PLUGIN_MODEL_API_FILES = [
   {
     path: 'packages/resonote/src/runtime.ts',
@@ -225,6 +228,24 @@ const REQUIRED_PLUGIN_MODEL_API_FILES = [
     path: 'packages/resonote/src/plugin-isolation.contract.test.ts',
     text: 'materializerQueue',
     description: 'plugin model API raw-handle isolation contract'
+  }
+];
+
+const REQUIRED_MINIMAL_CORE_PLUGIN_FILES = [
+  {
+    path: 'packages/core/src/module-boundary.contract.test.ts',
+    text: 'uses explicit package-root exports instead of wildcard re-exports',
+    description: 'core explicit public primitive boundary contract'
+  },
+  {
+    path: 'packages/resonote/src/public-api.contract.test.ts',
+    text: 'does not expose raw request-style runtime API names',
+    description: 'Resonote package raw runtime API leak guard'
+  },
+  {
+    path: 'packages/resonote/src/plugin-isolation.contract.test.ts',
+    text: 'does not expose raw relay or raw storage handles to plugins',
+    description: 'plugin raw handle isolation contract'
   }
 ];
 
@@ -327,6 +348,10 @@ const STALE_STRICT_GOAL_VERDICTS = [
   {
     pattern: /^\|\s*NDK-like API convenience\s*\|\s*`?Scoped-Satisfied`?\s*\|/m,
     message: `${STRICT_GOAL_AUDIT_PATH} must not leave NDK-like API convenience as Scoped-Satisfied after plugin model API proof closure`
+  },
+  {
+    pattern: /^\|\s*Minimal core plus plugin extensions\s*\|\s*`?Scoped-Satisfied`?\s*\|/m,
+    message: `${STRICT_GOAL_AUDIT_PATH} must not leave Minimal core plus plugin extensions as Scoped-Satisfied after core/plugin boundary proof closure`
   }
 ];
 
@@ -376,6 +401,11 @@ const STALE_CANONICAL_SPEC_PARTIAL_VERDICTS = [
     pattern: /^\|\s*NDK級 API convenience\s*\|\s*Scoped-Satisfied\s*\|/m,
     message:
       'docs/auftakt/spec.md must not leave NDK級 API convenience as Scoped-Satisfied after plugin model API proof closure'
+  },
+  {
+    pattern: /^\|\s*minimal core \+ plugin-based higher features\s*\|\s*Scoped-Satisfied\s*\|/m,
+    message:
+      'docs/auftakt/spec.md must not leave minimal core + plugin-based higher features as Scoped-Satisfied after core/plugin boundary proof closure'
   },
   {
     pattern: /広範な NDK-style model system は strict gap audit で後続候補として扱う/,
@@ -575,6 +605,10 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
     errors.push(`${strictAudit.path} is missing plugin model API implementation evidence`);
   }
 
+  if (!strictAudit.text.includes(REQUIRED_MINIMAL_CORE_PLUGIN_AUDIT_EVIDENCE)) {
+    errors.push(`${strictAudit.path} is missing minimal core/plugin boundary evidence`);
+  }
+
   if (!strictAudit.text.includes(REQUIRED_STORAGE_HOT_PATH_AUDIT_EVIDENCE)) {
     errors.push(
       `${strictAudit.path} is missing storage hot-path hardening implementation evidence`
@@ -651,6 +685,17 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
     }
   }
 
+  for (const required of REQUIRED_MINIMAL_CORE_PLUGIN_FILES) {
+    const text = findFileText(files, required.path);
+    if (text === null) {
+      errors.push(`${required.path} is missing for strict minimal core/plugin audit`);
+      continue;
+    }
+    if (!text.includes(required.text)) {
+      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
+    }
+  }
+
   for (const required of REQUIRED_STORAGE_HOT_PATH_FILES) {
     const text = findFileText(files, required.path);
     if (text === null) {
@@ -708,6 +753,7 @@ function collectFiles(root = process.cwd()): StrictGoalAuditFile[] {
     'packages/core/src/settlement.ts',
     'packages/core/src/relay-session.ts',
     'packages/core/src/relay-session.contract.test.ts',
+    'packages/core/src/module-boundary.contract.test.ts',
     'packages/resonote/src/event-coordinator.ts',
     'packages/adapter-dexie/src/index.ts',
     'packages/adapter-dexie/src/hot-path.contract.test.ts',
@@ -717,6 +763,7 @@ function collectFiles(root = process.cwd()): StrictGoalAuditFile[] {
     'packages/resonote/src/hot-event-index.contract.test.ts',
     'packages/resonote/src/event-coordinator.contract.test.ts',
     'packages/resonote/src/local-store-api.contract.test.ts',
+    'packages/resonote/src/public-api.contract.test.ts',
     'packages/resonote/src/plugin-api.contract.test.ts',
     'packages/resonote/src/plugin-isolation.contract.test.ts',
     'packages/resonote/src/relay-repair.contract.test.ts',
