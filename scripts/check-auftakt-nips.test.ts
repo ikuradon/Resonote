@@ -423,6 +423,58 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-27 text-reference pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['27'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('27', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P2',
+            scopeNotes: 'Text note references parsing pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-27 must stay implemented after text reference extraction coverage'
+    );
+    expect(result.errors).toContain('NIP-27 owner must be packages/core/src/nip27-references.ts');
+    expect(result.errors).toContain(
+      'NIP-27 proof must be packages/core/src/nip27-references.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-27 scopeNotes must not use stale text-reference-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-27 text-reference claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['27'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('27', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip27-references.ts',
+            proof: 'packages/core/src/nip27-references.contract.test.ts',
+            priority: 'P2',
+            scopeNotes:
+              'Core NIP-27 parser extracts NIP-21 profile and event references from text content, builds optional p-tag/q-tag/a-tag mention tags, and powers the app content parser.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-30 partial custom emoji claims', () => {
     const result = checkNipMatrix(
       { nips: ['30'], sourceUrl: 'source', sourceDate: '2026-04-24' },

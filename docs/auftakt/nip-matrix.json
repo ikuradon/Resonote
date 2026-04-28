@@ -212,11 +212,11 @@
     {
       "nip": "27",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip27-references.ts",
+      "proof": "packages/core/src/nip27-references.contract.test.ts",
       "priority": "P2",
-      "scopeNotes": "Text note references parsing pending"
+      "scopeNotes": "Core NIP-27 parser extracts NIP-21 profile and event references from text content, builds optional p-tag/q-tag/a-tag mention tags, and powers the app content parser"
     },
     {
       "nip": "28",

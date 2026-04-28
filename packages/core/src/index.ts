@@ -56,6 +56,8 @@ export {
   parseNip21Uri,
   toNip21Uri
 } from './nip21-uri.js';
+export type { Nip27ReferenceTagName, Nip27TextReference } from './nip27-references.js';
+export { buildNip27ReferenceTags, extractNip27References } from './nip27-references.js';
 export type {
   BuildNip51ListEventInput,
   Nip51DeprecatedListKind,

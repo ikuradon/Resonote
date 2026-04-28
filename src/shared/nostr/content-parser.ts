@@ -1,3 +1,5 @@
+import { extractNip27References } from '@auftakt/core';
+
 import { getProvider } from '$shared/content/registry.js';
 import type { ContentId } from '$shared/content/types.js';
 import { isEmojiTag } from '$shared/utils/emoji.js';
@@ -223,14 +225,8 @@ export function extractContentTags(content: string): {
   const qMap = new Map<string, QTagEntry>();
   const tSet = new Set<string>();
 
-  // Match nostr: URIs
-  const nostrRe = /nostr:(npub1|nprofile1|nevent1|note1)[a-z0-9]+/g;
-  let match: RegExpExecArray | null;
-
-  while ((match = nostrRe.exec(content)) !== null) {
-    const uri = match[0].slice('nostr:'.length);
-    const decoded = decodeNip19(uri);
-    if (!decoded) continue;
+  for (const reference of extractNip27References(content)) {
+    const decoded = reference.decoded;
     switch (decoded.type) {
       case 'npub':
         pSet.add(decoded.pubkey);
@@ -251,7 +247,6 @@ export function extractContentTags(content: string): {
           qMap.set(decoded.eventId, { eventId: decoded.eventId });
         }
         break;
-      case 'nsec':
       case 'naddr':
       case 'nrelay':
         break;
@@ -260,6 +255,7 @@ export function extractContentTags(content: string): {
 
   // Match hashtags
   const hashRe = /(?:^|(?<=\s))#([a-zA-Z0-9_\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]+)/g;
+  let match: RegExpExecArray | null;
   while ((match = hashRe.exec(content)) !== null) {
     const tag = match[1];
     if (!isHexString(tag) && !isDigitsOnly(tag)) {

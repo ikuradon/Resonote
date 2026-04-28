@@ -62,6 +62,8 @@ const REQUIRED_NIP30_OWNER = 'packages/resonote/src/runtime.ts';
 const REQUIRED_NIP30_PROOF = 'packages/resonote/src/custom-emoji.contract.test.ts';
 const REQUIRED_NIP21_OWNER = 'packages/core/src/nip21-uri.ts';
 const REQUIRED_NIP21_PROOF = 'packages/core/src/nip21-uri.contract.test.ts';
+const REQUIRED_NIP27_OWNER = 'packages/core/src/nip27-references.ts';
+const REQUIRED_NIP27_PROOF = 'packages/core/src/nip27-references.contract.test.ts';
 const REQUIRED_NIP51_OWNER = 'packages/core/src/nip51-list.ts';
 const REQUIRED_NIP51_PROOF = 'packages/core/src/nip51-list.contract.test.ts';
 const REQUIRED_NIP59_OWNER = 'packages/core/src/nip59-gift-wrap.ts';
@@ -269,6 +271,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === '21') {
     errors.push(...validateNip21MatrixEntry(entry));
   }
+  if (entry.nip === '27') {
+    errors.push(...validateNip27MatrixEntry(entry));
+  }
   if (entry.nip === '30') {
     errors.push(...validateNip30MatrixEntry(entry));
   }
@@ -366,6 +371,35 @@ function validateNip21MatrixEntry(entry: NipMatrixEntry): string[] {
     /not-started|pending|belongs app routing layer/i.test(`${entry.status} ${entry.scopeNotes}`)
   ) {
     errors.push('NIP-21 scopeNotes must not use stale routing-pending wording');
+  }
+  return errors;
+}
+
+function validateNip27MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-27 must stay implemented after text reference extraction coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP27_OWNER) {
+    errors.push(`NIP-27 owner must be ${REQUIRED_NIP27_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP27_PROOF) {
+    errors.push(`NIP-27 proof must be ${REQUIRED_NIP27_PROOF}`);
+  }
+  if (
+    !/NIP-21/i.test(entry.scopeNotes) ||
+    !/(profile|event)/i.test(entry.scopeNotes) ||
+    !/(p-tag|q-tag|tags)/i.test(entry.scopeNotes) ||
+    !/(content parser|parser)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-27 scopeNotes must mention NIP-21 profile/event references, tags, and parser coverage'
+    );
+  }
+  if (
+    /not-started|pending|references parsing pending/i.test(`${entry.status} ${entry.scopeNotes}`)
+  ) {
+    errors.push('NIP-27 scopeNotes must not use stale text-reference-pending wording');
   }
   return errors;
 }
