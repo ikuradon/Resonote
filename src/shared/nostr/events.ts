@@ -1,4 +1,4 @@
-import { buildNip31AltTag } from '@auftakt/core';
+import { buildNip31AltTag, buildNip36ContentWarningTag } from '@auftakt/core';
 import type { Event as NostrEvent, EventParameters } from 'nostr-typedef';
 
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
@@ -118,7 +118,7 @@ export function buildComment(
   appendContentTags(tags, content, emojiTags);
 
   if (options?.contentWarning !== undefined) {
-    tags.push(['content-warning', options.contentWarning]);
+    tags.push(buildNip36ContentWarningTag(options.contentWarning));
   }
 
   return {

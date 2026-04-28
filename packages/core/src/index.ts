@@ -65,6 +65,12 @@ export {
   parseNip31AltTag,
   withNip31AltTag
 } from './nip31-alt.js';
+export {
+  buildNip36ContentWarningTag,
+  hasNip36ContentWarning,
+  NIP36_CONTENT_WARNING_TAG,
+  parseNip36ContentWarning
+} from './nip36-content-warning.js';
 export type {
   BuildNip51ListEventInput,
   Nip51DeprecatedListKind,

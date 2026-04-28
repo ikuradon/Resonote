@@ -577,6 +577,60 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-36 sensitive-content pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['36'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('36', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P2',
+            scopeNotes: 'Sensitive content moderation pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-36 must stay implemented after content-warning tag coverage'
+    );
+    expect(result.errors).toContain(
+      'NIP-36 owner must be packages/core/src/nip36-content-warning.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-36 proof must be packages/core/src/nip36-content-warning.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-36 scopeNotes must not use stale moderation-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-36 content-warning claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['36'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('36', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip36-content-warning.ts',
+            proof: 'packages/core/src/nip36-content-warning.contract.test.ts',
+            priority: 'P2',
+            scopeNotes:
+              'Core NIP-36 content-warning helpers parse optional reasons; comment event builder emits content-warning tags for sensitive comments.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-42 not-started AUTH relay claims', () => {
     const result = checkNipMatrix(
       { nips: ['42'], sourceUrl: 'source', sourceDate: '2026-04-24' },

@@ -284,11 +284,11 @@
     {
       "nip": "36",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip36-content-warning.ts",
+      "proof": "packages/core/src/nip36-content-warning.contract.test.ts",
       "priority": "P2",
-      "scopeNotes": "Sensitive content moderation pending"
+      "scopeNotes": "Core NIP-36 content-warning helpers parse optional reasons; comment event builder emits content-warning tags for sensitive comments"
     },
     {
       "nip": "37",

@@ -125,7 +125,7 @@ describe('buildComment', () => {
     const event = buildComment('sensitive', trackId, provider, {
       contentWarning: ''
     });
-    expect(event.tags).toContainEqual(['content-warning', '']);
+    expect(event.tags).toContainEqual(['content-warning']);
   });
 
   it('should not include content-warning tag when not specified', () => {

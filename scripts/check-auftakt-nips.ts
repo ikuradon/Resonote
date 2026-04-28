@@ -66,6 +66,8 @@ const REQUIRED_NIP27_OWNER = 'packages/core/src/nip27-references.ts';
 const REQUIRED_NIP27_PROOF = 'packages/core/src/nip27-references.contract.test.ts';
 const REQUIRED_NIP31_OWNER = 'packages/core/src/nip31-alt.ts';
 const REQUIRED_NIP31_PROOF = 'packages/core/src/nip31-alt.contract.test.ts';
+const REQUIRED_NIP36_OWNER = 'packages/core/src/nip36-content-warning.ts';
+const REQUIRED_NIP36_PROOF = 'packages/core/src/nip36-content-warning.contract.test.ts';
 const REQUIRED_NIP51_OWNER = 'packages/core/src/nip51-list.ts';
 const REQUIRED_NIP51_PROOF = 'packages/core/src/nip51-list.contract.test.ts';
 const REQUIRED_NIP59_OWNER = 'packages/core/src/nip59-gift-wrap.ts';
@@ -282,6 +284,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === '31') {
     errors.push(...validateNip31MatrixEntry(entry));
   }
+  if (entry.nip === '36') {
+    errors.push(...validateNip36MatrixEntry(entry));
+  }
   if (entry.nip === '42') {
     errors.push(...validateNip42MatrixEntry(entry));
   }
@@ -452,6 +457,32 @@ function validateNip31MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/partial|pending|dedicated handling pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-31 scopeNotes must not use stale unknown-event-pending wording');
+  }
+  return errors;
+}
+
+function validateNip36MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-36 must stay implemented after content-warning tag coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP36_OWNER) {
+    errors.push(`NIP-36 owner must be ${REQUIRED_NIP36_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP36_PROOF) {
+    errors.push(`NIP-36 proof must be ${REQUIRED_NIP36_PROOF}`);
+  }
+  if (
+    !/content-warning/i.test(entry.scopeNotes) ||
+    !/(reason|optional)/i.test(entry.scopeNotes) ||
+    !/(comment|buildComment|event builder)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-36 scopeNotes must mention content-warning reason handling and comment builder coverage'
+    );
+  }
+  if (/not-started|pending|moderation pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-36 scopeNotes must not use stale moderation-pending wording');
   }
   return errors;
 }
