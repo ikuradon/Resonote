@@ -158,11 +158,11 @@
     {
       "nip": "21",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip21-uri.ts",
+      "proof": "packages/core/src/nip21-uri.contract.test.ts",
       "priority": "P2",
-      "scopeNotes": "nostr: URI handling belongs app routing layer"
+      "scopeNotes": "Core NIP-21 nostr: URI parser accepts non-secret NIP-19 identifiers, rejects nsec payloads, and the app resolver normalizes profile/event routes through existing NIP-19 navigation"
     },
     {
       "nip": "22",

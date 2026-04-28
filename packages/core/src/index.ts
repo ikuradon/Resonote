@@ -48,6 +48,14 @@ export {
   nip17ConversationKey,
   parseNip17DmRelayListTags
 } from './nip17-direct-message.js';
+export type { Nip21Decoded, Nip21Uri } from './nip21-uri.js';
+export {
+  extractNip21Identifier,
+  isNip21Uri,
+  NIP21_URI_SCHEME,
+  parseNip21Uri,
+  toNip21Uri
+} from './nip21-uri.js';
 export type {
   BuildNip51ListEventInput,
   Nip51DeprecatedListKind,

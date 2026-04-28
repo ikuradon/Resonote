@@ -1,3 +1,5 @@
+import { extractNip21Identifier } from '@auftakt/core';
+
 import { decodeContentLink, iTagToContentPath } from '$shared/nostr/helpers.js';
 import { decodeNip19 } from '$shared/nostr/nip19-decode.js';
 
@@ -16,12 +18,13 @@ export type ResolveNip19NavigationResult =
   | { kind: 'error'; errorKey: Nip19NavigationErrorKey; contentPath?: string };
 
 export async function resolveNip19Navigation(value: string): Promise<ResolveNip19NavigationResult> {
-  if (!value || !VALID_PREFIXES.some((prefix) => value.startsWith(prefix))) {
+  const identifier = normalizeNavigationIdentifier(value);
+  if (!identifier || !VALID_PREFIXES.some((prefix) => identifier.startsWith(prefix))) {
     return { kind: 'error', errorKey: 'nip19.invalid' };
   }
 
-  if (value.startsWith('ncontent1')) {
-    const decoded = decodeContentLink(value);
+  if (identifier.startsWith('ncontent1')) {
+    const decoded = decodeContentLink(identifier);
     if (!decoded) {
       return { kind: 'error', errorKey: 'nip19.invalid' };
     }
@@ -33,7 +36,7 @@ export async function resolveNip19Navigation(value: string): Promise<ResolveNip1
     };
   }
 
-  const decoded = decodeNip19(value);
+  const decoded = decodeNip19(identifier);
   if (!decoded) {
     return { kind: 'error', errorKey: 'nip19.invalid' };
   }
@@ -43,7 +46,7 @@ export async function resolveNip19Navigation(value: string): Promise<ResolveNip1
     case 'nprofile':
       return {
         kind: 'redirect',
-        path: `/profile/${value}`
+        path: `/profile/${identifier}`
       };
     case 'note':
     case 'nevent': {
@@ -84,4 +87,11 @@ export async function resolveNip19Navigation(value: string): Promise<ResolveNip1
     case 'nrelay':
       return { kind: 'error', errorKey: 'nip19.invalid' };
   }
+}
+
+function normalizeNavigationIdentifier(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (!trimmed.toLowerCase().startsWith('nostr:')) return trimmed;
+  return extractNip21Identifier(trimmed);
 }

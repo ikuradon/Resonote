@@ -60,6 +60,8 @@ const REQUIRED_NIP18_OWNER = 'src/features/comments/application/comment-actions.
 const REQUIRED_NIP18_PROOF = 'src/features/comments/application/comment-actions.test.ts';
 const REQUIRED_NIP30_OWNER = 'packages/resonote/src/runtime.ts';
 const REQUIRED_NIP30_PROOF = 'packages/resonote/src/custom-emoji.contract.test.ts';
+const REQUIRED_NIP21_OWNER = 'packages/core/src/nip21-uri.ts';
+const REQUIRED_NIP21_PROOF = 'packages/core/src/nip21-uri.contract.test.ts';
 const REQUIRED_NIP51_OWNER = 'packages/core/src/nip51-list.ts';
 const REQUIRED_NIP51_PROOF = 'packages/core/src/nip51-list.contract.test.ts';
 const REQUIRED_NIP59_OWNER = 'packages/core/src/nip59-gift-wrap.ts';
@@ -264,6 +266,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === '18') {
     errors.push(...validateNip18MatrixEntry(entry));
   }
+  if (entry.nip === '21') {
+    errors.push(...validateNip21MatrixEntry(entry));
+  }
   if (entry.nip === '30') {
     errors.push(...validateNip30MatrixEntry(entry));
   }
@@ -332,6 +337,35 @@ function validateNip18MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/partial|pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-18 scopeNotes must not use stale partial UI-pending wording');
+  }
+  return errors;
+}
+
+function validateNip21MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-21 must stay implemented after nostr URI parser and route coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP21_OWNER) {
+    errors.push(`NIP-21 owner must be ${REQUIRED_NIP21_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP21_PROOF) {
+    errors.push(`NIP-21 proof must be ${REQUIRED_NIP21_PROOF}`);
+  }
+  if (
+    !/nostr:/i.test(entry.scopeNotes) ||
+    !/NIP-19/i.test(entry.scopeNotes) ||
+    !/nsec/i.test(entry.scopeNotes) ||
+    !/(route|resolver)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-21 scopeNotes must mention nostr:, NIP-19, nsec rejection, and route/resolver coverage'
+    );
+  }
+  if (
+    /not-started|pending|belongs app routing layer/i.test(`${entry.status} ${entry.scopeNotes}`)
+  ) {
+    errors.push('NIP-21 scopeNotes must not use stale routing-pending wording');
   }
   return errors;
 }

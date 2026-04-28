@@ -76,6 +76,7 @@ describe('@auftakt/core public api contract', () => {
         normalizeRelayLifecycleOptions: expect.any(Function),
         normalizeRelaySelectionPolicy: expect.any(Function),
         normalizeRelayUrl: expect.any(Function),
+        parseNip21Uri: expect.any(Function),
         parseNip51ListEvent: expect.any(Function),
         parseNip51PrivateTagsJson: expect.any(Function),
         parseNip17DmRelayListTags: expect.any(Function),
@@ -85,6 +86,7 @@ describe('@auftakt/core public api contract', () => {
         relayListEntriesToSelectionCandidates: expect.any(Function),
         reconcileReplayRepairSubjects: expect.any(Function),
         reduceReadSettlement: expect.any(Function),
+        toNip21Uri: expect.any(Function),
         validateRelayEvent: expect.any(Function)
       })
     );

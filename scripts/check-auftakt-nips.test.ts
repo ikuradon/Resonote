@@ -373,6 +373,56 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-21 app-routing pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['21'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('21', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P2',
+            scopeNotes: 'nostr: URI handling belongs app routing layer'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-21 must stay implemented after nostr URI parser and route coverage'
+    );
+    expect(result.errors).toContain('NIP-21 owner must be packages/core/src/nip21-uri.ts');
+    expect(result.errors).toContain(
+      'NIP-21 proof must be packages/core/src/nip21-uri.contract.test.ts'
+    );
+    expect(result.errors).toContain('NIP-21 scopeNotes must not use stale routing-pending wording');
+  });
+
+  it('accepts the implemented NIP-21 nostr URI claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['21'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('21', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip21-uri.ts',
+            proof: 'packages/core/src/nip21-uri.contract.test.ts',
+            priority: 'P2',
+            scopeNotes:
+              'Core NIP-21 nostr: URI parser accepts non-secret NIP-19 identifiers, rejects nsec payloads, and the app resolver normalizes profile/event routes through existing NIP-19 navigation.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-30 partial custom emoji claims', () => {
     const result = checkNipMatrix(
       { nips: ['30'], sourceUrl: 'source', sourceDate: '2026-04-24' },
