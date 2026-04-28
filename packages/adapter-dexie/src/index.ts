@@ -1,5 +1,6 @@
 import {
   defineProjection,
+  isNip40Expired,
   type NegentropyEventRef,
   type OfflineDeliveryDecision,
   type OrderedEventCursor,
@@ -28,6 +29,7 @@ export const AUFTAKT_DEXIE_ADAPTER_VERSION = 1;
 
 export interface CreateDexieEventStoreOptions {
   readonly dbName: string;
+  readonly now?: () => number;
 }
 
 export interface DexieMaterializationResult {
@@ -84,13 +86,21 @@ export interface CompactionResult {
 const DELETION_KIND = 5;
 
 export class DexieEventStore {
-  constructor(readonly db: AuftaktDexieDatabase) {}
+  constructor(
+    readonly db: AuftaktDexieDatabase,
+    private readonly now: () => number = currentUnixSeconds
+  ) {}
 
   tableNames(): string[] {
     return this.db.tables.map((table) => table.name);
   }
 
   async putEvent(event: NostrEvent): Promise<void> {
+    if (this.isExpiredRecord(event)) {
+      await this.deleteByIds([event.id]);
+      return;
+    }
+
     await this.db.transaction('rw', this.db.events, this.db.event_tags, async () => {
       await writeEventRecord(this.db, event);
     });
@@ -98,10 +108,29 @@ export class DexieEventStore {
 
   async putWithReconcile(event: NostrEvent): Promise<DexieMaterializationResult> {
     if (event.kind === DELETION_KIND) return this.applyDeletion(event);
+    if (this.isExpiredRecord(event)) {
+      await this.deleteByIds([event.id]);
+      return {
+        stored: false,
+        emissions: [
+          {
+            subjectId: event.id,
+            state: 'deleted',
+            reason: 'expired'
+          }
+        ]
+      };
+    }
     if (await this.isDeleted(event.id, event.pubkey)) {
       return {
         stored: false,
-        emissions: [{ subjectId: event.id, state: 'deleted', reason: 'tombstoned' }]
+        emissions: [
+          {
+            subjectId: event.id,
+            state: 'deleted',
+            reason: 'tombstoned'
+          }
+        ]
       };
     }
     if (isReplaceable(event.kind) || isParameterizedReplaceable(event.kind)) {
@@ -110,13 +139,19 @@ export class DexieEventStore {
     await this.putEvent(event);
     return {
       stored: true,
-      emissions: [{ subjectId: event.id, state: 'confirmed', reason: 'accepted-new' }]
+      emissions: [
+        {
+          subjectId: event.id,
+          state: 'confirmed',
+          reason: 'accepted-new'
+        }
+      ]
     };
   }
 
   async getById(id: string): Promise<NostrEvent | null> {
     const record = await this.db.events.get(id);
-    return record ? toNostrEvent(record) : null;
+    return this.toVisibleEvent(record);
   }
 
   async put(event: NostrEvent): Promise<boolean> {
@@ -138,7 +173,7 @@ export class DexieEventStore {
 
   async getByPubkeyAndKind(pubkey: string, kind: number): Promise<NostrEvent | null> {
     const rows = await this.db.events.where('[pubkey+kind]').equals([pubkey, kind]).toArray();
-    const record = sortEventsDesc(rows).at(0) ?? null;
+    const record = sortEventsDesc(rows.filter((row) => this.isVisibleRecord(row))).at(0) ?? null;
     return record ? toNostrEvent(record) : null;
   }
 
@@ -157,7 +192,7 @@ export class DexieEventStore {
       .where('[pubkey+kind+d_tag]')
       .equals([pubkey, kind, dTag])
       .toArray();
-    const record = sortEventsDesc(rows).at(0) ?? null;
+    const record = sortEventsDesc(rows.filter((row) => this.isVisibleRecord(row))).at(0) ?? null;
     return record ? toNostrEvent(record) : null;
   }
 
@@ -172,6 +207,7 @@ export class DexieEventStore {
     return events
       .filter((event): event is DexieEventRecord => Boolean(event))
       .filter((event) => kind === undefined || event.kind === kind)
+      .filter((event) => this.isVisibleRecord(event))
       .map(toNostrEvent);
   }
 
@@ -180,23 +216,24 @@ export class DexieEventStore {
       .where('[kind+created_at]')
       .between([kind, Dexie.minKey], [kind, Dexie.maxKey])
       .toArray();
-    return records.map(toNostrEvent);
+    return records.filter((record) => this.isVisibleRecord(record)).map(toNostrEvent);
   }
 
   async getMaxCreatedAt(kind: number, pubkey?: string): Promise<number | null> {
-    const record = pubkey
+    const records = pubkey
       ? await this.db.events
           .where('[pubkey+kind+created_at]')
           .between([pubkey, kind, Dexie.minKey], [pubkey, kind, Dexie.maxKey])
-          .reverse()
-          .first()
+          .toArray()
       : await this.db.events
           .where('[kind+created_at]')
           .between([kind, Dexie.minKey], [kind, Dexie.maxKey])
-          .reverse()
-          .first();
+          .toArray();
 
-    return record?.created_at ?? null;
+    return (
+      sortEventsDesc(records.filter((record) => this.isVisibleRecord(record))).at(0)?.created_at ??
+      null
+    );
   }
 
   async listOrderedEvents(options: OrderedEventTraversalOptions = {}): Promise<NostrEvent[]> {
@@ -209,7 +246,7 @@ export class DexieEventStore {
     if (kinds.length > 0) {
       const records = (
         await Promise.all(
-          kinds.map((kind) => listOrderedEventsByKind(this.db, kind, options, limit))
+          kinds.map((kind) => listOrderedEventsByKind(this.db, kind, options, limit, this.now()))
         )
       ).flat();
       return mergeOrderedTraversalRecords(records, direction, limit).map(toNostrEvent);
@@ -221,6 +258,7 @@ export class DexieEventStore {
         : await this.db.events.orderBy('[created_at+id]').toArray();
 
     return ordered
+      .filter((event) => this.isVisibleRecord(event))
       .filter((event) => isBeyondCursor(event, options.cursor, direction))
       .slice(0, limit)
       .map(toNostrEvent);
@@ -254,13 +292,15 @@ export class DexieEventStore {
 
   async listNegentropyEventRefs(): Promise<NegentropyEventRef[]> {
     const records = await this.db.events.orderBy('[created_at+id]').toArray();
-    return records.map((event) => ({
-      id: event.id,
-      pubkey: event.pubkey,
-      created_at: event.created_at,
-      kind: event.kind,
-      tags: event.tags
-    }));
+    return records
+      .filter((event) => this.isVisibleRecord(event))
+      .map((event) => ({
+        id: event.id,
+        pubkey: event.pubkey,
+        created_at: event.created_at,
+        kind: event.kind,
+        tags: event.tags
+      }));
   }
 
   async getSyncCursor(key: string): Promise<OrderedEventCursor | null> {
@@ -423,7 +463,9 @@ export class DexieEventStore {
       this.db.migration_state,
       async () => {
         await this.db.pending_publishes.put(record);
-        await this.db.migration_state.update('current', { dexie_only_writes: true });
+        await this.db.migration_state.update('current', {
+          dexie_only_writes: true
+        });
       }
     );
   }
@@ -479,7 +521,10 @@ export class DexieEventStore {
       this.db.pending_publishes.toArray(),
       this.db.events.toArray()
     ]);
-    const protectedIds = buildProtectedCompactionEventIds({ deletionIndex, pendingPublishes });
+    const protectedIds = buildProtectedCompactionEventIds({
+      deletionIndex,
+      pendingPublishes
+    });
     const removableIds = events
       .filter((event) => event.kind !== DELETION_KIND && !protectedIds.has(event.id))
       .sort((left, right) => left.created_at - right.created_at || left.id.localeCompare(right.id))
@@ -493,6 +538,16 @@ export class DexieEventStore {
       );
     });
 
+    return { removedEventIds: removableIds };
+  }
+
+  async compactExpiredEvents(now = this.now()): Promise<CompactionResult> {
+    const removableIds = (await this.db.events.toArray())
+      .filter((event) => this.isExpiredRecord(event, now))
+      .sort((left, right) => left.created_at - right.created_at || left.id.localeCompare(right.id))
+      .map((event) => event.id);
+
+    await this.deleteByIds(removableIds);
     return { removedEventIds: removableIds };
   }
 
@@ -537,11 +592,24 @@ export class DexieEventStore {
   private async applyReplaceable(event: NostrEvent): Promise<DexieMaterializationResult> {
     const dTag = isParameterizedReplaceable(event.kind) ? getDTag(event.tags) : '';
     const key = `${event.pubkey}:${event.kind}:${dTag}`;
-    const current = await this.db.replaceable_heads.get(key);
+    let current = await this.db.replaceable_heads.get(key);
+    if (current) {
+      const currentEvent = await this.db.events.get(current.event_id);
+      if (!currentEvent || this.isExpiredRecord(currentEvent)) {
+        await this.deleteByIds([current.event_id]);
+        current = undefined;
+      }
+    }
     if (current && current.created_at >= event.created_at) {
       return {
         stored: false,
-        emissions: [{ subjectId: event.id, state: 'shadowed', reason: 'ignored-older' }]
+        emissions: [
+          {
+            subjectId: event.id,
+            state: 'shadowed',
+            reason: 'ignored-older'
+          }
+        ]
       };
     }
 
@@ -577,6 +645,22 @@ export class DexieEventStore {
       ]
     };
   }
+
+  private isExpiredRecord(
+    event: Pick<NostrEvent, 'id' | 'kind' | 'tags'>,
+    now = this.now()
+  ): boolean {
+    return event.kind !== DELETION_KIND && isNip40Expired(event, now);
+  }
+
+  private isVisibleRecord(record: DexieEventRecord): boolean {
+    return !this.isExpiredRecord(record);
+  }
+
+  private toVisibleEvent(record: DexieEventRecord | null | undefined): NostrEvent | null {
+    if (!record || !this.isVisibleRecord(record)) return null;
+    return toNostrEvent(record);
+  }
 }
 
 export async function createDexieEventStore(
@@ -584,7 +668,7 @@ export async function createDexieEventStore(
 ): Promise<DexieEventStore> {
   const db = new AuftaktDexieDatabase(options.dbName);
   await db.open();
-  return new DexieEventStore(db);
+  return new DexieEventStore(db, options.now);
 }
 
 export * from './schema.js';
@@ -610,7 +694,9 @@ function sortEventsDesc<TEvent extends Pick<NostrEvent, 'created_at' | 'id'>>(
   events: readonly TEvent[]
 ): TEvent[] {
   return [...events].sort((left, right) => {
-    if (right.created_at !== left.created_at) return right.created_at - left.created_at;
+    if (right.created_at !== left.created_at) {
+      return right.created_at - left.created_at;
+    }
     return right.id.localeCompare(left.id);
   });
 }
@@ -625,7 +711,8 @@ async function listOrderedEventsByKind(
   db: AuftaktDexieDatabase,
   kind: number,
   options: OrderedEventTraversalOptions,
-  limit: number
+  limit: number,
+  now: number
 ): Promise<DexieEventRecord[]> {
   const direction = options.direction ?? 'asc';
   const collection = db.events
@@ -635,6 +722,7 @@ async function listOrderedEventsByKind(
   const records = await ordered.toArray();
 
   return records
+    .filter((event) => event.kind === DELETION_KIND || !isNip40Expired(event, now))
     .filter((event) => isBeyondCursor(event, options.cursor, direction))
     .slice(0, limit);
 }
@@ -666,11 +754,15 @@ function isBeyondCursor(
   if (!cursor) return true;
 
   if (direction === 'desc') {
-    if (event.created_at !== cursor.created_at) return event.created_at < cursor.created_at;
+    if (event.created_at !== cursor.created_at) {
+      return event.created_at < cursor.created_at;
+    }
     return event.id < cursor.id;
   }
 
-  if (event.created_at !== cursor.created_at) return event.created_at > cursor.created_at;
+  if (event.created_at !== cursor.created_at) {
+    return event.created_at > cursor.created_at;
+  }
   return event.id > cursor.id;
 }
 
@@ -728,6 +820,10 @@ function parseTagValue(tagValue: string): { tag: string; value: string } {
     tag: tagValue.slice(0, separator),
     value: tagValue.slice(separator + 1)
   };
+}
+
+function currentUnixSeconds(): number {
+  return Math.floor(Date.now() / 1000);
 }
 
 function toNostrEvent(record: DexieEventRecord): NostrEvent {

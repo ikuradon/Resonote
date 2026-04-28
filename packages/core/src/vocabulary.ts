@@ -132,6 +132,7 @@ export type ReconcileReasonCode =
   | 'ignored-older'
   | 'replaced-winner'
   | 'tombstoned'
+  | 'expired'
   | 'confirmed-offline'
   | 'rejected-offline'
   | 'repaired-replay'

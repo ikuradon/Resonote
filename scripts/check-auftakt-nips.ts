@@ -68,6 +68,8 @@ const REQUIRED_NIP31_OWNER = 'packages/core/src/nip31-alt.ts';
 const REQUIRED_NIP31_PROOF = 'packages/core/src/nip31-alt.contract.test.ts';
 const REQUIRED_NIP36_OWNER = 'packages/core/src/nip36-content-warning.ts';
 const REQUIRED_NIP36_PROOF = 'packages/core/src/nip36-content-warning.contract.test.ts';
+const REQUIRED_NIP40_OWNER = 'packages/adapter-dexie/src/index.ts';
+const REQUIRED_NIP40_PROOF = 'packages/adapter-dexie/src/materialization.contract.test.ts';
 const REQUIRED_NIP51_OWNER = 'packages/core/src/nip51-list.ts';
 const REQUIRED_NIP51_PROOF = 'packages/core/src/nip51-list.contract.test.ts';
 const REQUIRED_NIP59_OWNER = 'packages/core/src/nip59-gift-wrap.ts';
@@ -287,6 +289,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === '36') {
     errors.push(...validateNip36MatrixEntry(entry));
   }
+  if (entry.nip === '40') {
+    errors.push(...validateNip40MatrixEntry(entry));
+  }
   if (entry.nip === '42') {
     errors.push(...validateNip42MatrixEntry(entry));
   }
@@ -483,6 +488,34 @@ function validateNip36MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|moderation pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-36 scopeNotes must not use stale moderation-pending wording');
+  }
+  return errors;
+}
+
+function validateNip40MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-40 must stay implemented after expiration compaction coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP40_OWNER) {
+    errors.push(`NIP-40 owner must be ${REQUIRED_NIP40_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP40_PROOF) {
+    errors.push(`NIP-40 proof must be ${REQUIRED_NIP40_PROOF}`);
+  }
+  if (
+    !/expiration/i.test(entry.scopeNotes) ||
+    !/(Dexie|adapter|local)/i.test(entry.scopeNotes) ||
+    !/(visibility|hide|compaction|compact)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-40 scopeNotes must mention expiration handling through Dexie/local visibility and compaction'
+    );
+  }
+  if (
+    /not-started|pending|timestamp compaction pending/i.test(`${entry.status} ${entry.scopeNotes}`)
+  ) {
+    errors.push('NIP-40 scopeNotes must not use stale compaction-pending wording');
   }
   return errors;
 }

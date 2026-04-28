@@ -35,6 +35,7 @@ export function mapReasonToConsumerState(reason: ReconcileReasonCode): ConsumerV
     case 'conflict-shadowed-local':
       return 'shadowed';
     case 'tombstoned':
+    case 'expired':
       return 'deleted';
     case 'rejected-offline':
       return 'rejected';
@@ -130,7 +131,11 @@ export function reconcileOfflineDelivery(
   subjectId: string,
   decision: OfflineDeliveryDecision
 ): ReconcileEmission {
-  if (decision === 'confirmed') return emitReconcile(subjectId, 'confirmed-offline');
-  if (decision === 'rejected') return emitReconcile(subjectId, 'rejected-offline');
+  if (decision === 'confirmed') {
+    return emitReconcile(subjectId, 'confirmed-offline');
+  }
+  if (decision === 'rejected') {
+    return emitReconcile(subjectId, 'rejected-offline');
+  }
   return emitReconcile(subjectId, 'repaired-replay');
 }

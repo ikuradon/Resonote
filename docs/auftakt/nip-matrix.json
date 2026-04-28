@@ -320,11 +320,11 @@
     {
       "nip": "40",
       "level": "internal",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/adapter-dexie/src/index.ts",
+      "proof": "packages/adapter-dexie/src/materialization.contract.test.ts",
       "priority": "P2",
-      "scopeNotes": "Expiration timestamp compaction pending"
+      "scopeNotes": "Core NIP-40 expiration helpers back Dexie adapter visibility filtering, rejected expired writes, and explicit expired-event compaction"
     },
     {
       "nip": "42",

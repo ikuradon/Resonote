@@ -631,6 +631,60 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-40 expiration-compaction pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['40'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('40', {
+            level: 'internal',
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P2',
+            scopeNotes: 'Expiration timestamp compaction pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-40 must stay implemented after expiration compaction coverage'
+    );
+    expect(result.errors).toContain('NIP-40 owner must be packages/adapter-dexie/src/index.ts');
+    expect(result.errors).toContain(
+      'NIP-40 proof must be packages/adapter-dexie/src/materialization.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-40 scopeNotes must not use stale compaction-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-40 expiration claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['40'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('40', {
+            level: 'internal',
+            status: 'implemented',
+            owner: 'packages/adapter-dexie/src/index.ts',
+            proof: 'packages/adapter-dexie/src/materialization.contract.test.ts',
+            priority: 'P2',
+            scopeNotes:
+              'Core NIP-40 expiration helpers back Dexie adapter visibility filtering, rejected expired writes, and explicit expired-event compaction.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-42 not-started AUTH relay claims', () => {
     const result = checkNipMatrix(
       { nips: ['42'], sourceUrl: 'source', sourceDate: '2026-04-24' },

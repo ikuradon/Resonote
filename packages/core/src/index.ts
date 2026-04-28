@@ -71,6 +71,13 @@ export {
   NIP36_CONTENT_WARNING_TAG,
   parseNip36ContentWarning
 } from './nip36-content-warning.js';
+export {
+  buildNip40ExpirationTag,
+  hasNip40Expiration,
+  isNip40Expired,
+  NIP40_EXPIRATION_TAG,
+  parseNip40Expiration
+} from './nip40-expiration.js';
 export type {
   BuildNip51ListEventInput,
   Nip51DeprecatedListKind,
