@@ -290,6 +290,48 @@ const AMBIGUOUS_STRICT_COMPLETION_PATTERNS = [
   /all strict final goals are satisfied/i
 ];
 
+const STALE_STRICT_GOAL_PARTIAL_VERDICTS = [
+  {
+    pattern: /^\|\s*strfry-like local-first event processing\s*\|\s*`?Partial`?\s*\|/m,
+    message: `${STRICT_GOAL_AUDIT_PATH} must not mark strfry-like local-first event processing as Partial after coordinator/local-store proof closure`
+  },
+  {
+    pattern: /^\|\s*Offline incremental and kind:5\s*\|\s*`?Partial`?\s*\|/m,
+    message: `${STRICT_GOAL_AUDIT_PATH} must not mark Offline incremental and kind:5 as Partial after sync cursor and kind:5 proof closure`
+  }
+];
+
+const STALE_STRICT_GOAL_FOLLOWUP_WORDING = [
+  {
+    pattern:
+      /Ordinary reads are not uniformly defined as negentropy-first repair with REQ fallback/,
+    message: `${STRICT_GOAL_AUDIT_PATH} must not describe ordinary read negentropy verification as an open follow-up after gateway proof closure`
+  }
+];
+
+const STALE_CANONICAL_SPEC_PARTIAL_VERDICTS = [
+  {
+    pattern: /^\|\s*strfry的 local-first seamless processing\s*\|\s*Partial\s*\|/m,
+    message:
+      'docs/auftakt/spec.md must not mark strfry的 local-first seamless processing as Partial after strict proof closure'
+  },
+  {
+    pattern: /^\|\s*offline incremental \+ kind:5\s*\|\s*Partial\s*\|/m,
+    message:
+      'docs/auftakt/spec.md must not mark offline incremental + kind:5 as Partial after strict proof closure'
+  },
+  {
+    pattern: /と\s*`Partial`\s*の理由/,
+    message:
+      'docs/auftakt/spec.md must not describe remaining Partial verdict reasons after strict proof closure'
+  },
+  {
+    pattern: /厳格な ordinary-read negentropy-first 化は strict gap audit で後続候補として扱う/,
+    message:
+      'docs/auftakt/spec.md must not describe ordinary read negentropy verification as a follow-up after gateway proof closure'
+  }
+];
+
 const RAW_TRANSPORT_TOKENS = [
   'getRxNostr',
   'createRxBackwardReq',
@@ -390,11 +432,18 @@ function checkCanonicalSpecWording(errors: string[], files: readonly StrictGoalA
   const spec = files.find((file) => file.path === CANONICAL_SPEC_PATH);
   if (!spec) return;
   if (!spec.text.includes('### 14.3')) return;
-  if (spec.text.includes(STRICT_GOAL_AUDIT_PATH)) return;
 
-  errors.push(
-    `${CANONICAL_SPEC_PATH} must reference ${STRICT_GOAL_AUDIT_PATH} when presenting Auftakt goal verdicts`
-  );
+  if (!spec.text.includes(STRICT_GOAL_AUDIT_PATH)) {
+    errors.push(
+      `${CANONICAL_SPEC_PATH} must reference ${STRICT_GOAL_AUDIT_PATH} when presenting Auftakt goal verdicts`
+    );
+  }
+
+  for (const staleVerdict of STALE_CANONICAL_SPEC_PARTIAL_VERDICTS) {
+    if (staleVerdict.pattern.test(spec.text)) {
+      errors.push(staleVerdict.message);
+    }
+  }
 }
 
 export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): StrictGoalAuditResult {
@@ -561,6 +610,17 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
     errors.push(
       `${strictAudit.path} claims strict final completion without preserving scoped-vs-strict distinction`
     );
+  }
+
+  for (const staleVerdict of STALE_STRICT_GOAL_PARTIAL_VERDICTS) {
+    if (staleVerdict.pattern.test(strictAudit.text)) {
+      errors.push(staleVerdict.message);
+    }
+  }
+  for (const staleWording of STALE_STRICT_GOAL_FOLLOWUP_WORDING) {
+    if (staleWording.pattern.test(strictAudit.text)) {
+      errors.push(staleWording.message);
+    }
   }
 
   checkCanonicalSpecWording(errors, files);

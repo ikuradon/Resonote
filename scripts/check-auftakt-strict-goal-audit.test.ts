@@ -169,6 +169,54 @@ describe('checkStrictGoalAudit', () => {
     );
   });
 
+  it('rejects stale Partial verdicts for strict proof-closed goals', () => {
+    const result = checkStrictGoalAudit([
+      file(
+        STRICT_GOAL_AUDIT_PATH,
+        `${validAuditText}
+Ordinary reads are not uniformly defined as negentropy-first repair with REQ fallback.
+| strfry-like local-first event processing | \`Partial\` | stale |
+| Offline incremental and kind:5 | \`Partial\` | stale |
+`
+      ),
+      ...validRequiredProofFiles,
+      file(
+        'docs/auftakt/spec.md',
+        [
+          '### 14.3 監査判定マトリクス',
+          'Strict final gap details live in docs/auftakt/2026-04-26-strict-goal-gap-audit.md.',
+          'と `Partial` の理由',
+          '厳格な ordinary-read negentropy-first 化は strict gap audit で後続候補として扱う。',
+          '| strfry的 local-first seamless processing | Partial | stale |',
+          '| offline incremental + kind:5 | Partial | stale |'
+        ].join('\n')
+      )
+    ]);
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain(
+      `${STRICT_GOAL_AUDIT_PATH} must not mark strfry-like local-first event processing as Partial after coordinator/local-store proof closure`
+    );
+    expect(result.errors).toContain(
+      `${STRICT_GOAL_AUDIT_PATH} must not mark Offline incremental and kind:5 as Partial after sync cursor and kind:5 proof closure`
+    );
+    expect(result.errors).toContain(
+      `${STRICT_GOAL_AUDIT_PATH} must not describe ordinary read negentropy verification as an open follow-up after gateway proof closure`
+    );
+    expect(result.errors).toContain(
+      'docs/auftakt/spec.md must not mark strfry的 local-first seamless processing as Partial after strict proof closure'
+    );
+    expect(result.errors).toContain(
+      'docs/auftakt/spec.md must not mark offline incremental + kind:5 as Partial after strict proof closure'
+    );
+    expect(result.errors).toContain(
+      'docs/auftakt/spec.md must not describe remaining Partial verdict reasons after strict proof closure'
+    );
+    expect(result.errors).toContain(
+      'docs/auftakt/spec.md must not describe ordinary read negentropy verification as a follow-up after gateway proof closure'
+    );
+  });
+
   it('passes a complete strict goal gap audit artifact', () => {
     const result = checkStrictGoalAudit([
       file(STRICT_GOAL_AUDIT_PATH, validAuditText),
