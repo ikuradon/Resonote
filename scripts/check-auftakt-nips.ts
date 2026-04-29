@@ -112,6 +112,8 @@ const REQUIRED_NIP66_OWNER = 'packages/resonote/src/runtime.ts';
 const REQUIRED_NIP66_PROOF = 'packages/resonote/src/relay-metrics-nip66.contract.test.ts';
 const REQUIRED_NIP68_OWNER = 'packages/core/src/nip68-picture.ts';
 const REQUIRED_NIP68_PROOF = 'packages/core/src/nip68-picture.contract.test.ts';
+const REQUIRED_NIP71_OWNER = 'packages/core/src/nip71-video.ts';
+const REQUIRED_NIP71_PROOF = 'packages/core/src/nip71-video.contract.test.ts';
 const REQUIRED_NIP78_OWNER = 'packages/core/src/nip78-application-data.ts';
 const REQUIRED_NIP78_PROOF = 'packages/core/src/nip78-application-data.contract.test.ts';
 const REQUIRED_NIP7D_OWNER = 'packages/core/src/nip7d-thread.ts';
@@ -405,6 +407,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '70') {
     errors.push(...validateNip70MatrixEntry(entry));
+  }
+  if (entry.nip === '71') {
+    errors.push(...validateNip71MatrixEntry(entry));
   }
   if (entry.nip === '78') {
     errors.push(...validateNip78MatrixEntry(entry));
@@ -1248,6 +1253,37 @@ function validateNip70MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|validation policy/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-70 scopeNotes must not use stale policy-pending wording');
+  }
+  return errors;
+}
+
+function validateNip71MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-71 must stay implemented after video event helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP71_OWNER) {
+    errors.push(`NIP-71 owner must be ${REQUIRED_NIP71_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP71_PROOF) {
+    errors.push(`NIP-71 proof must be ${REQUIRED_NIP71_PROOF}`);
+  }
+  if (
+    !/(kind:21|kind:22|34235|34236)/i.test(entry.scopeNotes) ||
+    !/imeta/i.test(entry.scopeNotes) ||
+    !/(duration|bitrate|text-track|segment|origin)/i.test(entry.scopeNotes) ||
+    !/(addressable|d tag)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-71 scopeNotes must mention video kinds, addressable d tags, imeta variants, and video metadata tags'
+    );
+  }
+  if (
+    /not-started|pending|outside current scope|video events outside/i.test(
+      `${entry.status} ${entry.scopeNotes}`
+    )
+  ) {
+    errors.push('NIP-71 scopeNotes must not use stale video-out-of-scope wording');
   }
   return errors;
 }

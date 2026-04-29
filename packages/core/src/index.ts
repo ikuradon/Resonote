@@ -621,6 +621,53 @@ export {
   parseNip68TaggedPubkeyTags
 } from './nip68-picture.js';
 export type {
+  BuildNip71VideoEventInput,
+  Nip71AddressableVideoKind,
+  Nip71AddressPointer,
+  Nip71AddressPointerInput,
+  Nip71ImetaField,
+  Nip71ImetaFieldInput,
+  Nip71Origin,
+  Nip71OriginInput,
+  Nip71Participant,
+  Nip71ParticipantInput,
+  Nip71Segment,
+  Nip71SegmentInput,
+  Nip71TextTrack,
+  Nip71TextTrackInput,
+  Nip71VideoEventSnapshot,
+  Nip71VideoKind,
+  Nip71VideoVariant,
+  Nip71VideoVariantInput
+} from './nip71-video.js';
+export {
+  buildNip71AddressTag,
+  buildNip71HashtagTag,
+  buildNip71OriginTag,
+  buildNip71ParticipantTag,
+  buildNip71ReferenceTag,
+  buildNip71SegmentTag,
+  buildNip71TextTrackTag,
+  buildNip71VideoEvent,
+  buildNip71VideoVariantTag,
+  isNip71AddressableVideoKind,
+  isNip71VideoKind,
+  NIP71_ADDRESSABLE_SHORT_VIDEO_KIND,
+  NIP71_ADDRESSABLE_VIDEO_KIND,
+  NIP71_ADDRESSABLE_VIDEO_KINDS,
+  NIP71_IMETA_TAG,
+  NIP71_SHORT_VIDEO_KIND,
+  NIP71_VIDEO_KIND,
+  NIP71_VIDEO_KINDS,
+  parseNip71AddressTag,
+  parseNip71OriginTag,
+  parseNip71ParticipantTags,
+  parseNip71SegmentTags,
+  parseNip71TextTrackTags,
+  parseNip71VideoEvent,
+  parseNip71VideoVariantTag
+} from './nip71-video.js';
+export type {
   BuildNip78ApplicationDataInput,
   Nip78ApplicationDataSnapshot
 } from './nip78-application-data.js';

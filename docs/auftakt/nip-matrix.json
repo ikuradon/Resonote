@@ -581,11 +581,11 @@
     {
       "nip": "71",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip71-video.ts",
+      "proof": "packages/core/src/nip71-video.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "Video events outside current scope"
+      "scopeNotes": "Core NIP-71 video helpers build and parse kind:21 normal videos, kind:22 short videos, addressable kind:34235/34236 videos with d tags, imeta video variants with duration and bitrate fields, text-track, segment, origin, participant, hashtag, and reference tags"
     },
     {
       "nip": "72",
