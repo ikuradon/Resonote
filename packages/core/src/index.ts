@@ -668,6 +668,50 @@ export {
   parseNip71VideoVariantTag
 } from './nip71-video.js';
 export type {
+  BuildNip72ApprovalInput,
+  BuildNip72CommunityDefinitionInput,
+  BuildNip72CommunityPostInput,
+  Nip72ApprovalPost,
+  Nip72ApprovalPostInput,
+  Nip72ApprovalSnapshot,
+  Nip72CommunityDefinitionSnapshot,
+  Nip72CommunityImage,
+  Nip72CommunityImageInput,
+  Nip72CommunityPointer,
+  Nip72CommunityPointerInput,
+  Nip72CommunityPostSnapshot,
+  Nip72Moderator,
+  Nip72ModeratorInput,
+  Nip72ParentPost,
+  Nip72ParentPostInput,
+  Nip72Relay,
+  Nip72RelayInput
+} from './nip72-community.js';
+export {
+  buildNip72ApprovalEvent,
+  buildNip72CommunityAddressTag,
+  buildNip72CommunityDefinition,
+  buildNip72CommunityImageTag,
+  buildNip72CommunityPost,
+  buildNip72CommunityPubkeyTag,
+  buildNip72ModeratorTag,
+  buildNip72RelayTag,
+  buildNip72ReplyPostTags,
+  buildNip72TopLevelPostTags,
+  NIP72_APPROVAL_KIND,
+  NIP72_COMMUNITY_DEFINITION_KIND,
+  NIP72_COMMUNITY_KIND_TEXT,
+  NIP72_COMMUNITY_POST_KIND,
+  NIP72_MODERATOR_MARKER,
+  parseNip72ApprovalEvent,
+  parseNip72CommunityAddressTag,
+  parseNip72CommunityDefinition,
+  parseNip72CommunityImageTag,
+  parseNip72CommunityPost,
+  parseNip72ModeratorTags,
+  parseNip72RelayTags
+} from './nip72-community.js';
+export type {
   BuildNip78ApplicationDataInput,
   Nip78ApplicationDataSnapshot
 } from './nip78-application-data.js';

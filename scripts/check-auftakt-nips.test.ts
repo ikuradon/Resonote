@@ -1969,6 +1969,58 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-72 moderated community pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['72'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('72', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Moderated communities pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-72 must stay implemented after moderated community helper coverage'
+    );
+    expect(result.errors).toContain('NIP-72 owner must be packages/core/src/nip72-community.ts');
+    expect(result.errors).toContain(
+      'NIP-72 proof must be packages/core/src/nip72-community.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-72 scopeNotes must not use stale community-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-72 moderated community helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['72'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('72', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip72-community.ts',
+            proof: 'packages/core/src/nip72-community.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-72 moderated community helpers build and parse kind:34550 community definitions with moderators and relay markers, NIP-22 kind:1111 top-level and reply post tags scoped to communities, and kind:4550 approval events for event IDs or addressable posts.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-78 application data pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['78'], sourceUrl: 'source', sourceDate: '2026-04-24' },

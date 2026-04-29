@@ -114,6 +114,8 @@ const REQUIRED_NIP68_OWNER = 'packages/core/src/nip68-picture.ts';
 const REQUIRED_NIP68_PROOF = 'packages/core/src/nip68-picture.contract.test.ts';
 const REQUIRED_NIP71_OWNER = 'packages/core/src/nip71-video.ts';
 const REQUIRED_NIP71_PROOF = 'packages/core/src/nip71-video.contract.test.ts';
+const REQUIRED_NIP72_OWNER = 'packages/core/src/nip72-community.ts';
+const REQUIRED_NIP72_PROOF = 'packages/core/src/nip72-community.contract.test.ts';
 const REQUIRED_NIP78_OWNER = 'packages/core/src/nip78-application-data.ts';
 const REQUIRED_NIP78_PROOF = 'packages/core/src/nip78-application-data.contract.test.ts';
 const REQUIRED_NIP7D_OWNER = 'packages/core/src/nip7d-thread.ts';
@@ -410,6 +412,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '71') {
     errors.push(...validateNip71MatrixEntry(entry));
+  }
+  if (entry.nip === '72') {
+    errors.push(...validateNip72MatrixEntry(entry));
   }
   if (entry.nip === '78') {
     errors.push(...validateNip78MatrixEntry(entry));
@@ -1284,6 +1289,35 @@ function validateNip71MatrixEntry(entry: NipMatrixEntry): string[] {
     )
   ) {
     errors.push('NIP-71 scopeNotes must not use stale video-out-of-scope wording');
+  }
+  return errors;
+}
+
+function validateNip72MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-72 must stay implemented after moderated community helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP72_OWNER) {
+    errors.push(`NIP-72 owner must be ${REQUIRED_NIP72_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP72_PROOF) {
+    errors.push(`NIP-72 proof must be ${REQUIRED_NIP72_PROOF}`);
+  }
+  if (
+    !/(34550|community definition)/i.test(entry.scopeNotes) ||
+    !/(4550|approval)/i.test(entry.scopeNotes) ||
+    !/(1111|NIP-22|post tag)/i.test(entry.scopeNotes) ||
+    !/(moderator|relay)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-72 scopeNotes must mention community definitions, moderators/relays, community post tags, and approvals'
+    );
+  }
+  if (
+    /not-started|pending|moderated communities pending/i.test(`${entry.status} ${entry.scopeNotes}`)
+  ) {
+    errors.push('NIP-72 scopeNotes must not use stale community-pending wording');
   }
   return errors;
 }

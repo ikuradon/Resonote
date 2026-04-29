@@ -590,11 +590,11 @@
     {
       "nip": "72",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip72-community.ts",
+      "proof": "packages/core/src/nip72-community.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "Moderated communities pending"
+      "scopeNotes": "Core NIP-72 moderated community helpers build and parse kind:34550 community definitions with moderators and relay markers, NIP-22 kind:1111 top-level and reply post tags scoped to communities, and kind:4550 approval events for event IDs or addressable posts"
     },
     {
       "nip": "73",
