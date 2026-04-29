@@ -2123,6 +2123,58 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-84 highlight pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['84'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('84', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Highlights pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-84 must stay implemented after highlight event helper coverage'
+    );
+    expect(result.errors).toContain('NIP-84 owner must be packages/core/src/nip84-highlight.ts');
+    expect(result.errors).toContain(
+      'NIP-84 proof must be packages/core/src/nip84-highlight.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-84 scopeNotes must not use stale highlight-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-84 highlight helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['84'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('84', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip84-highlight.ts',
+            proof: 'packages/core/src/nip84-highlight.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-84 highlight helpers build and parse kind:9802 highlight events with source event/address/URL references, author/editor attribution p-tags, context tags, quote-highlight comment tags, and mention-marked p/r tags.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-98 HTTP auth pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['98'], sourceUrl: 'source', sourceDate: '2026-04-24' },

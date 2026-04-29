@@ -120,6 +120,8 @@ const REQUIRED_NIP78_OWNER = 'packages/core/src/nip78-application-data.ts';
 const REQUIRED_NIP78_PROOF = 'packages/core/src/nip78-application-data.contract.test.ts';
 const REQUIRED_NIP7D_OWNER = 'packages/core/src/nip7d-thread.ts';
 const REQUIRED_NIP7D_PROOF = 'packages/core/src/nip7d-thread.contract.test.ts';
+const REQUIRED_NIP84_OWNER = 'packages/core/src/nip84-highlight.ts';
+const REQUIRED_NIP84_PROOF = 'packages/core/src/nip84-highlight.contract.test.ts';
 const REQUIRED_NIP98_OWNER = 'packages/core/src/nip98-http-auth.ts';
 const REQUIRED_NIP98_PROOF = 'packages/core/src/nip98-http-auth.contract.test.ts';
 const REQUIRED_RELAY_SESSION_OWNER = 'packages/core/src/relay-session.ts';
@@ -421,6 +423,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '7D') {
     errors.push(...validateNip7dMatrixEntry(entry));
+  }
+  if (entry.nip === '84') {
+    errors.push(...validateNip84MatrixEntry(entry));
   }
   if (entry.nip === '98') {
     errors.push(...validateNip98MatrixEntry(entry));
@@ -1368,6 +1373,33 @@ function validateNip7dMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|threads model pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-7D scopeNotes must not use stale thread-pending wording');
+  }
+  return errors;
+}
+
+function validateNip84MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-84 must stay implemented after highlight event helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP84_OWNER) {
+    errors.push(`NIP-84 owner must be ${REQUIRED_NIP84_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP84_PROOF) {
+    errors.push(`NIP-84 proof must be ${REQUIRED_NIP84_PROOF}`);
+  }
+  if (
+    !/(9802|highlight)/i.test(entry.scopeNotes) ||
+    !/(source|reference|e\/a\/r)/i.test(entry.scopeNotes) ||
+    !/(author|editor|attribution|p-tag)/i.test(entry.scopeNotes) ||
+    !/(context|comment|mention)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-84 scopeNotes must mention kind:9802 highlights, source references, attribution p-tags, and context/comment mentions'
+    );
+  }
+  if (/not-started|pending|highlights pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-84 scopeNotes must not use stale highlight-pending wording');
   }
   return errors;
 }

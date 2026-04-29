@@ -644,11 +644,11 @@
     {
       "nip": "84",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip84-highlight.ts",
+      "proof": "packages/core/src/nip84-highlight.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "Highlights pending"
+      "scopeNotes": "Core NIP-84 highlight helpers build and parse kind:9802 highlight events with source event/address/URL references, author/editor attribution p-tags, context tags, quote-highlight comment tags, and mention-marked p/r tags"
     },
     {
       "nip": "85",

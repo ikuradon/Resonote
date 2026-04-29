@@ -722,6 +722,44 @@ export {
   parseNip78Identifier
 } from './nip78-application-data.js';
 export type {
+  BuildNip84HighlightEventInput,
+  Nip84AddressSource,
+  Nip84AddressSourceInput,
+  Nip84EventSource,
+  Nip84EventSourceInput,
+  Nip84HighlightEventSnapshot,
+  Nip84PubkeyAttribution,
+  Nip84PubkeyAttributionInput,
+  Nip84PubkeyMention,
+  Nip84PubkeyMentionInput,
+  Nip84UrlMention,
+  Nip84UrlMentionInput,
+  Nip84UrlSource,
+  Nip84UrlSourceInput
+} from './nip84-highlight.js';
+export {
+  buildNip84AddressSourceTag,
+  buildNip84EventSourceTag,
+  buildNip84HighlightEvent,
+  buildNip84PubkeyAttributionTag,
+  buildNip84PubkeyMentionTag,
+  buildNip84SourceUrlTag,
+  buildNip84UrlMentionTag,
+  isNip84HighlightEvent,
+  NIP84_COMMENT_TAG,
+  NIP84_CONTEXT_TAG,
+  NIP84_HIGHLIGHT_KIND,
+  NIP84_MENTION_MARKER,
+  NIP84_SOURCE_MARKER,
+  parseNip84AddressSourceTags,
+  parseNip84EventSourceTags,
+  parseNip84HighlightEvent,
+  parseNip84PubkeyAttributions,
+  parseNip84PubkeyMentions,
+  parseNip84SourceUrlTags,
+  parseNip84UrlMentions
+} from './nip84-highlight.js';
+export type {
   BuildNip98HttpAuthEventInput,
   Nip98HttpAuthSnapshot,
   Nip98HttpAuthValidationFailureReason,
