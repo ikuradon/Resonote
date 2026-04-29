@@ -128,6 +128,8 @@ const REQUIRED_NIP88_OWNER = 'packages/core/src/nip88-polls.ts';
 const REQUIRED_NIP88_PROOF = 'packages/core/src/nip88-polls.contract.test.ts';
 const REQUIRED_NIP89_OWNER = 'packages/core/src/nip89-application-handlers.ts';
 const REQUIRED_NIP89_PROOF = 'packages/core/src/nip89-application-handlers.contract.test.ts';
+const REQUIRED_NIP92_OWNER = 'packages/core/src/nip92-media-attachments.ts';
+const REQUIRED_NIP92_PROOF = 'packages/core/src/nip92-media-attachments.contract.test.ts';
 const REQUIRED_NIP98_OWNER = 'packages/core/src/nip98-http-auth.ts';
 const REQUIRED_NIP98_PROOF = 'packages/core/src/nip98-http-auth.contract.test.ts';
 const REQUIRED_RELAY_SESSION_OWNER = 'packages/core/src/relay-session.ts';
@@ -441,6 +443,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '89') {
     errors.push(...validateNip89MatrixEntry(entry));
+  }
+  if (entry.nip === '92') {
+    errors.push(...validateNip92MatrixEntry(entry));
   }
   if (entry.nip === '98') {
     errors.push(...validateNip98MatrixEntry(entry));
@@ -1501,6 +1506,36 @@ function validateNip89MatrixEntry(entry: NipMatrixEntry): string[] {
     /not-started|pending|recommended handlers pending/i.test(`${entry.status} ${entry.scopeNotes}`)
   ) {
     errors.push('NIP-89 scopeNotes must not use stale handler-pending wording');
+  }
+  return errors;
+}
+
+function validateNip92MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-92 must stay implemented after media attachment helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP92_OWNER) {
+    errors.push(`NIP-92 owner must be ${REQUIRED_NIP92_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP92_PROOF) {
+    errors.push(`NIP-92 proof must be ${REQUIRED_NIP92_PROOF}`);
+  }
+  if (
+    !/imeta/i.test(entry.scopeNotes) ||
+    !/(inline content URL|content-match|content URL)/i.test(entry.scopeNotes) ||
+    !/(NIP-94|m\/x\/ox|file metadata)/i.test(entry.scopeNotes) ||
+    !/(fallback|alt|blurhash|thumb|image)/i.test(entry.scopeNotes) ||
+    !/(one-imeta|dedup|unique)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-92 scopeNotes must mention imeta content URLs, NIP-94 file metadata fields, media preview/fallback fields, and URL dedupe helpers'
+    );
+  }
+  if (
+    /not-started|pending|media attachments pending/i.test(`${entry.status} ${entry.scopeNotes}`)
+  ) {
+    errors.push('NIP-92 scopeNotes must not use stale media-attachment-pending wording');
   }
   return errors;
 }

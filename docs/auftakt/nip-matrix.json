@@ -707,11 +707,11 @@
     {
       "nip": "92",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip92-media-attachments.ts",
+      "proof": "packages/core/src/nip92-media-attachments.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "Media attachments pending"
+      "scopeNotes": "Core NIP-92 media attachment helpers build and parse imeta tags for inline content URLs, enforce required url plus additional NIP-94 file metadata fields including m/x/ox/size/dim, support blurhash/thumb/image/summary/alt/fallback/service fields, content-match filtering, and one-imeta-per-URL dedupe"
     },
     {
       "nip": "94",

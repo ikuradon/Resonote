@@ -873,6 +873,33 @@ export {
   parseNip89RecommendationEvent
 } from './nip89-application-handlers.js';
 export type {
+  Nip92Dimensions,
+  Nip92ImetaField,
+  Nip92ImetaFieldInput,
+  Nip92KnownFileField,
+  Nip92MediaAttachment,
+  Nip92MediaAttachmentInput,
+  Nip92ParseMediaAttachmentsOptions,
+  Nip92PreviewResource,
+  Nip92PreviewResourceInput,
+  WithNip92MediaAttachmentsInput
+} from './nip92-media-attachments.js';
+export {
+  buildNip92ImetaTag,
+  buildNip92MediaAttachmentTags,
+  dedupeNip92MediaAttachmentsByUrl,
+  filterNip92ReferencedMediaAttachments,
+  hasNip92MediaAttachments,
+  isNip92MediaAttachmentUrlReferenced,
+  NIP92_IMETA_TAG,
+  NIP92_NIP94_FILE_FIELDS,
+  parseNip92Dimensions,
+  parseNip92ImetaEntry,
+  parseNip92ImetaTag,
+  parseNip92MediaAttachments,
+  withNip92MediaAttachments
+} from './nip92-media-attachments.js';
+export type {
   BuildNip98HttpAuthEventInput,
   Nip98HttpAuthSnapshot,
   Nip98HttpAuthValidationFailureReason,

@@ -2329,6 +2329,60 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-92 media attachment pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['92'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('92', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Media attachments pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-92 must stay implemented after media attachment helper coverage'
+    );
+    expect(result.errors).toContain(
+      'NIP-92 owner must be packages/core/src/nip92-media-attachments.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-92 proof must be packages/core/src/nip92-media-attachments.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-92 scopeNotes must not use stale media-attachment-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-92 media attachment helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['92'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('92', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip92-media-attachments.ts',
+            proof: 'packages/core/src/nip92-media-attachments.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-92 media attachment helpers build and parse imeta tags for inline content URLs, enforce required url plus additional NIP-94 file metadata fields including m/x/ox/size/dim, support blurhash/thumb/image/summary/alt/fallback/service fields, content-match filtering, and one-imeta-per-URL dedupe.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-98 HTTP auth pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['98'], sourceUrl: 'source', sourceDate: '2026-04-24' },
