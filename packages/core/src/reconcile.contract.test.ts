@@ -17,6 +17,7 @@ describe('reconcile reason/state contract', () => {
     expect(mapReasonToConsumerState('ignored-older')).toBe('shadowed');
     expect(mapReasonToConsumerState('tombstoned')).toBe('deleted');
     expect(mapReasonToConsumerState('expired')).toBe('deleted');
+    expect(mapReasonToConsumerState('vanished')).toBe('deleted');
     expect(mapReasonToConsumerState('rejected-offline')).toBe('rejected');
     expect(mapReasonToConsumerState('repaired-replay')).toBe('repairing');
     expect(mapReasonToConsumerState('repaired-negentropy')).toBe('repairing');

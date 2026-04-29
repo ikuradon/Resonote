@@ -183,6 +183,212 @@ describe('Dexie NIP-40 expiration materialization', () => {
   });
 });
 
+describe('Dexie NIP-62 request to vanish materialization', () => {
+  it('stores the vanish request and removes covered author events and deletion markers', async () => {
+    const store = await createDexieEventStore({
+      dbName: `auftakt-dexie-vanish-existing-${Date.now()}`
+    });
+    await store.putWithReconcile(event('old-note', { pubkey: 'alice', created_at: 10 }));
+    await store.putWithReconcile(
+      event('old-profile', { pubkey: 'alice', created_at: 12, kind: 0 })
+    );
+    await store.putWithReconcile(
+      event('old-delete', {
+        pubkey: 'alice',
+        created_at: 11,
+        kind: 5,
+        tags: [['e', 'old-note']]
+      })
+    );
+    await store.putWithReconcile(event('future-note', { pubkey: 'alice', created_at: 30 }));
+
+    const result = await store.putWithReconcile(
+      event('vanish', {
+        pubkey: 'alice',
+        created_at: 20,
+        kind: 62,
+        tags: [['relay', 'ALL_RELAYS']],
+        content: 'legal request'
+      })
+    );
+
+    expect(result.stored).toBe(true);
+    expect(result.emissions).toHaveLength(3);
+    expect(result.emissions).toContainEqual({
+      subjectId: 'vanish',
+      state: 'confirmed',
+      reason: 'accepted-new'
+    });
+    expect(result.emissions).toContainEqual({
+      subjectId: 'old-profile',
+      state: 'deleted',
+      reason: 'vanished'
+    });
+    expect(result.emissions).toContainEqual({
+      subjectId: 'old-delete',
+      state: 'deleted',
+      reason: 'vanished'
+    });
+    await expect(store.getById('old-note')).resolves.toBeNull();
+    await expect(store.getById('old-profile')).resolves.toBeNull();
+    await expect(store.getById('old-delete')).resolves.toBeNull();
+    await expect(store.getById('future-note')).resolves.toMatchObject({
+      id: 'future-note'
+    });
+    await expect(store.getById('vanish')).resolves.toMatchObject({
+      id: 'vanish',
+      kind: 62
+    });
+    await expect(store.getVanishCutoff('alice')).resolves.toBe(20);
+    await expect(store.listVanishRequests()).resolves.toEqual([
+      expect.objectContaining({
+        pubkey: 'alice',
+        vanish_id: 'vanish',
+        created_at: 20,
+        target_relays: ['ALL_RELAYS'],
+        global: true,
+        content: 'legal request'
+      })
+    ]);
+  });
+
+  it('suppresses late author events and gift wraps covered by a request', async () => {
+    const store = await createDexieEventStore({
+      dbName: `auftakt-dexie-vanish-late-${Date.now()}`
+    });
+    await store.putWithReconcile(
+      event('vanish', {
+        pubkey: 'alice',
+        created_at: 20,
+        kind: 62,
+        tags: [['relay', 'wss://relay.example']]
+      })
+    );
+
+    await expect(
+      store.putWithReconcile(event('late-note', { pubkey: 'alice', created_at: 10 }))
+    ).resolves.toEqual({
+      stored: false,
+      emissions: [
+        {
+          subjectId: 'late-note',
+          state: 'deleted',
+          reason: 'vanished'
+        }
+      ]
+    });
+    await expect(
+      store.putWithReconcile(
+        event('late-delete', {
+          pubkey: 'alice',
+          created_at: 11,
+          kind: 5,
+          tags: [['e', 'late-note']]
+        })
+      )
+    ).resolves.toEqual({
+      stored: false,
+      emissions: [
+        {
+          subjectId: 'late-delete',
+          state: 'deleted',
+          reason: 'vanished'
+        }
+      ]
+    });
+    await expect(store.getById('late-delete')).resolves.toBeNull();
+    await expect(
+      store.putWithReconcile(
+        event('late-wrap', {
+          pubkey: 'ephemeral',
+          created_at: 19,
+          kind: 1059,
+          tags: [['p', 'alice']]
+        })
+      )
+    ).resolves.toEqual({
+      stored: false,
+      emissions: [
+        {
+          subjectId: 'late-wrap',
+          state: 'deleted',
+          reason: 'vanished'
+        }
+      ]
+    });
+    await expect(
+      store.putWithReconcile(
+        event('future-wrap', {
+          pubkey: 'ephemeral',
+          created_at: 21,
+          kind: 1059,
+          tags: [['p', 'alice']]
+        })
+      )
+    ).resolves.toMatchObject({ stored: true });
+  });
+
+  it('does not let older late vanish requests lower the retention cutoff', async () => {
+    const store = await createDexieEventStore({
+      dbName: `auftakt-dexie-vanish-cutoff-${Date.now()}`
+    });
+    await store.putWithReconcile(
+      event('new-vanish', {
+        pubkey: 'alice',
+        created_at: 20,
+        kind: 62,
+        tags: [['relay', 'ALL_RELAYS']]
+      })
+    );
+
+    await expect(
+      store.putWithReconcile(
+        event('old-vanish', {
+          pubkey: 'alice',
+          created_at: 10,
+          kind: 62,
+          tags: [['relay', 'ALL_RELAYS']]
+        })
+      )
+    ).resolves.toEqual({
+      stored: false,
+      emissions: [
+        {
+          subjectId: 'old-vanish',
+          state: 'deleted',
+          reason: 'vanished'
+        }
+      ]
+    });
+    await expect(store.getVanishCutoff('alice')).resolves.toBe(20);
+    await expect(
+      store.putWithReconcile(
+        event('covered-after-old-request', { pubkey: 'alice', created_at: 15 })
+      )
+    ).resolves.toMatchObject({ stored: false });
+  });
+
+  it('rejects malformed kind:62 events without relay tags', async () => {
+    const store = await createDexieEventStore({
+      dbName: `auftakt-dexie-vanish-malformed-${Date.now()}`
+    });
+
+    await expect(
+      store.putWithReconcile(event('malformed', { pubkey: 'alice', created_at: 20, kind: 62 }))
+    ).resolves.toEqual({
+      stored: false,
+      emissions: [
+        {
+          subjectId: 'malformed',
+          state: 'rejected',
+          reason: 'rejected-offline'
+        }
+      ]
+    });
+    await expect(store.getById('malformed')).resolves.toBeNull();
+  });
+});
+
 describe('Dexie replaceable materialization', () => {
   it('keeps newest replaceable head by pubkey and kind', async () => {
     const store = await createDexieEventStore({

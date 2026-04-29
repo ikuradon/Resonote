@@ -31,6 +31,16 @@ export interface DexieDeletionIndexRecord {
   readonly created_at: number;
 }
 
+export interface DexieVanishIndexRecord {
+  readonly key: string;
+  readonly pubkey: string;
+  readonly vanish_id: string;
+  readonly created_at: number;
+  readonly target_relays: string[];
+  readonly global: boolean;
+  readonly content: string;
+}
+
 export interface DexieReplaceableHeadRecord {
   readonly key: string;
   readonly event_id: string;
@@ -98,6 +108,7 @@ export class AuftaktDexieDatabase extends Dexie {
   events!: Table<DexieEventRecord, string>;
   event_tags!: Table<DexieEventTagRecord, string>;
   deletion_index!: Table<DexieDeletionIndexRecord, string>;
+  vanish_index!: Table<DexieVanishIndexRecord, string>;
   replaceable_heads!: Table<DexieReplaceableHeadRecord, string>;
   event_relay_hints!: Table<DexieRelayHintRecord, string>;
   relay_capabilities!: Table<DexieRelayCapabilityRecord, string>;
@@ -132,6 +143,10 @@ export class AuftaktDexieDatabase extends Dexie {
       sync_cursors:
         'key,relay,request_key,[relay+request_key],updated_at,[cursor_created_at+cursor_id]'
     };
+    const versionFiveStores = {
+      ...versionFourStores,
+      vanish_index: 'key,pubkey,created_at,vanish_id,global'
+    };
     this.version(1).stores(versionOneStores);
     this.version(2).stores(versionTwoStores);
     this.version(3).stores({
@@ -140,5 +155,6 @@ export class AuftaktDexieDatabase extends Dexie {
         'key,relay,request_key,[relay+request_key],updated_at,[cursor_created_at+cursor_id]'
     });
     this.version(4).stores(versionFourStores);
+    this.version(5).stores(versionFiveStores);
   }
 }

@@ -2,10 +2,13 @@ import {
   defineProjection,
   isNip40Expired,
   type NegentropyEventRef,
+  NIP59_GIFT_WRAP_KIND,
+  NIP62_REQUEST_TO_VANISH_KIND,
   type OfflineDeliveryDecision,
   type OrderedEventCursor,
   type OrderedEventTraversalDirection,
   type OrderedEventTraversalOptions,
+  parseNip62RequestToVanishEvent,
   type ProjectionDefinition,
   type ProjectionTraversalOptions,
   type ReconcileEmission,
@@ -19,7 +22,8 @@ import type {
   DexieEventRecord,
   DexiePendingPublishRecord,
   DexieQuarantineRecord,
-  DexieRelayCapabilityRecord
+  DexieRelayCapabilityRecord,
+  DexieVanishIndexRecord
 } from './schema.js';
 import { AuftaktDexieDatabase } from './schema.js';
 
@@ -107,6 +111,21 @@ export class DexieEventStore {
   }
 
   async putWithReconcile(event: NostrEvent): Promise<DexieMaterializationResult> {
+    if (event.kind === NIP62_REQUEST_TO_VANISH_KIND) {
+      return this.applyVanishRequest(event);
+    }
+    if (await this.isVanished(event)) {
+      return {
+        stored: false,
+        emissions: [
+          {
+            subjectId: event.id,
+            state: 'deleted',
+            reason: 'vanished'
+          }
+        ]
+      };
+    }
     if (event.kind === DELETION_KIND) return this.applyDeletion(event);
     if (this.isExpiredRecord(event)) {
       await this.deleteByIds([event.id]);
@@ -341,12 +360,7 @@ export class DexieEventStore {
       this.db.replaceable_heads,
       this.db.event_relay_hints,
       async () => {
-        await this.db.events.bulkDelete([...ids]);
-        await Promise.all([
-          ...ids.map((id) => this.db.event_tags.where('event_id').equals(id).delete()),
-          ...ids.map((id) => this.db.replaceable_heads.where('event_id').equals(id).delete()),
-          ...ids.map((id) => this.db.event_relay_hints.where('event_id').equals(id).delete())
-        ]);
+        await deleteEventRows(this.db, ids);
       }
     );
   }
@@ -378,6 +392,21 @@ export class DexieEventStore {
 
   async isDeleted(id: string, pubkey: string): Promise<boolean> {
     return Boolean(await this.db.deletion_index.get(`${id}:${pubkey}`));
+  }
+
+  async isVanished(
+    event: Pick<NostrEvent, 'pubkey' | 'created_at' | 'kind' | 'tags'>
+  ): Promise<boolean> {
+    return (await this.findVanishRequestForEvent(event)) !== null;
+  }
+
+  async getVanishCutoff(pubkey: string): Promise<number | null> {
+    const records = await this.db.vanish_index.where('pubkey').equals(pubkey).toArray();
+    return sortVanishRecordsDesc(records).at(0)?.created_at ?? null;
+  }
+
+  async listVanishRequests(): Promise<DexieVanishIndexRecord[]> {
+    return this.db.vanish_index.toArray();
   }
 
   async getReplaceableHead(pubkey: string, kind: number, dTag = ''): Promise<NostrEvent | null> {
@@ -516,14 +545,16 @@ export class DexieEventStore {
   async compact(options: CompactionOptions): Promise<CompactionResult> {
     if (options.targetRows <= 0) return { removedEventIds: [] };
 
-    const [deletionIndex, pendingPublishes, events] = await Promise.all([
+    const [deletionIndex, pendingPublishes, vanishIndex, events] = await Promise.all([
       this.db.deletion_index.toArray(),
       this.db.pending_publishes.toArray(),
+      this.db.vanish_index.toArray(),
       this.db.events.toArray()
     ]);
     const protectedIds = buildProtectedCompactionEventIds({
       deletionIndex,
-      pendingPublishes
+      pendingPublishes,
+      vanishIndex
     });
     const removableIds = events
       .filter((event) => event.kind !== DELETION_KIND && !protectedIds.has(event.id))
@@ -549,6 +580,83 @@ export class DexieEventStore {
 
     await this.deleteByIds(removableIds);
     return { removedEventIds: removableIds };
+  }
+
+  private async applyVanishRequest(event: NostrEvent): Promise<DexieMaterializationResult> {
+    const request = parseNip62RequestToVanishEvent(event);
+    if (!request) {
+      return {
+        stored: false,
+        emissions: [
+          {
+            subjectId: event.id,
+            state: 'rejected',
+            reason: 'rejected-offline'
+          }
+        ]
+      };
+    }
+
+    const current = await this.db.vanish_index.get(event.pubkey);
+    if (current && current.created_at >= event.created_at) {
+      return {
+        stored: false,
+        emissions: [
+          {
+            subjectId: event.id,
+            state: 'deleted',
+            reason: 'vanished'
+          }
+        ]
+      };
+    }
+
+    const removableIds = (await this.db.events.toArray())
+      .filter((record) => record.id !== event.id && this.isCoveredByVanishRequest(record, event))
+      .map((record) => record.id);
+
+    await this.db.transaction(
+      'rw',
+      [
+        this.db.events,
+        this.db.event_tags,
+        this.db.deletion_index,
+        this.db.vanish_index,
+        this.db.replaceable_heads,
+        this.db.event_relay_hints
+      ],
+      async () => {
+        await writeEventRecord(this.db, event);
+        await this.db.vanish_index.put({
+          key: event.pubkey,
+          pubkey: event.pubkey,
+          vanish_id: event.id,
+          created_at: event.created_at,
+          target_relays: [...request.relayTargets],
+          global: request.global,
+          content: event.content
+        });
+        await deleteEventRows(this.db, removableIds);
+        await Promise.all(
+          removableIds.flatMap((id) => [
+            this.db.deletion_index.where('target_id').equals(id).delete(),
+            this.db.deletion_index.where('deletion_id').equals(id).delete()
+          ])
+        );
+      }
+    );
+
+    return {
+      stored: true,
+      emissions: [
+        { subjectId: event.id, state: 'confirmed', reason: 'accepted-new' },
+        ...removableIds.map((id) => ({
+          subjectId: id,
+          state: 'deleted' as const,
+          reason: 'vanished' as const
+        }))
+      ]
+    };
   }
 
   private async applyDeletion(event: NostrEvent): Promise<DexieMaterializationResult> {
@@ -660,6 +768,25 @@ export class DexieEventStore {
   private toVisibleEvent(record: DexieEventRecord | null | undefined): NostrEvent | null {
     if (!record || !this.isVisibleRecord(record)) return null;
     return toNostrEvent(record);
+  }
+
+  private async findVanishRequestForEvent(
+    event: Pick<NostrEvent, 'pubkey' | 'created_at' | 'kind' | 'tags'>
+  ): Promise<DexieVanishIndexRecord | null> {
+    const records = await this.db.vanish_index.toArray();
+    return (
+      sortVanishRecordsDesc(records).find((record) => isEventCoveredByVanish(event, record)) ?? null
+    );
+  }
+
+  private isCoveredByVanishRequest(
+    record: Pick<NostrEvent, 'pubkey' | 'created_at' | 'kind' | 'tags'>,
+    request: Pick<NostrEvent, 'pubkey' | 'created_at'>
+  ): boolean {
+    return (
+      isAuthorEventCoveredByVanish(record, request.pubkey, request.created_at) ||
+      isGiftWrapCoveredByVanish(record, request.pubkey, request.created_at)
+    );
   }
 }
 
@@ -787,6 +914,17 @@ async function writeEventRecord(db: AuftaktDexieDatabase, event: NostrEvent): Pr
   );
 }
 
+async function deleteEventRows(db: AuftaktDexieDatabase, ids: readonly string[]): Promise<void> {
+  if (ids.length === 0) return;
+
+  await db.events.bulkDelete([...ids]);
+  await Promise.all([
+    ...ids.map((id) => db.event_tags.where('event_id').equals(id).delete()),
+    ...ids.map((id) => db.replaceable_heads.where('event_id').equals(id).delete()),
+    ...ids.map((id) => db.event_relay_hints.where('event_id').equals(id).delete())
+  ]);
+}
+
 function deletionTargets(event: Pick<NostrEvent, 'tags'>): string[] {
   return [
     ...new Set(
@@ -795,6 +933,45 @@ function deletionTargets(event: Pick<NostrEvent, 'tags'>): string[] {
         .map((tag) => tag[1])
     )
   ];
+}
+
+function sortVanishRecordsDesc(
+  records: readonly DexieVanishIndexRecord[]
+): DexieVanishIndexRecord[] {
+  return [...records].sort(
+    (left, right) =>
+      right.created_at - left.created_at || right.vanish_id.localeCompare(left.vanish_id)
+  );
+}
+
+function isEventCoveredByVanish(
+  event: Pick<NostrEvent, 'pubkey' | 'created_at' | 'kind' | 'tags'>,
+  record: Pick<DexieVanishIndexRecord, 'pubkey' | 'created_at'>
+): boolean {
+  return (
+    isAuthorEventCoveredByVanish(event, record.pubkey, record.created_at) ||
+    isGiftWrapCoveredByVanish(event, record.pubkey, record.created_at)
+  );
+}
+
+function isAuthorEventCoveredByVanish(
+  event: Pick<NostrEvent, 'pubkey' | 'created_at'>,
+  pubkey: string,
+  cutoff: number
+): boolean {
+  return event.pubkey === pubkey && event.created_at <= cutoff;
+}
+
+function isGiftWrapCoveredByVanish(
+  event: Pick<NostrEvent, 'created_at' | 'kind' | 'tags'>,
+  pubkey: string,
+  cutoff: number
+): boolean {
+  return (
+    event.kind === NIP59_GIFT_WRAP_KIND &&
+    event.created_at <= cutoff &&
+    event.tags.some((tag) => tag[0] === 'p' && tag[1] === pubkey)
+  );
 }
 
 function isReplaceable(kind: number): boolean {

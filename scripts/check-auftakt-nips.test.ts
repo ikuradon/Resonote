@@ -1079,6 +1079,60 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-62 retention pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['62'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('62', {
+            level: 'internal',
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P2',
+            scopeNotes: 'Request to vanish retention handling pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-62 must stay implemented after request-to-vanish retention coverage'
+    );
+    expect(result.errors).toContain('NIP-62 owner must be packages/adapter-dexie/src/index.ts');
+    expect(result.errors).toContain(
+      'NIP-62 proof must be packages/adapter-dexie/src/materialization.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-62 scopeNotes must not use stale retention-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-62 request-to-vanish retention claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['62'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('62', {
+            level: 'internal',
+            status: 'implemented',
+            owner: 'packages/adapter-dexie/src/index.ts',
+            proof: 'packages/adapter-dexie/src/materialization.contract.test.ts',
+            priority: 'P2',
+            scopeNotes:
+              'Dexie materialization applies NIP-62 kind:62 request-to-vanish retention with relay/ALL_RELAYS parsing, author cutoff suppression, NIP-09 deletion marker removal, and NIP-59 gift-wrap p-tag cleanup.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-66 seeded relay metrics claims', () => {
     const result = checkNipMatrix(
       { nips: ['66'], sourceUrl: 'source', sourceDate: '2026-04-24' },

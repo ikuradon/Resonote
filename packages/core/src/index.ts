@@ -218,6 +218,20 @@ export {
   randomizeNip59Timestamp
 } from './nip59-gift-wrap.js';
 export type {
+  BuildNip62RequestToVanishInput,
+  Nip62RequestToVanishSnapshot
+} from './nip62-request-to-vanish.js';
+export {
+  buildNip62RequestToVanishEvent,
+  isNip62RequestToVanishEvent,
+  NIP62_ALL_RELAYS,
+  NIP62_RELAY_TAG,
+  NIP62_REQUEST_TO_VANISH_KIND,
+  nip62TargetsRelay,
+  parseNip62RelayTargets,
+  parseNip62RequestToVanishEvent
+} from './nip62-request-to-vanish.js';
+export type {
   BuildNip78ApplicationDataInput,
   Nip78ApplicationDataSnapshot
 } from './nip78-application-data.js';

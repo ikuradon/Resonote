@@ -82,6 +82,8 @@ const REQUIRED_NIP56_OWNER = 'packages/core/src/nip56-report.ts';
 const REQUIRED_NIP56_PROOF = 'packages/core/src/nip56-report.contract.test.ts';
 const REQUIRED_NIP59_OWNER = 'packages/core/src/nip59-gift-wrap.ts';
 const REQUIRED_NIP59_PROOF = 'packages/core/src/nip59-gift-wrap.contract.test.ts';
+const REQUIRED_NIP62_OWNER = 'packages/adapter-dexie/src/index.ts';
+const REQUIRED_NIP62_PROOF = 'packages/adapter-dexie/src/materialization.contract.test.ts';
 const REQUIRED_NIP66_OWNER = 'packages/resonote/src/runtime.ts';
 const REQUIRED_NIP66_PROOF = 'packages/resonote/src/relay-metrics-nip66.contract.test.ts';
 const REQUIRED_NIP78_OWNER = 'packages/core/src/nip78-application-data.ts';
@@ -329,6 +331,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '59') {
     errors.push(...validateNip59MatrixEntry(entry));
+  }
+  if (entry.nip === '62') {
+    errors.push(...validateNip62MatrixEntry(entry));
   }
   if (entry.nip === '66') {
     errors.push(...validateNip66MatrixEntry(entry));
@@ -752,6 +757,34 @@ function validateNip59MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|required/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-59 scopeNotes must not use stale required/not-started wording');
+  }
+  return errors;
+}
+
+function validateNip62MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-62 must stay implemented after request-to-vanish retention coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP62_OWNER) {
+    errors.push(`NIP-62 owner must be ${REQUIRED_NIP62_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP62_PROOF) {
+    errors.push(`NIP-62 proof must be ${REQUIRED_NIP62_PROOF}`);
+  }
+  if (
+    !/kind:62|request-to-vanish|vanish/i.test(entry.scopeNotes) ||
+    !/(relay|ALL_RELAYS)/i.test(entry.scopeNotes) ||
+    !/(cutoff|suppression|NIP-09|NIP-59|gift-wrap)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-62 scopeNotes must mention kind:62 vanish requests, relay targets, and retention cleanup'
+    );
+  }
+  if (
+    /not-started|pending|retention handling pending/i.test(`${entry.status} ${entry.scopeNotes}`)
+  ) {
+    errors.push('NIP-62 scopeNotes must not use stale retention-pending wording');
   }
   return errors;
 }

@@ -36,6 +36,7 @@ export function mapReasonToConsumerState(reason: ReconcileReasonCode): ConsumerV
       return 'shadowed';
     case 'tombstoned':
     case 'expired':
+    case 'vanished':
       return 'deleted';
     case 'rejected-offline':
       return 'rejected';

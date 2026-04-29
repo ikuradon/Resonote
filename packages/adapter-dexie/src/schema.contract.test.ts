@@ -6,7 +6,9 @@ import { createDexieEventStore } from './index.js';
 
 describe('DexieEventStore schema', () => {
   it('opens all strict coordinator tables', async () => {
-    const store = await createDexieEventStore({ dbName: 'auftakt-dexie-schema-test' });
+    const store = await createDexieEventStore({
+      dbName: 'auftakt-dexie-schema-test'
+    });
 
     expect(store.tableNames().sort()).toEqual([
       'deletion_index',
@@ -19,7 +21,8 @@ describe('DexieEventStore schema', () => {
       'quarantine',
       'relay_capabilities',
       'replaceable_heads',
-      'sync_cursors'
+      'sync_cursors',
+      'vanish_index'
     ]);
     expect(store.db.events.schema.indexes.map((index) => index.name).sort()).toEqual(
       [
@@ -43,7 +46,9 @@ describe('DexieEventStore schema', () => {
   });
 
   it('stores events with tag rows and reads by id', async () => {
-    const store = await createDexieEventStore({ dbName: 'auftakt-dexie-event-test' });
+    const store = await createDexieEventStore({
+      dbName: 'auftakt-dexie-event-test'
+    });
     await store.putEvent({
       id: 'e1',
       pubkey: 'p1',
@@ -59,7 +64,9 @@ describe('DexieEventStore schema', () => {
   });
 
   it('stores quarantine diagnostics without creating visible events', async () => {
-    const store = await createDexieEventStore({ dbName: 'auftakt-dexie-quarantine-test' });
+    const store = await createDexieEventStore({
+      dbName: 'auftakt-dexie-quarantine-test'
+    });
     await store.putQuarantine({
       relayUrl: 'wss://relay.example',
       eventId: 'bad',
