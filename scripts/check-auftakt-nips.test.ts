@@ -216,6 +216,60 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-03 OpenTimestamps scoped-out claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['03'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('03', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'OpenTimestamps attestations not required by current client runtime'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-03 must stay implemented after OpenTimestamps helper coverage'
+    );
+    expect(result.errors).toContain(
+      'NIP-03 owner must be packages/core/src/nip03-open-timestamps.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-03 proof must be packages/core/src/nip03-open-timestamps.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-03 scopeNotes must not use stale OpenTimestamps-out-of-scope wording'
+    );
+  });
+
+  it('accepts the implemented NIP-03 OpenTimestamps helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['03'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('03', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip03-open-timestamps.ts',
+            proof: 'packages/core/src/nip03-open-timestamps.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-03 OpenTimestamps helpers build and parse kind:1040 attestation events with base64 OTS content, target e/k tags, relay filters, and an external verification boundary for OTS Bitcoin attestations.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-07 partial signer bridge claims', () => {
     const result = checkNipMatrix(
       { nips: ['07'], sourceUrl: 'source', sourceDate: '2026-04-24' },
@@ -2748,6 +2802,56 @@ describe('NIP matrix entry validation', () => {
             priority: 'P3',
             scopeNotes:
               'Core NIP-A4 public message helpers build and parse kind:24 events with p receiver tags, no e tags, NIP-40 expiration, NIP-18 q tags, NIP-92 imeta attachments, response k tags, and #p relay filters.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
+  it('rejects stale NIP-B7 Blossom scoped-out claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['B7'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('B7', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Blossom upload/storage outside current core runtime'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain('NIP-B7 must stay implemented after Blossom helper coverage');
+    expect(result.errors).toContain('NIP-B7 owner must be packages/core/src/nipB7-blossom.ts');
+    expect(result.errors).toContain(
+      'NIP-B7 proof must be packages/core/src/nipB7-blossom.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-B7 scopeNotes must not use stale Blossom-out-of-scope wording'
+    );
+  });
+
+  it('accepts the implemented NIP-B7 Blossom helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['B7'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('B7', {
+            status: 'implemented',
+            owner: 'packages/core/src/nipB7-blossom.ts',
+            proof: 'packages/core/src/nipB7-blossom.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-B7 Blossom helpers build and parse kind:10063 server lists with server tags, SHA-256 URL hash extraction, file extension fallback URLs, content hash verification, relay filters, and an upload/auth transport boundary outside core.'
           })
         ]
       }

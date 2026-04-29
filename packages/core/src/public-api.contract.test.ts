@@ -55,6 +55,8 @@ describe('@auftakt/core public api contract', () => {
     expect(mod).toEqual(
       expect.objectContaining({
         buildRelaySelectionPlan: expect.any(Function),
+        buildNip03OpenTimestampsAttestationEvent: expect.any(Function),
+        buildNip03OpenTimestampsAttestationFilter: expect.any(Function),
         buildNip13NonceTag: expect.any(Function),
         buildNip14SubjectTag: expect.any(Function),
         buildNip17ChatMessage: expect.any(Function),
@@ -137,6 +139,11 @@ describe('@auftakt/core public api contract', () => {
         buildNipA0VoiceReply: expect.any(Function),
         buildNipA4PublicMessage: expect.any(Function),
         buildNipA4PublicMessageFilter: expect.any(Function),
+        buildNipB7BlossomFallbackUrls: expect.any(Function),
+        buildNipB7BlossomFileUrl: expect.any(Function),
+        buildNipB7BlossomServerListEvent: expect.any(Function),
+        buildNipB7BlossomServerListFilter: expect.any(Function),
+        calculateNipB7BlossomContentHash: expect.any(Function),
         buildNipC0CodeSnippet: expect.any(Function),
         buildNipC0CodeSnippetFilter: expect.any(Function),
         buildNipC7ChatMessage: expect.any(Function),
@@ -147,6 +154,7 @@ describe('@auftakt/core public api contract', () => {
         createRxNostrSession: expect.any(Function),
         filterNegentropyEventRefs: expect.any(Function),
         getEventHash: expect.any(Function),
+        extractNipB7BlossomHashFromUrl: expect.any(Function),
         extractNip27References: expect.any(Function),
         naddrEncode: expect.any(Function),
         neventEncode: expect.any(Function),
@@ -158,6 +166,7 @@ describe('@auftakt/core public api contract', () => {
         normalizeRelayLifecycleOptions: expect.any(Function),
         normalizeRelaySelectionPolicy: expect.any(Function),
         normalizeRelayUrl: expect.any(Function),
+        parseNip03OpenTimestampsAttestationEvent: expect.any(Function),
         parseNip13Nonce: expect.any(Function),
         parseNip14Subject: expect.any(Function),
         parseNip23LongFormEvent: expect.any(Function),
@@ -231,6 +240,7 @@ describe('@auftakt/core public api contract', () => {
         parseNip98HttpAuthEvent: expect.any(Function),
         parseNipA0VoiceMessage: expect.any(Function),
         parseNipA4PublicMessage: expect.any(Function),
+        parseNipB7BlossomServerListEvent: expect.any(Function),
         parseNipC0CodeSnippet: expect.any(Function),
         parseNipC7ChatMessage: expect.any(Function),
         parseNip65RelayListTags: expect.any(Function),
@@ -240,7 +250,8 @@ describe('@auftakt/core public api contract', () => {
         toNip21Uri: expect.any(Function),
         tallyNip88Responses: expect.any(Function),
         validateNip13ProofOfWork: expect.any(Function),
-        validateRelayEvent: expect.any(Function)
+        validateRelayEvent: expect.any(Function),
+        verifyNipB7BlossomContentHash: expect.any(Function)
       })
     );
   });

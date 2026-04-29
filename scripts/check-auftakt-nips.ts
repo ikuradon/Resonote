@@ -50,6 +50,8 @@ const NON_IMPLEMENTED_STATUSES = new Set([
 const REQUIRED_NIP19_OWNER = 'packages/core/src/crypto.ts';
 const REQUIRED_NIP19_PROOF = 'src/shared/nostr/nip19-decode.test.ts';
 const REQUIRED_NIP19_PREFIXES = ['npub', 'nsec', 'note', 'nprofile', 'nevent', 'naddr', 'nrelay'];
+const REQUIRED_NIP03_OWNER = 'packages/core/src/nip03-open-timestamps.ts';
+const REQUIRED_NIP03_PROOF = 'packages/core/src/nip03-open-timestamps.contract.test.ts';
 const REQUIRED_NIP05_OWNER = 'src/shared/nostr/nip05.ts';
 const REQUIRED_NIP05_PROOF = 'src/shared/nostr/nip05.test.ts';
 const REQUIRED_NIP07_OWNER = 'src/shared/nostr/client.ts';
@@ -144,6 +146,8 @@ const REQUIRED_NIPA0_OWNER = 'packages/core/src/nipA0-voice-messages.ts';
 const REQUIRED_NIPA0_PROOF = 'packages/core/src/nipA0-voice-messages.contract.test.ts';
 const REQUIRED_NIPA4_OWNER = 'packages/core/src/nipA4-public-messages.ts';
 const REQUIRED_NIPA4_PROOF = 'packages/core/src/nipA4-public-messages.contract.test.ts';
+const REQUIRED_NIPB7_OWNER = 'packages/core/src/nipB7-blossom.ts';
+const REQUIRED_NIPB7_PROOF = 'packages/core/src/nipB7-blossom.contract.test.ts';
 const REQUIRED_NIPC0_OWNER = 'packages/core/src/nipC0-code-snippets.ts';
 const REQUIRED_NIPC0_PROOF = 'packages/core/src/nipC0-code-snippets.contract.test.ts';
 const REQUIRED_NIPC7_OWNER = 'packages/core/src/nipC7-chats.ts';
@@ -334,6 +338,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === '19') {
     errors.push(...validateNip19MatrixEntry(entry));
   }
+  if (entry.nip === '03') {
+    errors.push(...validateNip03MatrixEntry(entry));
+  }
   if (entry.nip === '05') {
     errors.push(...validateNip05MatrixEntry(entry));
   }
@@ -484,11 +491,48 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === 'A4') {
     errors.push(...validateNipA4MatrixEntry(entry));
   }
+  if (entry.nip === 'B7') {
+    errors.push(...validateNipB7MatrixEntry(entry));
+  }
   if (entry.nip === 'C0') {
     errors.push(...validateNipC0MatrixEntry(entry));
   }
   if (entry.nip === 'C7') {
     errors.push(...validateNipC7MatrixEntry(entry));
+  }
+  return errors;
+}
+
+function validateNip03MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-03 must stay implemented after OpenTimestamps helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP03_OWNER) {
+    errors.push(`NIP-03 owner must be ${REQUIRED_NIP03_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP03_PROOF) {
+    errors.push(`NIP-03 proof must be ${REQUIRED_NIP03_PROOF}`);
+  }
+  if (
+    !/(OpenTimestamps|OTS)/i.test(entry.scopeNotes) ||
+    !/(kind:1040|1040)/i.test(entry.scopeNotes) ||
+    !/base64/i.test(entry.scopeNotes) ||
+    !/(target e|e tag|e\/k)/i.test(entry.scopeNotes) ||
+    !/(target k|k tag|e\/k)/i.test(entry.scopeNotes) ||
+    !/(filter|relay)/i.test(entry.scopeNotes) ||
+    !/(external|verification|verifier)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-03 scopeNotes must mention OpenTimestamps kind:1040, base64 OTS content, target e/k tags, filters, and external verification boundary'
+    );
+  }
+  if (
+    /not-started|pending|not required|outside current client runtime/i.test(
+      `${entry.status} ${entry.scopeNotes}`
+    )
+  ) {
+    errors.push('NIP-03 scopeNotes must not use stale OpenTimestamps-out-of-scope wording');
   }
   return errors;
 }
@@ -1779,6 +1823,39 @@ function validateNipA4MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|public messages pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-A4 scopeNotes must not use stale public-message-pending wording');
+  }
+  return errors;
+}
+
+function validateNipB7MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-B7 must stay implemented after Blossom helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIPB7_OWNER) {
+    errors.push(`NIP-B7 owner must be ${REQUIRED_NIPB7_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIPB7_PROOF) {
+    errors.push(`NIP-B7 proof must be ${REQUIRED_NIPB7_PROOF}`);
+  }
+  if (
+    !/Blossom/i.test(entry.scopeNotes) ||
+    !/(kind:10063|10063|server list)/i.test(entry.scopeNotes) ||
+    !/(server tag|server tags)/i.test(entry.scopeNotes) ||
+    !/(SHA-256|sha256|hash)/i.test(entry.scopeNotes) ||
+    !/(URL|fallback|extension)/i.test(entry.scopeNotes) ||
+    !/(verify|verification|content hash)/i.test(entry.scopeNotes) ||
+    !/(filter|relay)/i.test(entry.scopeNotes) ||
+    !/(upload|auth|transport|outside)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-B7 scopeNotes must mention Blossom kind:10063 server lists, server tags, SHA-256 URL hashes, extensions/fallbacks, content verification, filters, and upload/auth boundary'
+    );
+  }
+  if (
+    /not-started|pending|outside current core runtime/i.test(`${entry.status} ${entry.scopeNotes}`)
+  ) {
+    errors.push('NIP-B7 scopeNotes must not use stale Blossom-out-of-scope wording');
   }
   return errors;
 }

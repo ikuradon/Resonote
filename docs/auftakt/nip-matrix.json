@@ -22,12 +22,12 @@
     },
     {
       "nip": "03",
-      "level": "scoped-out",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip03-open-timestamps.ts",
+      "proof": "packages/core/src/nip03-open-timestamps.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "OpenTimestamps attestations not required by current client runtime"
+      "scopeNotes": "Core NIP-03 OpenTimestamps helpers build and parse kind:1040 attestation events with base64 OTS content, target e/k tags, relay filters, and an external verification boundary for OTS Bitcoin attestations"
     },
     {
       "nip": "04",
@@ -778,12 +778,12 @@
     },
     {
       "nip": "B7",
-      "level": "scoped-out",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nipB7-blossom.ts",
+      "proof": "packages/core/src/nipB7-blossom.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "Blossom upload/storage outside current core runtime"
+      "scopeNotes": "Core NIP-B7 Blossom helpers build and parse kind:10063 server lists with server tags, SHA-256 URL hash extraction, file extension fallback URLs, content hash verification, relay filters, and an upload/auth transport boundary outside core"
     },
     {
       "nip": "BE",

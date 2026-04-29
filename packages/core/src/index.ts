@@ -28,6 +28,22 @@ export {
   sortNegentropyEventRefsAsc
 } from './negentropy.js';
 export type {
+  BuildNip03OpenTimestampsAttestationFilterInput,
+  BuildNip03OpenTimestampsAttestationInput,
+  Nip03OpenTimestampsAttestationSnapshot
+} from './nip03-open-timestamps.js';
+export {
+  buildNip03OpenTimestampsAttestationEvent,
+  buildNip03OpenTimestampsAttestationFilter,
+  isNip03OtsFileBase64,
+  NIP03_EVENT_TAG,
+  NIP03_KIND_TAG,
+  NIP03_OPEN_TIMESTAMPS_KIND,
+  parseNip03OpenTimestampsAttestationEvent,
+  parseNip03TargetEventTag,
+  parseNip03TargetKindTag
+} from './nip03-open-timestamps.js';
+export type {
   BuildNip7dThreadInput,
   BuildNip7dThreadReplyTagsInput,
   Nip7dThreadReplyRoot,
@@ -1138,6 +1154,27 @@ export {
   parseNipA4Quotes,
   parseNipA4Receivers
 } from './nipA4-public-messages.js';
+export type {
+  BuildNipB7BlossomServerListFilterInput,
+  BuildNipB7BlossomServerListInput,
+  NipB7BlossomContent,
+  NipB7BlossomHashFromUrl,
+  NipB7BlossomServerListSnapshot
+} from './nipB7-blossom.js';
+export {
+  buildNipB7BlossomFallbackUrls,
+  buildNipB7BlossomFileUrl,
+  buildNipB7BlossomServerListEvent,
+  buildNipB7BlossomServerListFilter,
+  buildNipB7BlossomServerTag,
+  calculateNipB7BlossomContentHash,
+  extractNipB7BlossomHashFromUrl,
+  NIPB7_BLOSSOM_SERVER_LIST_KIND,
+  NIPB7_SERVER_TAG,
+  parseNipB7BlossomServerListEvent,
+  parseNipB7BlossomServerTags,
+  verifyNipB7BlossomContentHash
+} from './nipB7-blossom.js';
 export type {
   BuildNipC0CodeSnippetFilterInput,
   BuildNipC0CodeSnippetInput,
