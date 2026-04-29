@@ -1,9 +1,14 @@
-import { defineProjection, finalizeEvent } from '@auftakt/core';
-import { createResonoteCoordinator, registerPlugin } from '@auftakt/resonote';
+import {
+  defineProjection,
+  finalizeEvent,
+  type ReconcileEmission,
+  type StoredEvent
+} from '@auftakt/core';
+import { createRelayMetricsPlugin,registerRuntimePlugin } from '@auftakt/runtime';
 import { describe, expect, it, vi } from 'vitest';
 
-import { createRelayMetricsPlugin } from './plugins/built-in-plugins.js';
 import { COMMENTS_FLOW, CONTENT_RESOLUTION_FLOW } from './plugins/resonote-flows.js';
+import { createResonoteCoordinator } from './runtime.js';
 
 const RELAY_SECRET_KEY = new Uint8Array(32).fill(7);
 
@@ -12,9 +17,12 @@ function createTestCoordinator({
   putWithReconcile = async () => ({ stored: true, emissions: [] }),
   relayEvents = []
 }: {
-  getById?: (id: string) => Promise<unknown>;
-  putWithReconcile?: (event: unknown) => Promise<{ stored: boolean; emissions: unknown[] }>;
-  relayEvents?: unknown[];
+  getById?: (id: string) => Promise<StoredEvent | null>;
+  putWithReconcile?: (event: StoredEvent) => Promise<{
+    stored: boolean;
+    emissions: ReconcileEmission[];
+  }>;
+  relayEvents?: StoredEvent[];
 } = {}) {
   return createResonoteCoordinator({
     runtime: {
@@ -30,7 +38,7 @@ function createTestCoordinator({
         deleteByIds: async () => {},
         clearAll: async () => {},
         put: async () => true,
-        putWithReconcile: async (event: unknown) => putWithReconcile(event)
+        putWithReconcile: async (event: StoredEvent) => putWithReconcile(event)
       }),
       getRxNostr: async () => ({
         use: () => ({
@@ -80,7 +88,7 @@ describe('@auftakt/resonote built-in plugins', () => {
   it('registers timeline, emoji, comments, notifications, relay-list, and content-resolution plugins on startup', async () => {
     const coordinator = createTestCoordinator();
 
-    const duplicateTimeline = await registerPlugin(coordinator, {
+    const duplicateTimeline = await registerRuntimePlugin(coordinator, {
       name: 'duplicate-timeline',
       apiVersion: 'v1',
       setup(api) {
@@ -94,7 +102,7 @@ describe('@auftakt/resonote built-in plugins', () => {
       }
     });
 
-    const duplicateEmojiCatalog = await registerPlugin(coordinator, {
+    const duplicateEmojiCatalog = await registerRuntimePlugin(coordinator, {
       name: 'duplicate-emoji',
       apiVersion: 'v1',
       setup(api) {
@@ -102,7 +110,7 @@ describe('@auftakt/resonote built-in plugins', () => {
       }
     });
 
-    const duplicateCommentsFlow = await registerPlugin(coordinator, {
+    const duplicateCommentsFlow = await registerRuntimePlugin(coordinator, {
       name: 'duplicate-comments',
       apiVersion: 'v1',
       setup(api) {
@@ -110,7 +118,7 @@ describe('@auftakt/resonote built-in plugins', () => {
       }
     });
 
-    const duplicateNotificationsFlow = await registerPlugin(coordinator, {
+    const duplicateNotificationsFlow = await registerRuntimePlugin(coordinator, {
       name: 'duplicate-notifications',
       apiVersion: 'v1',
       setup(api) {
@@ -118,7 +126,7 @@ describe('@auftakt/resonote built-in plugins', () => {
       }
     });
 
-    const duplicateRelayListFlow = await registerPlugin(coordinator, {
+    const duplicateRelayListFlow = await registerRuntimePlugin(coordinator, {
       name: 'duplicate-relay-list',
       apiVersion: 'v1',
       setup(api) {
@@ -126,7 +134,7 @@ describe('@auftakt/resonote built-in plugins', () => {
       }
     });
 
-    const duplicateContentResolutionFlow = await registerPlugin(coordinator, {
+    const duplicateContentResolutionFlow = await registerRuntimePlugin(coordinator, {
       name: 'duplicate-content-resolution',
       apiVersion: 'v1',
       setup(api) {
@@ -174,6 +182,7 @@ describe('@auftakt/resonote built-in plugins', () => {
 
     plugin.setup({
       apiVersion: 'v1',
+      models: {} as never,
       registerProjection: vi.fn(),
       registerFlow: vi.fn(),
       registerReadModel(name, value) {

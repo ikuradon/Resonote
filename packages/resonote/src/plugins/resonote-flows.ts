@@ -1,10 +1,12 @@
-import type { ResonoteCoordinatorPlugin } from '../runtime.js';
+import type { AuftaktRuntimePlugin } from '@auftakt/runtime';
+
 import type { CommentsFlow, ContentResolutionFlow } from './built-in-plugins.js';
+export type { CommentsFlow, ContentResolutionFlow } from './built-in-plugins.js';
 
 export const COMMENTS_FLOW = 'resonoteCommentsFlow';
 export const CONTENT_RESOLUTION_FLOW = 'resonoteContentResolution';
 
-export function createResonoteCommentsFlowPlugin(flow: CommentsFlow): ResonoteCoordinatorPlugin {
+export function createResonoteCommentsFlowPlugin(flow: CommentsFlow): AuftaktRuntimePlugin {
   return {
     name: 'resonoteCommentsFlowPlugin',
     apiVersion: 'v1',
@@ -16,7 +18,7 @@ export function createResonoteCommentsFlowPlugin(flow: CommentsFlow): ResonoteCo
 
 export function createResonoteContentResolutionFlowPlugin(
   flow: ContentResolutionFlow
-): ResonoteCoordinatorPlugin {
+): AuftaktRuntimePlugin {
   return {
     name: 'resonoteContentResolutionFlowPlugin',
     apiVersion: 'v1',

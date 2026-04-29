@@ -7,6 +7,106 @@ const currentDir = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(currentDir, '..');
 const packageIndexPath = resolve(currentDir, 'index.ts');
 
+const RESONOTE_VALUE_EXPORT_ALLOWLIST = [
+  'buildCommentContentFilters',
+  'createResonoteCoordinator',
+  'COMMENTS_FLOW',
+  'CONTENT_RESOLUTION_FLOW',
+  'EMOJI_CATALOG_READ_MODEL',
+  'NOTIFICATIONS_FLOW',
+  'RESONOTE_PLAY_POSITION_SORT',
+  'createEmojiCatalogPlugin',
+  'createNotificationsFlowPlugin',
+  'createResonoteCommentsFlowPlugin',
+  'createResonoteContentResolutionFlowPlugin',
+  'createTimelinePlugin',
+  'getResonotePlayPositionMs',
+  'startCommentDeletionReconcile',
+  'startCommentSubscription',
+  'startMergedCommentSubscription',
+  'resonoteTimelineProjection',
+  'sortResonoteTimelineByPlayPosition'
+] as const;
+
+const RESONOTE_TYPE_EXPORT_ALLOWLIST = [
+  'CommentFilterKinds',
+  'CommentSubscriptionRefs',
+  'DeletionEvent',
+  'CommentsFlow',
+  'ContentResolutionFlow',
+  'EmojiCatalogReadModel',
+  'EmojiCategory',
+  'NotificationStreamHandlers',
+  'NotificationStreamOptions',
+  'NotificationsFlow',
+  'ResonoteTimelineEvent'
+] as const;
+
+const FORBIDDEN_ROOT_EXPORTS = [
+  'AddressableHandle',
+  'AddressableHandleInput',
+  'AuftaktRuntimeCoordinator',
+  'AuftaktRuntimePlugin',
+  'AuftaktRuntimePluginApi',
+  'AuftaktRuntimePluginApiVersion',
+  'AuftaktRuntimePluginModels',
+  'AuftaktRuntimePluginRegistration',
+  'EventHandle',
+  'EventHandleInput',
+  'LatestReadDriver',
+  'RELAY_LIST_FLOW',
+  'RELAY_METRICS_READ_MODEL',
+  'RelayCapabilityPacket',
+  'RelayCapabilitySnapshot',
+  'RelayHintsHandle',
+  'RelaySetHandle',
+  'RelaySetSubject',
+  'RetryableSignedEvent',
+  'UserHandle',
+  'UserHandleInput',
+  'buildRelaySetSnapshot',
+  'cachedFetchById',
+  'createEntityHandleFactories',
+  'createRelayListFlowPlugin',
+  'createRelayMetricsPlugin',
+  'fetchBackwardEvents',
+  'fetchBackwardFirst',
+  'fetchCustomEmojiCategories',
+  'fetchCustomEmojiSources',
+  'fetchFollowListSnapshot',
+  'fetchLatestEvent',
+  'fetchNostrEventById',
+  'fetchNotificationTargetPreview',
+  'fetchProfileCommentEvents',
+  'fetchProfileMetadataEvents',
+  'fetchProfileMetadataSources',
+  'fetchRelayListEvents',
+  'fetchRelayListSources',
+  'fetchWot',
+  'getAddressable',
+  'getEvent',
+  'getRelayHints',
+  'getRelaySet',
+  'getUser',
+  'invalidateFetchByIdCache',
+  'loadCommentSubscriptionDeps',
+  'observeRelayCapabilities',
+  'observeRelayStatuses',
+  'publishSignedEvent',
+  'publishSignedEvents',
+  'registerPlugin',
+  'repairEventsFromRelay',
+  'retryPendingPublishes',
+  'searchBookmarkDTagEvent',
+  'searchEpisodeBookmarkByGuid',
+  'setDefaultRelays',
+  'snapshotRelayCapabilities',
+  'snapshotRelayMetrics',
+  'snapshotRelayStatuses',
+  'subscribeNotificationStreams',
+  'useCachedLatest'
+] as const;
+
 function readPackageJson(): { exports?: Record<string, string | Record<string, string>> } {
   const raw = readFileSync(resolve(packageRoot, 'package.json'), 'utf8');
   return JSON.parse(raw) as { exports?: Record<string, string | Record<string, string>> };
@@ -18,147 +118,64 @@ function assertNoPublicSubpathLeakage(
   const exportKeys = Object.keys(exportsField);
   expect(exportKeys).toEqual(['.']);
 
-  for (const [key, value] of Object.entries(exportsField)) {
-    expect(key).toBe('.');
-
-    const target = typeof value === 'string' ? value : value.import;
-    expect(target).toBe('./src/index.ts');
-  }
+  const target =
+    typeof exportsField['.'] === 'string' ? exportsField['.'] : exportsField['.'].import;
+  expect(target).toBe('./src/index.ts');
 }
 
 describe('@auftakt/resonote public api contract', () => {
+  const rawNegentropyPacketName = new RegExp(`^${'NEG'}-(OPEN|MSG|CLOSE)$`);
+
   it('does not leak internal modules via package exports', () => {
     const pkg = readPackageJson();
     expect(pkg.exports).toBeDefined();
     assertNoPublicSubpathLeakage(pkg.exports!);
   });
 
-  it('does not expose raw request-style runtime API names', async () => {
+  it('exports only the minimal Resonote-specific value allowlist', async () => {
+    const mod = await import('@auftakt/resonote');
+
+    expect(Object.keys(mod).sort()).toEqual([...RESONOTE_VALUE_EXPORT_ALLOWLIST].sort());
+  });
+
+  it('keeps type-only exports on the documented Resonote allowlist', () => {
+    const source = readFileSync(packageIndexPath, 'utf8');
+
+    for (const name of RESONOTE_TYPE_EXPORT_ALLOWLIST) {
+      expect(source).toMatch(new RegExp(`\\b${name}\\b`));
+    }
+
+    for (const name of FORBIDDEN_ROOT_EXPORTS) {
+      expect(source).not.toMatch(new RegExp(`\\b${name}\\b`));
+    }
+  });
+
+  it('does not expose generic runtime or raw protocol names', async () => {
     const mod = await import('@auftakt/resonote');
     const exportNames = Object.keys(mod);
     const source = readFileSync(packageIndexPath, 'utf8');
-
-    expect(exportNames).toContain('createResonoteCoordinator');
-    expect(exportNames).toContain('registerPlugin');
-    expect(exportNames).toContain('RESONOTE_COORDINATOR_PLUGIN_API_VERSION');
-    expect(exportNames).not.toContain('ResonoteRuntime');
-    expect(source).toMatch(/\bEventHandle\b/);
-    expect(source).toMatch(/\bUserHandle\b/);
-    expect(source).toMatch(/\bAddressableHandle\b/);
-    expect(source).toMatch(/\bRelaySetHandle\b/);
-    expect(source).toMatch(/\bRelayHintsHandle\b/);
-
-    const forbidden = [
-      /^createRxBackwardReq$/,
-      /^createRxForwardReq$/,
-      /^getRxNostr$/,
-      /^useReq/i,
-      /^rawRequest/i,
-      /^relayRequest/i,
-      /^getRelayHints$/,
-      /^recordRelayHint$/,
-      /^buildReadRelayOverlay$/,
-      /^buildPublishRelaySendOptions$/
-    ];
+    const allowedRuntimeBridgeNames = new Set([
+      'buildCommentContentFilters',
+      'createResonoteCoordinator',
+      'startCommentDeletionReconcile',
+      'startCommentSubscription',
+      'startMergedCommentSubscription'
+    ]);
 
     for (const name of exportNames) {
-      for (const pattern of forbidden) {
-        expect(name).not.toMatch(pattern);
+      if (allowedRuntimeBridgeNames.has(name)) {
+        continue;
       }
-    }
-    expect(exportNames).toContain('createResonoteCoordinator');
-    expect(exportNames).not.toContain('buildReadRelayOverlay');
-    expect(exportNames).not.toContain('buildPublishRelaySendOptions');
-    expect(exportNames).not.toContain('RESONOTE_DEFAULT_RELAY_SELECTION_POLICY');
-    expect(exportNames).not.toContain('getEvent');
-    expect(exportNames).not.toContain('getUser');
-    expect(exportNames).not.toContain('getAddressable');
-    expect(exportNames).not.toContain('getRelaySet');
-    expect(exportNames).not.toContain('getRelayHints');
-    expect(exportNames).not.toContain('createEntityHandleFactories');
-    expect(exportNames).not.toContain('buildRelaySetSnapshot');
-  });
-
-  it('keeps package value exports on an explicit coordinator-owned allowlist', async () => {
-    const mod = await import('@auftakt/resonote');
-    const exportNames = Object.keys(mod).sort();
-
-    expect(exportNames).toEqual(
-      [
-        'RESONOTE_COORDINATOR_PLUGIN_API_VERSION',
-        'RESONOTE_PLAY_POSITION_SORT',
-        'buildCommentContentFilters',
-        'cachedFetchById',
-        'castSigned',
-        'createResonoteCoordinator',
-        'fetchCustomEmojiCategories',
-        'fetchCustomEmojiSources',
-        'fetchFollowListSnapshot',
-        'fetchLatestEvent',
-        'fetchNostrEventById',
-        'fetchNotificationTargetPreview',
-        'fetchProfileCommentEvents',
-        'fetchProfileMetadataEvents',
-        'fetchProfileMetadataSources',
-        'fetchRelayListEvents',
-        'fetchRelayListSources',
-        'fetchWot',
-        'getRelayConnectionState',
-        'getResonotePlayPositionMs',
-        'invalidateFetchByIdCache',
-        'loadCommentSubscriptionDeps',
-        'observeRelayCapabilities',
-        'observeRelayConnectionStates',
-        'observeRelayStatuses',
-        'publishSignedEvents',
-        'publishSignedEventsWithOfflineFallback',
-        'publishSignedEventWithOfflineFallback',
-        'registerPlugin',
-        'resonoteTimelineProjection',
-        'retryPendingPublishes',
-        'retryQueuedSignedPublishes',
-        'searchBookmarkDTagEvent',
-        'searchEpisodeBookmarkByGuid',
-        'setDefaultRelays',
-        'snapshotRelayCapabilities',
-        'snapshotRelayMetrics',
-        'snapshotRelayStatuses',
-        'sortResonoteTimelineByPlayPosition',
-        'startCommentDeletionReconcile',
-        'startCommentSubscription',
-        'startMergedCommentSubscription',
-        'subscribeNotificationStreams',
-        'useCachedLatest'
-      ].sort()
-    );
-  });
-
-  it('does not expose raw negentropy protocol names', async () => {
-    const mod = await import('@auftakt/resonote');
-    const exportNames = Object.keys(mod);
-
-    for (const name of exportNames) {
-      expect(name).not.toMatch(/^NEG-(OPEN|MSG|CLOSE)$/);
+      expect(name).not.toMatch(rawNegentropyPacketName);
       expect(name).not.toMatch(/^neg(Open|Msg|Close)$/);
+      expect(name).not.toMatch(/Relay(List|Metrics)/);
+      expect(name).not.toMatch(
+        /^(cached|fetch|publish|retry|observe|snapshot|setDefault|getEvent|getUser)/
+      );
+      expect(name).not.toMatch(/Coordinator|Handle|Runtime/);
     }
-  });
 
-  it('does not expose internal repair-facing runtime symbols from package root', async () => {
-    const mod = await import('@auftakt/resonote');
-    const exportNames = Object.keys(mod);
-    const source = readFileSync(packageIndexPath, 'utf8');
-
-    expect(source).toMatch(/\bResonoteCoordinator\b/);
-    expect(source).toMatch(/\bcreateResonoteCoordinator\b/);
-    expect(exportNames).not.toContain('repairEventsFromRelay');
-    expect(exportNames).not.toContain('fetchBackwardEvents');
-    expect(exportNames).not.toContain('fetchBackwardFirst');
-    expect(exportNames).not.toContain('publishSignedEvent');
-    expect(source).not.toMatch(/\brepairEventsFromRelay\b/);
-    expect(source).not.toMatch(/\bRelayRepairOptions\b/);
-    expect(source).not.toMatch(/\bRelayRepairResult\b/);
-    expect(source).not.toMatch(/\bcreatePluginRegistrationApi\b/);
-    expect(source).not.toMatch(/\bcommitPluginRegistrations\b/);
+    expect(source).not.toMatch(/\bNEG-[A-Z]+\b/);
   });
 
   it('exports projection metadata as data-only package surface', async () => {

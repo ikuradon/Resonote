@@ -1,6 +1,7 @@
 import { finalizeEvent } from '@auftakt/core';
-import { createResonoteCoordinator } from '@auftakt/resonote';
 import { describe, expect, it, vi } from 'vitest';
+
+import { createResonoteCoordinator } from './runtime.js';
 
 const RELAY_SECRET_KEY = new Uint8Array(32).fill(9);
 

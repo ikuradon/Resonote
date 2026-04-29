@@ -1,9 +1,10 @@
 import type { StoredEvent } from '@auftakt/core';
-import { createResonoteCoordinator } from '@auftakt/resonote';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
+
+import { createResonoteCoordinator } from './runtime.js';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const runtimeSourcePath = resolve(currentDir, 'runtime.ts');

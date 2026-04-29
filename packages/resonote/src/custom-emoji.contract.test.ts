@@ -1,4 +1,5 @@
-import type { EventStoreLike, QueryRuntime, StoredEvent } from '@auftakt/core';
+import type { StoredEvent } from '@auftakt/core';
+import type { EventStoreLike, QueryRuntime } from '@auftakt/runtime';
 import { describe, expect, it, vi } from 'vitest';
 
 import { fetchCustomEmojiCategories, fetchCustomEmojiSources } from './runtime.js';

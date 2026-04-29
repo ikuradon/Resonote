@@ -1,6 +1,5 @@
+import { createEventCoordinator } from '@auftakt/runtime';
 import { describe, expect, it, vi } from 'vitest';
-
-import { createEventCoordinator } from './event-coordinator.js';
 
 describe('EventCoordinator degraded storage', () => {
   it('does not claim durable settlement when store writes fail', async () => {

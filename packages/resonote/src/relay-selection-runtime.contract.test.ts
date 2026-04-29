@@ -1,15 +1,15 @@
 import type { RelaySelectionPolicyOptions, StoredEvent } from '@auftakt/core';
-import { describe, expect, it, vi } from 'vitest';
-
 import {
   buildPublishRelaySendOptions,
   buildReadRelayOverlay,
-  RESONOTE_DEFAULT_RELAY_SELECTION_POLICY
-} from './relay-selection-runtime.js';
+  DEFAULT_RELAY_SELECTION_POLICY
+} from '@auftakt/runtime';
+import { describe, expect, it, vi } from 'vitest';
+
 import { createResonoteCoordinator } from './runtime.js';
 
 const policy: RelaySelectionPolicyOptions = {
-  ...RESONOTE_DEFAULT_RELAY_SELECTION_POLICY,
+  ...DEFAULT_RELAY_SELECTION_POLICY,
   maxReadRelays: 4,
   maxWriteRelays: 4,
   maxTemporaryRelays: 2,
@@ -336,8 +336,8 @@ describe('resonote relay selection runtime', () => {
     });
   });
 
-  it('uses conservative outbox as the Resonote default policy', () => {
-    expect(RESONOTE_DEFAULT_RELAY_SELECTION_POLICY).toMatchObject({
+  it('uses conservative outbox as the runtime default policy', () => {
+    expect(DEFAULT_RELAY_SELECTION_POLICY).toMatchObject({
       strategy: 'conservative-outbox',
       maxReadRelays: 4,
       maxWriteRelays: 4,

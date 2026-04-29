@@ -1,17 +1,10 @@
 import type {
-  NamedRegistration,
-  NamedRegistrationRegistry,
   NegentropyTransportResult,
-  Nip66RelayDiscovery,
-  Nip66RelayMonitorAnnouncement,
   OrderedEventCursor,
-  ProjectionDefinition,
   ReadSettlement,
   ReadSettlementLocalProvenance,
   RelayCapabilityLearningEvent,
-  RelayCapabilityPacket,
   RelayCapabilityRecord,
-  RelayCapabilitySnapshot,
   RelayExecutionCapability,
   RelayObservationPacket,
   RelayObservationRuntime,
@@ -21,81 +14,90 @@ import type {
   RequestKey,
   StoredEvent
 } from '@auftakt/core';
-import { createNamedRegistrationRegistry, createProjectionRegistry } from '@auftakt/core';
 import {
-  buildRequestExecutionPlan,
-  cacheEvent,
-  calculateNip66RelayScore,
   createNegentropyRepairRequestKey,
   createRuntimeRequestKey,
+  filterNegentropyEventRefs,
+  type NegentropyEventRef,
+  parseNip65RelayListTags,
+  type ReconcileEmission,
+  reduceReadSettlement,
+  validateRelayEvent
+} from '@auftakt/core';
+import {
+  type AddressableHandle,
+  type AddressableHandleInput,
+  type AuftaktRuntimePlugin,
+  type AuftaktRuntimePluginRegistration,
+  buildPublishRelaySendOptions,
+  buildReadRelayOverlay,
+  buildRelaySetSnapshot,
+  cacheEvent,
+  createAuftaktRuntimeCoordinator,
+  createEventCoordinator,
+  createMaterializerQueue,
+  createRegistryBackedSessionRuntime,
+  createRelayCapabilityRegistry,
+  createRelayGateway,
+  DEFAULT_RELAY_SELECTION_POLICY as RESONOTE_DEFAULT_RELAY_SELECTION_POLICY,
+  type EntityHandleRuntime,
+  type EventHandle,
+  type EventHandleInput,
   type EventSubscriptionRefs as CommentSubscriptionRefs,
   fetchEventById,
   fetchFollowGraph,
   fetchLatestEventsForKinds,
+  fetchNip11RelayInformation,
   fetchReplaceableEventsByAuthorsAndKind,
-  filterNegentropyEventRefs,
   type LatestEventSnapshot,
   loadEventSubscriptionDeps,
-  type NegentropyEventRef,
-  NIP66_RELAY_DISCOVERY_KIND,
-  NIP66_RELAY_MONITOR_ANNOUNCEMENT_KIND,
   observeRelayStatuses as observeRelayStatusesImpl,
-  type OfflineDeliveryDecision,
-  parseNip65RelayListTags,
-  parseNip66RelayDiscoveryEvent,
-  parseNip66RelayMonitorAnnouncement,
+  type PendingPublishQueueRuntime,
+  type PublishHintRecorder,
+  type PublishRuntime,
+  publishSignedEventThroughCoordinator,
+  publishSignedEventWithOfflineFallback,
+  type PublishTransportOptions,
+  publishTransportRuntimeWithAcks,
   type QueryRuntime,
-  type ReconcileEmission,
-  reconcileNegentropyRepairSubjects,
-  reconcileReplayRepairSubjects,
-  reduceReadSettlement,
-  type RelayRequestLike,
-  type RelaySessionLike,
+  RELAY_LIST_KIND,
+  type RelayCapabilityPacket,
+  type RelayCapabilityRegistry,
+  type RelayCapabilitySnapshot,
+  type RelayCapabilityStore,
+  type RelayHintsHandle,
+  type RelayInformationDocument,
+  type RelayMetricSnapshot,
+  type RelaySetHandle,
+  type RelaySetSubject,
   REPAIR_REQUEST_COALESCING_SCOPE,
+  retryQueuedSignedPublishes,
   type SessionRuntime,
+  snapshotRelayMetricsFromStore,
   snapshotRelayStatuses as snapshotRelayStatusesImpl,
-  sortNegentropyEventRefsAsc,
   startBackfillAndLiveSubscription,
   startDeletionReconcile as startDeletionReconcileImpl,
   startMergedLiveSubscription,
   subscribeDualFilterStreams,
   type SubscriptionHandle,
-  type SubscriptionLike,
-  toOrderedEventCursor,
-  validateRelayEvent
-} from '@auftakt/core';
+  toRetryableSignedEvent,
+  type UserHandle,
+  type UserHandleInput
+} from '@auftakt/runtime';
+import { createRelayListFlowPlugin, RELAY_LIST_FLOW, type RelayListFlow } from '@auftakt/runtime';
 import type { EventParameters } from 'nostr-typedef';
 import { Observable } from 'rxjs';
 
-import {
-  type AddressableHandle,
-  type AddressableHandleInput,
-  buildRelaySetSnapshot,
-  createEntityHandleFactories,
-  type EntityHandleRuntime,
-  type EventHandle,
-  type EventHandleInput,
-  type RelayHintsHandle,
-  type RelaySetHandle,
-  type RelaySetSubject,
-  type UserHandle,
-  type UserHandleInput
-} from './entity-handles.js';
-import { createEventCoordinator } from './event-coordinator.js';
 import { ingestRelayEvent, type QuarantineRecord } from './event-ingress.js';
-import { createMaterializerQueue } from './materializer-queue.js';
 import {
   type CommentsFlow,
   type ContentResolutionFlow,
   createEmojiCatalogPlugin,
   createNotificationsFlowPlugin,
-  createRelayListFlowPlugin,
   EMOJI_CATALOG_READ_MODEL,
   type EmojiCatalogReadModel,
   NOTIFICATIONS_FLOW,
-  type NotificationsFlow,
-  RELAY_LIST_FLOW,
-  type RelayListFlow
+  type NotificationsFlow
 } from './plugins/built-in-plugins.js';
 import {
   COMMENTS_FLOW,
@@ -104,21 +106,6 @@ import {
   createResonoteContentResolutionFlowPlugin
 } from './plugins/resonote-flows.js';
 import { createTimelinePlugin } from './plugins/timeline-plugin.js';
-import {
-  createRelayCapabilityRegistry,
-  fetchNip11RelayInformation,
-  type RelayCapabilityRegistry,
-  type RelayCapabilityStore,
-  type RelayInformationDocument
-} from './relay-capability-registry.js';
-import { createRelayGateway } from './relay-gateway.js';
-import {
-  buildPublishRelaySendOptions,
-  buildReadRelayOverlay,
-  type PublishRelaySendOptions,
-  RELAY_LIST_KIND,
-  RESONOTE_DEFAULT_RELAY_SELECTION_POLICY
-} from './relay-selection-runtime.js';
 
 export type { CommentSubscriptionRefs, SubscriptionHandle };
 export type {
@@ -138,8 +125,8 @@ export type {
   UserHandle,
   UserHandleInput,
   UserProfileReadResult
-} from './entity-handles.js';
-export type { RelayCapabilityPacket, RelayCapabilitySnapshot } from '@auftakt/core';
+} from '@auftakt/runtime';
+export type { RelayCapabilityPacket, RelayCapabilitySnapshot } from '@auftakt/runtime';
 
 type RuntimeFilter = Record<string, unknown>;
 
@@ -152,23 +139,6 @@ export interface FetchBackwardOptions {
   readonly overlay?: RelayReadOverlayOptions;
   readonly timeoutMs?: number;
   readonly rejectOnError?: boolean;
-}
-
-export interface RelayMetricSnapshot {
-  readonly relayUrl: string;
-  readonly monitorPubkey: string;
-  readonly score: number;
-  readonly updatedAt: number;
-  readonly supportedNips: readonly number[];
-  readonly requirements: readonly string[];
-  readonly networkTypes: readonly string[];
-  readonly relayTypes: readonly string[];
-  readonly topics: readonly string[];
-  readonly geohashes: readonly string[];
-  readonly rttOpenMs: number | null;
-  readonly rttReadMs: number | null;
-  readonly rttWriteMs: number | null;
-  readonly monitorAnnouncement: Nip66RelayMonitorAnnouncement | null;
 }
 
 export interface CachedFetchByIdRuntime<TResult> {
@@ -260,436 +230,11 @@ interface LatestReadState<TEvent extends StoredEvent = StoredEvent> {
   readonly listeners: Set<() => void>;
 }
 
-interface RegistryRelayUseOptions {
-  readonly on?: {
-    readonly relays?: readonly string[];
-    readonly defaultReadRelays?: boolean;
-  };
-}
-
-interface RegistryManagedRelayRequest extends RelayRequestLike {
-  readonly mode: 'backward' | 'forward';
-  readonly requestKey?: RequestKey;
-  readonly filters: RuntimeFilter[];
-  readonly closed: boolean;
-  onChange(listener: () => void): () => void;
-}
-
-interface RegistryObserver {
-  next?(packet: unknown): void;
-  error?(error: unknown): void;
-  complete?(): void;
-}
-
-interface RegistryConsumer {
-  readonly observer: RegistryObserver;
-  entryKey: string | null;
-}
-
-interface SharedSubscriptionEntry {
-  readonly entryKey: string;
-  readonly mode: 'backward' | 'forward';
-  readonly filters: RuntimeFilter[];
-  readonly useOptions?: RegistryRelayUseOptions;
-  readonly transportRequest: RelayRequestLike;
-  readonly consumers: Set<RegistryConsumer>;
-  consumerCount: number;
-  transportSubscription: SubscriptionLike | null;
-  starting: boolean;
-  completed: boolean;
-}
-
 const NULL_CACHE_TTL_MS = 30_000;
 
 const cachedFetchStates = new WeakMap<CoordinatorReadRuntime, CachedFetchState>();
-const subscriptionRegistries = new WeakMap<
-  SessionRuntime<StoredEvent>,
-  Map<string, CoordinatorSubscriptionRegistry>
->();
 
-const unsupportedNegentropyRelaysByRuntime = new WeakMap<object, Set<string>>();
 const capabilitySubscribedSessions = new WeakSet<object>();
-
-function isRegistryManagedRelayRequest(
-  value: RelayRequestLike
-): value is RegistryManagedRelayRequest {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'mode' in value &&
-    'filters' in value &&
-    'closed' in value &&
-    'onChange' in value
-  );
-}
-
-function cloneRuntimeFilters(filters: readonly RuntimeFilter[]): RuntimeFilter[] {
-  return filters.map((filter) => ({ ...filter }));
-}
-
-function cloneRegistryUseOptions(
-  options?: RegistryRelayUseOptions
-): RegistryRelayUseOptions | undefined {
-  if (!options?.on) return undefined;
-  return {
-    on: {
-      relays: options.on.relays ? [...options.on.relays] : undefined,
-      defaultReadRelays: options.on.defaultReadRelays
-    }
-  };
-}
-
-function buildRegistryOverlay(
-  options?: RegistryRelayUseOptions
-): RelayReadOverlayOptions | undefined {
-  if (!options?.on) return undefined;
-  return {
-    relays: [...(options.on.relays ?? [])],
-    includeDefaultReadRelays: options.on.defaultReadRelays
-  };
-}
-
-function buildSharedSubscriptionEntryKey(
-  request: RegistryManagedRelayRequest,
-  options?: RegistryRelayUseOptions
-): string {
-  return buildRequestExecutionPlan({
-    requestKey: request.requestKey as RequestKey,
-    coalescingScope: request.coalescingScope,
-    mode: request.mode,
-    filters: request.filters,
-    overlay: buildRegistryOverlay(options)
-  }).logicalKey;
-}
-
-class CoordinatorSubscriptionRegistry {
-  private readonly entries = new Map<string, SharedSubscriptionEntry>();
-  private rawSessionPromise: Promise<RelaySessionLike> | null = null;
-
-  constructor(
-    private readonly runtime: SessionRuntime<StoredEvent>,
-    private readonly relaySelectionPolicy: RelaySelectionPolicyOptions = RESONOTE_DEFAULT_RELAY_SELECTION_POLICY
-  ) {}
-
-  createRelaySession(): RelaySessionLike {
-    return {
-      use: (req, options) => this.use(req, options as RegistryRelayUseOptions | undefined)
-    };
-  }
-
-  private getRawSession(): Promise<RelaySessionLike> {
-    if (!this.rawSessionPromise) {
-      this.rawSessionPromise = this.runtime.getRxNostr();
-    }
-    return this.rawSessionPromise;
-  }
-
-  private use(req: RelayRequestLike, options?: RegistryRelayUseOptions): Observable<unknown> {
-    return new Observable<unknown>((observer) => {
-      const managedRequest = isRegistryManagedRelayRequest(req) ? req : null;
-      let disposed = false;
-      let off = () => {};
-      let rawSubscription: SubscriptionLike | null = null;
-      let forwardFlushQueued = false;
-      const consumer: RegistryConsumer = {
-        observer,
-        entryKey: null
-      };
-
-      const attachToRawSession = () => {
-        void this.getRawSession()
-          .then((session) => {
-            if (disposed) return;
-            rawSubscription = session.use(req, options).subscribe(observer);
-          })
-          .catch((error) => {
-            observer.error?.(error);
-          });
-      };
-
-      const syncConsumerEntry = () => {
-        if (disposed) return;
-        if (!managedRequest) {
-          attachToRawSession();
-          return;
-        }
-        if (!managedRequest.requestKey) {
-          observer.error?.(
-            new Error(
-              `Relay request is missing canonical requestKey for ${managedRequest.mode} mode`
-            )
-          );
-          return;
-        }
-        if (managedRequest.filters.length === 0) {
-          this.detachConsumer(consumer);
-          return;
-        }
-        if (managedRequest.mode === 'backward' && !managedRequest.closed) {
-          return;
-        }
-
-        const entryKey = buildSharedSubscriptionEntryKey(managedRequest, options);
-        if (consumer.entryKey === entryKey) return;
-
-        this.detachConsumer(consumer);
-        const entry = this.getOrCreateEntry(entryKey, managedRequest, options);
-        if (!entry.consumers.has(consumer)) {
-          entry.consumers.add(consumer);
-          entry.consumerCount += 1;
-        }
-        consumer.entryKey = entryKey;
-        this.ensureEntryStarted(entry);
-      };
-
-      const handleRequestChange = () => {
-        if (!managedRequest) return;
-        if (managedRequest.mode === 'backward') {
-          syncConsumerEntry();
-          return;
-        }
-        if (forwardFlushQueued) return;
-        forwardFlushQueued = true;
-        queueMicrotask(() => {
-          forwardFlushQueued = false;
-          syncConsumerEntry();
-        });
-      };
-
-      if (managedRequest) {
-        off = managedRequest.onChange(handleRequestChange);
-        handleRequestChange();
-      } else {
-        attachToRawSession();
-      }
-
-      return () => {
-        disposed = true;
-        off();
-        rawSubscription?.unsubscribe();
-        this.detachConsumer(consumer);
-      };
-    });
-  }
-
-  private getOrCreateEntry(
-    entryKey: string,
-    request: RegistryManagedRelayRequest,
-    options?: RegistryRelayUseOptions
-  ): SharedSubscriptionEntry {
-    const existing = this.entries.get(entryKey);
-    if (existing) return existing;
-
-    const transportRequest =
-      request.mode === 'backward'
-        ? this.runtime.createRxBackwardReq({
-            requestKey: request.requestKey,
-            coalescingScope: request.coalescingScope
-          })
-        : this.runtime.createRxForwardReq({
-            requestKey: request.requestKey,
-            coalescingScope: request.coalescingScope
-          });
-    const entry: SharedSubscriptionEntry = {
-      entryKey,
-      mode: request.mode,
-      filters: cloneRuntimeFilters(request.filters),
-      useOptions: cloneRegistryUseOptions(options),
-      transportRequest,
-      consumers: new Set(),
-      consumerCount: 0,
-      transportSubscription: null,
-      starting: false,
-      completed: false
-    };
-    this.entries.set(entryKey, entry);
-    return entry;
-  }
-
-  private ensureEntryStarted(entry: SharedSubscriptionEntry): void {
-    if (entry.starting || entry.transportSubscription || entry.completed) {
-      return;
-    }
-    entry.starting = true;
-
-    void this.getRawSession()
-      .then(async (session) => {
-        if (!this.entries.has(entry.entryKey) || entry.consumerCount === 0) {
-          return;
-        }
-
-        const resolvedUseOptions = entry.useOptions ?? (await this.resolveUseOptions(entry));
-
-        entry.transportSubscription = session
-          .use(entry.transportRequest, resolvedUseOptions)
-          .subscribe({
-            next: (packet) => {
-              for (const consumer of entry.consumers) {
-                consumer.observer.next?.(packet);
-              }
-            },
-            error: (error) => {
-              for (const consumer of entry.consumers) {
-                consumer.entryKey = null;
-                consumer.observer.error?.(error);
-              }
-              this.finishEntry(entry.entryKey);
-            },
-            complete: () => {
-              for (const consumer of entry.consumers) {
-                consumer.entryKey = null;
-                consumer.observer.complete?.();
-              }
-              this.finishEntry(entry.entryKey);
-            }
-          });
-
-        for (const filter of entry.filters) {
-          entry.transportRequest.emit(filter);
-        }
-        if (entry.mode === 'backward') {
-          entry.transportRequest.over();
-        }
-      })
-      .catch((error) => {
-        for (const consumer of entry.consumers) {
-          consumer.entryKey = null;
-          consumer.observer.error?.(error);
-        }
-        this.finishEntry(entry.entryKey);
-      })
-      .finally(() => {
-        entry.starting = false;
-      });
-  }
-
-  private async resolveUseOptions(
-    entry: SharedSubscriptionEntry
-  ): Promise<RegistryRelayUseOptions | undefined> {
-    const overlay = await buildReadRelayOverlay(this.runtime, {
-      intent: 'subscribe',
-      filters: entry.filters,
-      policy: this.relaySelectionPolicy
-    });
-
-    if (!overlay) return undefined;
-    return {
-      on: {
-        relays: overlay.relays,
-        defaultReadRelays: overlay.includeDefaultReadRelays ?? false
-      }
-    };
-  }
-
-  private detachConsumer(consumer: RegistryConsumer): void {
-    const entryKey = consumer.entryKey;
-    consumer.entryKey = null;
-    if (!entryKey) return;
-
-    const entry = this.entries.get(entryKey);
-    if (!entry) return;
-
-    if (entry.consumers.delete(consumer)) {
-      entry.consumerCount = Math.max(0, entry.consumerCount - 1);
-    }
-    if (entry.consumerCount === 0) {
-      entry.transportSubscription?.unsubscribe();
-      this.finishEntry(entryKey);
-    }
-  }
-
-  private finishEntry(entryKey: string): void {
-    const entry = this.entries.get(entryKey);
-    if (!entry) return;
-    entry.completed = true;
-    entry.transportSubscription = null;
-    entry.consumerCount = 0;
-    entry.consumers.clear();
-    this.entries.delete(entryKey);
-  }
-}
-
-function getCoordinatorSubscriptionRegistry(
-  runtime: SessionRuntime<StoredEvent>,
-  relaySelectionPolicy: RelaySelectionPolicyOptions = RESONOTE_DEFAULT_RELAY_SELECTION_POLICY
-): CoordinatorSubscriptionRegistry {
-  const policyKey = relaySelectionPolicyRegistryKey(relaySelectionPolicy);
-  const byPolicy =
-    subscriptionRegistries.get(runtime) ?? new Map<string, CoordinatorSubscriptionRegistry>();
-  const existing = byPolicy.get(policyKey);
-  if (existing) return existing;
-
-  const registry = new CoordinatorSubscriptionRegistry(runtime, relaySelectionPolicy);
-  byPolicy.set(policyKey, registry);
-  subscriptionRegistries.set(runtime, byPolicy);
-  return registry;
-}
-
-function relaySelectionPolicyRegistryKey(policy: RelaySelectionPolicyOptions): string {
-  return JSON.stringify({
-    strategy: policy.strategy,
-    maxReadRelays: policy.maxReadRelays ?? null,
-    maxWriteRelays: policy.maxWriteRelays ?? null,
-    maxTemporaryRelays: policy.maxTemporaryRelays ?? null,
-    maxAudienceRelays: policy.maxAudienceRelays ?? null,
-    includeDefaultFallback: policy.includeDefaultFallback ?? null,
-    allowTemporaryHints: policy.allowTemporaryHints ?? null,
-    includeDurableHints: policy.includeDurableHints ?? null,
-    includeAudienceRelays: policy.includeAudienceRelays ?? null
-  });
-}
-
-function createRegistryBackedSessionRuntime(
-  runtime: SessionRuntime<StoredEvent>,
-  relaySelectionPolicy: RelaySelectionPolicyOptions = RESONOTE_DEFAULT_RELAY_SELECTION_POLICY
-): SessionRuntime<StoredEvent> {
-  const registry = getCoordinatorSubscriptionRegistry(runtime, relaySelectionPolicy);
-  return {
-    fetchBackwardEvents: <TOutput = StoredEvent>(
-      filters: readonly RuntimeFilter[],
-      options?: FetchBackwardOptions
-    ) =>
-      fetchBackwardEventsFromReadRuntime<TOutput>(
-        runtime as unknown as CoordinatorReadRuntime,
-        filters,
-        options,
-        relaySelectionPolicy
-      ),
-    fetchBackwardFirst: async <TOutput = StoredEvent>(
-      filters: readonly RuntimeFilter[],
-      options?: FetchBackwardOptions
-    ) => {
-      const events = await fetchBackwardEventsFromReadRuntime<TOutput>(
-        runtime as unknown as CoordinatorReadRuntime,
-        filters,
-        options,
-        relaySelectionPolicy
-      );
-      return events.at(-1) ?? null;
-    },
-    fetchLatestEvent: (...args) => runtime.fetchLatestEvent(...args),
-    getEventsDB: () => runtime.getEventsDB(),
-    getRxNostr: async () => {
-      const rawSession = (await runtime.getRxNostr()) as Partial<NegentropySessionRuntime>;
-      const registrySession = registry.createRelaySession();
-
-      return {
-        use: (req, options) => registrySession.use(req, options),
-        requestNegentropySync:
-          typeof rawSession.requestNegentropySync === 'function'
-            ? rawSession.requestNegentropySync.bind(rawSession)
-            : async () => ({ capability: 'unsupported' as const })
-      };
-    },
-    createRxBackwardReq: (options) => runtime.createRxBackwardReq(options),
-    createRxForwardReq: (options) => runtime.createRxForwardReq(options),
-    uniq: () => runtime.uniq(),
-    merge: (...streams) => runtime.merge(...streams),
-    getRelayConnectionState: (url) => runtime.getRelayConnectionState(url),
-    observeRelayConnectionStates: (onPacket) => runtime.observeRelayConnectionStates(onPacket)
-  };
-}
-
 function createMaterializedSubscriptionRuntime(
   runtime: SessionRuntime<StoredEvent>
 ): SessionRuntime<StoredEvent> {
@@ -813,23 +358,6 @@ function getCachedFetchState(runtime: CoordinatorReadRuntime): CachedFetchState 
   };
   cachedFetchStates.set(runtime, state);
   return state;
-}
-
-function getUnsupportedNegentropyRelayCache(runtime: object): Set<string> {
-  const existing = unsupportedNegentropyRelaysByRuntime.get(runtime);
-  if (existing) return existing;
-
-  const relays = new Set<string>();
-  unsupportedNegentropyRelaysByRuntime.set(runtime, relays);
-  return relays;
-}
-
-function cacheUnsupportedNegentropyRelay(runtime: object, relayUrl: string): void {
-  getUnsupportedNegentropyRelayCache(runtime).add(relayUrl);
-}
-
-function isNegentropyRelayUnsupported(runtime: object, relayUrl: string): boolean {
-  return getUnsupportedNegentropyRelayCache(runtime).has(relayUrl);
 }
 
 function isCoordinatorReadRuntime(value: unknown): value is CoordinatorReadRuntime {
@@ -1714,43 +1242,6 @@ export interface RelayCapabilityRuntime {
   fetchRelayInformation?(relayUrl: string): Promise<RelayInformationDocument>;
 }
 
-export type ResonoteCoordinatorPluginApiVersion = 'v1';
-
-export interface ResonoteCoordinatorPluginModels {
-  getEvent(input: EventHandleInput): EventHandle;
-  getUser(input: UserHandleInput): UserHandle;
-  getAddressable(input: AddressableHandleInput): AddressableHandle;
-  getRelaySet(subject: RelaySetSubject): RelaySetHandle;
-  getRelayHints(eventId: string): RelayHintsHandle;
-}
-
-export interface ResonoteCoordinatorPluginApi {
-  readonly apiVersion: ResonoteCoordinatorPluginApiVersion;
-  readonly models: ResonoteCoordinatorPluginModels;
-  registerProjection(definition: ProjectionDefinition): void;
-  registerReadModel<TReadModel>(name: string, readModel: TReadModel): void;
-  registerFlow<TFlow>(name: string, flow: TFlow): void;
-}
-
-export interface ResonoteCoordinatorPlugin {
-  readonly name: string;
-  readonly apiVersion: ResonoteCoordinatorPluginApiVersion;
-  setup(api: ResonoteCoordinatorPluginApi): void | Promise<void>;
-}
-
-export interface ResonoteCoordinatorPluginRegistration {
-  readonly pluginName: string;
-  readonly apiVersion: ResonoteCoordinatorPluginApiVersion;
-  readonly enabled: boolean;
-  readonly error?: Error;
-}
-
-interface PendingPluginRegistrations {
-  readonly projections: ProjectionDefinition[];
-  readonly readModels: Array<NamedRegistration>;
-  readonly flows: Array<NamedRegistration>;
-}
-
 export interface ResonoteCoordinator<TResult = unknown, TLatestResult = unknown> {
   fetchBackwardEvents<TEvent>(
     filters: readonly Record<string, unknown>[],
@@ -1882,7 +1373,7 @@ export interface ResonoteCoordinator<TResult = unknown, TLatestResult = unknown>
       content: string;
     }>;
   }>;
-  registerPlugin(plugin: ResonoteCoordinatorPlugin): Promise<ResonoteCoordinatorPluginRegistration>;
+  registerPlugin(plugin: AuftaktRuntimePlugin): Promise<AuftaktRuntimePluginRegistration>;
 }
 
 export interface CreateResonoteCoordinatorOptions<TResult, TLatestResult> {
@@ -1901,88 +1392,6 @@ export interface CreateResonoteCoordinatorOptions<TResult, TLatestResult> {
     EntityHandleRuntime,
     'read' | 'snapshotRelaySet' | 'isDeleted'
   >;
-}
-
-export type PublishTransportOptions = PublishRelaySendOptions;
-
-export interface PublishRuntime {
-  castSigned(params: EventParameters, options?: PublishTransportOptions): Promise<void>;
-  observePublishAcks?(
-    event: RetryableSignedEvent,
-    onAck: (packet: PublishAckPacket) => Promise<void> | void
-  ): Promise<void>;
-  retryPendingPublishes(): Promise<void>;
-  publishSignedEvent(params: EventParameters): Promise<void>;
-  publishSignedEvents(params: EventParameters[]): Promise<void>;
-}
-
-export interface PublishAckPacket {
-  readonly eventId: string;
-  readonly relayUrl: string;
-  readonly ok: boolean;
-}
-
-export interface PublishHintRecorder {
-  recordRelayHint(hint: {
-    readonly eventId: string;
-    readonly relayUrl: string;
-    readonly source: 'published';
-    readonly lastSeenAt: number;
-  }): Promise<void>;
-}
-
-export interface RetryableSignedEvent extends StoredEvent {
-  readonly sig: string;
-}
-
-export interface PendingDrainResult {
-  readonly emissions: ReconcileEmission[];
-  readonly settledCount: number;
-  readonly retryingCount: number;
-}
-
-export interface PendingPublishQueueRuntime {
-  addPendingPublish(event: RetryableSignedEvent): Promise<void>;
-  drainPendingPublishes(
-    deliver: (event: RetryableSignedEvent) => Promise<OfflineDeliveryDecision>
-  ): Promise<PendingDrainResult>;
-}
-
-interface CoordinatorPublishStore {
-  getById(id: string): Promise<StoredEvent | null>;
-  putWithReconcile(event: StoredEvent): Promise<unknown>;
-  recordRelayHint?(hint: {
-    readonly eventId: string;
-    readonly relayUrl: string;
-    readonly source: 'seen' | 'hinted' | 'published' | 'repaired';
-    readonly lastSeenAt: number;
-  }): Promise<void>;
-}
-
-export interface CoordinatorSignedPublishRuntime {
-  readonly event: RetryableSignedEvent;
-  readonly options?: PublishTransportOptions;
-  readonly openStore: () => Promise<CoordinatorPublishStore>;
-  readonly publish: (
-    event: RetryableSignedEvent,
-    handlers: { readonly onAck: (packet: PublishAckPacket) => Promise<void> | void },
-    options?: PublishTransportOptions
-  ) => Promise<void>;
-  readonly addPendingPublish: (event: RetryableSignedEvent) => Promise<void>;
-}
-
-export interface RelayRepairOptions {
-  readonly filters: readonly RuntimeFilter[];
-  readonly relayUrl: string;
-  readonly timeoutMs?: number;
-}
-
-export interface RelayRepairResult {
-  readonly strategy: 'negentropy' | 'fallback';
-  readonly capability: NegentropyTransportResult['capability'];
-  readonly repairedIds: string[];
-  readonly materializationEmissions: ReconcileEmission[];
-  readonly repairEmissions: ReconcileEmission[];
 }
 
 interface NegentropySessionRuntime {
@@ -2060,85 +1469,6 @@ interface NotificationStreamHandlers {
   onMentionPacket(packet: { event: StoredEvent; from?: string }): void;
   onFollowCommentPacket(packet: { event: StoredEvent; from?: string }): void;
   onError(error: unknown): void;
-}
-
-export const RESONOTE_COORDINATOR_PLUGIN_API_VERSION: ResonoteCoordinatorPluginApiVersion = 'v1';
-
-function normalizePluginError(error: unknown): Error {
-  if (error instanceof Error) return error;
-  return new Error(typeof error === 'string' ? error : 'Plugin registration failed');
-}
-
-function createPendingPluginRegistrations(): PendingPluginRegistrations {
-  return {
-    projections: [],
-    readModels: [],
-    flows: []
-  };
-}
-
-function createPluginRegistrationApi(
-  pending: PendingPluginRegistrations,
-  models: ResonoteCoordinatorPluginModels
-): ResonoteCoordinatorPluginApi {
-  return {
-    apiVersion: RESONOTE_COORDINATOR_PLUGIN_API_VERSION,
-    models,
-    registerProjection(definition) {
-      pending.projections.push(definition);
-    },
-    registerReadModel(name, readModel) {
-      pending.readModels.push({ name, value: readModel });
-    },
-    registerFlow(name, flow) {
-      pending.flows.push({ name, value: flow });
-    }
-  };
-}
-
-function commitPluginRegistrations(
-  projectionRegistry: ReturnType<typeof createProjectionRegistry>,
-  readModelRegistry: NamedRegistrationRegistry,
-  flowRegistry: NamedRegistrationRegistry,
-  pending: PendingPluginRegistrations
-): void {
-  for (const definition of pending.projections) {
-    projectionRegistry.register(definition);
-  }
-  for (const registration of pending.readModels) {
-    readModelRegistry.register(registration);
-  }
-  for (const registration of pending.flows) {
-    flowRegistry.register(registration);
-  }
-}
-
-function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'then' in value &&
-    typeof (value as { then?: unknown }).then === 'function'
-  );
-}
-
-function getRegisteredReadModel<TReadModel>(
-  registry: NamedRegistrationRegistry,
-  name: string
-): TReadModel {
-  const registration = registry.get(name);
-  if (!registration) {
-    throw new Error(`Read model is not registered: ${name}`);
-  }
-  return registration.value as TReadModel;
-}
-
-function getRegisteredFlow<TFlow>(registry: NamedRegistrationRegistry, name: string): TFlow {
-  const registration = registry.get(name);
-  if (!registration) {
-    throw new Error(`Flow is not registered: ${name}`);
-  }
-  return registration.value as TFlow;
 }
 
 interface RelayCapabilitySession {
@@ -2280,23 +1610,44 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
     getEventsDB: () => runtime.getEventsDB()
   };
   const sessionRuntime = runtime as unknown as SessionRuntime<StoredEvent>;
-  const registrySessionRuntime = createRegistryBackedSessionRuntime(
-    sessionRuntime,
-    relaySelectionPolicy
-  );
+  const registrySessionRuntime = createRegistryBackedSessionRuntime(sessionRuntime, {
+    registryKey: JSON.stringify({
+      strategy: relaySelectionPolicy.strategy,
+      maxReadRelays: relaySelectionPolicy.maxReadRelays ?? null,
+      maxWriteRelays: relaySelectionPolicy.maxWriteRelays ?? null,
+      maxTemporaryRelays: relaySelectionPolicy.maxTemporaryRelays ?? null,
+      maxAudienceRelays: relaySelectionPolicy.maxAudienceRelays ?? null,
+      includeDefaultFallback: relaySelectionPolicy.includeDefaultFallback ?? null,
+      allowTemporaryHints: relaySelectionPolicy.allowTemporaryHints ?? null,
+      includeDurableHints: relaySelectionPolicy.includeDurableHints ?? null,
+      includeAudienceRelays: relaySelectionPolicy.includeAudienceRelays ?? null
+    }),
+    queryRuntime,
+    resolveUseOptions: async (entry) => {
+      const overlay = await buildReadRelayOverlay(runtime, {
+        intent: 'subscribe',
+        filters: entry.filters,
+        policy: relaySelectionPolicy
+      });
+      if (!overlay) return undefined;
+      return {
+        on: {
+          relays: overlay.relays,
+          defaultReadRelays: overlay.includeDefaultReadRelays ?? false
+        }
+      };
+    }
+  });
   const materializedSubscriptionRuntime =
     createMaterializedSubscriptionRuntime(registrySessionRuntime);
   const relayObservationRuntime = registrySessionRuntime as RelayObservationRuntime;
-  const projectionRegistry = createProjectionRegistry();
-  const readModelRegistry = createNamedRegistrationRegistry('Read model');
-  const flowRegistry = createNamedRegistrationRegistry('Flow');
   const memoryRelayCapabilityStore = createMemoryRelayCapabilityStore();
   const relayCapabilityRegistry = createRelayCapabilityRegistry({
     openStore: () => openRelayCapabilityStore(runtime, memoryRelayCapabilityStore),
     fetchRelayInformation:
       relayCapabilityRuntime?.fetchRelayInformation ?? fetchNip11RelayInformation
   });
-  const entityHandles = createEntityHandleFactories({
+  const entityHandleRuntimeForCoordinator: EntityHandleRuntime = {
     read:
       entityHandleRuntime?.read ??
       (async (filters, options, temporaryRelays) => {
@@ -2333,66 +1684,6 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
           candidates
         });
       })
-  });
-
-  const registerPlugin = async (
-    plugin: ResonoteCoordinatorPlugin
-  ): Promise<ResonoteCoordinatorPluginRegistration> => {
-    const pending = createPendingPluginRegistrations();
-
-    try {
-      if (plugin.apiVersion !== RESONOTE_COORDINATOR_PLUGIN_API_VERSION) {
-        throw new Error(`Unsupported plugin API version for ${plugin.name}: ${plugin.apiVersion}`);
-      }
-
-      await plugin.setup(createPluginRegistrationApi(pending, entityHandles));
-      commitPluginRegistrations(projectionRegistry, readModelRegistry, flowRegistry, pending);
-
-      return {
-        pluginName: plugin.name,
-        apiVersion: RESONOTE_COORDINATOR_PLUGIN_API_VERSION,
-        enabled: true
-      };
-    } catch (error) {
-      return {
-        pluginName: plugin.name,
-        apiVersion: RESONOTE_COORDINATOR_PLUGIN_API_VERSION,
-        enabled: false,
-        error: normalizePluginError(error)
-      };
-    }
-  };
-
-  const registerPluginSynchronously = (
-    plugin: ResonoteCoordinatorPlugin
-  ): ResonoteCoordinatorPluginRegistration => {
-    const pending = createPendingPluginRegistrations();
-
-    try {
-      if (plugin.apiVersion !== RESONOTE_COORDINATOR_PLUGIN_API_VERSION) {
-        throw new Error(`Unsupported plugin API version for ${plugin.name}: ${plugin.apiVersion}`);
-      }
-
-      const setupResult = plugin.setup(createPluginRegistrationApi(pending, entityHandles));
-      if (isPromiseLike(setupResult)) {
-        throw new Error(`Built-in plugin setup must be synchronous: ${plugin.name}`);
-      }
-
-      commitPluginRegistrations(projectionRegistry, readModelRegistry, flowRegistry, pending);
-
-      return {
-        pluginName: plugin.name,
-        apiVersion: RESONOTE_COORDINATOR_PLUGIN_API_VERSION,
-        enabled: true
-      };
-    } catch (error) {
-      return {
-        pluginName: plugin.name,
-        apiVersion: RESONOTE_COORDINATOR_PLUGIN_API_VERSION,
-        enabled: false,
-        error: normalizePluginError(error)
-      };
-    }
   };
 
   const fetchCustomEmojiSourcesFromRuntime = async (pubkey: string) => {
@@ -2485,7 +1776,7 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
     );
   };
 
-  const builtInPlugins: ResonoteCoordinatorPlugin[] = [
+  const builtInPlugins: AuftaktRuntimePlugin[] = [
     createTimelinePlugin(),
     createEmojiCatalogPlugin({
       fetchCustomEmojiSources: (pubkey) => fetchCustomEmojiSourcesFromRuntime(pubkey),
@@ -2574,12 +1865,10 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
     })
   ];
 
-  for (const plugin of builtInPlugins) {
-    const registration = registerPluginSynchronously(plugin);
-    if (!registration.enabled) {
-      throw registration.error ?? new Error(`Failed to register built-in plugin: ${plugin.name}`);
-    }
-  }
+  const runtimeCoordinator = createAuftaktRuntimeCoordinator({
+    entityHandleRuntime: entityHandleRuntimeForCoordinator,
+    builtInPlugins
+  });
 
   const publishHintRecorder: PublishHintRecorder = {
     recordRelayHint: async (hint) => {
@@ -2659,11 +1948,11 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
     },
     observeRelayConnectionStates: (onPacket) =>
       observeRelayStatusesImpl(relayObservationRuntime, onPacket),
-    getEvent: entityHandles.getEvent,
-    getUser: entityHandles.getUser,
-    getAddressable: entityHandles.getAddressable,
-    getRelaySet: entityHandles.getRelaySet,
-    getRelayHints: entityHandles.getRelayHints,
+    getEvent: runtimeCoordinator.getEvent,
+    getUser: runtimeCoordinator.getUser,
+    getAddressable: runtimeCoordinator.getAddressable,
+    getRelaySet: runtimeCoordinator.getRelaySet,
+    getRelayHints: runtimeCoordinator.getRelayHints,
     readCommentEventsByTag: async (tagQuery) => {
       const db = await runtime.getEventsDB();
       return db.getByTagValue(tagQuery);
@@ -2720,25 +2009,21 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
     fetchProfileMetadataSources: (pubkeys, batchSize = 50) =>
       fetchProfileMetadataSources(queryRuntime, relayStatusRuntime, pubkeys, batchSize),
     fetchCustomEmojiSources: (pubkey) =>
-      getRegisteredReadModel<EmojiCatalogReadModel>(
-        readModelRegistry,
-        EMOJI_CATALOG_READ_MODEL
-      ).fetchCustomEmojiSources(pubkey),
+      runtimeCoordinator
+        .getReadModel<EmojiCatalogReadModel>(EMOJI_CATALOG_READ_MODEL)
+        .fetchCustomEmojiSources(pubkey),
     fetchCustomEmojiCategories: (pubkey) =>
-      getRegisteredReadModel<EmojiCatalogReadModel>(
-        readModelRegistry,
-        EMOJI_CATALOG_READ_MODEL
-      ).fetchCustomEmojiCategories(pubkey),
+      runtimeCoordinator
+        .getReadModel<EmojiCatalogReadModel>(EMOJI_CATALOG_READ_MODEL)
+        .fetchCustomEmojiCategories(pubkey),
     searchBookmarkDTagEvent: (pubkey, normalizedUrl) =>
-      getRegisteredFlow<ContentResolutionFlow>(
-        flowRegistry,
-        CONTENT_RESOLUTION_FLOW
-      ).searchBookmarkDTagEvent(pubkey, normalizedUrl),
+      runtimeCoordinator
+        .getFlow<ContentResolutionFlow>(CONTENT_RESOLUTION_FLOW)
+        .searchBookmarkDTagEvent(pubkey, normalizedUrl),
     searchEpisodeBookmarkByGuid: (pubkey, guid) =>
-      getRegisteredFlow<ContentResolutionFlow>(
-        flowRegistry,
-        CONTENT_RESOLUTION_FLOW
-      ).searchEpisodeBookmarkByGuid(pubkey, guid),
+      runtimeCoordinator
+        .getFlow<ContentResolutionFlow>(CONTENT_RESOLUTION_FLOW)
+        .searchEpisodeBookmarkByGuid(pubkey, guid),
     fetchNostrEventById: (eventId: string, relayHints: readonly string[]) =>
       fetchNostrEventByIdFromReadRuntime<never>(
         coordinatorReadRuntime,
@@ -2761,28 +2046,25 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       );
     },
     loadCommentSubscriptionDeps: () =>
-      getRegisteredFlow<CommentsFlow>(flowRegistry, COMMENTS_FLOW).loadCommentSubscriptionDeps(),
+      runtimeCoordinator.getFlow<CommentsFlow>(COMMENTS_FLOW).loadCommentSubscriptionDeps(),
     fetchWot: (pubkey, callbacks, extractFollows, followKind = 3, batchSize = 100) =>
       fetchFollowGraph(sessionRuntime, pubkey, callbacks, extractFollows, followKind, batchSize),
     subscribeNotificationStreams: (options, handlers) =>
-      getRegisteredFlow<NotificationsFlow>(
-        flowRegistry,
-        NOTIFICATIONS_FLOW
-      ).subscribeNotificationStreams(options, handlers),
+      runtimeCoordinator
+        .getFlow<NotificationsFlow>(NOTIFICATIONS_FLOW)
+        .subscribeNotificationStreams(options, handlers),
     snapshotRelayStatuses: (urls) => snapshotRelayStatusesImpl(relayObservationRuntime, urls),
     observeRelayStatuses: (onPacket) => observeRelayStatusesImpl(relayObservationRuntime, onPacket),
     snapshotRelayCapabilities: (urls) => relayCapabilityRegistry.snapshot(urls),
     observeRelayCapabilities: (onPacket) => relayCapabilityRegistry.observe(onPacket),
     snapshotRelayMetrics: () => snapshotRelayMetricsFromStore(runtime),
     fetchRelayListEvents: (pubkey, relayListKind, followKind) =>
-      getRegisteredFlow<RelayListFlow>(flowRegistry, RELAY_LIST_FLOW).fetchRelayListEvents(
-        pubkey,
-        relayListKind,
-        followKind
-      ),
+      runtimeCoordinator
+        .getFlow<RelayListFlow>(RELAY_LIST_FLOW)
+        .fetchRelayListEvents(pubkey, relayListKind, followKind),
     fetchRelayListSources: (pubkey, relayListKind, followKind) =>
       fetchRelayListSources(queryRuntime, relayStatusRuntime, pubkey, relayListKind, followKind),
-    registerPlugin
+    registerPlugin: runtimeCoordinator.registerPlugin
   };
 }
 
@@ -2824,46 +2106,6 @@ export function useCachedLatest<TResult>(
   return coordinatorOrRuntime.useCachedLatest(pubkey, kind);
 }
 
-async function snapshotRelayMetricsFromStore(runtime: {
-  getEventsDB(): Promise<{ getAllByKind(kind: number): Promise<StoredEvent[]> }>;
-}): Promise<RelayMetricSnapshot[]> {
-  const db = await runtime.getEventsDB();
-  const [discoveryEvents, monitorEvents] = await Promise.all([
-    db.getAllByKind(NIP66_RELAY_DISCOVERY_KIND),
-    db.getAllByKind(NIP66_RELAY_MONITOR_ANNOUNCEMENT_KIND)
-  ]);
-  const announcements = new Map<string, Nip66RelayMonitorAnnouncement>();
-  for (const event of monitorEvents) {
-    const announcement = parseNip66RelayMonitorAnnouncement(event);
-    if (!announcement) continue;
-    const existing = announcements.get(announcement.monitorPubkey);
-    if (!existing || existing.createdAt < announcement.createdAt) {
-      announcements.set(announcement.monitorPubkey, announcement);
-    }
-  }
-
-  return discoveryEvents
-    .map(parseNip66RelayDiscoveryEvent)
-    .filter((discovery): discovery is Nip66RelayDiscovery => discovery !== null)
-    .sort((a, b) => b.createdAt - a.createdAt)
-    .map((discovery) => ({
-      relayUrl: discovery.relayUrl,
-      monitorPubkey: discovery.monitorPubkey,
-      score: calculateNip66RelayScore(discovery),
-      updatedAt: discovery.createdAt,
-      supportedNips: discovery.supportedNips,
-      requirements: discovery.requirements,
-      networkTypes: discovery.networkTypes,
-      relayTypes: discovery.relayTypes,
-      topics: discovery.topics,
-      geohashes: discovery.geohashes,
-      rttOpenMs: discovery.rttOpenMs,
-      rttReadMs: discovery.rttReadMs,
-      rttWriteMs: discovery.rttWriteMs,
-      monitorAnnouncement: announcements.get(discovery.monitorPubkey) ?? null
-    }));
-}
-
 export async function castSigned(
   coordinator: Pick<ResonoteCoordinator, 'castSigned'>,
   params: EventParameters
@@ -2888,8 +2130,8 @@ export async function setDefaultRelays(
 
 export async function registerPlugin(
   coordinator: Pick<ResonoteCoordinator, 'registerPlugin'>,
-  plugin: ResonoteCoordinatorPlugin
-): Promise<ResonoteCoordinatorPluginRegistration> {
+  plugin: AuftaktRuntimePlugin
+): Promise<AuftaktRuntimePluginRegistration> {
   return coordinator.registerPlugin(plugin);
 }
 
@@ -2958,141 +2200,6 @@ export async function fetchBackwardFirst<TEvent>(
   return runtime.fetchBackwardFirst<TEvent>(filters, cloneFetchBackwardOptions(options));
 }
 
-export async function retryPendingPublishes(
-  coordinator: Pick<ResonoteCoordinator, 'retryPendingPublishes'>
-): Promise<void> {
-  return coordinator.retryPendingPublishes();
-}
-
-export async function publishSignedEvent(
-  coordinator: Pick<ResonoteCoordinator, 'publishSignedEvent'>,
-  params: EventParameters
-): Promise<void> {
-  return coordinator.publishSignedEvent(params);
-}
-
-export async function publishSignedEvents(
-  coordinator: Pick<ResonoteCoordinator, 'publishSignedEvents'>,
-  params: EventParameters[]
-): Promise<void> {
-  return coordinator.publishSignedEvents(params);
-}
-
-function toRetryableSignedEvent(
-  event: EventParameters | RetryableSignedEvent
-): RetryableSignedEvent | null {
-  const candidate = event as Partial<RetryableSignedEvent>;
-
-  if (
-    typeof candidate.id === 'string' &&
-    typeof candidate.sig === 'string' &&
-    typeof candidate.kind === 'number' &&
-    typeof candidate.pubkey === 'string' &&
-    typeof candidate.created_at === 'number' &&
-    Array.isArray(candidate.tags) &&
-    typeof candidate.content === 'string'
-  ) {
-    return candidate as RetryableSignedEvent;
-  }
-
-  return null;
-}
-
-async function publishTransportRuntimeWithAcks(
-  runtime: Pick<PublishRuntime, 'castSigned' | 'observePublishAcks'>,
-  event: RetryableSignedEvent,
-  handlers: { readonly onAck: (packet: PublishAckPacket) => Promise<void> | void },
-  options?: PublishTransportOptions
-): Promise<void> {
-  await runtime.castSigned(event, options);
-  if (!runtime.observePublishAcks) return;
-  await runtime.observePublishAcks(event, handlers.onAck);
-}
-
-export async function publishSignedEventThroughCoordinator(input: CoordinatorSignedPublishRuntime) {
-  const store = await input.openStore();
-  const coordinator = createEventCoordinator({
-    publishTransport: {
-      publish: (event, handlers) =>
-        input.publish(event as RetryableSignedEvent, handlers, input.options)
-    },
-    pendingPublishes: {
-      add: (event) => input.addPendingPublish(event as RetryableSignedEvent)
-    },
-    store,
-    relay: { verify: async () => [] }
-  });
-
-  return coordinator.publish(input.event);
-}
-
-export async function retryQueuedSignedPublishes(
-  runtime: Pick<PublishRuntime, 'castSigned'>,
-  queueRuntime: Pick<PendingPublishQueueRuntime, 'drainPendingPublishes'>
-): Promise<PendingDrainResult> {
-  return queueRuntime.drainPendingPublishes(async (event) => {
-    try {
-      await runtime.castSigned(event);
-      return 'confirmed';
-    } catch {
-      return 'retrying';
-    }
-  });
-}
-
-export async function publishSignedEventWithOfflineFallback(
-  runtime: Pick<PublishRuntime, 'castSigned' | 'observePublishAcks'>,
-  queueRuntime: Pick<PendingPublishQueueRuntime, 'addPendingPublish'>,
-  event: EventParameters | RetryableSignedEvent,
-  hints?: PublishHintRecorder,
-  options?: PublishTransportOptions
-): Promise<void> {
-  try {
-    await runtime.castSigned(event, options);
-  } catch (error) {
-    const pending = toRetryableSignedEvent(event);
-    if (pending) await queueRuntime.addPendingPublish(pending);
-    throw error;
-  }
-
-  const pending = toRetryableSignedEvent(event);
-  if (pending && runtime.observePublishAcks && hints) {
-    await runtime.observePublishAcks(pending, async (packet) => {
-      if (!packet.ok || packet.eventId !== pending.id) return;
-      await hints.recordRelayHint({
-        eventId: pending.id,
-        relayUrl: packet.relayUrl,
-        source: 'published',
-        lastSeenAt: Math.floor(Date.now() / 1000)
-      });
-    });
-  }
-}
-
-export async function publishSignedEventsWithOfflineFallback(
-  runtime: Pick<PublishRuntime, 'castSigned' | 'observePublishAcks'>,
-  queueRuntime: Pick<PendingPublishQueueRuntime, 'addPendingPublish'>,
-  events: Array<EventParameters | RetryableSignedEvent>,
-  hints?: PublishHintRecorder,
-  buildOptions?: (
-    event: EventParameters | RetryableSignedEvent
-  ) => Promise<PublishTransportOptions | undefined>
-): Promise<void> {
-  if (events.length === 0) return;
-
-  await Promise.allSettled(
-    events.map(async (event) =>
-      publishSignedEventWithOfflineFallback(
-        runtime,
-        queueRuntime,
-        event,
-        hints,
-        buildOptions ? await buildOptions(event) : undefined
-      )
-    )
-  );
-}
-
 function cloneFetchBackwardOptions(
   options?: FetchBackwardOptions
 ): FetchBackwardOptions | undefined {
@@ -3107,221 +2214,6 @@ function cloneFetchBackwardOptions(
         }
       : undefined
   };
-}
-
-function encodeHex(bytes: Uint8Array): string {
-  return [...bytes].map((value) => value.toString(16).padStart(2, '0')).join('');
-}
-
-function decodeHex(hex: string): Uint8Array {
-  if (hex.length % 2 !== 0) {
-    throw new Error('negentropy hex payload must have even length');
-  }
-
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let index = 0; index < hex.length; index += 2) {
-    const value = Number.parseInt(hex.slice(index, index + 2), 16);
-    if (!Number.isFinite(value)) {
-      throw new Error('negentropy hex payload contains invalid byte');
-    }
-    bytes[index / 2] = value;
-  }
-  return bytes;
-}
-
-function encodeVarint(value: number): number[] {
-  if (!Number.isInteger(value) || value < 0) {
-    throw new Error('negentropy varint must be a non-negative integer');
-  }
-
-  const digits = [value & 0x7f];
-  let remaining = value >>> 7;
-  while (remaining > 0) {
-    digits.push(remaining & 0x7f);
-    remaining >>>= 7;
-  }
-
-  return digits.reverse().map((digit, index) => (index < digits.length - 1 ? digit | 0x80 : digit));
-}
-
-function decodeVarint(bytes: Uint8Array, start: number): { value: number; next: number } {
-  let value = 0;
-  let index = start;
-
-  while (index < bytes.length) {
-    const byte = bytes[index] ?? 0;
-    value = (value << 7) | (byte & 0x7f);
-    index += 1;
-    if ((byte & 0x80) === 0) {
-      return { value, next: index };
-    }
-  }
-
-  throw new Error('unterminated negentropy varint');
-}
-
-function encodeNegentropyIdListMessage(events: readonly NegentropyEventRef[]): string {
-  const sorted = sortNegentropyEventRefsAsc(events);
-  const bytes: number[] = [0x61, 0x00, 0x00, 0x02, ...encodeVarint(sorted.length)];
-
-  for (const event of sorted) {
-    if (!/^[0-9a-f]{64}$/i.test(event.id)) {
-      throw new Error(`negentropy requires 32-byte hex ids, received: ${event.id}`);
-    }
-    bytes.push(...decodeHex(event.id));
-  }
-
-  return encodeHex(Uint8Array.from(bytes));
-}
-
-function decodeNegentropyIdListMessage(messageHex: string): string[] {
-  const bytes = decodeHex(messageHex);
-  if ((bytes[0] ?? 0) !== 0x61) {
-    throw new Error('unsupported negentropy protocol version');
-  }
-
-  let index = 1;
-  const ids: string[] = [];
-
-  while (index < bytes.length) {
-    const upperTimestamp = decodeVarint(bytes, index);
-    index = upperTimestamp.next;
-    const prefixLength = decodeVarint(bytes, index);
-    index = prefixLength.next + prefixLength.value;
-
-    const mode = decodeVarint(bytes, index);
-    index = mode.next;
-
-    if (mode.value === 0) {
-      continue;
-    }
-
-    if (mode.value !== 2) {
-      throw new Error(`unsupported negentropy mode: ${mode.value}`);
-    }
-
-    const listLength = decodeVarint(bytes, index);
-    index = listLength.next;
-
-    for (let count = 0; count < listLength.value; count += 1) {
-      const nextIndex = index + 32;
-      if (nextIndex > bytes.length) {
-        throw new Error('truncated negentropy id list');
-      }
-      ids.push(encodeHex(bytes.slice(index, nextIndex)));
-      index = nextIndex;
-    }
-  }
-
-  return ids;
-}
-
-function chunkIds(ids: readonly string[], size = 50): RuntimeFilter[] {
-  const chunks: RuntimeFilter[] = [];
-  for (let index = 0; index < ids.length; index += size) {
-    chunks.push({ ids: ids.slice(index, index + size) });
-  }
-  return chunks;
-}
-
-type ResonoteEventStore = Awaited<ReturnType<ResonoteRuntime['getEventsDB']>>;
-
-interface RepairSyncCursorState {
-  readonly key: string;
-  readonly relay: string;
-  readonly requestKey: string;
-}
-
-function createRepairSyncCursorState(input: {
-  readonly relayUrl: string;
-  readonly filters: readonly RuntimeFilter[];
-  readonly scope: string;
-}): RepairSyncCursorState {
-  const requestKey = createNegentropyRepairRequestKey({
-    filters: input.filters,
-    relayUrl: input.relayUrl,
-    scope: input.scope
-  });
-
-  return {
-    key: `relay:${input.relayUrl}\nrequest:${requestKey}`,
-    relay: input.relayUrl,
-    requestKey
-  };
-}
-
-async function loadRepairSyncCursor(
-  eventsDB: ResonoteEventStore,
-  state: RepairSyncCursorState
-): Promise<OrderedEventCursor | null> {
-  if (typeof eventsDB.getSyncCursor !== 'function') return null;
-  try {
-    return await eventsDB.getSyncCursor(state.key);
-  } catch {
-    return null;
-  }
-}
-
-function withRepairSyncCursorFilters(
-  filters: readonly RuntimeFilter[],
-  cursor: OrderedEventCursor | null
-): RuntimeFilter[] {
-  if (!cursor) return [...filters];
-
-  return filters.map((filter) => {
-    const since =
-      typeof filter.since === 'number'
-        ? Math.max(filter.since, cursor.created_at)
-        : cursor.created_at;
-    return { ...filter, since };
-  });
-}
-
-function compareOrderedEventToCursor(
-  event: Pick<StoredEvent, 'created_at' | 'id'>,
-  cursor: OrderedEventCursor
-): number {
-  if (event.created_at !== cursor.created_at) return event.created_at - cursor.created_at;
-  return event.id.localeCompare(cursor.id);
-}
-
-function isAfterRepairSyncCursor(
-  event: Pick<StoredEvent, 'created_at' | 'id'>,
-  cursor: OrderedEventCursor | null
-): boolean {
-  return !cursor || compareOrderedEventToCursor(event, cursor) > 0;
-}
-
-function newestRepairSyncCursor(
-  events: readonly Pick<StoredEvent, 'created_at' | 'id'>[]
-): OrderedEventCursor | null {
-  const newest = [...events].sort((left, right) => {
-    if (right.created_at !== left.created_at) return right.created_at - left.created_at;
-    return right.id.localeCompare(left.id);
-  })[0];
-  return newest ? toOrderedEventCursor(newest) : null;
-}
-
-async function advanceRepairSyncCursor(
-  eventsDB: ResonoteEventStore,
-  state: RepairSyncCursorState,
-  events: readonly Pick<StoredEvent, 'created_at' | 'id'>[]
-): Promise<void> {
-  if (typeof eventsDB.putSyncCursor !== 'function') return;
-  const cursor = newestRepairSyncCursor(events);
-  if (!cursor) return;
-
-  try {
-    await eventsDB.putSyncCursor({
-      key: state.key,
-      relay: state.relay,
-      requestKey: state.requestKey,
-      cursor,
-      updatedAt: Math.floor(Date.now() / 1000)
-    });
-  } catch {
-    return;
-  }
 }
 
 async function fetchRelayCandidateEventsFromRelay(
@@ -3374,176 +2266,6 @@ async function fetchRelayCandidateEventsFromRelay(
       resolve(candidates);
     }
   });
-}
-
-async function materializeRepairCandidates(
-  runtime: ResonoteRuntime,
-  relayUrl: string,
-  candidates: readonly unknown[],
-  cursor: OrderedEventCursor | null
-): Promise<{
-  repairedIds: string[];
-  repairedEvents: StoredEvent[];
-  materializationEmissions: ReconcileEmission[];
-}> {
-  const repairedIds: string[] = [];
-  const repairedEvents: StoredEvent[] = [];
-  const materializationEmissions: ReconcileEmission[] = [];
-
-  for (const candidate of candidates) {
-    const result = await ingestRelayEvent({
-      relayUrl,
-      event: candidate,
-      materialize: async (event) => {
-        if (!isAfterRepairSyncCursor(event, cursor)) return false;
-        const eventsDB = await runtime.getEventsDB();
-        const materialized = await eventsDB.putWithReconcile(event);
-        materializationEmissions.push(...materialized.emissions);
-        return materialized.stored;
-      },
-      quarantine: (record) => quarantineRelayEvent(runtime, record)
-    });
-
-    if (result.ok && result.stored) {
-      repairedIds.push(result.event.id);
-      repairedEvents.push(result.event);
-    }
-  }
-
-  return {
-    repairedIds,
-    repairedEvents,
-    materializationEmissions
-  };
-}
-
-async function fallbackRepairEventsFromRelay(
-  runtime: ResonoteRuntime,
-  options: RelayRepairOptions,
-  capability: NegentropyTransportResult['capability']
-): Promise<RelayRepairResult> {
-  const eventsDB = await runtime.getEventsDB();
-  const cursorState = createRepairSyncCursorState({
-    relayUrl: options.relayUrl,
-    filters: options.filters,
-    scope: 'timeline:repair:fallback'
-  });
-  const cursor = await loadRepairSyncCursor(eventsDB, cursorState);
-  const filters = withRepairSyncCursorFilters(options.filters, cursor);
-  const fallbackCandidates = await fetchRelayCandidateEventsFromRelay(
-    runtime,
-    filters,
-    options.relayUrl,
-    options.timeoutMs,
-    'timeline:repair:fallback'
-  );
-  const materialized = await materializeRepairCandidates(
-    runtime,
-    options.relayUrl,
-    fallbackCandidates,
-    cursor
-  );
-  await advanceRepairSyncCursor(eventsDB, cursorState, materialized.repairedEvents);
-
-  return {
-    strategy: 'fallback',
-    capability,
-    repairedIds: materialized.repairedIds,
-    materializationEmissions: materialized.materializationEmissions,
-    repairEmissions: reconcileReplayRepairSubjects(materialized.repairedIds, 'repaired-replay')
-  };
-}
-
-export async function repairEventsFromRelay(
-  runtime: ResonoteRuntime,
-  options: RelayRepairOptions
-): Promise<RelayRepairResult> {
-  const eventsDB = await runtime.getEventsDB();
-
-  if (isNegentropyRelayUnsupported(runtime, options.relayUrl)) {
-    return fallbackRepairEventsFromRelay(runtime, options, 'unsupported');
-  }
-
-  const session = (await runtime.getRxNostr()) as Partial<NegentropySessionRuntime>;
-
-  if (typeof session.requestNegentropySync !== 'function') {
-    cacheUnsupportedNegentropyRelay(runtime, options.relayUrl);
-    return fallbackRepairEventsFromRelay(runtime, options, 'unsupported');
-  }
-
-  const cursorState = createRepairSyncCursorState({
-    relayUrl: options.relayUrl,
-    filters: options.filters,
-    scope: 'timeline:repair:negentropy'
-  });
-  const cursor = await loadRepairSyncCursor(eventsDB, cursorState);
-  const filters = withRepairSyncCursorFilters(options.filters, cursor);
-  const localRefs = await eventsDB.listNegentropyEventRefs();
-  const missingIds = new Set<string>();
-
-  for (const filter of filters) {
-    const selectedLocal = filterNegentropyEventRefs(localRefs, [filter]);
-
-    let transportResult: NegentropyTransportResult;
-    try {
-      transportResult = await session.requestNegentropySync({
-        relayUrl: options.relayUrl,
-        filter,
-        initialMessageHex: encodeNegentropyIdListMessage(selectedLocal),
-        timeoutMs: options.timeoutMs
-      });
-    } catch {
-      return fallbackRepairEventsFromRelay(runtime, options, 'failed');
-    }
-
-    if (transportResult.capability !== 'supported') {
-      if (transportResult.capability === 'unsupported') {
-        cacheUnsupportedNegentropyRelay(runtime, options.relayUrl);
-      }
-      return fallbackRepairEventsFromRelay(runtime, options, transportResult.capability);
-    }
-
-    if (!transportResult.messageHex) {
-      return fallbackRepairEventsFromRelay(runtime, options, 'failed');
-    }
-
-    let remoteIds: string[];
-    try {
-      remoteIds = decodeNegentropyIdListMessage(transportResult.messageHex);
-    } catch {
-      return fallbackRepairEventsFromRelay(runtime, options, 'failed');
-    }
-
-    const localIds = new Set(selectedLocal.map((event) => event.id));
-    for (const remoteId of remoteIds) {
-      if (!localIds.has(remoteId)) {
-        missingIds.add(remoteId);
-      }
-    }
-  }
-
-  const repairCandidates = await fetchRelayCandidateEventsFromRelay(
-    runtime,
-    chunkIds([...missingIds]),
-    options.relayUrl,
-    options.timeoutMs,
-    'timeline:repair:negentropy:fetch'
-  );
-  const materialized = await materializeRepairCandidates(
-    runtime,
-    options.relayUrl,
-    repairCandidates,
-    cursor
-  );
-  await advanceRepairSyncCursor(eventsDB, cursorState, materialized.repairedEvents);
-
-  return {
-    strategy: 'negentropy',
-    capability: 'supported',
-    repairedIds: materialized.repairedIds,
-    materializationEmissions: materialized.materializationEmissions,
-    repairEmissions: reconcileNegentropyRepairSubjects(materialized.repairedIds)
-  };
 }
 
 export async function fetchProfileCommentEvents(

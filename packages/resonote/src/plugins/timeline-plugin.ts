@@ -1,6 +1,5 @@
 import { defineProjection, type ProjectionDefinition, type StoredEvent } from '@auftakt/core';
-
-import type { ResonoteCoordinatorPlugin } from '../runtime.js';
+import type { AuftaktRuntimePlugin } from '@auftakt/runtime';
 
 export const RESONOTE_PLAY_POSITION_SORT = 'resonote:play-position';
 
@@ -35,7 +34,7 @@ export const resonoteTimelineProjection: ProjectionDefinition = defineProjection
   ]
 });
 
-export function createTimelinePlugin(): ResonoteCoordinatorPlugin {
+export function createTimelinePlugin(): AuftaktRuntimePlugin {
   return {
     name: 'timelinePlugin',
     apiVersion: 'v1',

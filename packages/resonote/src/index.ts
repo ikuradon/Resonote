@@ -1,84 +1,35 @@
+export type {
+  EmojiCatalogReadModel,
+  EmojiCategory,
+  NotificationsFlow,
+  NotificationStreamHandlers,
+  NotificationStreamOptions} from './plugins/built-in-plugins.js';
 export {
+  createEmojiCatalogPlugin,
+  createNotificationsFlowPlugin,
+  EMOJI_CATALOG_READ_MODEL,
+  NOTIFICATIONS_FLOW
+} from './plugins/built-in-plugins.js';
+export type { CommentsFlow, ContentResolutionFlow } from './plugins/resonote-flows.js';
+export {
+  COMMENTS_FLOW,
+  CONTENT_RESOLUTION_FLOW,
+  createResonoteCommentsFlowPlugin,
+  createResonoteContentResolutionFlowPlugin
+} from './plugins/resonote-flows.js';
+export type { ResonoteTimelineEvent } from './plugins/timeline-plugin.js';
+export {
+  createTimelinePlugin,
   getResonotePlayPositionMs,
   RESONOTE_PLAY_POSITION_SORT,
-  type ResonoteTimelineEvent,
   resonoteTimelineProjection,
   sortResonoteTimelineByPlayPosition
 } from './plugins/timeline-plugin.js';
-export type {
-  AddressableHandle,
-  AddressableHandleInput,
-  CommentFilterKinds,
-  CommentSubscriptionRefs,
-  DeletionEvent,
-  EmojiCategory,
-  EntityFetchOptions,
-  EntityHandleState,
-  EntityReadResult,
-  EventHandle,
-  EventHandleInput,
-  LatestReadDriver,
-  NormalizedRelayHint,
-  PendingDrainResult,
-  RelayCapabilityPacket,
-  RelayCapabilitySnapshot,
-  RelayHintsHandle,
-  RelayHintsReadResult,
-  RelayMetricSnapshot,
-  RelaySetHandle,
-  RelaySetSnapshot,
-  RelaySetSubject,
-  ResonoteCoordinator,
-  ResonoteCoordinatorPlugin,
-  ResonoteCoordinatorPluginApi,
-  ResonoteCoordinatorPluginApiVersion,
-  ResonoteCoordinatorPluginModels,
-  ResonoteCoordinatorPluginRegistration,
-  RetryableSignedEvent,
-  SubscriptionHandle,
-  UserHandle,
-  UserHandleInput,
-  UserProfileReadResult
-} from './runtime.js';
+export type { CommentFilterKinds, CommentSubscriptionRefs, DeletionEvent } from './runtime.js';
 export {
   buildCommentContentFilters,
-  cachedFetchById,
-  castSigned,
   createResonoteCoordinator,
-  fetchCustomEmojiCategories,
-  fetchCustomEmojiSources,
-  fetchFollowListSnapshot,
-  fetchLatestEvent,
-  fetchNostrEventById,
-  fetchNotificationTargetPreview,
-  fetchProfileCommentEvents,
-  fetchProfileMetadataEvents,
-  fetchProfileMetadataSources,
-  fetchRelayListEvents,
-  fetchRelayListSources,
-  fetchWot,
-  getRelayConnectionState,
-  invalidateFetchByIdCache,
-  loadCommentSubscriptionDeps,
-  observeRelayCapabilities,
-  observeRelayConnectionStates,
-  observeRelayStatuses,
-  publishSignedEvents,
-  publishSignedEventsWithOfflineFallback,
-  publishSignedEventWithOfflineFallback,
-  registerPlugin,
-  RESONOTE_COORDINATOR_PLUGIN_API_VERSION,
-  retryPendingPublishes,
-  retryQueuedSignedPublishes,
-  searchBookmarkDTagEvent,
-  searchEpisodeBookmarkByGuid,
-  setDefaultRelays,
-  snapshotRelayCapabilities,
-  snapshotRelayMetrics,
-  snapshotRelayStatuses,
   startCommentDeletionReconcile,
   startCommentSubscription,
-  startMergedCommentSubscription,
-  subscribeNotificationStreams,
-  useCachedLatest
+  startMergedCommentSubscription
 } from './runtime.js';

@@ -1,8 +1,5 @@
-import type {
-  RelayCapabilityPacket,
-  RelayCapabilityRecord,
-  RelayExecutionCapability
-} from '@auftakt/core';
+import type { RelayCapabilityRecord, RelayExecutionCapability } from '@auftakt/core';
+import type { RelayCapabilityPacket } from '@auftakt/runtime';
 import { describe, expect, it } from 'vitest';
 
 import { createResonoteCoordinator, type ResonoteRuntime } from './runtime.js';
