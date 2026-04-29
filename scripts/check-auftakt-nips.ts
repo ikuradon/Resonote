@@ -72,6 +72,8 @@ const REQUIRED_NIP24_OWNER = 'packages/core/src/nip24-extra-metadata.ts';
 const REQUIRED_NIP24_PROOF = 'packages/core/src/nip24-extra-metadata.contract.test.ts';
 const REQUIRED_NIP27_OWNER = 'packages/core/src/nip27-references.ts';
 const REQUIRED_NIP27_PROOF = 'packages/core/src/nip27-references.contract.test.ts';
+const REQUIRED_NIP28_OWNER = 'packages/core/src/nip28-public-chat.ts';
+const REQUIRED_NIP28_PROOF = 'packages/core/src/nip28-public-chat.contract.test.ts';
 const REQUIRED_NIP31_OWNER = 'packages/core/src/nip31-alt.ts';
 const REQUIRED_NIP31_PROOF = 'packages/core/src/nip31-alt.contract.test.ts';
 const REQUIRED_NIP32_OWNER = 'packages/core/src/nip32-label.ts';
@@ -86,6 +88,8 @@ const REQUIRED_NIP39_OWNER = 'packages/core/src/nip39-external-identity.ts';
 const REQUIRED_NIP39_PROOF = 'packages/core/src/nip39-external-identity.contract.test.ts';
 const REQUIRED_NIP40_OWNER = 'packages/adapter-dexie/src/index.ts';
 const REQUIRED_NIP40_PROOF = 'packages/adapter-dexie/src/materialization.contract.test.ts';
+const REQUIRED_NIP43_OWNER = 'packages/core/src/nip43-relay-access.ts';
+const REQUIRED_NIP43_PROOF = 'packages/core/src/nip43-relay-access.contract.test.ts';
 const REQUIRED_NIP46_OWNER = 'packages/core/src/nip46-remote-signing.ts';
 const REQUIRED_NIP46_PROOF = 'packages/core/src/nip46-remote-signing.contract.test.ts';
 const REQUIRED_NIP48_OWNER = 'packages/core/src/nip48-proxy-tags.ts';
@@ -360,6 +364,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === '27') {
     errors.push(...validateNip27MatrixEntry(entry));
   }
+  if (entry.nip === '28') {
+    errors.push(...validateNip28MatrixEntry(entry));
+  }
   if (entry.nip === '30') {
     errors.push(...validateNip30MatrixEntry(entry));
   }
@@ -386,6 +393,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '42') {
     errors.push(...validateNip42MatrixEntry(entry));
+  }
+  if (entry.nip === '43') {
+    errors.push(...validateNip43MatrixEntry(entry));
   }
   if (entry.nip === '45') {
     errors.push(...validateNip45MatrixEntry(entry));
@@ -699,6 +709,37 @@ function validateNip27MatrixEntry(entry: NipMatrixEntry): string[] {
   return errors;
 }
 
+function validateNip28MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-28 must stay implemented after public chat helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP28_OWNER) {
+    errors.push(`NIP-28 owner must be ${REQUIRED_NIP28_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP28_PROOF) {
+    errors.push(`NIP-28 proof must be ${REQUIRED_NIP28_PROOF}`);
+  }
+  if (
+    !/(kind:40|40).*channel/i.test(entry.scopeNotes) ||
+    !/(kind:41|41).*metadata/i.test(entry.scopeNotes) ||
+    !/(kind:42|42).*(message|root|reply)/i.test(entry.scopeNotes) ||
+    !/(kind:43|43).*(hide|moderation)/i.test(entry.scopeNotes) ||
+    !/(kind:44|44).*(mute|moderation)/i.test(entry.scopeNotes) ||
+    !/(metadata JSON|categories|relay filters)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-28 scopeNotes must mention channel create/metadata/messages, hide/mute moderation, metadata JSON, categories, and relay filters'
+    );
+  }
+  if (
+    /not-started|pending|outside current client scope/i.test(`${entry.status} ${entry.scopeNotes}`)
+  ) {
+    errors.push('NIP-28 scopeNotes must not use stale public-chat-out-of-scope wording');
+  }
+  return errors;
+}
+
 function validateNip30MatrixEntry(entry: NipMatrixEntry): string[] {
   const errors: string[] = [];
   if (entry.status !== 'implemented') {
@@ -927,6 +968,36 @@ function validateNip42MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|not yet implemented/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-42 scopeNotes must not use stale not-started wording');
+  }
+  return errors;
+}
+
+function validateNip43MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-43 must stay implemented after relay access helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP43_OWNER) {
+    errors.push(`NIP-43 owner must be ${REQUIRED_NIP43_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP43_PROOF) {
+    errors.push(`NIP-43 proof must be ${REQUIRED_NIP43_PROOF}`);
+  }
+  if (
+    !/(13534|member list)/i.test(entry.scopeNotes) ||
+    !/(8000|add-member|add member)/i.test(entry.scopeNotes) ||
+    !/(8001|remove-member|remove member)/i.test(entry.scopeNotes) ||
+    !/(28934|join request)/i.test(entry.scopeNotes) ||
+    !/(28935|invite claim)/i.test(entry.scopeNotes) ||
+    !/(28936|leave request)/i.test(entry.scopeNotes) ||
+    !/(claim tag|restricted OK|supported_nips)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-43 scopeNotes must mention protected member lists, add/remove member events, join/invite/leave requests, claim tags, restricted OK messages, and supported_nips checks'
+    );
+  }
+  if (/not-started|pending|outside current scope/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-43 scopeNotes must not use stale relay-access-out-of-scope wording');
   }
   return errors;
 }

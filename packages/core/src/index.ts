@@ -143,6 +143,57 @@ export {
 } from './nip24-extra-metadata.js';
 export type { Nip27ReferenceTagName, Nip27TextReference } from './nip27-references.js';
 export { buildNip27ReferenceTags, extractNip27References } from './nip27-references.js';
+export type {
+  BuildNip28ChannelCreateInput,
+  BuildNip28ChannelMessageFilterInput,
+  BuildNip28ChannelMessageInput,
+  BuildNip28ChannelMetadataFilterInput,
+  BuildNip28ChannelMetadataInput,
+  BuildNip28HideMessageInput,
+  BuildNip28MuteUserInput,
+  Nip28ChannelKind,
+  Nip28ChannelMessageSnapshot,
+  Nip28ChannelMetadata,
+  Nip28ChannelMetadataSnapshot,
+  Nip28EventReference,
+  Nip28HideMessageSnapshot,
+  Nip28JsonPrimitive,
+  Nip28JsonValue,
+  Nip28MessageReplyInput,
+  Nip28MuteUserSnapshot,
+  Nip28PubkeyReference
+} from './nip28-public-chat.js';
+export {
+  buildNip28CategoryTag,
+  buildNip28ChannelCreateEvent,
+  buildNip28ChannelMessageEvent,
+  buildNip28ChannelMessageFilter,
+  buildNip28ChannelMetadataEvent,
+  buildNip28ChannelMetadataFilter,
+  buildNip28HideMessageEvent,
+  buildNip28MuteUserEvent,
+  buildNip28PubkeyTag,
+  buildNip28ReplyTag,
+  buildNip28RootTag,
+  isNip28ChannelKind,
+  NIP28_CHANNEL_CREATE_KIND,
+  NIP28_CHANNEL_KINDS,
+  NIP28_CHANNEL_MESSAGE_KIND,
+  NIP28_CHANNEL_METADATA_KIND,
+  NIP28_HIDE_MESSAGE_KIND,
+  NIP28_MUTE_USER_KIND,
+  NIP28_REPLY_MARKER,
+  NIP28_ROOT_MARKER,
+  parseNip28Categories,
+  parseNip28ChannelMessageEvent,
+  parseNip28ChannelMetadataEvent,
+  parseNip28ChannelMetadataJson,
+  parseNip28EventReferences,
+  parseNip28HideMessageEvent,
+  parseNip28MuteUserEvent,
+  parseNip28PubkeyReferences,
+  stringifyNip28ChannelMetadata
+} from './nip28-public-chat.js';
 export {
   appendNip31AltTag,
   buildNip31AltTag,
@@ -267,6 +318,48 @@ export {
   NIP40_EXPIRATION_TAG,
   parseNip40Expiration
 } from './nip40-expiration.js';
+export type {
+  BuildNip43ClaimInput,
+  BuildNip43InviteClaimFilterInput,
+  BuildNip43MemberChangeInput,
+  BuildNip43MembershipListInput,
+  Nip43AccessKind,
+  Nip43ClaimSnapshot,
+  Nip43LeaveRequestSnapshot,
+  Nip43MemberChangeSnapshot,
+  Nip43MembershipListSnapshot
+} from './nip43-relay-access.js';
+export {
+  buildNip43AddMemberEvent,
+  buildNip43InviteClaimEvent,
+  buildNip43InviteClaimFilter,
+  buildNip43JoinRequestEvent,
+  buildNip43LeaveRequestEvent,
+  buildNip43MembershipListEvent,
+  buildNip43RemoveMemberEvent,
+  hasNip43ProtectedTag,
+  isNip43AccessKind,
+  isNip43RestrictedOkMessage,
+  NIP43_ACCESS_KINDS,
+  NIP43_ADD_MEMBER_KIND,
+  NIP43_CLAIM_TAG,
+  NIP43_INVITE_CLAIM_KIND,
+  NIP43_JOIN_REQUEST_KIND,
+  NIP43_LEAVE_REQUEST_KIND,
+  NIP43_MEMBER_LIST_KIND,
+  NIP43_MEMBER_TAG,
+  NIP43_PROTECTED_TAG,
+  NIP43_REMOVE_MEMBER_KIND,
+  NIP43_RESTRICTED_PREFIX,
+  NIP43_SUPPORTED_NIP,
+  parseNip43ClaimEvent,
+  parseNip43ClaimTag,
+  parseNip43LeaveRequestEvent,
+  parseNip43MemberChangeEvent,
+  parseNip43MembershipListEvent,
+  parseNip43MemberTags,
+  relaySupportsNip43RelayAccess
+} from './nip43-relay-access.js';
 export type {
   BuildNip46BunkerUrlInput,
   BuildNip46NostrConnectUrlInput,

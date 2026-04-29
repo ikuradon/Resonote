@@ -685,6 +685,59 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-28 public chat out-of-scope claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['28'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('28', {
+            level: 'scoped-out',
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Public chat domain outside current client scope'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-28 must stay implemented after public chat helper coverage'
+    );
+    expect(result.errors).toContain('NIP-28 owner must be packages/core/src/nip28-public-chat.ts');
+    expect(result.errors).toContain(
+      'NIP-28 proof must be packages/core/src/nip28-public-chat.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-28 scopeNotes must not use stale public-chat-out-of-scope wording'
+    );
+  });
+
+  it('accepts the implemented NIP-28 public chat helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['28'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('28', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip28-public-chat.ts',
+            proof: 'packages/core/src/nip28-public-chat.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-28 public chat helpers build and parse kind:40 channel create, kind:41 channel metadata, kind:42 channel messages with root/reply e tags and p tags, kind:43 hide-message and kind:44 mute-user moderation events, channel metadata JSON, categories, and relay filters.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-30 partial custom emoji claims', () => {
     const result = checkNipMatrix(
       { nips: ['30'], sourceUrl: 'source', sourceDate: '2026-04-24' },
@@ -1137,6 +1190,60 @@ describe('NIP matrix entry validation', () => {
             priority: 'P1',
             scopeNotes:
               'Relay AUTH challenge storage, kind:22242 signing, AUTH OK handling, and auth-required EVENT/REQ retry in the core relay session.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
+  it('rejects stale NIP-43 relay access out-of-scope claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['43'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('43', {
+            level: 'scoped-out',
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Relay access management outside current scope'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-43 must stay implemented after relay access helper coverage'
+    );
+    expect(result.errors).toContain('NIP-43 owner must be packages/core/src/nip43-relay-access.ts');
+    expect(result.errors).toContain(
+      'NIP-43 proof must be packages/core/src/nip43-relay-access.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-43 scopeNotes must not use stale relay-access-out-of-scope wording'
+    );
+  });
+
+  it('accepts the implemented NIP-43 relay access helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['43'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('43', {
+            level: 'internal',
+            status: 'implemented',
+            owner: 'packages/core/src/nip43-relay-access.ts',
+            proof: 'packages/core/src/nip43-relay-access.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-43 relay access helpers build and parse protected kind:13534 member lists, kind:8000 add-member and kind:8001 remove-member events, kind:28934 join requests, kind:28935 invite claims, kind:28936 leave requests, claim tags, restricted OK messages, and supported_nips relay capability checks.'
           })
         ]
       }
