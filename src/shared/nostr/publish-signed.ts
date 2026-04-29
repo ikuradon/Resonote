@@ -22,4 +22,4 @@ export async function publishSignedEvents(events: PublishableEvent[]): Promise<v
   await publishSignedEventsFromFacade(events);
 }
 
-export type { PendingDrainResult } from '@auftakt/resonote';
+export type { PendingDrainResult } from '@auftakt/runtime';

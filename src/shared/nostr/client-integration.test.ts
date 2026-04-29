@@ -156,7 +156,7 @@ describe('logical requestKey replay identity (integration)', () => {
     async () => {
       const [{ getRxNostr }, { createRxForwardReq }] = await Promise.all([
         import('./client.js'),
-        import('@auftakt/core')
+        import('@auftakt/runtime')
       ]);
       const rxNostr = await getRxNostr();
       const requestKey = createRuntimeRequestKey({
@@ -192,7 +192,7 @@ describe('relay observation contract (integration)', () => {
   it('returns runtime-owned typed relay observation shape', async () => {
     const [{ getRxNostr, getRelayConnectionState }, { createRxForwardReq }] = await Promise.all([
       import('./client.js'),
-      import('@auftakt/core')
+      import('@auftakt/runtime')
     ]);
 
     const rxNostr = await getRxNostr();

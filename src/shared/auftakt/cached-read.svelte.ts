@@ -10,7 +10,7 @@ import {
   invalidateFetchByIdCache as invalidateFetchByIdCacheHelper,
   type LatestReadDriver,
   useCachedLatest as useCachedLatestHelper
-} from '@auftakt/resonote';
+} from '@auftakt/runtime';
 
 export interface FetchedEventFull extends StoredEvent {
   id: string;

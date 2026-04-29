@@ -1,37 +1,32 @@
 import type { StoredEvent } from '@auftakt/core';
-import { createRxBackwardReq, createRxForwardReq, uniq, verifier } from '@auftakt/core';
+import { verifier } from '@auftakt/core';
 import {
   buildCommentContentFilters as buildCommentContentFiltersImpl,
-  cachedFetchById as cachedFetchByIdHelper,
   type CommentFilterKinds,
   type CommentSubscriptionRefs,
   createResonoteCoordinator,
   type DeletionEvent,
   type EmojiCategory,
+  startCommentDeletionReconcile as startCommentDeletionReconcileImpl,
+  startCommentSubscription as startCommentSubscriptionImpl,
+  startMergedCommentSubscription as startMergedCommentSubscriptionImpl} from '@auftakt/resonote';
+import {
+  AUFTAKT_RUNTIME_PLUGIN_API_VERSION,
+  type AuftaktRuntimePlugin,
+  type AuftaktRuntimePluginApi,
+  type AuftaktRuntimePluginApiVersion,
+  type AuftaktRuntimePluginRegistration,
+  cachedFetchById as cachedFetchByIdHelper,
+  createRxBackwardReq,
+  createRxForwardReq,
   fetchLatestEvent as fetchLatestEventHelper,
   invalidateFetchByIdCache as invalidateFetchByIdCacheHelper,
-  observeRelayCapabilities as observeRelayCapabilitiesHelper,
-  publishSignedEvents as publishSignedEventsHelper,
-  registerPlugin as registerPluginHelper,
   type RelayCapabilityPacket,
   type RelayCapabilitySnapshot,
   type RelayMetricSnapshot,
-  RESONOTE_COORDINATOR_PLUGIN_API_VERSION,
-  type ResonoteCoordinator,
-  type ResonoteCoordinatorPlugin,
-  type ResonoteCoordinatorPluginApi,
-  type ResonoteCoordinatorPluginApiVersion,
-  type ResonoteCoordinatorPluginRegistration,
-  retryPendingPublishes as retryPendingPublishesHelper,
-  setDefaultRelays as setDefaultRelaysHelper,
-  snapshotRelayCapabilities as snapshotRelayCapabilitiesHelper,
-  snapshotRelayMetrics as snapshotRelayMetricsHelper,
-  startCommentDeletionReconcile as startCommentDeletionReconcileImpl,
-  startCommentSubscription as startCommentSubscriptionImpl,
-  startMergedCommentSubscription as startMergedCommentSubscriptionImpl,
   type SubscriptionHandle,
-  useCachedLatest as useCachedLatestHelper
-} from '@auftakt/resonote';
+  uniq,
+  useCachedLatest as useCachedLatestHelper} from '@auftakt/runtime';
 import type { EventParameters } from 'nostr-typedef';
 import { merge } from 'rxjs';
 
@@ -110,15 +105,16 @@ const relayRuntime = {
     observeRelayConnectionStatesImpl(...args)
 };
 
-const coordinator: ResonoteCoordinator<CachedFetchByIdResult, UseCachedLatestResult> =
-  createResonoteCoordinator({
-    runtime,
-    cachedFetchByIdRuntime: nostrReadRuntime,
-    cachedLatestRuntime: nostrReadRuntime,
-    publishTransportRuntime,
-    pendingPublishQueueRuntime,
-    relayStatusRuntime: relayRuntime
-  });
+const coordinator = createResonoteCoordinator({
+  runtime,
+  cachedFetchByIdRuntime: nostrReadRuntime,
+  cachedLatestRuntime: nostrReadRuntime,
+  publishTransportRuntime,
+  pendingPublishQueueRuntime,
+  relayStatusRuntime: relayRuntime
+});
+
+type AppCoordinator = typeof coordinator;
 
 export type { StoredEvent, WotResult };
 export type {
@@ -134,12 +130,12 @@ export type {
   UseCachedLatestResult
 };
 
-export { RESONOTE_COORDINATOR_PLUGIN_API_VERSION };
+export { AUFTAKT_RUNTIME_PLUGIN_API_VERSION };
 export type {
-  ResonoteCoordinatorPlugin,
-  ResonoteCoordinatorPluginApi,
-  ResonoteCoordinatorPluginApiVersion,
-  ResonoteCoordinatorPluginRegistration
+  AuftaktRuntimePlugin,
+  AuftaktRuntimePluginApi,
+  AuftaktRuntimePluginApiVersion,
+  AuftaktRuntimePluginRegistration
 };
 
 export interface CommentCacheEvent {
@@ -211,21 +207,21 @@ export async function clearStoredEvents(): Promise<void> {
 }
 
 export async function setPreferredRelays(urls: string[]): Promise<void> {
-  return setDefaultRelaysHelper(coordinator, urls);
+  return coordinator.setDefaultRelays(urls);
 }
 
 export async function retryQueuedPublishes(): Promise<void> {
-  return retryPendingPublishesHelper(coordinator);
+  return coordinator.retryPendingPublishes();
 }
 
 export async function registerPlugin(
-  plugin: ResonoteCoordinatorPlugin
-): Promise<ResonoteCoordinatorPluginRegistration> {
-  return registerPluginHelper(coordinator, plugin);
+  plugin: AuftaktRuntimePlugin
+): Promise<AuftaktRuntimePluginRegistration> {
+  return coordinator.registerPlugin(plugin);
 }
 
 export async function publishSignedEvents(params: EventParameters[]): Promise<void> {
-  return publishSignedEventsHelper(coordinator, params);
+  return coordinator.publishSignedEvents(params);
 }
 
 export async function verifySignedEvent(event: unknown): Promise<boolean> {
@@ -362,18 +358,8 @@ export async function fetchWot(
 }
 
 export async function subscribeNotificationStreams(
-  options: Parameters<
-    ResonoteCoordinator<
-      CachedFetchByIdResult,
-      UseCachedLatestResult
-    >['subscribeNotificationStreams']
-  >[0],
-  handlers: Parameters<
-    ResonoteCoordinator<
-      CachedFetchByIdResult,
-      UseCachedLatestResult
-    >['subscribeNotificationStreams']
-  >[1]
+  options: Parameters<AppCoordinator['subscribeNotificationStreams']>[0],
+  handlers: Parameters<AppCoordinator['subscribeNotificationStreams']>[1]
 ) {
   return coordinator.subscribeNotificationStreams(options, handlers);
 }
@@ -383,9 +369,7 @@ export async function snapshotRelayStatuses(urls: readonly string[]) {
 }
 
 export async function observeRelayStatuses(
-  onPacket: Parameters<
-    ResonoteCoordinator<CachedFetchByIdResult, UseCachedLatestResult>['observeRelayStatuses']
-  >[0]
+  onPacket: Parameters<AppCoordinator['observeRelayStatuses']>[0]
 ) {
   return coordinator.observeRelayStatuses(onPacket);
 }
@@ -393,15 +377,15 @@ export async function observeRelayStatuses(
 export async function snapshotRelayCapabilities(
   urls: readonly string[]
 ): Promise<RelayCapabilitySnapshot[]> {
-  return snapshotRelayCapabilitiesHelper(coordinator, urls);
+  return coordinator.snapshotRelayCapabilities(urls);
 }
 
 export async function snapshotRelayMetrics(): Promise<RelayMetricSnapshot[]> {
-  return snapshotRelayMetricsHelper(coordinator);
+  return coordinator.snapshotRelayMetrics();
 }
 
 export async function observeRelayCapabilities(onPacket: (packet: RelayCapabilityPacket) => void) {
-  return observeRelayCapabilitiesHelper(coordinator, onPacket);
+  return coordinator.observeRelayCapabilities(onPacket);
 }
 
 export async function fetchRelayListEvents(
@@ -420,6 +404,5 @@ export async function fetchRelayListSources(
   return coordinator.fetchRelayListSources(pubkey, relayListKind, followKind);
 }
 
-export type { ResonoteCoordinator } from '@auftakt/resonote';
 export { parseCommentContent } from '$shared/nostr/content-parser.js';
 export { addEmojiTag, extractShortcode } from '$shared/utils/emoji.js';

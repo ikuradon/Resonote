@@ -33,16 +33,17 @@ const mockRxNostr = {
 
 vi.mock('@auftakt/core', async (importOriginal) => {
   const actual = await importOriginal();
+  return Object.assign({}, actual);
+});
+
+vi.mock('@auftakt/runtime', async (importOriginal) => {
+  const actual = await importOriginal();
   return Object.assign({}, actual, {
     createRxNostrSession: vi.fn(({ defaultRelays }: { defaultRelays: string[] }) => {
       mockRxNostr.setDefaultRelays(defaultRelays);
       return mockRxNostr;
     }),
-    nip07Signer: vi.fn(() => 'mock-signer'),
-    createRxBackwardReq: vi.fn(() => ({
-      emit: vi.fn(),
-      over: vi.fn()
-    }))
+    nip07Signer: vi.fn(() => 'mock-signer')
   });
 });
 

@@ -1,4 +1,3 @@
-import { createRxNostrSession, nip07Signer, type RxNostr } from '@auftakt/core';
 import {
   normalizeRelayObservationPacket,
   normalizeRelayObservationSnapshot,
@@ -6,6 +5,7 @@ import {
   type RelayObservationRuntime,
   type RelayObservationSnapshot
 } from '@auftakt/core';
+import { createRxNostrSession, nip07Signer } from '@auftakt/runtime';
 import type { EventParameters } from 'nostr-typedef';
 
 import { fetchMaterializedLatestEvent } from '$shared/nostr/materialized-latest.js';
@@ -26,6 +26,8 @@ interface RelayPublishOptions {
     readonly defaultWriteRelays?: boolean;
   };
 }
+
+type RxNostr = ReturnType<typeof createRxNostrSession>;
 
 let initPromise: Promise<RxNostr> | undefined;
 let rxNostr: RxNostr | undefined;

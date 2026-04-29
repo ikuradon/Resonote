@@ -1,28 +1,22 @@
-import type * as ResonoteModule from '@auftakt/resonote';
+import type * as ResonoteRuntimeModule from '@auftakt/resonote';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const {
-  coordinator,
-  createResonoteCoordinatorMock,
-  observeRelayCapabilitiesHelperMock,
-  snapshotRelayCapabilitiesHelperMock
-} = vi.hoisted(() => {
-  const coordinator = {};
+const { coordinator, createResonoteCoordinatorMock } = vi.hoisted(() => {
+  const coordinator = {
+    observeRelayCapabilities: vi.fn(),
+    snapshotRelayCapabilities: vi.fn()
+  };
   return {
     coordinator,
-    createResonoteCoordinatorMock: vi.fn(() => coordinator),
-    observeRelayCapabilitiesHelperMock: vi.fn(),
-    snapshotRelayCapabilitiesHelperMock: vi.fn()
+    createResonoteCoordinatorMock: vi.fn(() => coordinator)
   };
 });
 
 vi.mock('@auftakt/resonote', async (importOriginal) => {
-  const actual = await importOriginal<typeof ResonoteModule>();
+  const actual = await importOriginal<typeof ResonoteRuntimeModule>();
   return {
     ...actual,
-    createResonoteCoordinator: createResonoteCoordinatorMock,
-    observeRelayCapabilities: observeRelayCapabilitiesHelperMock,
-    snapshotRelayCapabilities: snapshotRelayCapabilitiesHelperMock
+    createResonoteCoordinator: createResonoteCoordinatorMock
   };
 });
 
@@ -67,7 +61,7 @@ describe('relay capability facade', () => {
     vi.clearAllMocks();
   });
 
-  it('delegates capability snapshots through the Auftakt coordinator helper', async () => {
+  it('delegates capability snapshots through the Auftakt coordinator', async () => {
     const snapshot = {
       url: 'wss://relay.example',
       maxFilters: 2,
@@ -79,22 +73,20 @@ describe('relay capability facade', () => {
       queueDepth: 0,
       activeSubscriptions: 0
     };
-    snapshotRelayCapabilitiesHelperMock.mockResolvedValueOnce([snapshot]);
+    coordinator.snapshotRelayCapabilities.mockResolvedValueOnce([snapshot]);
 
     await expect(snapshotRelayCapabilities(['wss://relay.example'])).resolves.toEqual([snapshot]);
-    expect(snapshotRelayCapabilitiesHelperMock).toHaveBeenCalledWith(coordinator, [
-      'wss://relay.example'
-    ]);
+    expect(coordinator.snapshotRelayCapabilities).toHaveBeenCalledWith(['wss://relay.example']);
   });
 
-  it('delegates capability observation through the Auftakt coordinator helper', async () => {
+  it('delegates capability observation through the Auftakt coordinator', async () => {
     const unsubscribe = vi.fn();
     const onPacket = vi.fn();
-    observeRelayCapabilitiesHelperMock.mockResolvedValueOnce({ unsubscribe });
+    coordinator.observeRelayCapabilities.mockResolvedValueOnce({ unsubscribe });
 
     await expect(observeRelayCapabilities(onPacket)).resolves.toEqual({
       unsubscribe
     });
-    expect(observeRelayCapabilitiesHelperMock).toHaveBeenCalledWith(coordinator, onPacket);
+    expect(coordinator.observeRelayCapabilities).toHaveBeenCalledWith(onPacket);
   });
 });
