@@ -579,6 +579,60 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-24 profile-model pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['24'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('24', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Extra metadata fields require profile model coverage'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-24 must stay implemented after extra metadata model coverage'
+    );
+    expect(result.errors).toContain(
+      'NIP-24 owner must be packages/core/src/nip24-extra-metadata.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-24 proof must be packages/core/src/nip24-extra-metadata.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-24 scopeNotes must not use stale profile-model-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-24 extra metadata claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['24'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('24', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip24-extra-metadata.ts',
+            proof: 'packages/core/src/nip24-extra-metadata.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-24 extra metadata helpers parse/build kind:0 profile metadata including display_name, website, banner, bot, and birthday, detect deprecated kind:3 relay maps for NIP-65 migration, and build/parse generic r/i/title/t tags with lowercase hashtag validation.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-27 text-reference pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['27'], sourceUrl: 'source', sourceDate: '2026-04-24' },

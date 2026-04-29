@@ -185,11 +185,11 @@
     {
       "nip": "24",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip24-extra-metadata.ts",
+      "proof": "packages/core/src/nip24-extra-metadata.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "Extra metadata fields require profile model coverage"
+      "scopeNotes": "Core NIP-24 extra metadata helpers parse/build kind:0 profile metadata including display_name, website, banner, bot, and birthday, detect deprecated kind:3 relay maps for NIP-65 migration, and build/parse generic r/i/title/t tags with lowercase hashtag validation"
     },
     {
       "nip": "25",

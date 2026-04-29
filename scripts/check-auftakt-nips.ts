@@ -68,6 +68,8 @@ const REQUIRED_NIP21_OWNER = 'packages/core/src/nip21-uri.ts';
 const REQUIRED_NIP21_PROOF = 'packages/core/src/nip21-uri.contract.test.ts';
 const REQUIRED_NIP23_OWNER = 'packages/core/src/nip23-long-form.ts';
 const REQUIRED_NIP23_PROOF = 'packages/core/src/nip23-long-form.contract.test.ts';
+const REQUIRED_NIP24_OWNER = 'packages/core/src/nip24-extra-metadata.ts';
+const REQUIRED_NIP24_PROOF = 'packages/core/src/nip24-extra-metadata.contract.test.ts';
 const REQUIRED_NIP27_OWNER = 'packages/core/src/nip27-references.ts';
 const REQUIRED_NIP27_PROOF = 'packages/core/src/nip27-references.contract.test.ts';
 const REQUIRED_NIP31_OWNER = 'packages/core/src/nip31-alt.ts';
@@ -310,6 +312,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === '23') {
     errors.push(...validateNip23MatrixEntry(entry));
   }
+  if (entry.nip === '24') {
+    errors.push(...validateNip24MatrixEntry(entry));
+  }
   if (entry.nip === '27') {
     errors.push(...validateNip27MatrixEntry(entry));
   }
@@ -529,6 +534,33 @@ function validateNip23MatrixEntry(entry: NipMatrixEntry): string[] {
     )
   ) {
     errors.push('NIP-23 scopeNotes must not use stale long-form-pending wording');
+  }
+  return errors;
+}
+
+function validateNip24MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-24 must stay implemented after extra metadata model coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP24_OWNER) {
+    errors.push(`NIP-24 owner must be ${REQUIRED_NIP24_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP24_PROOF) {
+    errors.push(`NIP-24 proof must be ${REQUIRED_NIP24_PROOF}`);
+  }
+  if (
+    !/(kind:0|profile metadata|display_name)/i.test(entry.scopeNotes) ||
+    !/(website|banner|bot|birthday)/i.test(entry.scopeNotes) ||
+    !/(kind:3|relay map|NIP-65)/i.test(entry.scopeNotes) ||
+    !/(r\/i\/title\/t|generic tags|hashtag)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-24 scopeNotes must mention kind:0 extras, deprecated kind:3 relay maps, and generic tag helpers'
+    );
+  }
+  if (/not-started|pending|require profile model/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-24 scopeNotes must not use stale profile-model-pending wording');
   }
   return errors;
 }

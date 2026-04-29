@@ -113,6 +113,34 @@ export {
   parseNip23LongFormEvent,
   parseNip23LongFormMetadata
 } from './nip23-long-form.js';
+export type {
+  BuildNip24ProfileMetadataInput,
+  Nip24Birthday,
+  Nip24DeprecatedRelayEntry,
+  Nip24ExternalIdTag,
+  Nip24GenericTags,
+  Nip24ProfileMetadata
+} from './nip24-extra-metadata.js';
+export {
+  buildNip24ExternalIdTag,
+  buildNip24HashtagTag,
+  buildNip24ProfileMetadata,
+  buildNip24TitleTag,
+  buildNip24WebUrlTag,
+  isNip24ContactListEvent,
+  isNip24ProfileMetadataEvent,
+  NIP24_CONTACT_LIST_KIND,
+  NIP24_EXTERNAL_ID_TAG,
+  NIP24_HASHTAG_TAG,
+  NIP24_PROFILE_METADATA_KIND,
+  NIP24_TITLE_TAG,
+  NIP24_WEB_URL_TAG,
+  normalizeNip24Hashtag,
+  parseNip24DeprecatedFollowRelayMapJson,
+  parseNip24GenericTags,
+  parseNip24ProfileMetadataJson,
+  stringifyNip24ProfileMetadata
+} from './nip24-extra-metadata.js';
 export type { Nip27ReferenceTagName, Nip27TextReference } from './nip27-references.js';
 export { buildNip27ReferenceTags, extractNip27References } from './nip27-references.js';
 export {

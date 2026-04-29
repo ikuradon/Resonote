@@ -83,7 +83,11 @@ describe('profile.svelte', () => {
           name: 'Alice',
           display_name: 'Alice Display',
           picture: 'https://example.com/alice.png',
-          nip05: 'alice@example.com'
+          nip05: 'alice@example.com',
+          website: 'https://example.com',
+          banner: 'https://example.com/banner.png',
+          bot: false,
+          birthday: { year: 2000, month: 2, day: 29 }
         })
       ]
     });
@@ -95,7 +99,11 @@ describe('profile.svelte', () => {
         name: 'Alice',
         displayName: 'Alice Display',
         picture: 'https://example.com/alice.png',
-        nip05: 'alice@example.com'
+        nip05: 'alice@example.com',
+        website: 'https://example.com',
+        banner: 'https://example.com/banner.png',
+        bot: false,
+        birthday: { year: 2000, month: 2, day: 29 }
       })
     );
   });

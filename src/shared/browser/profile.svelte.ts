@@ -1,3 +1,5 @@
+import { parseNip24ProfileMetadataJson } from '@auftakt/core';
+
 import {
   describeProfileDisplay,
   formatDisplayName,
@@ -23,14 +25,20 @@ function isUnresolvedPlaceholderProfile(profile: Profile | undefined): boolean {
 }
 
 function parseProfileContent(content: string): Profile {
-  const meta = JSON.parse(content) as Record<string, unknown>;
+  const meta = parseNip24ProfileMetadataJson(content);
+  if (!meta) {
+    throw new Error('Malformed NIP-24 profile metadata JSON');
+  }
   return {
-    name: typeof meta.name === 'string' ? truncateProfileName(meta.name) : undefined,
-    displayName:
-      typeof meta.display_name === 'string' ? truncateProfileName(meta.display_name) : undefined,
-    picture: typeof meta.picture === 'string' ? sanitizeUrl(meta.picture) : undefined,
-    about: typeof meta.about === 'string' ? meta.about : undefined,
-    nip05: typeof meta.nip05 === 'string' ? meta.nip05 : undefined
+    name: meta.name ? truncateProfileName(meta.name) : undefined,
+    displayName: meta.displayName ? truncateProfileName(meta.displayName) : undefined,
+    picture: meta.picture ? sanitizeUrl(meta.picture) : undefined,
+    about: meta.about,
+    nip05: meta.nip05,
+    website: meta.website ? sanitizeUrl(meta.website) : undefined,
+    banner: meta.banner ? sanitizeUrl(meta.banner) : undefined,
+    bot: meta.bot,
+    birthday: meta.birthday
   };
 }
 
