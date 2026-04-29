@@ -1004,6 +1004,29 @@ export {
   parseNipA4Receivers
 } from './nipA4-public-messages.js';
 export type {
+  BuildNipC0CodeSnippetFilterInput,
+  BuildNipC0CodeSnippetInput,
+  NipC0CodeSnippetMetadataTag,
+  NipC0CodeSnippetSnapshot
+} from './nipC0-code-snippets.js';
+export {
+  buildNipC0CodeSnippet,
+  buildNipC0CodeSnippetFilter,
+  buildNipC0DependencyTag,
+  buildNipC0DescriptionTag,
+  buildNipC0ExtensionTag,
+  buildNipC0LanguageTag,
+  buildNipC0LicenseTag,
+  buildNipC0NameTag,
+  buildNipC0RepoTag,
+  buildNipC0RuntimeTag,
+  isNipC0CodeSnippetKind,
+  NIPC0_CODE_SNIPPET_KIND,
+  NIPC0_LANGUAGE_TAG,
+  NIPC0_METADATA_TAGS,
+  parseNipC0CodeSnippet
+} from './nipC0-code-snippets.js';
+export type {
   DeletionEventLike,
   DeletionReconcileResult,
   OfflineDeliveryDecision,

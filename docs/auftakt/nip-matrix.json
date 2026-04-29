@@ -797,11 +797,11 @@
     {
       "nip": "C0",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nipC0-code-snippets.ts",
+      "proof": "packages/core/src/nipC0-code-snippets.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "Code snippets pending"
+      "scopeNotes": "Core NIP-C0 code snippet helpers build and parse kind:1337 events while preserving code content whitespace, language l tags and #l relay filters, name/extension/description/runtime/license metadata, repeated dep dependencies, and repo tags"
     },
     {
       "nip": "C7",

@@ -2594,6 +2594,60 @@ describe('NIP matrix entry validation', () => {
 
     expect(result.errors).toEqual([]);
   });
+
+  it('rejects stale NIP-C0 code snippet pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['C0'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('C0', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Code snippets pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-C0 must stay implemented after code snippet helper coverage'
+    );
+    expect(result.errors).toContain(
+      'NIP-C0 owner must be packages/core/src/nipC0-code-snippets.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-C0 proof must be packages/core/src/nipC0-code-snippets.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-C0 scopeNotes must not use stale code-snippet-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-C0 code snippet helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['C0'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('C0', {
+            status: 'implemented',
+            owner: 'packages/core/src/nipC0-code-snippets.ts',
+            proof: 'packages/core/src/nipC0-code-snippets.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-C0 code snippet helpers build and parse kind:1337 events while preserving code content whitespace, language l tags and #l relay filters, name/extension/description/runtime/license metadata, repeated dep dependencies, and repo tags.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
 });
 
 describe('checkNipStatusDocsSync', () => {

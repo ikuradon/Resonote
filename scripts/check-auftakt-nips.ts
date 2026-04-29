@@ -138,6 +138,8 @@ const REQUIRED_NIPA0_OWNER = 'packages/core/src/nipA0-voice-messages.ts';
 const REQUIRED_NIPA0_PROOF = 'packages/core/src/nipA0-voice-messages.contract.test.ts';
 const REQUIRED_NIPA4_OWNER = 'packages/core/src/nipA4-public-messages.ts';
 const REQUIRED_NIPA4_PROOF = 'packages/core/src/nipA4-public-messages.contract.test.ts';
+const REQUIRED_NIPC0_OWNER = 'packages/core/src/nipC0-code-snippets.ts';
+const REQUIRED_NIPC0_PROOF = 'packages/core/src/nipC0-code-snippets.contract.test.ts';
 const REQUIRED_RELAY_SESSION_OWNER = 'packages/core/src/relay-session.ts';
 const REQUIRED_RELAY_SESSION_PROOF = 'packages/core/src/relay-session.contract.test.ts';
 
@@ -464,6 +466,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === 'A4') {
     errors.push(...validateNipA4MatrixEntry(entry));
+  }
+  if (entry.nip === 'C0') {
+    errors.push(...validateNipC0MatrixEntry(entry));
   }
   return errors;
 }
@@ -1662,6 +1667,34 @@ function validateNipA4MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|public messages pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-A4 scopeNotes must not use stale public-message-pending wording');
+  }
+  return errors;
+}
+
+function validateNipC0MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-C0 must stay implemented after code snippet helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIPC0_OWNER) {
+    errors.push(`NIP-C0 owner must be ${REQUIRED_NIPC0_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIPC0_PROOF) {
+    errors.push(`NIP-C0 proof must be ${REQUIRED_NIPC0_PROOF}`);
+  }
+  if (
+    !/(kind:1337|1337|code snippet)/i.test(entry.scopeNotes) ||
+    !/(content|code body|whitespace)/i.test(entry.scopeNotes) ||
+    !/(language|l tag|#l)/i.test(entry.scopeNotes) ||
+    !/(extension|name|runtime|license|dependency|dep|repo)/i.test(entry.scopeNotes) ||
+    !/(filter|relay)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-C0 scopeNotes must mention kind:1337 code snippets, code content preservation, language/#l filters, metadata/dependencies/repo, and relay filters'
+    );
+  }
+  if (/not-started|pending|code snippets pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-C0 scopeNotes must not use stale code-snippet-pending wording');
   }
   return errors;
 }
