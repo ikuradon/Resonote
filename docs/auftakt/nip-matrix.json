@@ -311,11 +311,11 @@
     {
       "nip": "39",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip39-external-identity.ts",
+      "proof": "packages/core/src/nip39-external-identity.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "External identity parsing pending"
+      "scopeNotes": "Core NIP-39 external identity helpers build and parse kind:10011 events with i tag platform:identity proof claims, preserve future extra parameters, derive github/twitter/mastodon/telegram proof URLs, and build exact #i relay filters"
     },
     {
       "nip": "40",

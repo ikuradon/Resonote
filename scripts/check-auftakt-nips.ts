@@ -82,6 +82,8 @@ const REQUIRED_NIP37_OWNER = 'packages/core/src/nip37-draft-wrap.ts';
 const REQUIRED_NIP37_PROOF = 'packages/core/src/nip37-draft-wrap.contract.test.ts';
 const REQUIRED_NIP38_OWNER = 'packages/core/src/nip38-user-status.ts';
 const REQUIRED_NIP38_PROOF = 'packages/core/src/nip38-user-status.contract.test.ts';
+const REQUIRED_NIP39_OWNER = 'packages/core/src/nip39-external-identity.ts';
+const REQUIRED_NIP39_PROOF = 'packages/core/src/nip39-external-identity.contract.test.ts';
 const REQUIRED_NIP40_OWNER = 'packages/adapter-dexie/src/index.ts';
 const REQUIRED_NIP40_PROOF = 'packages/adapter-dexie/src/materialization.contract.test.ts';
 const REQUIRED_NIP46_OWNER = 'packages/core/src/nip46-remote-signing.ts';
@@ -339,6 +341,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '38') {
     errors.push(...validateNip38MatrixEntry(entry));
+  }
+  if (entry.nip === '39') {
+    errors.push(...validateNip39MatrixEntry(entry));
   }
   if (entry.nip === '40') {
     errors.push(...validateNip40MatrixEntry(entry));
@@ -757,6 +762,33 @@ function validateNip38MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|read model pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-38 scopeNotes must not use stale user-status-pending wording');
+  }
+  return errors;
+}
+
+function validateNip39MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-39 must stay implemented after external-identity model coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP39_OWNER) {
+    errors.push(`NIP-39 owner must be ${REQUIRED_NIP39_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP39_PROOF) {
+    errors.push(`NIP-39 proof must be ${REQUIRED_NIP39_PROOF}`);
+  }
+  if (
+    !/(10011|external identit)/i.test(entry.scopeNotes) ||
+    !/(i tag|platform:identity|proof)/i.test(entry.scopeNotes) ||
+    !/(github|twitter|mastodon|telegram)/i.test(entry.scopeNotes) ||
+    !/(proof URL|filter|#i|future)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-39 scopeNotes must mention kind:10011, i tags, known providers, proof URLs, and filters'
+    );
+  }
+  if (/not-started|pending|parsing pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-39 scopeNotes must not use stale external-identity-pending wording');
   }
   return errors;
 }

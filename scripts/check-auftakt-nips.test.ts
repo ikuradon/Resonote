@@ -991,6 +991,60 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-39 external-identity pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['39'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('39', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'External identity parsing pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-39 must stay implemented after external-identity model coverage'
+    );
+    expect(result.errors).toContain(
+      'NIP-39 owner must be packages/core/src/nip39-external-identity.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-39 proof must be packages/core/src/nip39-external-identity.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-39 scopeNotes must not use stale external-identity-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-39 external-identity claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['39'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('39', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip39-external-identity.ts',
+            proof: 'packages/core/src/nip39-external-identity.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-39 external identity helpers build and parse kind:10011 events with i tag platform:identity proof claims, preserve future extra parameters, derive github/twitter/mastodon/telegram proof URLs, and build exact #i relay filters.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-40 expiration-compaction pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['40'], sourceUrl: 'source', sourceDate: '2026-04-24' },

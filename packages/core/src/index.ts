@@ -230,6 +230,36 @@ export {
   parseNip38StatusType,
   parseNip38UserStatusEvent
 } from './nip38-user-status.js';
+export type {
+  BuildNip39ExternalIdentitiesEventInput,
+  BuildNip39ExternalIdentitiesFilterInput,
+  Nip39ExternalIdentitiesSnapshot,
+  Nip39ExternalIdentity,
+  Nip39ExternalIdentityInput,
+  Nip39IdentityClaim,
+  Nip39KnownPlatform,
+  Nip39Platform
+} from './nip39-external-identity.js';
+export {
+  buildNip39ExternalIdentitiesEvent,
+  buildNip39ExternalIdentitiesFilter,
+  buildNip39ExternalIdentityTag,
+  buildNip39IdentityClaim,
+  buildNip39ProofUrl,
+  isNip39ExternalIdentitiesEvent,
+  isNip39KnownPlatform,
+  isNip39PlatformName,
+  NIP39_EXTERNAL_IDENTITIES_KIND,
+  NIP39_IDENTITY_TAG,
+  NIP39_KNOWN_PLATFORMS,
+  NIP39_PLATFORM_NAME_PATTERN,
+  normalizeNip39IdentityName,
+  normalizeNip39PlatformName,
+  parseNip39ExternalIdentitiesEvent,
+  parseNip39ExternalIdentityTag,
+  parseNip39ExternalIdentityTags,
+  parseNip39IdentityClaim
+} from './nip39-external-identity.js';
 export {
   buildNip40ExpirationTag,
   hasNip40Expiration,
