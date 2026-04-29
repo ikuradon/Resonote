@@ -1243,33 +1243,19 @@ export type {
   RelayCapabilityLearningEvent,
   RelayCapabilityNip11Status,
   RelayCapabilityOverride,
-  RelayCapabilityPacket,
   RelayCapabilityRecord,
-  RelayCapabilitySnapshot,
   RelayCapabilitySource,
-  RelayExecutionCapability,
-  RelayRuntimeCapabilityState
+  RelayExecutionCapability
 } from './relay-capability.js';
 export {
   calculateEffectiveRelayCapability,
   calculateNip66RelayScore,
   NIP66_RELAY_DISCOVERY_KIND,
   NIP66_RELAY_MONITOR_ANNOUNCEMENT_KIND,
-  normalizeRelayCapabilitySnapshot,
   parseNip66RelayDiscoveryEvent,
   parseNip66RelayMonitorAnnouncement,
   parseRelayLimitClosedReason
 } from './relay-capability.js';
-export type {
-  NormalizedRelayLifecycleOptions,
-  RelayLifecycleMode,
-  RelayLifecycleOptions,
-  RelayLifecyclePolicy,
-  RelayLifecycleRetryOptions,
-  RelayLifecycleRetryPolicy,
-  RelayReconnectStrategy
-} from './relay-lifecycle.js';
-export { calculateRelayReconnectDelay, normalizeRelayLifecycleOptions } from './relay-lifecycle.js';
 export {
   normalizeRelayObservation,
   normalizeRelayObservationPacket,
@@ -1278,19 +1264,10 @@ export {
 export type {
   FetchBackwardOptions,
   Filter,
-  OptimizedLogicalRequestPlan,
-  OptimizedRequestShard,
   RelayReadOverlayOptions,
-  RequestExecutionPlanOptions,
-  RequestOptimizerCapabilities,
   RuntimeRequestDescriptorOptions
 } from './relay-request.js';
-export {
-  buildLogicalRequestDescriptor,
-  buildRequestExecutionPlan,
-  createRuntimeRequestKey,
-  REPAIR_REQUEST_COALESCING_SCOPE
-} from './relay-request.js';
+export { buildLogicalRequestDescriptor, createRuntimeRequestKey } from './relay-request.js';
 export type {
   Nip65RelayListEntry,
   NormalizedRelaySelectionPolicy,
@@ -1311,67 +1288,12 @@ export {
   parseNip65RelayListTags,
   relayListEntriesToSelectionCandidates
 } from './relay-selection.js';
-export type {
-  ConnectionStatePacket,
-  CountRequestOptions,
-  CountResult,
-  CreateRelayRequestOptions,
-  CreateRelaySessionOptions,
-  CreateRxNostrSessionOptions,
-  DefaultRelayConfig,
-  EventPacket,
-  EventSigner,
-  NegentropyRequestOptions,
-  OkPacketAgainstEvent,
-  RelayRequest,
-  RelayRequestOptimizerOptions,
-  RelaySelectionOptions,
-  RelaySendOptions,
-  RelayStatus,
-  RelayUseOptions,
-  RxNostr,
-  SignedEventShape,
-  UnsignedEvent
-} from './relay-session.js';
+export type { EventSigner, SignedEventShape, UnsignedEvent } from './relay-session.js';
+export type { TimelineWindow } from './request-planning.js';
 export {
-  createBackwardReq,
-  createForwardReq,
-  createRelaySession,
-  createRxBackwardReq,
-  createRxForwardReq,
-  createRxNostrSession,
-  nip07Signer,
-  uniq
-} from './relay-session.js';
-export type {
-  EventStoreLike,
-  EventSubscriptionRefs,
-  LatestEventSnapshot,
-  ObservableLike,
-  QueryRuntime,
-  RelayRequestLike,
-  RelaySessionLike,
-  SessionRuntime,
-  SubscriptionHandle,
-  SubscriptionLike,
-  TimelineWindow
-} from './request-planning.js';
-export {
-  cacheEvent,
-  fetchEventById,
-  fetchFollowGraph,
-  fetchLatestEventsForKinds,
-  fetchReplaceableEventsByAuthorsAndKind,
-  loadEventSubscriptionDeps,
   mergeTimelineEvents,
-  observeRelayStatuses,
   paginateTimelineWindow,
-  snapshotRelayStatuses,
-  sortTimelineByCreatedAtDesc,
-  startBackfillAndLiveSubscription,
-  startDeletionReconcile,
-  startMergedLiveSubscription,
-  subscribeDualFilterStreams
+  sortTimelineByCreatedAtDesc
 } from './request-planning.js';
 export type { PublishSettlementReducerInput, ReadSettlementReducerInput } from './settlement.js';
 export { reducePublishSettlement, reduceReadSettlement } from './settlement.js';

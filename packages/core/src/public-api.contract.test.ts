@@ -40,7 +40,17 @@ describe('@auftakt/core public api contract', () => {
     const mod = await import('@auftakt/core');
     const exportNames = Object.keys(mod);
 
-    const forbidden = [/^getRxNostr$/, /^rawRequest/i, /^relayRequest/i];
+    const forbidden = [
+      /^getRxNostr$/,
+      /^rawRequest/i,
+      /^relayRequest/i,
+      /^createRx/i,
+      /^createRelaySession$/,
+      /^createBackwardReq$/,
+      /^createForwardReq$/,
+      /^nip07Signer$/,
+      /^uniq$/
+    ];
 
     for (const name of exportNames) {
       for (const pattern of forbidden) {
@@ -148,10 +158,7 @@ describe('@auftakt/core public api contract', () => {
         buildNipC0CodeSnippetFilter: expect.any(Function),
         buildNipC7ChatMessage: expect.any(Function),
         buildNipC7ChatReply: expect.any(Function),
-        buildRequestExecutionPlan: expect.any(Function),
-        calculateRelayReconnectDelay: expect.any(Function),
         createRuntimeRequestKey: expect.any(Function),
-        createRxNostrSession: expect.any(Function),
         filterNegentropyEventRefs: expect.any(Function),
         getEventHash: expect.any(Function),
         extractNipB7BlossomHashFromUrl: expect.any(Function),
@@ -163,7 +170,6 @@ describe('@auftakt/core public api contract', () => {
         nrelayEncode: expect.any(Function),
         nsecEncode: expect.any(Function),
         npubEncode: expect.any(Function),
-        normalizeRelayLifecycleOptions: expect.any(Function),
         normalizeRelaySelectionPolicy: expect.any(Function),
         normalizeRelayUrl: expect.any(Function),
         parseNip03OpenTimestampsAttestationEvent: expect.any(Function),

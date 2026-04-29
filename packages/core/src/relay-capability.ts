@@ -36,17 +36,6 @@ export interface RelayExecutionCapability {
   readonly stale: boolean;
 }
 
-export interface RelayCapabilitySnapshot extends Omit<RelayExecutionCapability, 'relayUrl'> {
-  readonly url: string;
-  readonly queueDepth: number;
-  readonly activeSubscriptions: number;
-}
-
-export interface RelayCapabilityPacket {
-  readonly from: string;
-  readonly capability: RelayCapabilitySnapshot;
-}
-
 export interface RelayCapabilityLearningEvent {
   readonly relayUrl: string;
   readonly kind: 'maxFilters' | 'maxSubscriptions';
@@ -81,11 +70,6 @@ export interface Nip66RelayMonitorAnnouncement {
   readonly checks: readonly string[];
   readonly timeouts: readonly Nip66RelayMonitorTimeout[];
   readonly geohashes: readonly string[];
-}
-
-export interface RelayRuntimeCapabilityState extends RelayExecutionCapability {
-  readonly queueDepth: number;
-  readonly activeSubscriptions: number;
 }
 
 export function calculateEffectiveRelayCapability(
@@ -129,22 +113,6 @@ export function calculateEffectiveRelayCapability(
     source,
     expiresAt: record?.nip11ExpiresAt ?? null,
     stale
-  };
-}
-
-export function normalizeRelayCapabilitySnapshot(
-  state: RelayRuntimeCapabilityState
-): RelayCapabilitySnapshot {
-  return {
-    url: state.relayUrl,
-    maxFilters: state.maxFilters,
-    maxSubscriptions: state.maxSubscriptions,
-    supportedNips: [...state.supportedNips],
-    source: state.source,
-    expiresAt: state.expiresAt,
-    stale: state.stale,
-    queueDepth: state.queueDepth,
-    activeSubscriptions: state.activeSubscriptions
   };
 }
 

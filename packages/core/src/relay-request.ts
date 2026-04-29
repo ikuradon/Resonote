@@ -20,34 +20,7 @@ export interface RuntimeRequestDescriptorOptions {
   readonly scope?: string;
 }
 
-export interface RequestExecutionPlanOptions extends RuntimeRequestDescriptorOptions {
-  readonly requestKey?: RequestKey;
-  readonly coalescingScope?: string;
-}
-
-export interface RequestOptimizerCapabilities {
-  readonly maxFiltersPerShard?: number | null;
-  readonly maxSubscriptions?: number | null;
-}
-
-export interface OptimizedRequestShard {
-  readonly shardIndex: number;
-  readonly shardKey: string;
-  readonly filters: readonly Filter[];
-}
-
-export interface OptimizedLogicalRequestPlan {
-  readonly descriptor: LogicalRequestDescriptor;
-  readonly requestKey: RequestKey;
-  readonly logicalKey: string;
-  readonly shards: readonly OptimizedRequestShard[];
-  readonly capabilities: RequestOptimizerCapabilities;
-}
-
 const REQUEST_KEY_VERSION = 'v1';
-const DEFAULT_REQUEST_COALESCING_SCOPE = 'timeline:app';
-
-export const REPAIR_REQUEST_COALESCING_SCOPE = 'timeline:repair';
 
 const WINDOW_KEYS = new Set(['limit', 'since', 'until']);
 
@@ -110,25 +83,6 @@ function hashRequestDescriptor(payload: string): string {
   return (hash >>> 0).toString(36);
 }
 
-function normalizeTransportFilters(filters: readonly Filter[]): Filter[] {
-  return filters.map((filter) => normalizeObjectEntries(filter) as Filter);
-}
-
-function stableSortFilters(filters: readonly Filter[]): Filter[] {
-  return [...filters].sort((left, right) => toStableJson(left).localeCompare(toStableJson(right)));
-}
-
-function resolveMaxFiltersPerShard(
-  capabilities: RequestOptimizerCapabilities,
-  filterCount: number
-): number {
-  const candidate = capabilities.maxFiltersPerShard;
-  if (candidate == null || !Number.isFinite(candidate) || candidate < 1) {
-    return Math.max(filterCount, 1);
-  }
-  return Math.max(1, Math.floor(candidate));
-}
-
 export function buildLogicalRequestDescriptor(
   options: RuntimeRequestDescriptorOptions
 ): LogicalRequestDescriptor {
@@ -157,47 +111,4 @@ export function createRuntimeRequestKey(options: RuntimeRequestDescriptorOptions
   const encoded = toStableJson(descriptor);
   const digest = hashRequestDescriptor(encoded);
   return `rq:${REQUEST_KEY_VERSION}:${digest}` as RequestKey;
-}
-
-export function buildRequestExecutionPlan(
-  options: RequestExecutionPlanOptions,
-  capabilities: RequestOptimizerCapabilities = {}
-): OptimizedLogicalRequestPlan {
-  const descriptor = buildLogicalRequestDescriptor(options);
-  const requestKey = options.requestKey ?? createRuntimeRequestKey(options);
-  const normalizedFilters = stableSortFilters(normalizeTransportFilters(options.filters));
-  const coalescingScope = options.coalescingScope ?? DEFAULT_REQUEST_COALESCING_SCOPE;
-  const logicalKey = `lq:${REQUEST_KEY_VERSION}:${hashRequestDescriptor(
-    toStableJson({
-      coalescingScope,
-      mode: options.mode,
-      filters: normalizedFilters,
-      overlay: descriptor.overlay
-    })
-  )}`;
-  const shardSize = resolveMaxFiltersPerShard(capabilities, normalizedFilters.length);
-  const shards: OptimizedRequestShard[] = [];
-
-  for (let index = 0; index < normalizedFilters.length; index += shardSize) {
-    const shardIndex = shards.length;
-    const shardFilters = normalizedFilters.slice(index, index + shardSize);
-    shards.push({
-      shardIndex,
-      shardKey: `shard:${REQUEST_KEY_VERSION}:${hashRequestDescriptor(
-        toStableJson({ logicalKey, shardIndex, filters: shardFilters })
-      )}`,
-      filters: shardFilters
-    });
-  }
-
-  return {
-    descriptor,
-    requestKey,
-    logicalKey,
-    shards,
-    capabilities: {
-      maxFiltersPerShard: capabilities.maxFiltersPerShard ?? null,
-      maxSubscriptions: capabilities.maxSubscriptions ?? null
-    }
-  };
 }
