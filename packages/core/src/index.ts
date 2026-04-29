@@ -840,6 +840,39 @@ export {
   tallyNip88Responses
 } from './nip88-polls.js';
 export type {
+  BuildNip89HandlerInformationInput,
+  BuildNip89RecommendationInput,
+  Nip89ClientTag,
+  Nip89ClientTagInput,
+  Nip89HandlerInformationSnapshot,
+  Nip89HandlerPointer,
+  Nip89HandlerPointerInput,
+  Nip89PlatformHandler,
+  Nip89PlatformHandlerInput,
+  Nip89RecommendationSnapshot
+} from './nip89-application-handlers.js';
+export {
+  buildNip89ClientTag,
+  buildNip89HandlerAddress,
+  buildNip89HandlerInformationEvent,
+  buildNip89HandlerInformationFilter,
+  buildNip89HandlerPointerTag,
+  buildNip89PlatformHandlerTag,
+  buildNip89RecommendationEvent,
+  buildNip89RecommendationFilter,
+  NIP89_CLIENT_TAG,
+  NIP89_HANDLER_INFORMATION_KIND,
+  NIP89_RECOMMENDATION_KIND,
+  parseNip89ClientTag,
+  parseNip89HandlerInformationEvent,
+  parseNip89HandlerMetadataJson,
+  parseNip89HandlerPointerTag,
+  parseNip89HandlerPointerTags,
+  parseNip89PlatformHandlerTag,
+  parseNip89PlatformHandlerTags,
+  parseNip89RecommendationEvent
+} from './nip89-application-handlers.js';
+export type {
   BuildNip98HttpAuthEventInput,
   Nip98HttpAuthSnapshot,
   Nip98HttpAuthValidationFailureReason,

@@ -126,6 +126,8 @@ const REQUIRED_NIP85_OWNER = 'packages/core/src/nip85-trusted-assertions.ts';
 const REQUIRED_NIP85_PROOF = 'packages/core/src/nip85-trusted-assertions.contract.test.ts';
 const REQUIRED_NIP88_OWNER = 'packages/core/src/nip88-polls.ts';
 const REQUIRED_NIP88_PROOF = 'packages/core/src/nip88-polls.contract.test.ts';
+const REQUIRED_NIP89_OWNER = 'packages/core/src/nip89-application-handlers.ts';
+const REQUIRED_NIP89_PROOF = 'packages/core/src/nip89-application-handlers.contract.test.ts';
 const REQUIRED_NIP98_OWNER = 'packages/core/src/nip98-http-auth.ts';
 const REQUIRED_NIP98_PROOF = 'packages/core/src/nip98-http-auth.contract.test.ts';
 const REQUIRED_RELAY_SESSION_OWNER = 'packages/core/src/relay-session.ts';
@@ -436,6 +438,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '88') {
     errors.push(...validateNip88MatrixEntry(entry));
+  }
+  if (entry.nip === '89') {
+    errors.push(...validateNip89MatrixEntry(entry));
   }
   if (entry.nip === '98') {
     errors.push(...validateNip98MatrixEntry(entry));
@@ -1467,6 +1472,35 @@ function validateNip88MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|polls pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-88 scopeNotes must not use stale poll-pending wording');
+  }
+  return errors;
+}
+
+function validateNip89MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-89 must stay implemented after application handler helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP89_OWNER) {
+    errors.push(`NIP-89 owner must be ${REQUIRED_NIP89_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP89_PROOF) {
+    errors.push(`NIP-89 proof must be ${REQUIRED_NIP89_PROOF}`);
+  }
+  if (
+    !/(31989|recommendation)/i.test(entry.scopeNotes) ||
+    !/(31990|handler information)/i.test(entry.scopeNotes) ||
+    !/(d tag|k tag|a tag|supported kind)/i.test(entry.scopeNotes) ||
+    !/(client tag|filter|URL template|platform)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-89 scopeNotes must mention recommendations, handler information, d/k/a tags, client tags, and filters/templates'
+    );
+  }
+  if (
+    /not-started|pending|recommended handlers pending/i.test(`${entry.status} ${entry.scopeNotes}`)
+  ) {
+    errors.push('NIP-89 scopeNotes must not use stale handler-pending wording');
   }
   return errors;
 }

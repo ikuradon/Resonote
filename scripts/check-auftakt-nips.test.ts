@@ -2277,6 +2277,58 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-89 recommended handler pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['89'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('89', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Recommended handlers pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-89 must stay implemented after application handler helper coverage'
+    );
+    expect(result.errors).toContain(
+      'NIP-89 owner must be packages/core/src/nip89-application-handlers.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-89 proof must be packages/core/src/nip89-application-handlers.contract.test.ts'
+    );
+    expect(result.errors).toContain('NIP-89 scopeNotes must not use stale handler-pending wording');
+  });
+
+  it('accepts the implemented NIP-89 application handler helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['89'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('89', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip89-application-handlers.ts',
+            proof: 'packages/core/src/nip89-application-handlers.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-89 application handler helpers build and parse kind:31989 recommendation events with d-tag supported kinds and a-tag handler pointers, kind:31990 handler information events with k-tag supported kinds and platform URL templates, client tags, metadata, and recommendation/handler filters.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-98 HTTP auth pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['98'], sourceUrl: 'source', sourceDate: '2026-04-24' },

@@ -689,11 +689,11 @@
     {
       "nip": "89",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip89-application-handlers.ts",
+      "proof": "packages/core/src/nip89-application-handlers.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "Recommended handlers pending"
+      "scopeNotes": "Core NIP-89 application handler helpers build and parse kind:31989 recommendation events with d-tag supported kinds and a-tag handler pointers, kind:31990 handler information events with k-tag supported kinds and platform URL templates, client tags, metadata, and recommendation/handler filters"
     },
     {
       "nip": "90",
