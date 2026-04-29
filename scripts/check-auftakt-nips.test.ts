@@ -1245,6 +1245,56 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-48 proxy-tag pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['48'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('48', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Proxy tags pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain('NIP-48 must stay implemented after proxy-tag helper coverage');
+    expect(result.errors).toContain('NIP-48 owner must be packages/core/src/nip48-proxy-tags.ts');
+    expect(result.errors).toContain(
+      'NIP-48 proof must be packages/core/src/nip48-proxy-tags.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-48 scopeNotes must not use stale proxy-tag-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-48 proxy-tag helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['48'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('48', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip48-proxy-tags.ts',
+            proof: 'packages/core/src/nip48-proxy-tags.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-48 proxy tag helpers build, append, and parse proxy tags on any event kind, covering activitypub/web URL IDs, atproto AT URI IDs, rss URL-with-fragment IDs, custom protocols, and source ID format validation.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-50 search pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['50'], sourceUrl: 'source', sourceDate: '2026-04-24' },

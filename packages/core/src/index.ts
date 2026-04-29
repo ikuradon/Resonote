@@ -308,6 +308,26 @@ export {
   stringifyNip46ResponsePayload
 } from './nip46-remote-signing.js';
 export type {
+  Nip48KnownProxyProtocol,
+  Nip48ProxyProtocol,
+  Nip48ProxyTag,
+  Nip48ProxyTagInput
+} from './nip48-proxy-tags.js';
+export {
+  appendNip48ProxyTags,
+  buildNip48ProxyTag,
+  hasNip48ProxyTag,
+  isNip48KnownProxyProtocol,
+  isNip48ProxyTag,
+  isValidNip48KnownProxyId,
+  NIP48_PROXY_TAG,
+  NIP48_SUPPORTED_PROTOCOLS,
+  normalizeNip48ProxyProtocol,
+  parseNip48ProxyTag,
+  parseNip48ProxyTags,
+  resolveNip48ProxySourceUrl
+} from './nip48-proxy-tags.js';
+export type {
   BuildNip50SearchFilterInput,
   BuildNip50SearchQueryInput,
   Nip50SearchExtension,

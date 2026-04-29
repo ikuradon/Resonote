@@ -88,6 +88,8 @@ const REQUIRED_NIP40_OWNER = 'packages/adapter-dexie/src/index.ts';
 const REQUIRED_NIP40_PROOF = 'packages/adapter-dexie/src/materialization.contract.test.ts';
 const REQUIRED_NIP46_OWNER = 'packages/core/src/nip46-remote-signing.ts';
 const REQUIRED_NIP46_PROOF = 'packages/core/src/nip46-remote-signing.contract.test.ts';
+const REQUIRED_NIP48_OWNER = 'packages/core/src/nip48-proxy-tags.ts';
+const REQUIRED_NIP48_PROOF = 'packages/core/src/nip48-proxy-tags.contract.test.ts';
 const REQUIRED_NIP50_OWNER = 'packages/core/src/nip50-search.ts';
 const REQUIRED_NIP50_PROOF = 'packages/core/src/nip50-search.contract.test.ts';
 const REQUIRED_NIP51_OWNER = 'packages/core/src/nip51-list.ts';
@@ -356,6 +358,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '46') {
     errors.push(...validateNip46MatrixEntry(entry));
+  }
+  if (entry.nip === '48') {
+    errors.push(...validateNip48MatrixEntry(entry));
   }
   if (entry.nip === '50') {
     errors.push(...validateNip50MatrixEntry(entry));
@@ -889,6 +894,33 @@ function validateNip46MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|remote signing pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-46 scopeNotes must not use stale remote-signing-pending wording');
+  }
+  return errors;
+}
+
+function validateNip48MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-48 must stay implemented after proxy-tag helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP48_OWNER) {
+    errors.push(`NIP-48 owner must be ${REQUIRED_NIP48_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP48_PROOF) {
+    errors.push(`NIP-48 proof must be ${REQUIRED_NIP48_PROOF}`);
+  }
+  if (
+    !/(proxy tag|proxy)/i.test(entry.scopeNotes) ||
+    !/(activitypub|atproto|rss|web)/i.test(entry.scopeNotes) ||
+    !/(URL|AT URI|source ID|ID format)/i.test(entry.scopeNotes) ||
+    !/(any event kind|arbitrary event|append)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-48 scopeNotes must mention proxy tags, supported protocols, ID formats, and arbitrary event kinds'
+    );
+  }
+  if (/not-started|pending|proxy tags pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-48 scopeNotes must not use stale proxy-tag-pending wording');
   }
   return errors;
 }

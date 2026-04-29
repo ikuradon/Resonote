@@ -383,11 +383,11 @@
     {
       "nip": "48",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip48-proxy-tags.ts",
+      "proof": "packages/core/src/nip48-proxy-tags.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "Proxy tags pending"
+      "scopeNotes": "Core NIP-48 proxy tag helpers build, append, and parse proxy tags on any event kind, covering activitypub/web URL IDs, atproto AT URI IDs, rss URL-with-fragment IDs, custom protocols, and source ID format validation"
     },
     {
       "nip": "49",
