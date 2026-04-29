@@ -116,6 +116,26 @@ export {
   parseNip40Expiration
 } from './nip40-expiration.js';
 export type {
+  BuildNip50SearchFilterInput,
+  BuildNip50SearchQueryInput,
+  Nip50SearchExtension,
+  Nip50SearchExtensionInput,
+  Nip50SearchExtensionKey,
+  Nip50SearchFilterSnapshot,
+  Nip50SearchQueryParts
+} from './nip50-search.js';
+export {
+  buildNip50SearchFilter,
+  buildNip50SearchQuery,
+  filterHasNip50Search,
+  NIP50_SEARCH_EXTENSION_KEYS,
+  NIP50_SEARCH_FIELD,
+  NIP50_SEARCH_SUPPORTED_NIP,
+  parseNip50SearchFilter,
+  parseNip50SearchQuery,
+  relaySupportsNip50Search
+} from './nip50-search.js';
+export type {
   BuildNip51ListEventInput,
   Nip51DeprecatedListKind,
   Nip51ListKind,

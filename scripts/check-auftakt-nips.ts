@@ -74,6 +74,8 @@ const REQUIRED_NIP37_OWNER = 'packages/core/src/nip37-draft-wrap.ts';
 const REQUIRED_NIP37_PROOF = 'packages/core/src/nip37-draft-wrap.contract.test.ts';
 const REQUIRED_NIP40_OWNER = 'packages/adapter-dexie/src/index.ts';
 const REQUIRED_NIP40_PROOF = 'packages/adapter-dexie/src/materialization.contract.test.ts';
+const REQUIRED_NIP50_OWNER = 'packages/core/src/nip50-search.ts';
+const REQUIRED_NIP50_PROOF = 'packages/core/src/nip50-search.contract.test.ts';
 const REQUIRED_NIP51_OWNER = 'packages/core/src/nip51-list.ts';
 const REQUIRED_NIP51_PROOF = 'packages/core/src/nip51-list.contract.test.ts';
 const REQUIRED_NIP56_OWNER = 'packages/core/src/nip56-report.ts';
@@ -313,6 +315,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '45') {
     errors.push(...validateNip45MatrixEntry(entry));
+  }
+  if (entry.nip === '50') {
+    errors.push(...validateNip50MatrixEntry(entry));
   }
   if (entry.nip === '51') {
     errors.push(...validateNip51MatrixEntry(entry));
@@ -646,6 +651,34 @@ function validateNip45MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|count support pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-45 scopeNotes must not use stale COUNT-pending wording');
+  }
+  return errors;
+}
+
+function validateNip50MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-50 must stay implemented after search filter helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP50_OWNER) {
+    errors.push(`NIP-50 owner must be ${REQUIRED_NIP50_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP50_PROOF) {
+    errors.push(`NIP-50 proof must be ${REQUIRED_NIP50_PROOF}`);
+  }
+  if (
+    !/search filter|search field/i.test(entry.scopeNotes) ||
+    !/(supported_nips|supported nips|NIP-11|relay support)/i.test(entry.scopeNotes) ||
+    !/(extension|include:spam|domain|language|sentiment|nsfw)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-50 scopeNotes must mention search filters, relay support detection, and query extensions'
+    );
+  }
+  if (
+    /not-started|pending|search capability pending/i.test(`${entry.status} ${entry.scopeNotes}`)
+  ) {
+    errors.push('NIP-50 scopeNotes must not use stale search-pending wording');
   }
   return errors;
 }

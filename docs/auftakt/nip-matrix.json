@@ -401,11 +401,11 @@
     {
       "nip": "50",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip50-search.ts",
+      "proof": "packages/core/src/nip50-search.contract.test.ts",
       "priority": "P2",
-      "scopeNotes": "Search capability pending"
+      "scopeNotes": "Core NIP-50 search filter helpers build and parse search field queries, preserve normal filter constraints, detect relay support from supported_nips, and parse extension tokens such as include:spam/domain/language/sentiment/nsfw"
     },
     {
       "nip": "51",
