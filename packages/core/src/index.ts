@@ -900,6 +900,31 @@ export {
   withNip92MediaAttachments
 } from './nip92-media-attachments.js';
 export type {
+  BuildNip94FileMetadataFilterInput,
+  BuildNip94FileMetadataInput,
+  Nip94Dimensions,
+  Nip94FileMetadataSnapshot,
+  Nip94FileMetadataTagName,
+  Nip94PreviewResource,
+  Nip94PreviewResourceInput
+} from './nip94-file-metadata.js';
+export {
+  buildNip94FallbackTag,
+  buildNip94FileMetadataEvent,
+  buildNip94FileMetadataFilter,
+  buildNip94HashTag,
+  buildNip94ImageTag,
+  buildNip94MediaTypeTag,
+  buildNip94OriginalHashTag,
+  buildNip94ThumbTag,
+  buildNip94UrlTag,
+  NIP94_FILE_METADATA_KIND,
+  NIP94_FILE_METADATA_TAGS,
+  parseNip94Dimensions,
+  parseNip94FileMetadataEvent,
+  parseNip94PreviewResourceTag
+} from './nip94-file-metadata.js';
+export type {
   BuildNip98HttpAuthEventInput,
   Nip98HttpAuthSnapshot,
   Nip98HttpAuthValidationFailureReason,

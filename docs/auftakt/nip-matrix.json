@@ -716,11 +716,11 @@
     {
       "nip": "94",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip94-file-metadata.ts",
+      "proof": "packages/core/src/nip94-file-metadata.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "File metadata pending"
+      "scopeNotes": "Core NIP-94 file metadata helpers build and parse kind:1063 events with required url, m/x SHA-256 media type/hash tags, ox/size/dim/magnet/i/blurhash tags, thumb/image/summary/alt/fallback/service fields, and #x/#m relay filters"
     },
     {
       "nip": "96",

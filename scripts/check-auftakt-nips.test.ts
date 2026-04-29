@@ -2383,6 +2383,60 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-94 file metadata pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['94'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('94', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'File metadata pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-94 must stay implemented after file metadata helper coverage'
+    );
+    expect(result.errors).toContain(
+      'NIP-94 owner must be packages/core/src/nip94-file-metadata.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-94 proof must be packages/core/src/nip94-file-metadata.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-94 scopeNotes must not use stale file-metadata-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-94 file metadata helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['94'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('94', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip94-file-metadata.ts',
+            proof: 'packages/core/src/nip94-file-metadata.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-94 file metadata helpers build and parse kind:1063 events with required url, m/x SHA-256 media type/hash tags, ox/size/dim/magnet/i/blurhash tags, thumb/image/summary/alt/fallback/service fields, and #x/#m relay filters.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-98 HTTP auth pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['98'], sourceUrl: 'source', sourceDate: '2026-04-24' },

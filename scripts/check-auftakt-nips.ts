@@ -130,6 +130,8 @@ const REQUIRED_NIP89_OWNER = 'packages/core/src/nip89-application-handlers.ts';
 const REQUIRED_NIP89_PROOF = 'packages/core/src/nip89-application-handlers.contract.test.ts';
 const REQUIRED_NIP92_OWNER = 'packages/core/src/nip92-media-attachments.ts';
 const REQUIRED_NIP92_PROOF = 'packages/core/src/nip92-media-attachments.contract.test.ts';
+const REQUIRED_NIP94_OWNER = 'packages/core/src/nip94-file-metadata.ts';
+const REQUIRED_NIP94_PROOF = 'packages/core/src/nip94-file-metadata.contract.test.ts';
 const REQUIRED_NIP98_OWNER = 'packages/core/src/nip98-http-auth.ts';
 const REQUIRED_NIP98_PROOF = 'packages/core/src/nip98-http-auth.contract.test.ts';
 const REQUIRED_RELAY_SESSION_OWNER = 'packages/core/src/relay-session.ts';
@@ -446,6 +448,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '92') {
     errors.push(...validateNip92MatrixEntry(entry));
+  }
+  if (entry.nip === '94') {
+    errors.push(...validateNip94MatrixEntry(entry));
   }
   if (entry.nip === '98') {
     errors.push(...validateNip98MatrixEntry(entry));
@@ -1536,6 +1541,34 @@ function validateNip92MatrixEntry(entry: NipMatrixEntry): string[] {
     /not-started|pending|media attachments pending/i.test(`${entry.status} ${entry.scopeNotes}`)
   ) {
     errors.push('NIP-92 scopeNotes must not use stale media-attachment-pending wording');
+  }
+  return errors;
+}
+
+function validateNip94MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-94 must stay implemented after file metadata helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP94_OWNER) {
+    errors.push(`NIP-94 owner must be ${REQUIRED_NIP94_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP94_PROOF) {
+    errors.push(`NIP-94 proof must be ${REQUIRED_NIP94_PROOF}`);
+  }
+  if (
+    !/(kind:1063|1063|file metadata)/i.test(entry.scopeNotes) ||
+    !/(url|m\/x|SHA-256|media type)/i.test(entry.scopeNotes) ||
+    !/(ox|size|dim|magnet|blurhash)/i.test(entry.scopeNotes) ||
+    !/(thumb|image|summary|alt|fallback|service)/i.test(entry.scopeNotes) ||
+    !/(filter|#x|#m)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-94 scopeNotes must mention kind:1063, required URL/media/hash tags, file metadata tags, preview/fallback fields, and hash/media filters'
+    );
+  }
+  if (/not-started|pending|file metadata pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-94 scopeNotes must not use stale file-metadata-pending wording');
   }
   return errors;
 }
