@@ -2540,6 +2540,60 @@ describe('NIP matrix entry validation', () => {
 
     expect(result.errors).toEqual([]);
   });
+
+  it('rejects stale NIP-A4 public message pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['A4'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('A4', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Public messages pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-A4 must stay implemented after public message helper coverage'
+    );
+    expect(result.errors).toContain(
+      'NIP-A4 owner must be packages/core/src/nipA4-public-messages.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-A4 proof must be packages/core/src/nipA4-public-messages.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-A4 scopeNotes must not use stale public-message-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-A4 public message helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['A4'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('A4', {
+            status: 'implemented',
+            owner: 'packages/core/src/nipA4-public-messages.ts',
+            proof: 'packages/core/src/nipA4-public-messages.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-A4 public message helpers build and parse kind:24 events with p receiver tags, no e tags, NIP-40 expiration, NIP-18 q tags, NIP-92 imeta attachments, response k tags, and #p relay filters.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
 });
 
 describe('checkNipStatusDocsSync', () => {

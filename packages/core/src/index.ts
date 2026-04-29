@@ -978,6 +978,32 @@ export {
   parseNipA0VoicePreview
 } from './nipA0-voice-messages.js';
 export type {
+  BuildNipA4PublicMessageFilterInput,
+  BuildNipA4PublicMessageInput,
+  NipA4PublicMessageSnapshot,
+  NipA4Quote,
+  NipA4QuoteInput,
+  NipA4Receiver,
+  NipA4ReceiverInput
+} from './nipA4-public-messages.js';
+export {
+  buildNipA4PublicMessage,
+  buildNipA4PublicMessageFilter,
+  buildNipA4QuoteTag,
+  buildNipA4ReceiverTag,
+  buildNipA4ResponseKindTag,
+  hasNipA4ForbiddenEventTags,
+  isNipA4PublicMessageKind,
+  NIPA4_FORBIDDEN_EVENT_TAG,
+  NIPA4_PUBLIC_MESSAGE_KIND,
+  NIPA4_QUOTE_TAG,
+  NIPA4_RECEIVER_TAG,
+  NIPA4_RESPONSE_KIND_TAG,
+  parseNipA4PublicMessage,
+  parseNipA4Quotes,
+  parseNipA4Receivers
+} from './nipA4-public-messages.js';
+export type {
   DeletionEventLike,
   DeletionReconcileResult,
   OfflineDeliveryDecision,

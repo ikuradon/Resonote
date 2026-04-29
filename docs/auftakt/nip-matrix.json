@@ -761,11 +761,11 @@
     {
       "nip": "A4",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nipA4-public-messages.ts",
+      "proof": "packages/core/src/nipA4-public-messages.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "Public messages pending"
+      "scopeNotes": "Core NIP-A4 public message helpers build and parse kind:24 events with p receiver tags, no e tags, NIP-40 expiration, NIP-18 q tags, NIP-92 imeta attachments, response k tags, and #p relay filters"
     },
     {
       "nip": "B0",

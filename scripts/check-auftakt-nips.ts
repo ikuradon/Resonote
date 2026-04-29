@@ -136,6 +136,8 @@ const REQUIRED_NIP98_OWNER = 'packages/core/src/nip98-http-auth.ts';
 const REQUIRED_NIP98_PROOF = 'packages/core/src/nip98-http-auth.contract.test.ts';
 const REQUIRED_NIPA0_OWNER = 'packages/core/src/nipA0-voice-messages.ts';
 const REQUIRED_NIPA0_PROOF = 'packages/core/src/nipA0-voice-messages.contract.test.ts';
+const REQUIRED_NIPA4_OWNER = 'packages/core/src/nipA4-public-messages.ts';
+const REQUIRED_NIPA4_PROOF = 'packages/core/src/nipA4-public-messages.contract.test.ts';
 const REQUIRED_RELAY_SESSION_OWNER = 'packages/core/src/relay-session.ts';
 const REQUIRED_RELAY_SESSION_PROOF = 'packages/core/src/relay-session.contract.test.ts';
 
@@ -459,6 +461,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === 'A0') {
     errors.push(...validateNipA0MatrixEntry(entry));
+  }
+  if (entry.nip === 'A4') {
+    errors.push(...validateNipA4MatrixEntry(entry));
   }
   return errors;
 }
@@ -1628,6 +1633,35 @@ function validateNipA0MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|voice messages pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-A0 scopeNotes must not use stale voice-message-pending wording');
+  }
+  return errors;
+}
+
+function validateNipA4MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-A4 must stay implemented after public message helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIPA4_OWNER) {
+    errors.push(`NIP-A4 owner must be ${REQUIRED_NIPA4_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIPA4_PROOF) {
+    errors.push(`NIP-A4 proof must be ${REQUIRED_NIPA4_PROOF}`);
+  }
+  if (
+    !/(kind:24|24|public message)/i.test(entry.scopeNotes) ||
+    !/(receiver|p-tag|p tag|#p)/i.test(entry.scopeNotes) ||
+    !/(no e|e tag|forbid)/i.test(entry.scopeNotes) ||
+    !/(expiration|NIP-40|q tag|NIP-18)/i.test(entry.scopeNotes) ||
+    !/(NIP-92|imeta|attachment)/i.test(entry.scopeNotes) ||
+    !/(filter|relay)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-A4 scopeNotes must mention kind:24 public messages, p receivers/#p filters, forbidden e tags, NIP-40/NIP-18 metadata, NIP-92 imeta, and relay filters'
+    );
+  }
+  if (/not-started|pending|public messages pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-A4 scopeNotes must not use stale public-message-pending wording');
   }
   return errors;
 }
