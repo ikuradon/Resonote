@@ -64,11 +64,11 @@ App-facing local comment, follow graph, and maintenance helpers now call coordin
 const validRequiredProofFiles = [
   file('packages/core/src/settlement.ts', 'export function reducePublishSettlement() {}'),
   file(
-    'packages/core/src/relay-session.ts',
+    'packages/runtime/src/relay-session.ts',
     'requeueRelayShardAfterCapabilityLearning\napplyLearnedRelayCapability'
   ),
   file(
-    'packages/core/src/relay-session.contract.test.ts',
+    'packages/runtime/src/relay-session.contract.test.ts',
     'adapts queued shards when a relay learns max_filters from CLOSED'
   ),
   file(
@@ -76,7 +76,7 @@ const validRequiredProofFiles = [
     'uses explicit package-root exports instead of wildcard re-exports'
   ),
   file(
-    'packages/resonote/src/event-coordinator.ts',
+    'packages/runtime/src/event-coordinator.ts',
     'return { settlement: reducePublishSettlement({ localMaterialized: true, relayAccepted: true, queued: false }) };'
   ),
   file(
@@ -85,7 +85,11 @@ const validRequiredProofFiles = [
   ),
   file(
     'packages/resonote/src/runtime.ts',
-    'const cursor = await loadRepairSyncCursor(eventsDB, cursorState);\ncreateOrdinaryReadRelayGateway\nverifyOrdinaryReadRelayCandidates\nResonoteCoordinatorPluginModels\nreadonly models: ResonoteCoordinatorPluginModels\ncreatePluginRegistrationApi(pending, entityHandles)\nreadCommentEventsByTag(tagQuery: string): Promise<StoredEvent[]>;\nclearStoredEvents(): Promise<void>;'
+    'const cursor = await loadRepairSyncCursor(eventsDB, cursorState);\ncreateOrdinaryReadRelayGateway\nverifyOrdinaryReadRelayCandidates\nreadCommentEventsByTag(tagQuery: string): Promise<StoredEvent[]>;\nclearStoredEvents(): Promise<void>;'
+  ),
+  file(
+    'packages/runtime/src/plugin-api.ts',
+    'AuftaktRuntimePluginModels\nreadonly models: AuftaktRuntimePluginModels\ncreatePluginRegistrationApi(pending, models)'
   ),
   file(
     'packages/resonote/src/relay-repair.contract.test.ts',
@@ -108,15 +112,15 @@ const validRequiredProofFiles = [
     'passes selected relays to reaction publish transport\npasses selected audience relays to mention publish transport\npasses addressable explicit relay hints to publish transport\npasses durable addressable target hints to publish transport'
   ),
   file(
-    'packages/resonote/src/plugin-api.contract.test.ts',
-    'lets plugins register read models backed by coordinator model handles\nResonoteCoordinatorPluginModels'
+    'packages/runtime/src/plugin-api.contract.test.ts',
+    'lets plugins register read models backed by coordinator model handles\nAuftaktRuntimePluginModels'
   ),
   file(
     'packages/resonote/src/public-api.contract.test.ts',
     'does not expose raw request-style runtime API names'
   ),
   file(
-    'packages/resonote/src/plugin-isolation.contract.test.ts',
+    'packages/runtime/src/plugin-isolation.contract.test.ts',
     'does not expose raw relay or raw storage handles to plugins\ngetAddressable\ngetEvent\ngetRelayHints\ngetRelaySet\ngetUser\nmaterializerQueue'
   ),
   file(
@@ -128,15 +132,15 @@ const validRequiredProofFiles = [
     '[pubkey+kind+created_at]\nthis.version(4).stores(versionFourStores)'
   ),
   file(
-    'packages/resonote/src/hot-event-index.contract.test.ts',
+    'packages/runtime/src/hot-event-index.contract.test.ts',
     'orders hot kind lookups and applies limit and cursor\nfilters hot tag lookups by kind\nkeeps hot replaceable heads\nremoves deleted events from all hot indexes\nsorts hot relay hints newest first'
   ),
   file(
-    'packages/resonote/src/hot-event-index.ts',
+    'packages/runtime/src/hot-event-index.ts',
     'getByKind(kind, options\ngetReplaceableHead(pubkey, kind, dTag\nreplaceableHeads'
   ),
   file(
-    'packages/resonote/src/event-coordinator.contract.test.ts',
+    'packages/runtime/src/event-coordinator.contract.test.ts',
     'prefills tag reads from hot index while still checking durable store\nprefills kind reads from hot index while still checking durable store'
   ),
   file(
@@ -468,7 +472,7 @@ Adaptive reconnect/read policy beyond the current coordinator gateway behavior r
       ...validRequiredProofFiles,
       file('packages/resonote/src/runtime.ts', 'const rxNostr = await runtime.getRxNostr();'),
       file('src/shared/nostr/client.ts', 'createRxNostrSession({ defaultRelays: [] });'),
-      file('packages/core/src/relay-session.ts', 'export function createRxNostrSession() {}')
+      file('packages/runtime/src/relay-session.ts', 'export function createRxNostrSession() {}')
     ]);
 
     expect(result).toEqual({ ok: true, errors: [] });

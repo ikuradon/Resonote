@@ -163,7 +163,7 @@ export function checkStrictClosure(files: readonly StrictClosureFile[]): StrictC
       );
     }
     if (
-      file.path === 'packages/resonote/src/relay-gateway.ts' &&
+      file.path === 'packages/runtime/src/relay-gateway.ts' &&
       file.text
         .split(/\r?\n/)
         .some((line) => /\breturn\s+\{[^\n}]*(?:\{|,)\s*events\s*(?::|,|\})/.test(line))
@@ -207,15 +207,21 @@ export function checkStrictClosure(files: readonly StrictClosureFile[]): StrictC
     }
   }
 
-  const resonoteProductionFiles = files.filter((file) => isProductionResonoteSource(file.path));
-  const queueReferenced = resonoteProductionFiles.some(
+  const runtimeProductionFiles = files.filter(
     (file) =>
-      file.path !== 'packages/resonote/src/materializer-queue.ts' &&
+      isProductionResonoteSource(file.path) ||
+      (file.path.startsWith('packages/runtime/src/') &&
+        !file.path.endsWith('.test.ts') &&
+        !file.path.endsWith('.contract.test.ts'))
+  );
+  const queueReferenced = runtimeProductionFiles.some(
+    (file) =>
+      file.path !== 'packages/runtime/src/materializer-queue.ts' &&
       file.text.includes('createMaterializerQueue')
   );
-  const gatewayReferenced = resonoteProductionFiles.some(
+  const gatewayReferenced = runtimeProductionFiles.some(
     (file) =>
-      file.path !== 'packages/resonote/src/relay-gateway.ts' &&
+      file.path !== 'packages/runtime/src/relay-gateway.ts' &&
       file.text.includes('createRelayGateway')
   );
   if (!queueReferenced) {

@@ -37,7 +37,8 @@ const canonicalScope = {
     'ReadSettlement semantics',
     'reconcile/offline publish semantics',
     'internal-only negentropy sync/repair',
-    'remaining targeted consumer cutover tracking'
+    'remaining targeted consumer cutover tracking',
+    '@auftakt/runtime package split'
   ],
   exclude: ['unrelated UI refactors', 'raw app-facing negentropy APIs']
 };
@@ -119,9 +120,11 @@ const semanticGuardPolicies = [
     description: 'raw negentropy protocol literals',
     pattern: /NEG-(OPEN|MSG|CLOSE)/g,
     allowedFiles: [
-      'packages/core/src/relay-session.ts',
-      'packages/core/src/relay-session.contract.test.ts',
-      'packages/core/src/negentropy-transport.contract.test.ts'
+      'packages/runtime/src/relay-session.ts',
+      'packages/runtime/src/relay-session.contract.test.ts',
+      'packages/runtime/src/negentropy-transport.contract.test.ts',
+      'packages/runtime/src/relay-repair.ts',
+      'packages/runtime/src/relay-repair.contract.test.ts'
     ]
   },
   {
@@ -530,6 +533,24 @@ function collectCompanionCoverageState(consumerState) {
   };
 }
 
+function collectDependencyDirectionViolations(files) {
+  const violations = [];
+  for (const file of files) {
+    const source = readFileSync(file, 'utf8');
+    if (file.startsWith('packages/core/')) {
+      if (/@auftakt\/(runtime|resonote)/.test(source)) {
+        violations.push(`${file}: core must not depend on runtime or resonote`);
+      }
+    }
+    if (file.startsWith('packages/runtime/')) {
+      if (/@auftakt\/resonote/.test(source)) {
+        violations.push(`${file}: runtime must not depend on resonote`);
+      }
+    }
+  }
+  return violations;
+}
+
 const sourceFiles = walk(ROOT);
 const unauthorizedImportViolations = collectGatewayCompatibilityImportViolations(sourceFiles);
 const ownershipState = collectSharedNostrOwnershipState();
@@ -538,6 +559,10 @@ const residualLegacyAliasState = collectResidualLegacyAliasState();
 const facadeParityState = collectFacadeParityState();
 const companionCoverageState = collectCompanionCoverageState(consumerState);
 const semanticGuardState = collectSemanticGuardState();
+const dependencyDirectionViolations = collectDependencyDirectionViolations([
+  ...sourceFiles,
+  ...walk('packages', { includeTests: true })
+]);
 
 const enforceUnauthorized = failOnUnauthorized || proof;
 const enforceUnclassified = failOnUnclassified || proof;
@@ -564,7 +589,8 @@ const violations = [
   ...residualLegacyAliasState.violations,
   ...facadeParityState.violations,
   ...companionCoverageState.violations,
-  ...semanticViolations
+  ...semanticViolations,
+  ...dependencyDirectionViolations
 ];
 
 if (violations.length > 0) {
@@ -621,6 +647,14 @@ if (violations.length > 0) {
   if (semanticViolations.length > 0) {
     console.error('Semantic guard violations:');
     for (const violation of semanticViolations) {
+      console.error(`- ${violation}`);
+    }
+    console.error('');
+  }
+
+  if (dependencyDirectionViolations.length > 0) {
+    console.error('Dependency direction violations:');
+    for (const violation of dependencyDirectionViolations) {
       console.error(`- ${violation}`);
     }
     console.error('');

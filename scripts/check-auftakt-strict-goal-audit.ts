@@ -57,7 +57,7 @@ const REQUIRED_PUBLISH_SETTLEMENT_FILES = [
     description: 'core publish settlement reducer'
   },
   {
-    path: 'packages/resonote/src/event-coordinator.ts',
+    path: 'packages/runtime/src/event-coordinator.ts',
     text: 'settlement: reducePublishSettlement',
     description: 'coordinator publish settlement return'
   }
@@ -92,17 +92,17 @@ const REQUIRED_ADAPTIVE_REQ_AUDIT_EVIDENCE =
 
 const REQUIRED_ADAPTIVE_REQ_FILES = [
   {
-    path: 'packages/core/src/relay-session.ts',
+    path: 'packages/runtime/src/relay-session.ts',
     text: 'requeueRelayShardAfterCapabilityLearning',
     description: 'adaptive learned-capability shard requeue implementation'
   },
   {
-    path: 'packages/core/src/relay-session.ts',
+    path: 'packages/runtime/src/relay-session.ts',
     text: 'applyLearnedRelayCapability',
     description: 'immediate learned relay capability application'
   },
   {
-    path: 'packages/core/src/relay-session.contract.test.ts',
+    path: 'packages/runtime/src/relay-session.contract.test.ts',
     text: 'adapts queued shards when a relay learns max_filters from CLOSED',
     description: 'adaptive max_filters shard requeue contract'
   }
@@ -195,37 +195,37 @@ const REQUIRED_MINIMAL_CORE_PLUGIN_AUDIT_EVIDENCE =
 
 const REQUIRED_PLUGIN_MODEL_API_FILES = [
   {
-    path: 'packages/resonote/src/runtime.ts',
-    text: 'ResonoteCoordinatorPluginModels',
+    path: 'packages/runtime/src/plugin-api.ts',
+    text: 'AuftaktRuntimePluginModels',
     description: 'plugin model API type'
   },
   {
-    path: 'packages/resonote/src/runtime.ts',
-    text: 'readonly models: ResonoteCoordinatorPluginModels',
+    path: 'packages/runtime/src/plugin-api.ts',
+    text: 'readonly models: AuftaktRuntimePluginModels',
     description: 'plugin model API handle wiring'
   },
   {
-    path: 'packages/resonote/src/runtime.ts',
-    text: 'createPluginRegistrationApi(pending, entityHandles)',
+    path: 'packages/runtime/src/plugin-api.ts',
+    text: 'createPluginRegistrationApi(pending, models)',
     description: 'plugin registration model API injection'
   },
   {
-    path: 'packages/resonote/src/plugin-api.contract.test.ts',
+    path: 'packages/runtime/src/plugin-api.contract.test.ts',
     text: 'lets plugins register read models backed by coordinator model handles',
     description: 'plugin model API read model contract'
   },
   {
-    path: 'packages/resonote/src/plugin-api.contract.test.ts',
-    text: 'ResonoteCoordinatorPluginModels',
+    path: 'packages/runtime/src/plugin-api.contract.test.ts',
+    text: 'AuftaktRuntimePluginModels',
     description: 'plugin model API package type contract'
   },
   {
-    path: 'packages/resonote/src/plugin-isolation.contract.test.ts',
+    path: 'packages/runtime/src/plugin-isolation.contract.test.ts',
     text: 'getAddressable',
     description: 'plugin model API high-level addressable factory contract'
   },
   {
-    path: 'packages/resonote/src/plugin-isolation.contract.test.ts',
+    path: 'packages/runtime/src/plugin-isolation.contract.test.ts',
     text: 'materializerQueue',
     description: 'plugin model API raw-handle isolation contract'
   }
@@ -243,7 +243,7 @@ const REQUIRED_MINIMAL_CORE_PLUGIN_FILES = [
     description: 'Resonote package raw runtime API leak guard'
   },
   {
-    path: 'packages/resonote/src/plugin-isolation.contract.test.ts',
+    path: 'packages/runtime/src/plugin-isolation.contract.test.ts',
     text: 'does not expose raw relay or raw storage handles to plugins',
     description: 'plugin raw handle isolation contract'
   }
@@ -282,17 +282,17 @@ const REQUIRED_STORAGE_HOT_PATH_FILES = [
     description: 'Dexie author max-created schema index'
   },
   {
-    path: 'packages/resonote/src/hot-event-index.contract.test.ts',
+    path: 'packages/runtime/src/hot-event-index.contract.test.ts',
     text: 'removes deleted events from all hot indexes',
     description: 'HotEventIndex deletion cleanup contract'
   },
   {
-    path: 'packages/resonote/src/hot-event-index.ts',
+    path: 'packages/runtime/src/hot-event-index.ts',
     text: 'replaceableHeads',
     description: 'HotEventIndex replaceable head implementation'
   },
   {
-    path: 'packages/resonote/src/event-coordinator.contract.test.ts',
+    path: 'packages/runtime/src/event-coordinator.contract.test.ts',
     text: 'prefills tag reads from hot index while still checking durable store',
     description: 'coordinator tag hot prefill contract'
   }
@@ -438,17 +438,275 @@ const RAW_PLUGIN_HANDLE_TOKENS = [
 ];
 
 const APPROVED_RAW_TRANSPORT_FILES = new Set([
-  'packages/core/src/index.ts',
   'packages/core/src/request-planning.ts',
-  'packages/core/src/relay-session.ts',
+  'packages/runtime/src/index.ts',
+  'packages/runtime/src/relay-session.ts',
+  'packages/runtime/src/cached-read.ts',
+  'packages/runtime/src/relay-repair.ts',
+  'packages/runtime/src/subscription-registry.ts',
+  'packages/runtime/src/request-planning.ts',
   'packages/resonote/src/runtime.ts',
   'src/shared/auftakt/cached-read.svelte.ts',
   'src/shared/auftakt/resonote.ts',
   'src/shared/nostr/client.ts'
 ]);
 
-function addUnique(errors: string[], message: string): void {
-  if (!errors.includes(message)) errors.push(message);
+function checkResonoteMinimalExports(
+  errors: string[],
+  files: readonly StrictGoalAuditFile[]
+): void {
+  const resonoteIndex = files.find((file) => file.path === 'packages/resonote/src/index.ts');
+  if (!resonoteIndex) return;
+
+  const forbidden = [
+    'createResonoteCoordinator',
+    'registerPlugin',
+    'RESONOTE_COORDINATOR_PLUGIN_API_VERSION',
+    'cachedFetchById',
+    'useCachedLatest',
+    'fetchLatestEvent',
+    'fetchNostrEventById'
+  ];
+
+  for (const name of forbidden) {
+    if (tokenPattern(name).test(resonoteIndex.text)) {
+      errors.push(`packages/resonote/src/index.ts still exports generic runtime API: ${name}`);
+    }
+  }
+}
+
+function checkDependencyDirection(errors: string[], files: readonly StrictGoalAuditFile[]): void {
+  for (const file of files) {
+    if (file.path.startsWith('packages/core/')) {
+      if (/@auftakt\/(runtime|resonote)/.test(file.text)) {
+        errors.push(
+          `${file.path} violates dependency direction: core must not depend on runtime or resonote`
+        );
+      }
+    }
+    if (file.path.startsWith('packages/runtime/')) {
+      if (/@auftakt\/resonote/.test(file.text)) {
+        errors.push(
+          `${file.path} violates dependency direction: runtime must not depend on resonote`
+        );
+      }
+    }
+  }
+}
+
+export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): StrictGoalAuditResult {
+  const errors: string[] = [];
+  const strictAudit = files.find((file) => file.path === STRICT_GOAL_AUDIT_PATH);
+
+  if (!strictAudit) {
+    errors.push(`${STRICT_GOAL_AUDIT_PATH} is missing`);
+    return { ok: false, errors };
+  }
+
+  requireTextIncludes(
+    errors,
+    strictAudit.path,
+    strictAudit.text,
+    REQUIRED_AUDIT_SECTIONS,
+    'section'
+  );
+  requireTextIncludes(
+    errors,
+    strictAudit.path,
+    strictAudit.text,
+    REQUIRED_CLASSIFICATIONS,
+    'classification'
+  );
+  requireTextIncludes(
+    errors,
+    strictAudit.path,
+    strictAudit.text,
+    REQUIRED_STRICT_GOAL_AREAS,
+    'strict goal area'
+  );
+  requireTextIncludes(
+    errors,
+    strictAudit.path,
+    strictAudit.text,
+    REQUIRED_MEDIATION_LAYERS,
+    'coordinator mediation layer'
+  );
+
+  if (!strictAudit.text.includes(REQUIRED_FIRST_PHASE_NAME)) {
+    errors.push(`${strictAudit.path} is missing first implementation phase name`);
+  }
+
+  if (!strictAudit.text.includes(REQUIRED_PUBLISH_SETTLEMENT_AUDIT_EVIDENCE)) {
+    errors.push(
+      `${strictAudit.path} is missing coordinator-owned publish settlement implementation evidence`
+    );
+  }
+
+  if (!strictAudit.text.includes(REQUIRED_SYNC_CURSOR_REPAIR_AUDIT_EVIDENCE)) {
+    errors.push(
+      `${strictAudit.path} is missing sync cursor incremental repair implementation evidence`
+    );
+  }
+
+  if (!strictAudit.text.includes(REQUIRED_ORDINARY_READ_CAPABILITY_AUDIT_EVIDENCE)) {
+    errors.push(
+      `${strictAudit.path} is missing ordinary read capability verification implementation evidence`
+    );
+  }
+
+  if (!strictAudit.text.includes(REQUIRED_ADAPTIVE_REQ_AUDIT_EVIDENCE)) {
+    errors.push(`${strictAudit.path} is missing adaptive REQ optimization implementation evidence`);
+  }
+
+  if (!strictAudit.text.includes(REQUIRED_BROADER_OUTBOX_AUDIT_EVIDENCE)) {
+    errors.push(`${strictAudit.path} is missing broader outbox routing implementation evidence`);
+  }
+
+  if (!strictAudit.text.includes(REQUIRED_PLUGIN_MODEL_API_AUDIT_EVIDENCE)) {
+    errors.push(`${strictAudit.path} is missing plugin model API implementation evidence`);
+  }
+
+  if (!strictAudit.text.includes(REQUIRED_MINIMAL_CORE_PLUGIN_AUDIT_EVIDENCE)) {
+    errors.push(`${strictAudit.path} is missing minimal core/plugin boundary evidence`);
+  }
+
+  if (!strictAudit.text.includes(REQUIRED_STORAGE_HOT_PATH_AUDIT_EVIDENCE)) {
+    errors.push(
+      `${strictAudit.path} is missing storage hot-path hardening implementation evidence`
+    );
+  }
+
+  if (!strictAudit.text.includes(REQUIRED_LOCAL_STORE_API_AUDIT_EVIDENCE)) {
+    errors.push(`${strictAudit.path} is missing coordinator local store API evidence`);
+  }
+
+  for (const required of REQUIRED_PUBLISH_SETTLEMENT_FILES) {
+    const text = findFileText(files, required.path);
+    if (text === null) {
+      errors.push(`${required.path} is missing for strict publish settlement audit`);
+      continue;
+    }
+    if (!text.includes(required.text)) {
+      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
+    }
+  }
+
+  for (const required of REQUIRED_SYNC_CURSOR_REPAIR_FILES) {
+    const text = findFileText(files, required.path);
+    if (text === null) {
+      errors.push(`${required.path} is missing for strict sync cursor repair audit`);
+      continue;
+    }
+    if (!text.includes(required.text)) {
+      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
+    }
+  }
+
+  for (const required of REQUIRED_ORDINARY_READ_CAPABILITY_FILES) {
+    const text = findFileText(files, required.path);
+    if (text === null) {
+      errors.push(`${required.path} is missing for strict ordinary read capability audit`);
+      continue;
+    }
+    if (!text.includes(required.text)) {
+      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
+    }
+  }
+
+  for (const required of REQUIRED_ADAPTIVE_REQ_FILES) {
+    const text = findFileText(files, required.path);
+    if (text === null) {
+      errors.push(`${required.path} is missing for strict adaptive REQ optimization audit`);
+      continue;
+    }
+    if (!text.includes(required.text)) {
+      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
+    }
+  }
+
+  for (const required of REQUIRED_BROADER_OUTBOX_FILES) {
+    const text = findFileText(files, required.path);
+    if (text === null) {
+      errors.push(`${required.path} is missing for strict broader outbox routing audit`);
+      continue;
+    }
+    if (!text.includes(required.text)) {
+      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
+    }
+  }
+
+  for (const required of REQUIRED_PLUGIN_MODEL_API_FILES) {
+    const text = findFileText(files, required.path);
+    if (text === null) {
+      errors.push(`${required.path} is missing for strict plugin model API audit`);
+      continue;
+    }
+    if (!text.includes(required.text)) {
+      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
+    }
+  }
+
+  for (const required of REQUIRED_MINIMAL_CORE_PLUGIN_FILES) {
+    const text = findFileText(files, required.path);
+    if (text === null) {
+      errors.push(`${required.path} is missing for strict minimal core/plugin audit`);
+      continue;
+    }
+    if (!text.includes(required.text)) {
+      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
+    }
+  }
+
+  for (const required of REQUIRED_STORAGE_HOT_PATH_FILES) {
+    const text = findFileText(files, required.path);
+    if (text === null) {
+      errors.push(`${required.path} is missing for strict storage hot-path audit`);
+      continue;
+    }
+    if (!text.includes(required.text)) {
+      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
+    }
+  }
+
+  for (const required of REQUIRED_LOCAL_STORE_API_FILES) {
+    const text = findFileText(files, required.path);
+    if (text === null) {
+      errors.push(`${required.path} is missing for strict local store API audit`);
+      continue;
+    }
+    if (!text.includes(required.text)) {
+      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
+    }
+  }
+
+  const runtimeSource = findFileText(files, 'packages/resonote/src/runtime.ts');
+  if (runtimeSource && tokenPattern('openEventsDb').test(runtimeSource)) {
+    errors.push('packages/resonote/src/runtime.ts exposes raw local store handle openEventsDb');
+  }
+
+  if (AMBIGUOUS_STRICT_COMPLETION_PATTERNS.some((pattern) => pattern.test(strictAudit.text))) {
+    errors.push(
+      `${strictAudit.path} claims strict final completion without preserving scoped-vs-strict distinction`
+    );
+  }
+
+  for (const staleVerdict of STALE_STRICT_GOAL_VERDICTS) {
+    if (staleVerdict.pattern.test(strictAudit.text)) {
+      errors.push(staleVerdict.message);
+    }
+  }
+  for (const staleWording of STALE_STRICT_GOAL_FOLLOWUP_WORDING) {
+    if (staleWording.pattern.test(strictAudit.text)) {
+      errors.push(staleWording.message);
+    }
+  }
+
+  checkCanonicalSpecWording(errors, files);
+  checkRawTransportMediation(errors, files);
+  checkResonoteMinimalExports(errors, files);
+  checkDependencyDirection(errors, files);
+
+  return { ok: errors.length === 0, errors };
 }
 
 function requireTextIncludes(
@@ -751,21 +1009,22 @@ function collectFiles(root = process.cwd()): StrictGoalAuditFile[] {
     STRICT_GOAL_AUDIT_PATH,
     'docs/auftakt/spec.md',
     'packages/core/src/settlement.ts',
-    'packages/core/src/relay-session.ts',
-    'packages/core/src/relay-session.contract.test.ts',
+    'packages/runtime/src/index.ts',
+    'packages/runtime/src/relay-session.ts',
+    'packages/runtime/src/relay-session.contract.test.ts',
     'packages/core/src/module-boundary.contract.test.ts',
-    'packages/resonote/src/event-coordinator.ts',
+    'packages/runtime/src/event-coordinator.ts',
     'packages/adapter-dexie/src/index.ts',
     'packages/adapter-dexie/src/hot-path.contract.test.ts',
     'packages/adapter-dexie/src/schema.ts',
     'packages/resonote/src/runtime.ts',
-    'packages/resonote/src/hot-event-index.ts',
-    'packages/resonote/src/hot-event-index.contract.test.ts',
-    'packages/resonote/src/event-coordinator.contract.test.ts',
+    'packages/runtime/src/hot-event-index.ts',
+    'packages/runtime/src/hot-event-index.contract.test.ts',
+    'packages/runtime/src/event-coordinator.contract.test.ts',
     'packages/resonote/src/local-store-api.contract.test.ts',
     'packages/resonote/src/public-api.contract.test.ts',
-    'packages/resonote/src/plugin-api.contract.test.ts',
-    'packages/resonote/src/plugin-isolation.contract.test.ts',
+    'packages/runtime/src/plugin-api.contract.test.ts',
+    'packages/runtime/src/plugin-isolation.contract.test.ts',
     'packages/resonote/src/relay-repair.contract.test.ts',
     'packages/resonote/src/public-read-cutover.contract.test.ts',
     'packages/resonote/src/relay-selection-runtime.ts',

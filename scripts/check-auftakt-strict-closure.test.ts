@@ -57,11 +57,11 @@ describe('checkStrictClosure', () => {
         'const event = toStoredEvent(packet.event); if (event) events.set(event.id, event);'
       ),
       file(
-        'packages/resonote/src/materializer-queue.ts',
+        'packages/runtime/src/materializer-queue.ts',
         'export function createMaterializerQueue() {}'
       ),
       file(
-        'packages/resonote/src/runtime-gateway.ts',
+        'packages/runtime/src/relay-gateway.ts',
         'createMaterializerQueue(); createRelayGateway();'
       )
     ]);
@@ -78,7 +78,7 @@ describe('checkStrictClosure', () => {
         'callbacks.next?.({ event: packet.event, relayHint: packet.from });'
       ),
       file(
-        'packages/resonote/src/materializer-queue.ts',
+        'packages/runtime/src/materializer-queue.ts',
         'export function createMaterializerQueue() {}'
       ),
       file('packages/resonote/src/runtime.ts', 'createMaterializerQueue(); createRelayGateway();')
@@ -93,10 +93,13 @@ describe('checkStrictClosure', () => {
     const result = checkStrictClosure([
       file(
         'src/shared/nostr/query.ts',
-        "import { fetchBackwardEvents } from '../../../packages/resonote/src/runtime.js';"
+        [
+          "import { fetchBackwardEvents } from '../../../packages/resonote/src/",
+          "runtime.js';"
+        ].join('')
       ),
       file(
-        'packages/resonote/src/materializer-queue.ts',
+        'packages/runtime/src/materializer-queue.ts',
         'export function createMaterializerQueue() {}'
       ),
       file('packages/resonote/src/runtime.ts', 'createMaterializerQueue(); createRelayGateway();')
@@ -110,18 +113,18 @@ describe('checkStrictClosure', () => {
   it('flags relay gateway public event result naming', () => {
     const result = checkStrictClosure([
       file(
-        'packages/resonote/src/relay-gateway.ts',
+        'packages/runtime/src/relay-gateway.ts',
         'return { strategy: "fallback-req" as const, events };'
       ),
       file(
-        'packages/resonote/src/materializer-queue.ts',
+        'packages/runtime/src/materializer-queue.ts',
         'export function createMaterializerQueue() {}'
       ),
       file('packages/resonote/src/runtime.ts', 'createMaterializerQueue(); createRelayGateway();')
     ]);
 
     expect(result.errors).toContain(
-      'packages/resonote/src/relay-gateway.ts returns relay gateway events instead of candidates'
+      'packages/runtime/src/relay-gateway.ts returns relay gateway events instead of candidates'
     );
   });
 
@@ -129,7 +132,7 @@ describe('checkStrictClosure', () => {
     const result = checkStrictClosure([
       file('README.md', `${removedRelayAdapterPackage} ${legacyAdapterPath}`),
       file(
-        'packages/resonote/src/materializer-queue.ts',
+        'packages/runtime/src/materializer-queue.ts',
         'export function createMaterializerQueue() {}'
       ),
       file('packages/resonote/src/runtime.ts', 'createMaterializerQueue(); createRelayGateway();')
@@ -141,12 +144,12 @@ describe('checkStrictClosure', () => {
   it('requires queue and gateway production references', () => {
     const result = checkStrictClosure([
       file(
-        'packages/resonote/src/materializer-queue.ts',
+        'packages/runtime/src/materializer-queue.ts',
         'export function createMaterializerQueue() {}'
       ),
-      file('packages/resonote/src/relay-gateway.ts', 'export function createRelayGateway() {}'),
+      file('packages/runtime/src/relay-gateway.ts', 'export function createRelayGateway() {}'),
       file(
-        'packages/resonote/src/event-coordinator.ts',
+        'packages/runtime/src/event-coordinator.ts',
         'export function createEventCoordinator() {}'
       ),
       file('packages/resonote/src/runtime.ts', 'export const runtime = {};')
@@ -160,11 +163,11 @@ describe('checkStrictClosure', () => {
   it('ignores queue and gateway references from tests', () => {
     const result = checkStrictClosure([
       file(
-        'packages/resonote/src/materializer-queue.contract.test.ts',
+        'packages/runtime/src/materializer-queue.contract.test.ts',
         'import { createMaterializerQueue } from "./materializer-queue.js";'
       ),
       file(
-        'packages/resonote/src/relay-gateway.contract.test.ts',
+        'packages/runtime/src/relay-gateway.contract.test.ts',
         'import { createRelayGateway } from "./relay-gateway.js";'
       ),
       file('packages/resonote/src/runtime.ts', 'export const runtime = {};')
@@ -196,7 +199,7 @@ describe('checkStrictClosure', () => {
         `import { cachedFetchById } from '${retiredImport}';`
       ),
       file(
-        'packages/resonote/src/materializer-queue.ts',
+        'packages/runtime/src/materializer-queue.ts',
         'export function createMaterializerQueue() {}'
       ),
       file('packages/resonote/src/runtime.ts', 'createMaterializerQueue(); createRelayGateway();')
@@ -226,7 +229,7 @@ describe('checkStrictClosure', () => {
         ].join('\n')
       ),
       file(
-        'packages/resonote/src/event-coordinator.ts',
+        'packages/runtime/src/event-coordinator.ts',
         'import { createMaterializerQueue } from "./materializer-queue.js";'
       ),
       file(
@@ -263,7 +266,7 @@ describe('checkStrictClosure', () => {
       file(statusPath, `For that audit, see ${legacyAuditPath}.`),
       file(legacyAuditPath, '# Auftakt Strict Redesign Integrated Audit\n\nOld findings.'),
       file(
-        'packages/resonote/src/event-coordinator.ts',
+        'packages/runtime/src/event-coordinator.ts',
         'import { createMaterializerQueue } from "./materializer-queue.js";'
       ),
       file(
@@ -286,7 +289,7 @@ describe('checkStrictClosure', () => {
     const result = checkStrictClosure([
       file('docs/archive/refactoring-plan.md', `Historical note: import '${retiredImport}';`),
       file(
-        'packages/resonote/src/event-coordinator.ts',
+        'packages/runtime/src/event-coordinator.ts',
         'import { createMaterializerQueue } from "./materializer-queue.js";'
       ),
       file(
@@ -301,7 +304,7 @@ describe('checkStrictClosure', () => {
   it('passes when strict closure invariants are satisfied', () => {
     const result = checkStrictClosure([
       file(
-        'packages/resonote/src/event-coordinator.ts',
+        'packages/runtime/src/event-coordinator.ts',
         'import { createMaterializerQueue } from "./materializer-queue.js";'
       ),
       file(
