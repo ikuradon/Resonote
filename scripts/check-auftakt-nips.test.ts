@@ -2229,6 +2229,54 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-88 poll pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['88'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('88', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Polls pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain('NIP-88 must stay implemented after poll helper coverage');
+    expect(result.errors).toContain('NIP-88 owner must be packages/core/src/nip88-polls.ts');
+    expect(result.errors).toContain(
+      'NIP-88 proof must be packages/core/src/nip88-polls.contract.test.ts'
+    );
+    expect(result.errors).toContain('NIP-88 scopeNotes must not use stale poll-pending wording');
+  });
+
+  it('accepts the implemented NIP-88 poll helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['88'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('88', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip88-polls.ts',
+            proof: 'packages/core/src/nip88-polls.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-88 poll helpers build and parse kind:1068 poll events with option/relay/polltype/endsAt tags, kind:1018 response vote events, singlechoice and multiplechoice normalization, response filters, latest-per-pubkey selection, and tally helpers.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-98 HTTP auth pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['98'], sourceUrl: 'source', sourceDate: '2026-04-24' },

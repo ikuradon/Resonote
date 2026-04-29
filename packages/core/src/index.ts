@@ -804,6 +804,42 @@ export {
   stringifyNip85TrustedProviderTags
 } from './nip85-trusted-assertions.js';
 export type {
+  BuildNip88PollInput,
+  BuildNip88ResponseInput,
+  Nip88Option,
+  Nip88OptionInput,
+  Nip88PollSnapshot,
+  Nip88PollTally,
+  Nip88PollType,
+  Nip88ResponseSelectionOptions,
+  Nip88ResponseSnapshot
+} from './nip88-polls.js';
+export {
+  buildNip88EndsAtTag,
+  buildNip88OptionTag,
+  buildNip88Poll,
+  buildNip88PollTypeTag,
+  buildNip88RelayTag,
+  buildNip88Response,
+  buildNip88ResponseFilter,
+  isNip88PollType,
+  NIP88_DEFAULT_POLL_TYPE,
+  NIP88_ENDS_AT_TAG,
+  NIP88_OPTION_TAG,
+  NIP88_POLL_KIND,
+  NIP88_POLL_TYPE_TAG,
+  NIP88_POLL_TYPES,
+  NIP88_RELAY_TAG,
+  NIP88_RESPONSE_KIND,
+  NIP88_RESPONSE_TAG,
+  normalizeNip88ResponseOptionIds,
+  parseNip88Options,
+  parseNip88Poll,
+  parseNip88Response,
+  selectNip88LatestResponsesByPubkey,
+  tallyNip88Responses
+} from './nip88-polls.js';
+export type {
   BuildNip98HttpAuthEventInput,
   Nip98HttpAuthSnapshot,
   Nip98HttpAuthValidationFailureReason,

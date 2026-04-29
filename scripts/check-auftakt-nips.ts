@@ -124,6 +124,8 @@ const REQUIRED_NIP84_OWNER = 'packages/core/src/nip84-highlight.ts';
 const REQUIRED_NIP84_PROOF = 'packages/core/src/nip84-highlight.contract.test.ts';
 const REQUIRED_NIP85_OWNER = 'packages/core/src/nip85-trusted-assertions.ts';
 const REQUIRED_NIP85_PROOF = 'packages/core/src/nip85-trusted-assertions.contract.test.ts';
+const REQUIRED_NIP88_OWNER = 'packages/core/src/nip88-polls.ts';
+const REQUIRED_NIP88_PROOF = 'packages/core/src/nip88-polls.contract.test.ts';
 const REQUIRED_NIP98_OWNER = 'packages/core/src/nip98-http-auth.ts';
 const REQUIRED_NIP98_PROOF = 'packages/core/src/nip98-http-auth.contract.test.ts';
 const REQUIRED_RELAY_SESSION_OWNER = 'packages/core/src/relay-session.ts';
@@ -431,6 +433,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '85') {
     errors.push(...validateNip85MatrixEntry(entry));
+  }
+  if (entry.nip === '88') {
+    errors.push(...validateNip88MatrixEntry(entry));
   }
   if (entry.nip === '98') {
     errors.push(...validateNip98MatrixEntry(entry));
@@ -1435,6 +1440,33 @@ function validateNip85MatrixEntry(entry: NipMatrixEntry): string[] {
     /not-started|pending|trusted assertions pending/i.test(`${entry.status} ${entry.scopeNotes}`)
   ) {
     errors.push('NIP-85 scopeNotes must not use stale trusted-assertion-pending wording');
+  }
+  return errors;
+}
+
+function validateNip88MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-88 must stay implemented after poll helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP88_OWNER) {
+    errors.push(`NIP-88 owner must be ${REQUIRED_NIP88_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP88_PROOF) {
+    errors.push(`NIP-88 proof must be ${REQUIRED_NIP88_PROOF}`);
+  }
+  if (
+    !/(kind:1068|1068|poll)/i.test(entry.scopeNotes) ||
+    !/(kind:1018|1018|response|vote)/i.test(entry.scopeNotes) ||
+    !/(option|relay|polltype|endsAt)/i.test(entry.scopeNotes) ||
+    !/(singlechoice|multiplechoice|latest|pubkey|tally)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-88 scopeNotes must mention poll/response kinds, option/relay/polltype/endsAt tags, and latest vote tally helpers'
+    );
+  }
+  if (/not-started|pending|polls pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-88 scopeNotes must not use stale poll-pending wording');
   }
   return errors;
 }

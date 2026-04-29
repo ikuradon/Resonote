@@ -680,11 +680,11 @@
     {
       "nip": "88",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip88-polls.ts",
+      "proof": "packages/core/src/nip88-polls.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "Polls pending"
+      "scopeNotes": "Core NIP-88 poll helpers build and parse kind:1068 poll events with option/relay/polltype/endsAt tags, kind:1018 response vote events, singlechoice and multiplechoice normalization, response filters, latest-per-pubkey selection, and tally helpers"
     },
     {
       "nip": "89",
