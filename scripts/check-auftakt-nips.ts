@@ -94,6 +94,8 @@ const REQUIRED_NIP50_OWNER = 'packages/core/src/nip50-search.ts';
 const REQUIRED_NIP50_PROOF = 'packages/core/src/nip50-search.contract.test.ts';
 const REQUIRED_NIP51_OWNER = 'packages/core/src/nip51-list.ts';
 const REQUIRED_NIP51_PROOF = 'packages/core/src/nip51-list.contract.test.ts';
+const REQUIRED_NIP52_OWNER = 'packages/core/src/nip52-calendar.ts';
+const REQUIRED_NIP52_PROOF = 'packages/core/src/nip52-calendar.contract.test.ts';
 const REQUIRED_NIP55_OWNER = 'packages/core/src/nip55-android-signer.ts';
 const REQUIRED_NIP55_PROOF = 'packages/core/src/nip55-android-signer.contract.test.ts';
 const REQUIRED_NIP56_OWNER = 'packages/core/src/nip56-report.ts';
@@ -367,6 +369,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '51') {
     errors.push(...validateNip51MatrixEntry(entry));
+  }
+  if (entry.nip === '52') {
+    errors.push(...validateNip52MatrixEntry(entry));
   }
   if (entry.nip === '55') {
     errors.push(...validateNip55MatrixEntry(entry));
@@ -973,6 +978,33 @@ function validateNip51MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/partial|pending|not-started/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-51 scopeNotes must not use stale partial/pending wording');
+  }
+  return errors;
+}
+
+function validateNip52MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-52 must stay implemented after calendar event helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP52_OWNER) {
+    errors.push(`NIP-52 owner must be ${REQUIRED_NIP52_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP52_PROOF) {
+    errors.push(`NIP-52 proof must be ${REQUIRED_NIP52_PROOF}`);
+  }
+  if (
+    !/(31922|31923|date-based|time-based)/i.test(entry.scopeNotes) ||
+    !/(31924|calendar)/i.test(entry.scopeNotes) ||
+    !/(31925|RSVP|status|free\/busy)/i.test(entry.scopeNotes) ||
+    !/(D tag|day|timezone|tzid|a tag|address)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-52 scopeNotes must mention date/time events, calendars, RSVPs, D/tzid/address tags'
+    );
+  }
+  if (/not-started|pending|outside current scope/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-52 scopeNotes must not use stale calendar-out-of-scope wording');
   }
   return errors;
 }

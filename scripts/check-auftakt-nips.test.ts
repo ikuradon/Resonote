@@ -1393,6 +1393,58 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-52 calendar out-of-scope claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['52'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('52', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Calendar events outside current scope'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-52 must stay implemented after calendar event helper coverage'
+    );
+    expect(result.errors).toContain('NIP-52 owner must be packages/core/src/nip52-calendar.ts');
+    expect(result.errors).toContain(
+      'NIP-52 proof must be packages/core/src/nip52-calendar.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-52 scopeNotes must not use stale calendar-out-of-scope wording'
+    );
+  });
+
+  it('accepts the implemented NIP-52 calendar helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['52'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('52', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip52-calendar.ts',
+            proof: 'packages/core/src/nip52-calendar.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-52 calendar helpers build and parse kind:31922 date-based events, kind:31923 time-based events with D tag day coverage and tzid tags, kind:31924 calendars with a tag addresses, and kind:31925 RSVP status/free/busy responses.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-55 Android signer pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['55'], sourceUrl: 'source', sourceDate: '2026-04-24' },

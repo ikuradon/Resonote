@@ -419,11 +419,11 @@
     {
       "nip": "52",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip52-calendar.ts",
+      "proof": "packages/core/src/nip52-calendar.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "Calendar events outside current scope"
+      "scopeNotes": "Core NIP-52 calendar helpers build and parse kind:31922 date-based events, kind:31923 time-based events with D tag day coverage and tzid tags, kind:31924 calendars with a tag addresses, and kind:31925 RSVP status/free/busy responses"
     },
     {
       "nip": "53",

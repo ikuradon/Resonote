@@ -378,6 +378,53 @@ export {
   stringifyNip51PrivateTags
 } from './nip51-list.js';
 export type {
+  BuildNip52CalendarInput,
+  BuildNip52DateCalendarEventInput,
+  BuildNip52RsvpInput,
+  BuildNip52TimeCalendarEventInput,
+  Nip52AddressPointer,
+  Nip52AddressPointerInput,
+  Nip52CalendarEventKind,
+  Nip52CalendarEventMetadata,
+  Nip52CalendarSnapshot,
+  Nip52DateCalendarEventSnapshot,
+  Nip52FreeBusy,
+  Nip52Participant,
+  Nip52ParticipantInput,
+  Nip52RsvpSnapshot,
+  Nip52RsvpStatus,
+  Nip52TimeCalendarEventSnapshot
+} from './nip52-calendar.js';
+export {
+  buildNip52AddressTag,
+  buildNip52Calendar,
+  buildNip52DateCalendarEvent,
+  buildNip52EventRevisionTag,
+  buildNip52ParticipantTag,
+  buildNip52Rsvp,
+  buildNip52TimeCalendarEvent,
+  isNip52CalendarEventKind,
+  isNip52Date,
+  isNip52FreeBusy,
+  isNip52RsvpStatus,
+  NIP52_CALENDAR_EVENT_KINDS,
+  NIP52_CALENDAR_KIND,
+  NIP52_CALENDAR_RSVP_KIND,
+  NIP52_DATE_BASED_CALENDAR_EVENT_KIND,
+  NIP52_FREE_BUSY_VALUES,
+  NIP52_RSVP_STATUSES,
+  NIP52_TIME_BASED_CALENDAR_EVENT_KIND,
+  parseNip52AddressPointer,
+  parseNip52AddressTags,
+  parseNip52Calendar,
+  parseNip52CalendarEventMetadata,
+  parseNip52DateCalendarEvent,
+  parseNip52DayTimestamps,
+  parseNip52Participants,
+  parseNip52Rsvp,
+  parseNip52TimeCalendarEvent
+} from './nip52-calendar.js';
+export type {
   BuildNip55SignerUrlInput,
   Nip55CompressionType,
   Nip55IntentRequest,
