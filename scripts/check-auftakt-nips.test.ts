@@ -1813,6 +1813,58 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-68 picture-first feed pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['68'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('68', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Picture-first feeds pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-68 must stay implemented after picture event helper coverage'
+    );
+    expect(result.errors).toContain('NIP-68 owner must be packages/core/src/nip68-picture.ts');
+    expect(result.errors).toContain(
+      'NIP-68 proof must be packages/core/src/nip68-picture.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-68 scopeNotes must not use stale picture-feed-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-68 picture event helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['68'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('68', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip68-picture.ts',
+            proof: 'packages/core/src/nip68-picture.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-68 helpers build and parse kind:20 picture events with title/content, multiple imeta image tags, accepted image media types, fallback and annotate-user imeta fields, content-warning, tagged pubkeys, image hashes, hashtags, location, geohash, and language tags.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-70 protected-event policy claims', () => {
     const result = checkNipMatrix(
       { nips: ['70'], sourceUrl: 'source', sourceDate: '2026-04-24' },

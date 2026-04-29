@@ -110,6 +110,8 @@ const REQUIRED_NIP62_OWNER = 'packages/adapter-dexie/src/index.ts';
 const REQUIRED_NIP62_PROOF = 'packages/adapter-dexie/src/materialization.contract.test.ts';
 const REQUIRED_NIP66_OWNER = 'packages/resonote/src/runtime.ts';
 const REQUIRED_NIP66_PROOF = 'packages/resonote/src/relay-metrics-nip66.contract.test.ts';
+const REQUIRED_NIP68_OWNER = 'packages/core/src/nip68-picture.ts';
+const REQUIRED_NIP68_PROOF = 'packages/core/src/nip68-picture.contract.test.ts';
 const REQUIRED_NIP78_OWNER = 'packages/core/src/nip78-application-data.ts';
 const REQUIRED_NIP78_PROOF = 'packages/core/src/nip78-application-data.contract.test.ts';
 const REQUIRED_NIP7D_OWNER = 'packages/core/src/nip7d-thread.ts';
@@ -397,6 +399,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '66') {
     errors.push(...validateNip66MatrixEntry(entry));
+  }
+  if (entry.nip === '68') {
+    errors.push(...validateNip68MatrixEntry(entry));
   }
   if (entry.nip === '70') {
     errors.push(...validateNip70MatrixEntry(entry));
@@ -1194,6 +1199,35 @@ function validateNip66MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/partial|seeded|pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-66 scopeNotes must not use stale seeded/partial wording');
+  }
+  return errors;
+}
+
+function validateNip68MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-68 must stay implemented after picture event helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP68_OWNER) {
+    errors.push(`NIP-68 owner must be ${REQUIRED_NIP68_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP68_PROOF) {
+    errors.push(`NIP-68 proof must be ${REQUIRED_NIP68_PROOF}`);
+  }
+  if (
+    !/(kind:20|picture)/i.test(entry.scopeNotes) ||
+    !/imeta/i.test(entry.scopeNotes) ||
+    !/(media type|image\/jpeg|image\/webp)/i.test(entry.scopeNotes) ||
+    !/(annotate-user|fallback|content-warning|location|geohash)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-68 scopeNotes must mention kind:20 picture events, imeta images, accepted media types, and related picture tags'
+    );
+  }
+  if (
+    /not-started|pending|picture-first feeds pending/i.test(`${entry.status} ${entry.scopeNotes}`)
+  ) {
+    errors.push('NIP-68 scopeNotes must not use stale picture-feed-pending wording');
   }
   return errors;
 }

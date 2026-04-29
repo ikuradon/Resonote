@@ -591,6 +591,36 @@ export {
   parseNip62RequestToVanishEvent
 } from './nip62-request-to-vanish.js';
 export type {
+  BuildNip68PictureEventInput,
+  Nip68AcceptedMediaType,
+  Nip68AnnotatedUser,
+  Nip68AnnotatedUserInput,
+  Nip68Image,
+  Nip68ImageInput,
+  Nip68ImetaField,
+  Nip68ImetaFieldInput,
+  Nip68Language,
+  Nip68LanguageInput,
+  Nip68PictureEventSnapshot,
+  Nip68TaggedPubkey,
+  Nip68TaggedPubkeyInput
+} from './nip68-picture.js';
+export {
+  buildNip68AnnotatedUserEntry,
+  buildNip68HashtagTag,
+  buildNip68ImetaTag,
+  buildNip68PictureEvent,
+  buildNip68TaggedPubkeyTag,
+  isNip68AcceptedMediaType,
+  NIP68_ACCEPTED_MEDIA_TYPES,
+  NIP68_IMETA_TAG,
+  NIP68_PICTURE_EVENT_KIND,
+  parseNip68AnnotatedUserEntry,
+  parseNip68ImetaTag,
+  parseNip68PictureEvent,
+  parseNip68TaggedPubkeyTags
+} from './nip68-picture.js';
+export type {
   BuildNip78ApplicationDataInput,
   Nip78ApplicationDataSnapshot
 } from './nip78-application-data.js';
