@@ -257,11 +257,11 @@
     {
       "nip": "32",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip32-label.ts",
+      "proof": "packages/core/src/nip32-label.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "Labeling model pending"
+      "scopeNotes": "Core NIP-32 labeling helpers build and parse kind:1985 label events, L tag namespaces, l tag label marks, e/p/a/r/t targets with relay hints, and self-report/self-label tags on non-label events"
     },
     {
       "nip": "34",

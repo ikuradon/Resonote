@@ -150,6 +150,32 @@ export {
   parseNip31AltTag,
   withNip31AltTag
 } from './nip31-alt.js';
+export type {
+  BuildNip32LabelEventInput,
+  Nip32Label,
+  Nip32LabelEventSnapshot,
+  Nip32LabelInput,
+  Nip32LabelTarget,
+  Nip32LabelTargetInput,
+  Nip32LabelTargetTagName
+} from './nip32-label.js';
+export {
+  appendNip32SelfLabelTags,
+  buildNip32LabelEvent,
+  buildNip32LabelTag,
+  buildNip32LabelTargetTag,
+  buildNip32NamespaceTag,
+  isNip32LabelTargetTagName,
+  NIP32_IMPLIED_NAMESPACE,
+  NIP32_LABEL_KIND,
+  NIP32_LABEL_TAG,
+  NIP32_NAMESPACE_TAG,
+  parseNip32LabelEvent,
+  parseNip32Labels,
+  parseNip32LabelTargets,
+  parseNip32Namespaces,
+  parseNip32SelfReportedLabels
+} from './nip32-label.js';
 export {
   buildNip36ContentWarningTag,
   hasNip36ContentWarning,

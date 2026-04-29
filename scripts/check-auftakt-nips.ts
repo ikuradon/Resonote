@@ -74,6 +74,8 @@ const REQUIRED_NIP27_OWNER = 'packages/core/src/nip27-references.ts';
 const REQUIRED_NIP27_PROOF = 'packages/core/src/nip27-references.contract.test.ts';
 const REQUIRED_NIP31_OWNER = 'packages/core/src/nip31-alt.ts';
 const REQUIRED_NIP31_PROOF = 'packages/core/src/nip31-alt.contract.test.ts';
+const REQUIRED_NIP32_OWNER = 'packages/core/src/nip32-label.ts';
+const REQUIRED_NIP32_PROOF = 'packages/core/src/nip32-label.contract.test.ts';
 const REQUIRED_NIP36_OWNER = 'packages/core/src/nip36-content-warning.ts';
 const REQUIRED_NIP36_PROOF = 'packages/core/src/nip36-content-warning.contract.test.ts';
 const REQUIRED_NIP37_OWNER = 'packages/core/src/nip37-draft-wrap.ts';
@@ -323,6 +325,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '31') {
     errors.push(...validateNip31MatrixEntry(entry));
+  }
+  if (entry.nip === '32') {
+    errors.push(...validateNip32MatrixEntry(entry));
   }
   if (entry.nip === '36') {
     errors.push(...validateNip36MatrixEntry(entry));
@@ -637,6 +642,34 @@ function validateNip31MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/partial|pending|dedicated handling pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-31 scopeNotes must not use stale unknown-event-pending wording');
+  }
+  return errors;
+}
+
+function validateNip32MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-32 must stay implemented after labeling model coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP32_OWNER) {
+    errors.push(`NIP-32 owner must be ${REQUIRED_NIP32_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP32_PROOF) {
+    errors.push(`NIP-32 proof must be ${REQUIRED_NIP32_PROOF}`);
+  }
+  if (
+    !/(kind:1985|label event)/i.test(entry.scopeNotes) ||
+    !/(L tag|namespace)/i.test(entry.scopeNotes) ||
+    !/(l tag|label tag)/i.test(entry.scopeNotes) ||
+    !/(target|e\/p\/a\/r\/t)/i.test(entry.scopeNotes) ||
+    !/(self-report|self-label)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-32 scopeNotes must mention kind:1985 labels, namespaces, targets, and self-reporting'
+    );
+  }
+  if (/not-started|pending|labeling model/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-32 scopeNotes must not use stale labeling-model-pending wording');
   }
   return errors;
 }

@@ -787,6 +787,56 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-32 labeling pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['32'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('32', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Labeling model pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain('NIP-32 must stay implemented after labeling model coverage');
+    expect(result.errors).toContain('NIP-32 owner must be packages/core/src/nip32-label.ts');
+    expect(result.errors).toContain(
+      'NIP-32 proof must be packages/core/src/nip32-label.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-32 scopeNotes must not use stale labeling-model-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-32 labeling claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['32'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('32', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip32-label.ts',
+            proof: 'packages/core/src/nip32-label.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-32 labeling helpers build and parse kind:1985 label events, L tag namespaces, l tag label marks, e/p/a/r/t targets with relay hints, and self-report/self-label tags on non-label events.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-36 sensitive-content pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['36'], sourceUrl: 'source', sourceDate: '2026-04-24' },
