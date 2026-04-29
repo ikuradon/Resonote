@@ -425,6 +425,53 @@ export {
   parseNip52TimeCalendarEvent
 } from './nip52-calendar.js';
 export type {
+  BuildNip53LiveChatInput,
+  BuildNip53LiveStreamInput,
+  BuildNip53MeetingRoomInput,
+  BuildNip53MeetingSpaceInput,
+  BuildNip53RoomPresenceInput,
+  Nip53ActivityStatus,
+  Nip53Address,
+  Nip53AddressInput,
+  Nip53AddressKind,
+  Nip53LiveChatSnapshot,
+  Nip53LiveStreamSnapshot,
+  Nip53MeetingRoomSnapshot,
+  Nip53MeetingSpaceSnapshot,
+  Nip53Participant,
+  Nip53ParticipantInput,
+  Nip53RoomPresenceSnapshot,
+  Nip53SpaceStatus
+} from './nip53-live-activity.js';
+export {
+  buildNip53AddressTag,
+  buildNip53LiveChat,
+  buildNip53LiveStream,
+  buildNip53MeetingRoom,
+  buildNip53MeetingSpace,
+  buildNip53ParticipantTag,
+  buildNip53RoomPresence,
+  isNip53ActivityStatus,
+  isNip53AddressKind,
+  isNip53SpaceStatus,
+  NIP53_ACTIVITY_STATUSES,
+  NIP53_LIVE_CHAT_KIND,
+  NIP53_LIVE_STREAM_KIND,
+  NIP53_MEETING_ROOM_KIND,
+  NIP53_MEETING_SPACE_KIND,
+  NIP53_ROOM_PRESENCE_KIND,
+  NIP53_SPACE_STATUSES,
+  parseNip53Address,
+  parseNip53AddressTags,
+  parseNip53LiveChat,
+  parseNip53LiveStream,
+  parseNip53MeetingRoom,
+  parseNip53MeetingSpace,
+  parseNip53ParticipantTags,
+  parseNip53RelaysTag,
+  parseNip53RoomPresence
+} from './nip53-live-activity.js';
+export type {
   BuildNip55SignerUrlInput,
   Nip55CompressionType,
   Nip55IntentRequest,

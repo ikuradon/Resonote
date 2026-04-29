@@ -96,6 +96,8 @@ const REQUIRED_NIP51_OWNER = 'packages/core/src/nip51-list.ts';
 const REQUIRED_NIP51_PROOF = 'packages/core/src/nip51-list.contract.test.ts';
 const REQUIRED_NIP52_OWNER = 'packages/core/src/nip52-calendar.ts';
 const REQUIRED_NIP52_PROOF = 'packages/core/src/nip52-calendar.contract.test.ts';
+const REQUIRED_NIP53_OWNER = 'packages/core/src/nip53-live-activity.ts';
+const REQUIRED_NIP53_PROOF = 'packages/core/src/nip53-live-activity.contract.test.ts';
 const REQUIRED_NIP55_OWNER = 'packages/core/src/nip55-android-signer.ts';
 const REQUIRED_NIP55_PROOF = 'packages/core/src/nip55-android-signer.contract.test.ts';
 const REQUIRED_NIP56_OWNER = 'packages/core/src/nip56-report.ts';
@@ -372,6 +374,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '52') {
     errors.push(...validateNip52MatrixEntry(entry));
+  }
+  if (entry.nip === '53') {
+    errors.push(...validateNip53MatrixEntry(entry));
   }
   if (entry.nip === '55') {
     errors.push(...validateNip55MatrixEntry(entry));
@@ -1005,6 +1010,35 @@ function validateNip52MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|outside current scope/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-52 scopeNotes must not use stale calendar-out-of-scope wording');
+  }
+  return errors;
+}
+
+function validateNip53MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-53 must stay implemented after live-activity helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP53_OWNER) {
+    errors.push(`NIP-53 owner must be ${REQUIRED_NIP53_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP53_PROOF) {
+    errors.push(`NIP-53 proof must be ${REQUIRED_NIP53_PROOF}`);
+  }
+  if (
+    !/(30311|live stream|live activity)/i.test(entry.scopeNotes) ||
+    !/(1311|live chat)/i.test(entry.scopeNotes) ||
+    !/(30312|meeting space)/i.test(entry.scopeNotes) ||
+    !/(30313|meeting room)/i.test(entry.scopeNotes) ||
+    !/(10312|presence|hand)/i.test(entry.scopeNotes) ||
+    !/(status|participant|relays|address)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-53 scopeNotes must mention live streams, chat, meeting space/room, presence, and shared tags'
+    );
+  }
+  if (/not-started|pending|outside current scope/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-53 scopeNotes must not use stale live-activity-out-of-scope wording');
   }
   return errors;
 }

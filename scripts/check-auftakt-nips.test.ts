@@ -1445,6 +1445,60 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-53 live-activity out-of-scope claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['53'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('53', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Live activities outside current scope'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-53 must stay implemented after live-activity helper coverage'
+    );
+    expect(result.errors).toContain(
+      'NIP-53 owner must be packages/core/src/nip53-live-activity.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-53 proof must be packages/core/src/nip53-live-activity.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-53 scopeNotes must not use stale live-activity-out-of-scope wording'
+    );
+  });
+
+  it('accepts the implemented NIP-53 live-activity helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['53'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('53', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip53-live-activity.ts',
+            proof: 'packages/core/src/nip53-live-activity.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-53 live activity helpers build and parse kind:30311 live streams, kind:1311 live chat messages, kind:30312 meeting space events, kind:30313 meeting room events, and kind:10312 presence/hand events with status, participant, relays, and address tags.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-55 Android signer pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['55'], sourceUrl: 'source', sourceDate: '2026-04-24' },

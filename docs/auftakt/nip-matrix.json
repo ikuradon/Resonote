@@ -428,11 +428,11 @@
     {
       "nip": "53",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip53-live-activity.ts",
+      "proof": "packages/core/src/nip53-live-activity.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "Live activities outside current scope"
+      "scopeNotes": "Core NIP-53 live activity helpers build and parse kind:30311 live streams, kind:1311 live chat messages, kind:30312 meeting space events, kind:30313 meeting room events, and kind:10312 presence/hand events with status, participant, relays, and address tags"
     },
     {
       "nip": "54",
