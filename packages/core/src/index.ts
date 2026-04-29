@@ -948,6 +948,36 @@ export {
   validateNip98HttpAuthEvent
 } from './nip98-http-auth.js';
 export type {
+  BuildNipA0VoiceMessageFilterInput,
+  BuildNipA0VoiceMessageInput,
+  BuildNipA0VoiceReplyInput,
+  NipA0Nip22Reference,
+  NipA0ParentReferenceInput,
+  NipA0ParentReferenceTagName,
+  NipA0RootReferenceInput,
+  NipA0RootReferenceTagName,
+  NipA0VoiceMessageKind,
+  NipA0VoiceMessageSnapshot,
+  NipA0VoicePreview,
+  NipA0VoicePreviewInput
+} from './nipA0-voice-messages.js';
+export {
+  buildNipA0ParentReferenceTags,
+  buildNipA0RootReferenceTags,
+  buildNipA0VoiceImetaTag,
+  buildNipA0VoiceMessage,
+  buildNipA0VoiceMessageFilter,
+  buildNipA0VoiceReply,
+  isNipA0VoiceMessageKind,
+  NIPA0_RECOMMENDED_MAX_DURATION_SECONDS,
+  NIPA0_RECOMMENDED_MEDIA_TYPE,
+  NIPA0_REPLY_VOICE_MESSAGE_KIND,
+  NIPA0_ROOT_VOICE_MESSAGE_KIND,
+  NIPA0_VOICE_MESSAGE_KINDS,
+  parseNipA0VoiceMessage,
+  parseNipA0VoicePreview
+} from './nipA0-voice-messages.js';
+export type {
   DeletionEventLike,
   DeletionReconcileResult,
   OfflineDeliveryDecision,

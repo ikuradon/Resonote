@@ -134,6 +134,8 @@ const REQUIRED_NIP94_OWNER = 'packages/core/src/nip94-file-metadata.ts';
 const REQUIRED_NIP94_PROOF = 'packages/core/src/nip94-file-metadata.contract.test.ts';
 const REQUIRED_NIP98_OWNER = 'packages/core/src/nip98-http-auth.ts';
 const REQUIRED_NIP98_PROOF = 'packages/core/src/nip98-http-auth.contract.test.ts';
+const REQUIRED_NIPA0_OWNER = 'packages/core/src/nipA0-voice-messages.ts';
+const REQUIRED_NIPA0_PROOF = 'packages/core/src/nipA0-voice-messages.contract.test.ts';
 const REQUIRED_RELAY_SESSION_OWNER = 'packages/core/src/relay-session.ts';
 const REQUIRED_RELAY_SESSION_PROOF = 'packages/core/src/relay-session.contract.test.ts';
 
@@ -454,6 +456,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '98') {
     errors.push(...validateNip98MatrixEntry(entry));
+  }
+  if (entry.nip === 'A0') {
+    errors.push(...validateNipA0MatrixEntry(entry));
   }
   return errors;
 }
@@ -1595,6 +1600,34 @@ function validateNip98MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|http auth pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-98 scopeNotes must not use stale HTTP-auth-pending wording');
+  }
+  return errors;
+}
+
+function validateNipA0MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-A0 must stay implemented after voice message helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIPA0_OWNER) {
+    errors.push(`NIP-A0 owner must be ${REQUIRED_NIPA0_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIPA0_PROOF) {
+    errors.push(`NIP-A0 proof must be ${REQUIRED_NIPA0_PROOF}`);
+  }
+  if (
+    !/(1222|1244|voice)/i.test(entry.scopeNotes) ||
+    !/(audio URL|audio\/mp4|duration)/i.test(entry.scopeNotes) ||
+    !/(NIP-22|root|parent|reply)/i.test(entry.scopeNotes) ||
+    !/(NIP-92|imeta|waveform)/i.test(entry.scopeNotes) ||
+    !/(filter|relay)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-A0 scopeNotes must mention voice kinds, audio URL/duration metadata, NIP-22 reply tags, NIP-92 waveform imeta, and relay filters'
+    );
+  }
+  if (/not-started|pending|voice messages pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-A0 scopeNotes must not use stale voice-message-pending wording');
   }
   return errors;
 }

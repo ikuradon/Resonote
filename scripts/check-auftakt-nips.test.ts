@@ -2486,6 +2486,60 @@ describe('NIP matrix entry validation', () => {
 
     expect(result.errors).toEqual([]);
   });
+
+  it('rejects stale NIP-A0 voice message pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['A0'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('A0', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Voice messages pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-A0 must stay implemented after voice message helper coverage'
+    );
+    expect(result.errors).toContain(
+      'NIP-A0 owner must be packages/core/src/nipA0-voice-messages.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-A0 proof must be packages/core/src/nipA0-voice-messages.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-A0 scopeNotes must not use stale voice-message-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-A0 voice message helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['A0'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('A0', {
+            status: 'implemented',
+            owner: 'packages/core/src/nipA0-voice-messages.ts',
+            proof: 'packages/core/src/nipA0-voice-messages.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-A0 voice message helpers build and parse kind:1222 root voice events and kind:1244 NIP-22 reply events with audio URL content, recommended audio/mp4 duration metadata, NIP-92 imeta waveform previews, root/parent references, and relay filters.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
 });
 
 describe('checkNipStatusDocsSync', () => {
