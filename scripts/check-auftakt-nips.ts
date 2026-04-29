@@ -54,6 +54,8 @@ const REQUIRED_NIP05_OWNER = 'src/shared/nostr/nip05.ts';
 const REQUIRED_NIP05_PROOF = 'src/shared/nostr/nip05.test.ts';
 const REQUIRED_NIP07_OWNER = 'src/shared/nostr/client.ts';
 const REQUIRED_NIP07_PROOF = 'src/shared/nostr/client-integration.test.ts';
+const REQUIRED_NIP13_OWNER = 'packages/core/src/nip13-proof-of-work.ts';
+const REQUIRED_NIP13_PROOF = 'packages/core/src/nip13-proof-of-work.contract.test.ts';
 const REQUIRED_NIP17_OWNER = 'packages/core/src/nip17-direct-message.ts';
 const REQUIRED_NIP17_PROOF = 'packages/core/src/nip17-direct-message.contract.test.ts';
 const REQUIRED_NIP18_OWNER = 'src/features/comments/application/comment-actions.ts';
@@ -288,6 +290,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === '07') {
     errors.push(...validateNip07MatrixEntry(entry));
   }
+  if (entry.nip === '13') {
+    errors.push(...validateNip13MatrixEntry(entry));
+  }
   if (entry.nip === '17') {
     errors.push(...validateNip17MatrixEntry(entry));
   }
@@ -359,6 +364,32 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '98') {
     errors.push(...validateNip98MatrixEntry(entry));
+  }
+  return errors;
+}
+
+function validateNip13MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-13 must stay implemented after proof-of-work helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP13_OWNER) {
+    errors.push(`NIP-13 owner must be ${REQUIRED_NIP13_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP13_PROOF) {
+    errors.push(`NIP-13 proof must be ${REQUIRED_NIP13_PROOF}`);
+  }
+  if (
+    !/(proof-of-work|PoW|leading zero)/i.test(entry.scopeNotes) ||
+    !/(nonce|difficulty)/i.test(entry.scopeNotes) ||
+    !/(validate|calculate|count)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-13 scopeNotes must mention proof-of-work, nonce/difficulty, and validation helpers'
+    );
+  }
+  if (/not-started|pending|not required/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-13 scopeNotes must not use stale not-required/pending wording');
   }
   return errors;
 }

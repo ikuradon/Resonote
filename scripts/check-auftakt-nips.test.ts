@@ -265,6 +265,60 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-13 proof-of-work not-required claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['13'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('13', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Proof-of-work validation not required for current read pipeline'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-13 must stay implemented after proof-of-work helper coverage'
+    );
+    expect(result.errors).toContain(
+      'NIP-13 owner must be packages/core/src/nip13-proof-of-work.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-13 proof must be packages/core/src/nip13-proof-of-work.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-13 scopeNotes must not use stale not-required/pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-13 proof-of-work helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['13'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('13', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip13-proof-of-work.ts',
+            proof: 'packages/core/src/nip13-proof-of-work.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-13 proof-of-work helpers build and parse nonce tags, count leading zero bits from event ids, calculate difficulty, and validate committed target difficulty.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-17 encrypted-pipeline pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['17'], sourceUrl: 'source', sourceDate: '2026-04-24' },

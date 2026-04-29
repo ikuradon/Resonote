@@ -104,11 +104,11 @@
     {
       "nip": "13",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip13-proof-of-work.ts",
+      "proof": "packages/core/src/nip13-proof-of-work.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "Proof-of-work validation not required for current read pipeline"
+      "scopeNotes": "Core NIP-13 proof-of-work helpers build and parse nonce tags, count leading zero bits from event ids, calculate difficulty, and validate committed target difficulty"
     },
     {
       "nip": "14",

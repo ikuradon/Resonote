@@ -44,6 +44,17 @@ export {
   parseNip7dThreadEvent,
   parseNip7dThreadReplyRoot
 } from './nip7d-thread.js';
+export type { Nip13Nonce, Nip13ProofOfWorkValidation } from './nip13-proof-of-work.js';
+export {
+  buildNip13NonceTag,
+  calculateNip13EventDifficulty,
+  countNip13LeadingZeroBits,
+  hasNip13ProofOfWork,
+  NIP13_NONCE_TAG,
+  parseNip13Difficulty,
+  parseNip13Nonce,
+  validateNip13ProofOfWork
+} from './nip13-proof-of-work.js';
 export type {
   BuildNip17ChatMessageInput,
   BuildNip17ConversationGiftWrapsInput,

@@ -55,6 +55,7 @@ describe('@auftakt/core public api contract', () => {
     expect(mod).toEqual(
       expect.objectContaining({
         buildRelaySelectionPlan: expect.any(Function),
+        buildNip13NonceTag: expect.any(Function),
         buildNip17ChatMessage: expect.any(Function),
         buildNip17ConversationGiftWraps: expect.any(Function),
         buildNip17DmRelayList: expect.any(Function),
@@ -97,6 +98,7 @@ describe('@auftakt/core public api contract', () => {
         normalizeRelayLifecycleOptions: expect.any(Function),
         normalizeRelaySelectionPolicy: expect.any(Function),
         normalizeRelayUrl: expect.any(Function),
+        parseNip13Nonce: expect.any(Function),
         parseNip23LongFormEvent: expect.any(Function),
         parseNip31AltTag: expect.any(Function),
         parseNip36ContentWarning: expect.any(Function),
@@ -125,6 +127,7 @@ describe('@auftakt/core public api contract', () => {
         reconcileReplayRepairSubjects: expect.any(Function),
         reduceReadSettlement: expect.any(Function),
         toNip21Uri: expect.any(Function),
+        validateNip13ProofOfWork: expect.any(Function),
         validateRelayEvent: expect.any(Function)
       })
     );
