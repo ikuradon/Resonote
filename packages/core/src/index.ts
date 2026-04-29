@@ -511,6 +511,52 @@ export {
   parseNip56ReportTargets
 } from './nip56-report.js';
 export type {
+  BuildNip58BadgeAwardInput,
+  BuildNip58BadgeDefinitionInput,
+  BuildNip58BadgeSetInput,
+  BuildNip58ProfileBadgesInput,
+  Nip58AwardedPubkey,
+  Nip58AwardedPubkeyInput,
+  Nip58AwardEventPointer,
+  Nip58AwardEventPointerInput,
+  Nip58BadgeAwardSnapshot,
+  Nip58BadgeDefinitionPointer,
+  Nip58BadgeDefinitionPointerInput,
+  Nip58BadgeDefinitionSnapshot,
+  Nip58BadgeImage,
+  Nip58BadgeImageInput,
+  Nip58BadgePair,
+  Nip58BadgePairInput,
+  Nip58ProfileBadgesSnapshot
+} from './nip58-badges.js';
+export {
+  buildNip58AwardedPubkeyTag,
+  buildNip58AwardEventTag,
+  buildNip58BadgeAward,
+  buildNip58BadgeDefinition,
+  buildNip58BadgeDefinitionTag,
+  buildNip58BadgeSet,
+  buildNip58BadgeSetReferenceTag,
+  buildNip58ProfileBadges,
+  NIP58_BADGE_AWARD_KIND,
+  NIP58_BADGE_DEFINITION_KIND,
+  NIP58_BADGE_IMAGE_RECOMMENDED_DIMENSIONS,
+  NIP58_BADGE_SET_KIND,
+  NIP58_DEPRECATED_PROFILE_BADGES_IDENTIFIER,
+  NIP58_PROFILE_BADGES_KIND,
+  NIP58_THUMB_RECOMMENDED_DIMENSIONS,
+  parseNip58AwardedPubkeyTags,
+  parseNip58AwardEventTag,
+  parseNip58BadgeAward,
+  parseNip58BadgeDefinition,
+  parseNip58BadgeDefinitionTag,
+  parseNip58BadgeDefinitionTags,
+  parseNip58BadgePairs,
+  parseNip58BadgeSet,
+  parseNip58BadgeSetReferenceTags,
+  parseNip58ProfileBadges
+} from './nip58-badges.js';
+export type {
   BuildNip59GiftWrapInput,
   Nip59GiftWrapCrypto,
   Nip59GiftWrapEvent,

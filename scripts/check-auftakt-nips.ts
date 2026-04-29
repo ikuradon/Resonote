@@ -102,6 +102,8 @@ const REQUIRED_NIP55_OWNER = 'packages/core/src/nip55-android-signer.ts';
 const REQUIRED_NIP55_PROOF = 'packages/core/src/nip55-android-signer.contract.test.ts';
 const REQUIRED_NIP56_OWNER = 'packages/core/src/nip56-report.ts';
 const REQUIRED_NIP56_PROOF = 'packages/core/src/nip56-report.contract.test.ts';
+const REQUIRED_NIP58_OWNER = 'packages/core/src/nip58-badges.ts';
+const REQUIRED_NIP58_PROOF = 'packages/core/src/nip58-badges.contract.test.ts';
 const REQUIRED_NIP59_OWNER = 'packages/core/src/nip59-gift-wrap.ts';
 const REQUIRED_NIP59_PROOF = 'packages/core/src/nip59-gift-wrap.contract.test.ts';
 const REQUIRED_NIP62_OWNER = 'packages/adapter-dexie/src/index.ts';
@@ -383,6 +385,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '56') {
     errors.push(...validateNip56MatrixEntry(entry));
+  }
+  if (entry.nip === '58') {
+    errors.push(...validateNip58MatrixEntry(entry));
   }
   if (entry.nip === '59') {
     errors.push(...validateNip59MatrixEntry(entry));
@@ -1093,6 +1098,34 @@ function validateNip56MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|reporting model pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-56 scopeNotes must not use stale reporting-pending wording');
+  }
+  return errors;
+}
+
+function validateNip58MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-58 must stay implemented after badge helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP58_OWNER) {
+    errors.push(`NIP-58 owner must be ${REQUIRED_NIP58_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP58_PROOF) {
+    errors.push(`NIP-58 proof must be ${REQUIRED_NIP58_PROOF}`);
+  }
+  if (
+    !/(30009|badge definition)/i.test(entry.scopeNotes) ||
+    !/(kind:8|badge award)/i.test(entry.scopeNotes) ||
+    !/(10008|profile badges)/i.test(entry.scopeNotes) ||
+    !/(30008|badge set|deprecated)/i.test(entry.scopeNotes) ||
+    !/(ordered|a\/e pair|thumbnail|image)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-58 scopeNotes must mention badge definitions, awards, profile badges, badge sets, and ordered a/e pairs'
+    );
+  }
+  if (/not-started|pending|badges pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-58 scopeNotes must not use stale badge-pending wording');
   }
   return errors;
 }

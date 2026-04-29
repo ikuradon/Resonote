@@ -1605,6 +1605,54 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-58 badge pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['58'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('58', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Badges pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain('NIP-58 must stay implemented after badge helper coverage');
+    expect(result.errors).toContain('NIP-58 owner must be packages/core/src/nip58-badges.ts');
+    expect(result.errors).toContain(
+      'NIP-58 proof must be packages/core/src/nip58-badges.contract.test.ts'
+    );
+    expect(result.errors).toContain('NIP-58 scopeNotes must not use stale badge-pending wording');
+  });
+
+  it('accepts the implemented NIP-58 badge helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['58'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('58', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip58-badges.ts',
+            proof: 'packages/core/src/nip58-badges.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-58 badge helpers build and parse kind:30009 badge definition image/thumbnail metadata, kind:8 badge award events, kind:10008 profile badges, kind:30008 badge sets including deprecated profile_badges, and ordered a/e pair display entries.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-59 gift-wrap required claims', () => {
     const result = checkNipMatrix(
       { nips: ['59'], sourceUrl: 'source', sourceDate: '2026-04-24' },

@@ -473,11 +473,11 @@
     {
       "nip": "58",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip58-badges.ts",
+      "proof": "packages/core/src/nip58-badges.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "Badges pending"
+      "scopeNotes": "Core NIP-58 badge helpers build and parse kind:30009 badge definition image/thumbnail metadata, kind:8 badge award events, kind:10008 profile badges, kind:30008 badge sets including deprecated profile_badges, and ordered a/e pair display entries"
     },
     {
       "nip": "59",
