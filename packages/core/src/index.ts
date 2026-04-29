@@ -760,6 +760,50 @@ export {
   parseNip84UrlMentions
 } from './nip84-highlight.js';
 export type {
+  BuildNip85AssertionEventInput,
+  BuildNip85SubjectAssertionInput,
+  BuildNip85TrustedProviderListInput,
+  Nip85AssertionKind,
+  Nip85AssertionResult,
+  Nip85AssertionResultInput,
+  Nip85AssertionSnapshot,
+  Nip85SubjectType,
+  Nip85TrustedProvider,
+  Nip85TrustedProviderInput,
+  Nip85TrustedProviderListSnapshot
+} from './nip85-trusted-assertions.js';
+export {
+  buildNip85AddressAssertion,
+  buildNip85AssertionEvent,
+  buildNip85EventAssertion,
+  buildNip85ExternalIdentifierAssertion,
+  buildNip85IdentifierKindTag,
+  buildNip85ResultTag,
+  buildNip85TrustedProviderList,
+  buildNip85TrustedProviderTag,
+  buildNip85UserAssertion,
+  isNip85AssertionKind,
+  isNip85ResultTagAllowed,
+  NIP85_ADDRESS_ASSERTION_KIND,
+  NIP85_ADDRESS_RESULT_TAGS,
+  NIP85_ASSERTION_KINDS,
+  NIP85_EVENT_ASSERTION_KIND,
+  NIP85_EVENT_RESULT_TAGS,
+  NIP85_EXTERNAL_IDENTIFIER_ASSERTION_KIND,
+  NIP85_EXTERNAL_IDENTIFIER_RESULT_TAGS,
+  NIP85_TRUSTED_PROVIDER_LIST_KIND,
+  NIP85_USER_ASSERTION_KIND,
+  NIP85_USER_RESULT_TAGS,
+  nip85SubjectTypeForKind,
+  parseNip85AssertionEvent,
+  parseNip85AssertionResults,
+  parseNip85TrustedProviderList,
+  parseNip85TrustedProviderTag,
+  parseNip85TrustedProviderTags,
+  parseNip85TrustedProviderTagsJson,
+  stringifyNip85TrustedProviderTags
+} from './nip85-trusted-assertions.js';
+export type {
   BuildNip98HttpAuthEventInput,
   Nip98HttpAuthSnapshot,
   Nip98HttpAuthValidationFailureReason,

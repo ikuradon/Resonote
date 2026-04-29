@@ -2175,6 +2175,60 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-85 trusted assertion pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['85'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('85', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Trusted assertions pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-85 must stay implemented after trusted assertion helper coverage'
+    );
+    expect(result.errors).toContain(
+      'NIP-85 owner must be packages/core/src/nip85-trusted-assertions.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-85 proof must be packages/core/src/nip85-trusted-assertions.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-85 scopeNotes must not use stale trusted-assertion-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-85 trusted assertion helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['85'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('85', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip85-trusted-assertions.ts',
+            proof: 'packages/core/src/nip85-trusted-assertions.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-85 trusted assertion helpers build and parse kind:30382/30383/30384/30385 addressable assertion events with d-tag subjects, result tags, subject relay hints, NIP-73 k tags, and kind:10040 trusted provider declarations.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-98 HTTP auth pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['98'], sourceUrl: 'source', sourceDate: '2026-04-24' },

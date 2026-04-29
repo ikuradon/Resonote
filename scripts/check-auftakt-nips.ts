@@ -122,6 +122,8 @@ const REQUIRED_NIP7D_OWNER = 'packages/core/src/nip7d-thread.ts';
 const REQUIRED_NIP7D_PROOF = 'packages/core/src/nip7d-thread.contract.test.ts';
 const REQUIRED_NIP84_OWNER = 'packages/core/src/nip84-highlight.ts';
 const REQUIRED_NIP84_PROOF = 'packages/core/src/nip84-highlight.contract.test.ts';
+const REQUIRED_NIP85_OWNER = 'packages/core/src/nip85-trusted-assertions.ts';
+const REQUIRED_NIP85_PROOF = 'packages/core/src/nip85-trusted-assertions.contract.test.ts';
 const REQUIRED_NIP98_OWNER = 'packages/core/src/nip98-http-auth.ts';
 const REQUIRED_NIP98_PROOF = 'packages/core/src/nip98-http-auth.contract.test.ts';
 const REQUIRED_RELAY_SESSION_OWNER = 'packages/core/src/relay-session.ts';
@@ -426,6 +428,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '84') {
     errors.push(...validateNip84MatrixEntry(entry));
+  }
+  if (entry.nip === '85') {
+    errors.push(...validateNip85MatrixEntry(entry));
   }
   if (entry.nip === '98') {
     errors.push(...validateNip98MatrixEntry(entry));
@@ -1400,6 +1405,36 @@ function validateNip84MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|highlights pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-84 scopeNotes must not use stale highlight-pending wording');
+  }
+  return errors;
+}
+
+function validateNip85MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-85 must stay implemented after trusted assertion helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP85_OWNER) {
+    errors.push(`NIP-85 owner must be ${REQUIRED_NIP85_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP85_PROOF) {
+    errors.push(`NIP-85 proof must be ${REQUIRED_NIP85_PROOF}`);
+  }
+  if (
+    !/(30382|30383|30384|30385)/i.test(entry.scopeNotes) ||
+    !/(addressable|d tag|subject)/i.test(entry.scopeNotes) ||
+    !/(result tag|rank|followers|zap)/i.test(entry.scopeNotes) ||
+    !/(10040|provider)/i.test(entry.scopeNotes) ||
+    !/(NIP-73|k tag)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-85 scopeNotes must mention assertion kinds, d-tag subjects, result tags, NIP-73 k tags, and kind:10040 providers'
+    );
+  }
+  if (
+    /not-started|pending|trusted assertions pending/i.test(`${entry.status} ${entry.scopeNotes}`)
+  ) {
+    errors.push('NIP-85 scopeNotes must not use stale trusted-assertion-pending wording');
   }
   return errors;
 }

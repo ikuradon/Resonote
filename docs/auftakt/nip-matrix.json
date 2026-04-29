@@ -653,11 +653,11 @@
     {
       "nip": "85",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip85-trusted-assertions.ts",
+      "proof": "packages/core/src/nip85-trusted-assertions.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "Trusted assertions pending"
+      "scopeNotes": "Core NIP-85 trusted assertion helpers build and parse kind:30382/30383/30384/30385 addressable assertion events with d-tag subjects, result tags, subject relay hints, NIP-73 k tags, and kind:10040 trusted provider declarations"
     },
     {
       "nip": "86",
