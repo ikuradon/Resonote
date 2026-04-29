@@ -1027,6 +1027,25 @@ export {
   parseNipC0CodeSnippet
 } from './nipC0-code-snippets.js';
 export type {
+  BuildNipC7ChatMessageFilterInput,
+  BuildNipC7ChatMessageInput,
+  BuildNipC7ChatReplyInput,
+  NipC7ChatMessageSnapshot,
+  NipC7ReplyReference,
+  NipC7ReplyReferenceInput
+} from './nipC7-chats.js';
+export {
+  buildNipC7ChatMessage,
+  buildNipC7ChatMessageFilter,
+  buildNipC7ChatReply,
+  buildNipC7ReplyQuoteTag,
+  isNipC7ChatMessageKind,
+  NIPC7_CHAT_MESSAGE_KIND,
+  NIPC7_REPLY_QUOTE_TAG,
+  parseNipC7ChatMessage,
+  parseNipC7ReplyQuoteTags
+} from './nipC7-chats.js';
+export type {
   DeletionEventLike,
   DeletionReconcileResult,
   OfflineDeliveryDecision,

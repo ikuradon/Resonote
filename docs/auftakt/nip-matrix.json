@@ -806,11 +806,11 @@
     {
       "nip": "C7",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nipC7-chats.ts",
+      "proof": "packages/core/src/nipC7-chats.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "Chats pending"
+      "scopeNotes": "Core NIP-C7 chat helpers build and parse kind:9 chat messages, q tag parent replies, message content, reply quote parsing, and author relay filters"
     },
     {
       "nip": "EE",

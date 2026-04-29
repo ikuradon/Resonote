@@ -2648,6 +2648,54 @@ describe('NIP matrix entry validation', () => {
 
     expect(result.errors).toEqual([]);
   });
+
+  it('rejects stale NIP-C7 chat pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['C7'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('C7', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Chats pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain('NIP-C7 must stay implemented after chat helper coverage');
+    expect(result.errors).toContain('NIP-C7 owner must be packages/core/src/nipC7-chats.ts');
+    expect(result.errors).toContain(
+      'NIP-C7 proof must be packages/core/src/nipC7-chats.contract.test.ts'
+    );
+    expect(result.errors).toContain('NIP-C7 scopeNotes must not use stale chat-pending wording');
+  });
+
+  it('accepts the implemented NIP-C7 chat helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['C7'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('C7', {
+            status: 'implemented',
+            owner: 'packages/core/src/nipC7-chats.ts',
+            proof: 'packages/core/src/nipC7-chats.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-C7 chat helpers build and parse kind:9 chat messages, q tag parent replies, message content, reply quote parsing, and author relay filters.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
 });
 
 describe('checkNipStatusDocsSync', () => {

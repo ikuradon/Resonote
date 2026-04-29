@@ -140,6 +140,8 @@ const REQUIRED_NIPA4_OWNER = 'packages/core/src/nipA4-public-messages.ts';
 const REQUIRED_NIPA4_PROOF = 'packages/core/src/nipA4-public-messages.contract.test.ts';
 const REQUIRED_NIPC0_OWNER = 'packages/core/src/nipC0-code-snippets.ts';
 const REQUIRED_NIPC0_PROOF = 'packages/core/src/nipC0-code-snippets.contract.test.ts';
+const REQUIRED_NIPC7_OWNER = 'packages/core/src/nipC7-chats.ts';
+const REQUIRED_NIPC7_PROOF = 'packages/core/src/nipC7-chats.contract.test.ts';
 const REQUIRED_RELAY_SESSION_OWNER = 'packages/core/src/relay-session.ts';
 const REQUIRED_RELAY_SESSION_PROOF = 'packages/core/src/relay-session.contract.test.ts';
 
@@ -469,6 +471,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === 'C0') {
     errors.push(...validateNipC0MatrixEntry(entry));
+  }
+  if (entry.nip === 'C7') {
+    errors.push(...validateNipC7MatrixEntry(entry));
   }
   return errors;
 }
@@ -1695,6 +1700,33 @@ function validateNipC0MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|code snippets pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-C0 scopeNotes must not use stale code-snippet-pending wording');
+  }
+  return errors;
+}
+
+function validateNipC7MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-C7 must stay implemented after chat helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIPC7_OWNER) {
+    errors.push(`NIP-C7 owner must be ${REQUIRED_NIPC7_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIPC7_PROOF) {
+    errors.push(`NIP-C7 proof must be ${REQUIRED_NIPC7_PROOF}`);
+  }
+  if (
+    !/(kind:9|9|chat)/i.test(entry.scopeNotes) ||
+    !/(reply|parent|q tag|quote)/i.test(entry.scopeNotes) ||
+    !/(content|message)/i.test(entry.scopeNotes) ||
+    !/(filter|relay|author)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-C7 scopeNotes must mention kind:9 chat messages, q-tag parent replies, message content, and relay/author filters'
+    );
+  }
+  if (/not-started|pending|chats pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-C7 scopeNotes must not use stale chat-pending wording');
   }
   return errors;
 }
