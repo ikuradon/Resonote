@@ -74,6 +74,8 @@ const REQUIRED_NIP37_OWNER = 'packages/core/src/nip37-draft-wrap.ts';
 const REQUIRED_NIP37_PROOF = 'packages/core/src/nip37-draft-wrap.contract.test.ts';
 const REQUIRED_NIP40_OWNER = 'packages/adapter-dexie/src/index.ts';
 const REQUIRED_NIP40_PROOF = 'packages/adapter-dexie/src/materialization.contract.test.ts';
+const REQUIRED_NIP46_OWNER = 'packages/core/src/nip46-remote-signing.ts';
+const REQUIRED_NIP46_PROOF = 'packages/core/src/nip46-remote-signing.contract.test.ts';
 const REQUIRED_NIP50_OWNER = 'packages/core/src/nip50-search.ts';
 const REQUIRED_NIP50_PROOF = 'packages/core/src/nip50-search.contract.test.ts';
 const REQUIRED_NIP51_OWNER = 'packages/core/src/nip51-list.ts';
@@ -319,6 +321,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '45') {
     errors.push(...validateNip45MatrixEntry(entry));
+  }
+  if (entry.nip === '46') {
+    errors.push(...validateNip46MatrixEntry(entry));
   }
   if (entry.nip === '50') {
     errors.push(...validateNip50MatrixEntry(entry));
@@ -661,6 +666,32 @@ function validateNip45MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|count support pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-45 scopeNotes must not use stale COUNT-pending wording');
+  }
+  return errors;
+}
+
+function validateNip46MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-46 must stay implemented after remote signing protocol helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP46_OWNER) {
+    errors.push(`NIP-46 owner must be ${REQUIRED_NIP46_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP46_PROOF) {
+    errors.push(`NIP-46 proof must be ${REQUIRED_NIP46_PROOF}`);
+  }
+  if (
+    !/(remote signing|bunker|nostrconnect)/i.test(entry.scopeNotes) ||
+    !/(request|response|JSON-RPC|payload)/i.test(entry.scopeNotes) ||
+    !/(24133|auth challenge|permission)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-46 scopeNotes must mention remote signing URLs, request/response payloads, and kind:24133/auth coverage'
+    );
+  }
+  if (/not-started|pending|remote signing pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-46 scopeNotes must not use stale remote-signing-pending wording');
   }
   return errors;
 }

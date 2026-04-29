@@ -875,6 +875,60 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-46 remote signing pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['46'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('46', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P2',
+            scopeNotes: 'Remote signing pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-46 must stay implemented after remote signing protocol helper coverage'
+    );
+    expect(result.errors).toContain(
+      'NIP-46 owner must be packages/core/src/nip46-remote-signing.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-46 proof must be packages/core/src/nip46-remote-signing.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-46 scopeNotes must not use stale remote-signing-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-46 remote signing helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['46'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('46', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip46-remote-signing.ts',
+            proof: 'packages/core/src/nip46-remote-signing.contract.test.ts',
+            priority: 'P2',
+            scopeNotes:
+              'Core NIP-46 remote signing protocol helpers build and parse bunker/nostrconnect URLs, permission strings, JSON-RPC request/response payloads, auth challenges, and kind:24133 encrypted event envelopes.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-50 search pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['50'], sourceUrl: 'source', sourceDate: '2026-04-24' },

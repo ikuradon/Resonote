@@ -133,6 +133,46 @@ export {
   parseNip40Expiration
 } from './nip40-expiration.js';
 export type {
+  BuildNip46BunkerUrlInput,
+  BuildNip46NostrConnectUrlInput,
+  BuildNip46RemoteSigningEventInput,
+  Nip46BunkerUrl,
+  Nip46Method,
+  Nip46NostrConnectUrl,
+  Nip46Permission,
+  Nip46RemoteSigningEnvelope,
+  Nip46RequestPayload,
+  Nip46ResponsePayload,
+  Nip46UnsignedEvent
+} from './nip46-remote-signing.js';
+export {
+  buildNip46BunkerUrl,
+  buildNip46ConnectRequest,
+  buildNip46NostrConnectUrl,
+  buildNip46RemoteSigningEvent,
+  buildNip46RequestPayload,
+  buildNip46ResponsePayload,
+  buildNip46SignEventRequest,
+  buildNip46SimpleRequest,
+  isNip46AuthChallenge,
+  NIP46_AUTH_CHALLENGE_RESULT,
+  NIP46_BUNKER_SCHEME,
+  NIP46_METHODS,
+  NIP46_NOSTRCONNECT_SCHEME,
+  NIP46_REMOTE_SIGNING_KIND,
+  parseNip46BunkerUrl,
+  parseNip46NostrConnectUrl,
+  parseNip46Permission,
+  parseNip46Permissions,
+  parseNip46RemoteSigningEvent,
+  parseNip46RequestPayloadJson,
+  parseNip46ResponsePayloadJson,
+  stringifyNip46Permission,
+  stringifyNip46Permissions,
+  stringifyNip46RequestPayload,
+  stringifyNip46ResponsePayload
+} from './nip46-remote-signing.js';
+export type {
   BuildNip50SearchFilterInput,
   BuildNip50SearchQueryInput,
   Nip50SearchExtension,

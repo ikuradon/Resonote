@@ -365,11 +365,11 @@
     {
       "nip": "46",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip46-remote-signing.ts",
+      "proof": "packages/core/src/nip46-remote-signing.contract.test.ts",
       "priority": "P2",
-      "scopeNotes": "Remote signing pending"
+      "scopeNotes": "Core NIP-46 remote signing protocol helpers build and parse bunker/nostrconnect URLs, permission strings, JSON-RPC request/response payloads, auth challenges, and kind:24133 encrypted event envelopes"
     },
     {
       "nip": "47",
