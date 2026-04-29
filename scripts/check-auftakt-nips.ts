@@ -56,6 +56,8 @@ const REQUIRED_NIP07_OWNER = 'src/shared/nostr/client.ts';
 const REQUIRED_NIP07_PROOF = 'src/shared/nostr/client-integration.test.ts';
 const REQUIRED_NIP13_OWNER = 'packages/core/src/nip13-proof-of-work.ts';
 const REQUIRED_NIP13_PROOF = 'packages/core/src/nip13-proof-of-work.contract.test.ts';
+const REQUIRED_NIP14_OWNER = 'packages/core/src/nip14-subject.ts';
+const REQUIRED_NIP14_PROOF = 'packages/core/src/nip14-subject.contract.test.ts';
 const REQUIRED_NIP17_OWNER = 'packages/core/src/nip17-direct-message.ts';
 const REQUIRED_NIP17_PROOF = 'packages/core/src/nip17-direct-message.contract.test.ts';
 const REQUIRED_NIP18_OWNER = 'src/features/comments/application/comment-actions.ts';
@@ -293,6 +295,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === '13') {
     errors.push(...validateNip13MatrixEntry(entry));
   }
+  if (entry.nip === '14') {
+    errors.push(...validateNip14MatrixEntry(entry));
+  }
   if (entry.nip === '17') {
     errors.push(...validateNip17MatrixEntry(entry));
   }
@@ -390,6 +395,32 @@ function validateNip13MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|not required/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-13 scopeNotes must not use stale not-required/pending wording');
+  }
+  return errors;
+}
+
+function validateNip14MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-14 must stay implemented after subject tag helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP14_OWNER) {
+    errors.push(`NIP-14 owner must be ${REQUIRED_NIP14_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP14_PROOF) {
+    errors.push(`NIP-14 proof must be ${REQUIRED_NIP14_PROOF}`);
+  }
+  if (
+    !/(subject tag|subject)/i.test(entry.scopeNotes) ||
+    !/(kind:1|text event)/i.test(entry.scopeNotes) ||
+    !/(reply|Re:|80)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-14 scopeNotes must mention subject tags, text events, and reply/length helpers'
+    );
+  }
+  if (/not-started|pending|client\/plugin layer/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-14 scopeNotes must not use stale client-layer pending wording');
   }
   return errors;
 }

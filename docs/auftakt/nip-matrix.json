@@ -113,11 +113,11 @@
     {
       "nip": "14",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip14-subject.ts",
+      "proof": "packages/core/src/nip14-subject.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "Subject tag presentation is client/plugin layer work"
+      "scopeNotes": "Core NIP-14 subject tag helpers build, parse, and rewrite kind:1 text event subjects, derive Re: reply subjects, and expose the 80 character recommendation"
     },
     {
       "nip": "15",

@@ -319,6 +319,58 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-14 client-layer pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['14'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('14', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Subject tag presentation is client/plugin layer work'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-14 must stay implemented after subject tag helper coverage'
+    );
+    expect(result.errors).toContain('NIP-14 owner must be packages/core/src/nip14-subject.ts');
+    expect(result.errors).toContain(
+      'NIP-14 proof must be packages/core/src/nip14-subject.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-14 scopeNotes must not use stale client-layer pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-14 subject tag helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['14'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('14', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip14-subject.ts',
+            proof: 'packages/core/src/nip14-subject.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-14 subject tag helpers build, parse, and rewrite kind:1 text event subjects, derive Re: reply subjects, and expose the 80 character recommendation.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-17 encrypted-pipeline pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['17'], sourceUrl: 'source', sourceDate: '2026-04-24' },

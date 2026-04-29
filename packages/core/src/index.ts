@@ -55,6 +55,20 @@ export {
   parseNip13Nonce,
   validateNip13ProofOfWork
 } from './nip13-proof-of-work.js';
+export {
+  appendNip14SubjectTag,
+  buildNip14ReplySubjectTag,
+  buildNip14SubjectTag,
+  deriveNip14ReplySubject,
+  hasNip14Subject,
+  isNip14SubjectLikelyTooLong,
+  isNip14SubjectTextEvent,
+  NIP14_RECOMMENDED_MAX_SUBJECT_LENGTH,
+  NIP14_SUBJECT_TAG,
+  NIP14_TEXT_EVENT_KIND,
+  parseNip14Subject,
+  withNip14SubjectTag
+} from './nip14-subject.js';
 export type {
   BuildNip17ChatMessageInput,
   BuildNip17ConversationGiftWrapsInput,
