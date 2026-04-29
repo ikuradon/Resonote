@@ -2229,6 +2229,60 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-86 relay management outside-runtime claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['86'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('86', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'Relay management API outside current client runtime'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-86 must stay implemented after relay management helper coverage'
+    );
+    expect(result.errors).toContain(
+      'NIP-86 owner must be packages/core/src/nip86-relay-management.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-86 proof must be packages/core/src/nip86-relay-management.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-86 scopeNotes must not use stale outside-client-runtime wording'
+    );
+  });
+
+  it('accepts the implemented NIP-86 relay management helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['86'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('86', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip86-relay-management.ts',
+            proof: 'packages/core/src/nip86-relay-management.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-86 relay management JSON-RPC helpers build and parse application/nostr+json+rpc HTTP POST request/response payloads for supportedmethods, banpubkey, allowevent, allowkind, blockip, and related methods while pairing requests with required NIP-98 payload Authorization helpers.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-88 poll pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['88'], sourceUrl: 'source', sourceDate: '2026-04-24' },

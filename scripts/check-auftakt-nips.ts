@@ -124,6 +124,8 @@ const REQUIRED_NIP84_OWNER = 'packages/core/src/nip84-highlight.ts';
 const REQUIRED_NIP84_PROOF = 'packages/core/src/nip84-highlight.contract.test.ts';
 const REQUIRED_NIP85_OWNER = 'packages/core/src/nip85-trusted-assertions.ts';
 const REQUIRED_NIP85_PROOF = 'packages/core/src/nip85-trusted-assertions.contract.test.ts';
+const REQUIRED_NIP86_OWNER = 'packages/core/src/nip86-relay-management.ts';
+const REQUIRED_NIP86_PROOF = 'packages/core/src/nip86-relay-management.contract.test.ts';
 const REQUIRED_NIP88_OWNER = 'packages/core/src/nip88-polls.ts';
 const REQUIRED_NIP88_PROOF = 'packages/core/src/nip88-polls.contract.test.ts';
 const REQUIRED_NIP89_OWNER = 'packages/core/src/nip89-application-handlers.ts';
@@ -447,6 +449,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '85') {
     errors.push(...validateNip85MatrixEntry(entry));
+  }
+  if (entry.nip === '86') {
+    errors.push(...validateNip86MatrixEntry(entry));
   }
   if (entry.nip === '88') {
     errors.push(...validateNip88MatrixEntry(entry));
@@ -1475,6 +1480,37 @@ function validateNip85MatrixEntry(entry: NipMatrixEntry): string[] {
     /not-started|pending|trusted assertions pending/i.test(`${entry.status} ${entry.scopeNotes}`)
   ) {
     errors.push('NIP-85 scopeNotes must not use stale trusted-assertion-pending wording');
+  }
+  return errors;
+}
+
+function validateNip86MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-86 must stay implemented after relay management helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP86_OWNER) {
+    errors.push(`NIP-86 owner must be ${REQUIRED_NIP86_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP86_PROOF) {
+    errors.push(`NIP-86 proof must be ${REQUIRED_NIP86_PROOF}`);
+  }
+  if (
+    !/(relay management|JSON-RPC|application\/nostr\+json\+rpc)/i.test(entry.scopeNotes) ||
+    !/(supportedmethods|banpubkey|allowevent|allowkind|blockip)/i.test(entry.scopeNotes) ||
+    !/(NIP-98|payload|Authorization)/i.test(entry.scopeNotes) ||
+    !/(HTTP|POST|request|response)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-86 scopeNotes must mention relay management JSON-RPC, standard methods, NIP-98 payload Authorization, and HTTP request/response helpers'
+    );
+  }
+  if (
+    /not-started|pending|outside current client runtime/i.test(
+      `${entry.status} ${entry.scopeNotes}`
+    )
+  ) {
+    errors.push('NIP-86 scopeNotes must not use stale outside-client-runtime wording');
   }
   return errors;
 }

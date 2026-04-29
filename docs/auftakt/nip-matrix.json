@@ -662,11 +662,11 @@
     {
       "nip": "86",
       "level": "internal",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip86-relay-management.ts",
+      "proof": "packages/core/src/nip86-relay-management.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "Relay management API outside current client runtime"
+      "scopeNotes": "Core NIP-86 relay management JSON-RPC helpers build and parse application/nostr+json+rpc HTTP POST request/response payloads for supportedmethods, banpubkey, allowevent, allowkind, blockip, and related methods while pairing requests with required NIP-98 payload Authorization helpers"
     },
     {
       "nip": "87",

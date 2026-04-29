@@ -804,6 +804,48 @@ export {
   stringifyNip85TrustedProviderTags
 } from './nip85-trusted-assertions.js';
 export type {
+  BuildNip86ManagementAuthEventInput,
+  BuildNip86ManagementAuthorizationHeaderInput,
+  BuildNip86ManagementHttpRequestInput,
+  Nip86BlockedIp,
+  Nip86EventReason,
+  Nip86JsonPrimitive,
+  Nip86JsonValue,
+  Nip86ManagementHttpRequest,
+  Nip86ManagementRequest,
+  Nip86ManagementResponse,
+  Nip86PubkeyReason,
+  Nip86RelayManagementMethod
+} from './nip86-relay-management.js';
+export {
+  buildNip86EventRequest,
+  buildNip86IpRequest,
+  buildNip86KindRequest,
+  buildNip86ListAllowedKindsRequest,
+  buildNip86ListBannedEventsRequest,
+  buildNip86ListBlockedIpsRequest,
+  buildNip86ListEventsNeedingModerationRequest,
+  buildNip86ListPubkeysRequest,
+  buildNip86ManagementAuthEvent,
+  buildNip86ManagementAuthorizationHeader,
+  buildNip86ManagementHttpRequest,
+  buildNip86ManagementRequest,
+  buildNip86PubkeyRequest,
+  buildNip86RelayInfoRequest,
+  buildNip86SupportedMethodsRequest,
+  hashNip86ManagementRequest,
+  isNip86RelayManagementMethod,
+  NIP86_CONTENT_TYPE,
+  NIP86_HTTP_METHOD,
+  NIP86_METHODS,
+  parseNip86BlockedIpList,
+  parseNip86EventReasonList,
+  parseNip86ManagementRequestJson,
+  parseNip86ManagementResponseJson,
+  parseNip86PubkeyReasonList,
+  stringifyNip86ManagementRequest
+} from './nip86-relay-management.js';
+export type {
   BuildNip88PollInput,
   BuildNip88ResponseInput,
   Nip88Option,
