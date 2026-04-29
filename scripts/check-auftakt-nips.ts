@@ -80,6 +80,8 @@ const REQUIRED_NIP50_OWNER = 'packages/core/src/nip50-search.ts';
 const REQUIRED_NIP50_PROOF = 'packages/core/src/nip50-search.contract.test.ts';
 const REQUIRED_NIP51_OWNER = 'packages/core/src/nip51-list.ts';
 const REQUIRED_NIP51_PROOF = 'packages/core/src/nip51-list.contract.test.ts';
+const REQUIRED_NIP55_OWNER = 'packages/core/src/nip55-android-signer.ts';
+const REQUIRED_NIP55_PROOF = 'packages/core/src/nip55-android-signer.contract.test.ts';
 const REQUIRED_NIP56_OWNER = 'packages/core/src/nip56-report.ts';
 const REQUIRED_NIP56_PROOF = 'packages/core/src/nip56-report.contract.test.ts';
 const REQUIRED_NIP59_OWNER = 'packages/core/src/nip59-gift-wrap.ts';
@@ -330,6 +332,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '51') {
     errors.push(...validateNip51MatrixEntry(entry));
+  }
+  if (entry.nip === '55') {
+    errors.push(...validateNip55MatrixEntry(entry));
   }
   if (entry.nip === '56') {
     errors.push(...validateNip56MatrixEntry(entry));
@@ -744,6 +749,36 @@ function validateNip51MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/partial|pending|not-started/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-51 scopeNotes must not use stale partial/pending wording');
+  }
+  return errors;
+}
+
+function validateNip55MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-55 must stay implemented after Android signer helper coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP55_OWNER) {
+    errors.push(`NIP-55 owner must be ${REQUIRED_NIP55_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP55_PROOF) {
+    errors.push(`NIP-55 proof must be ${REQUIRED_NIP55_PROOF}`);
+  }
+  if (
+    !/(Android signer|nostrsigner)/i.test(entry.scopeNotes) ||
+    !/(intent|content resolver|callback)/i.test(entry.scopeNotes) ||
+    !/(permission|rejected|result)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-55 scopeNotes must mention Android signer nostrsigner URLs, intent/content resolver flows, and result handling'
+    );
+  }
+  if (
+    /not-started|pending|Android signer integration pending/i.test(
+      `${entry.status} ${entry.scopeNotes}`
+    )
+  ) {
+    errors.push('NIP-55 scopeNotes must not use stale Android-signer-pending wording');
   }
   return errors;
 }

@@ -446,11 +446,11 @@
     {
       "nip": "55",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip55-android-signer.ts",
+      "proof": "packages/core/src/nip55-android-signer.contract.test.ts",
       "priority": "P2",
-      "scopeNotes": "Android signer integration pending"
+      "scopeNotes": "Core NIP-55 Android signer helpers build and parse nostrsigner URLs, intent extras, content resolver URIs and selection args, permission JSON, callback results, and rejected responses"
     },
     {
       "nip": "56",

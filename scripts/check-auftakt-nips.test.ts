@@ -1027,6 +1027,60 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-55 Android signer pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['55'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('55', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P2',
+            scopeNotes: 'Android signer integration pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-55 must stay implemented after Android signer helper coverage'
+    );
+    expect(result.errors).toContain(
+      'NIP-55 owner must be packages/core/src/nip55-android-signer.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-55 proof must be packages/core/src/nip55-android-signer.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-55 scopeNotes must not use stale Android-signer-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-55 Android signer helper claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['55'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('55', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip55-android-signer.ts',
+            proof: 'packages/core/src/nip55-android-signer.contract.test.ts',
+            priority: 'P2',
+            scopeNotes:
+              'Core NIP-55 Android signer helpers build and parse nostrsigner URLs, intent extras, content resolver URIs and selection args, permission JSON, callback results, and rejected responses.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-56 reporting pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['56'], sourceUrl: 'source', sourceDate: '2026-04-24' },

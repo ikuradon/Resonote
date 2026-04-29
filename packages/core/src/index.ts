@@ -223,6 +223,30 @@ export {
   stringifyNip51PrivateTags
 } from './nip51-list.js';
 export type {
+  BuildNip55SignerUrlInput,
+  Nip55CompressionType,
+  Nip55IntentRequest,
+  Nip55Permission,
+  Nip55ReturnType,
+  Nip55SignerMethod,
+  Nip55SignerResult,
+  Nip55SignerUrl
+} from './nip55-android-signer.js';
+export {
+  buildNip55ContentResolverSelectionArgs,
+  buildNip55ContentResolverUri,
+  buildNip55IntentRequest,
+  buildNip55SignerUrl,
+  isNip55SignerMethod,
+  NIP55_NOSTRSIGNER_SCHEME,
+  NIP55_SIGNER_METHODS,
+  parseNip55Permissions,
+  parseNip55SignerResultParams,
+  parseNip55SignerResultUrl,
+  parseNip55SignerUrl,
+  stringifyNip55Permissions
+} from './nip55-android-signer.js';
+export type {
   BuildNip56ReportInput,
   Nip56ReportSnapshot,
   Nip56ReportTarget,
