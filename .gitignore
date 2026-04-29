@@ -32,7 +32,6 @@ vite.config.ts.timestamp-*
 # Temporary files
 .sisyphus/
 .superpowers/
-docs/superpowers/
 .serena/
 
 # Worktrees (git worktree add)

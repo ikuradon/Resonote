@@ -21,6 +21,9 @@ importers:
       '@auftakt/resonote':
         specifier: workspace:*
         version: link:packages/resonote
+      '@auftakt/runtime':
+        specifier: workspace:*
+        version: link:packages/runtime
       '@hono/zod-validator':
         specifier: ^0.7.6
         version: 0.7.6(hono@4.12.9)(zod@4.3.6)
@@ -175,15 +178,24 @@ importers:
       nostr-typedef:
         specifier: ^0.13.0
         version: 0.13.0
-      rxjs:
-        specifier: ^7.8.2
-        version: 7.8.2
 
   packages/resonote:
     dependencies:
       '@auftakt/core':
         specifier: workspace:*
         version: link:../core
+
+  packages/runtime:
+    dependencies:
+      '@auftakt/core':
+        specifier: workspace:*
+        version: link:../core
+      nostr-typedef:
+        specifier: ^0.13.0
+        version: 0.13.0
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
 
 packages:
 

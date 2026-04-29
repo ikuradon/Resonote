@@ -59,7 +59,8 @@ Auftakt は次の原則に従う。
 ```mermaid
 flowchart TD
     App[Feature / Shared Browser] --> Facade[src/shared/auftakt/resonote.ts]
-    Facade --> Runtime[@auftakt/resonote]
+    Facade --> Resonote[@auftakt/resonote]
+    Resonote --> Runtime[@auftakt/runtime]
     Runtime --> Core[@auftakt/core]
     Runtime --> Store[@auftakt/adapter-dexie]
     Store --> Core
@@ -67,13 +68,14 @@ flowchart TD
 
 ### 4.1 レイヤー構成
 
-| 層                | 役割                                                                   | 主な配置                                 |
-| ----------------- | ---------------------------------------------------------------------- | ---------------------------------------- |
-| App / Feature     | 高レベル API の利用                                                    | `src/features/*`, `src/shared/browser/*` |
-| App-facing façade | import point の集約                                                    | `src/shared/auftakt/resonote.ts`         |
-| Resonote runtime  | read / subscribe / relay status / feature-facing operation             | `packages/resonote/src/runtime.ts`       |
-| Core runtime      | vocabulary / request planning / settlement / reconcile / relay session | `packages/core/src/*`                    |
-| Storage adapter   | persistence / materialization                                          | `packages/adapter-dexie/src/index.ts`    |
+| 層                | 役割                                                                       | 主な配置                                 |
+| ----------------- | -------------------------------------------------------------------------- | ---------------------------------------- |
+| App / Feature     | 高レベル API の利用                                                        | `src/features/*`, `src/shared/browser/*` |
+| App-facing façade | import point の集約                                                        | `src/shared/auftakt/resonote.ts`         |
+| Resonote runtime  | Resonote-specific plugins / flows / projections                            | `packages/resonote/src/*`                |
+| Generic runtime   | generic execution / coordinator / plugin / read / publish / relay / repair | `packages/runtime/src/*`                 |
+| Core runtime      | pure protocol / vocabulary / reducers / canonicalization                   | `packages/core/src/*`                    |
+| Storage adapter   | persistence / materialization                                              | `packages/adapter-dexie/src/index.ts`    |
 
 ---
 
@@ -83,8 +85,7 @@ flowchart TD
 
 #### 役割
 
-`@auftakt/core` は、runtime 全体で共有する語彙と汎用 runtime primitive
-を定義する層である。
+`@auftakt/core` は、runtime 全体で共有する語彙と純粋なプロトコルロジックを定義する層である。
 
 #### 主責務
 
@@ -94,9 +95,7 @@ flowchart TD
 - `requestKey` 生成
 - read settlement の reduction
 - reconcile decision / emission の生成
-- relay request / session primitive の提供
-- reconnect / replay registry
-- per-relay connection state 管理
+- 純粋な NIP パーサー / ビルダー
 
 #### 代表概念
 
@@ -107,10 +106,11 @@ flowchart TD
 - `RelayObservation`
 - `SessionObservation`
 - `requestKey`
-- relay session primitive
 
 #### 含めないもの
 
+- `rxjs` 依存
+- WebSocket / session 実行
 - storage 実装
 - Resonote feature flow
 - feature helper
@@ -118,29 +118,51 @@ flowchart TD
 
 ---
 
-### 5.2 `@auftakt/resonote`
+### 5.2 `@auftakt/runtime`
 
 #### 役割
 
-`@auftakt/resonote` は、アプリケーションが必要とする高レベル runtime
-を提供する。
+`@auftakt/runtime` は、汎用的な Nostr 実行環境（execution runtime）を提供する。
 
 #### 主責務
 
-- 高レベル read API
-- 高レベル subscription API
-- relay status exposure
-- comments / notifications / profile などの feature-facing operation
+- 汎用 coordinator / plugin API
+- relay session / request 実行
+- reconnect / replay registry
+- per-relay connection state 管理
+- 汎用 read / publish / relay / repair 実行
+- entity handle (Event, User, Addressable)
 
 #### 含めないもの
 
+- Resonote 固有の plugin / flow / projection
+- storage の具体実装 (Dexie 等)
+
+---
+
+### 5.3 `@auftakt/resonote`
+
+#### 役割
+
+`@auftakt/resonote` は、Resonote アプリケーション固有の plugin、flow、および projection を提供する。
+
+#### 主責務
+
+- Resonote 固有の projection (timeline 等)
+- Resonote 固有の flow (comments, notifications, content-resolution 等)
+- Resonote 固有の plugin
+
+#### 含めないもの
+
+- 汎用的な coordinator / plugin API (runtime からインポート)
+- 汎用的な read / publish / relay API
 - `subId` のような transport detail の露出
 - storage の materialization detail の露出
 - Svelte/browser state ownership
 
 ---
 
-### 5.3 `@auftakt/adapter-dexie`
+### 5.4 `@auftakt/adapter-dexie`
 
 #### 役割
 
@@ -161,7 +183,7 @@ flowchart TD
 
 ---
 
-### 5.4 `src/shared/auftakt/resonote.ts`
+### 5.5 `src/shared/auftakt/resonote.ts`
 
 #### 役割
 
@@ -171,7 +193,7 @@ façade である。
 #### 主責務
 
 - package runtime の高レベル API を app に公開する
-- session runtime を組み立てる
+- session runtime を組み立てる (runtime + resonote + adapter)
 - feature code の import point を一本化する
 
 #### 設計原則
@@ -179,6 +201,7 @@ façade である。
 - app はこの façade を通じて Auftakt を利用する
 - façade は低レベル shape を隠す
 - public API は高レベル operation に限定する
+- 内部で `@auftakt/runtime` と `@auftakt/resonote` を合成する
 
 ---
 
@@ -623,20 +646,22 @@ façade API
 
 #### 1. Coordinator Ownership Matrix
 
-| Concern                             | Final Owner                             | Public Surface                               | Must NOT Own                     |
-| ----------------------------------- | --------------------------------------- | -------------------------------------------- | -------------------------------- |
-| App-facing import point             | `src/shared/auftakt/resonote.ts`        | thin wrapper / re-export only                | semantics / transport / storage  |
-| Single coordinator orchestration    | `packages/resonote/src/runtime.ts`      | `@auftakt/resonote` + façade re-export       | raw socket / IndexedDB internals |
-| Shared vocabulary                   | `packages/core/src/index.ts`            | shared types/contracts                       | feature semantics                |
-| Request planning / optimization     | `packages/core/src/request-planning.ts` | descriptors, requestKey, optimizer contracts | DB access                        |
-| Relay transport / reconnect         | `packages/core/src/relay-session.ts`    | core relay session primitive                 | feature semantics                |
-| Storage / reconcile materialization | `packages/adapter-dexie/src/index.ts`   | adapter contract only                        | relay retry policy               |
+| Concern                             | Final Owner                                | Public Surface                               | Must NOT Own                    |
+| ----------------------------------- | ------------------------------------------ | -------------------------------------------- | ------------------------------- |
+| App-facing import point             | `src/shared/auftakt/resonote.ts`           | thin wrapper / re-export only                | semantics / transport / storage |
+| Resonote-specific orchestration     | `packages/resonote/src/runtime.ts`         | `@auftakt/resonote` + façade re-export       | generic execution / raw socket  |
+| Generic runtime orchestration       | `packages/runtime/src/runtime.ts`          | `@auftakt/runtime`                           | Resonote feature semantics      |
+| Shared vocabulary                   | `packages/core/src/index.ts`               | shared types/contracts                       | execution / feature semantics   |
+| Request planning / optimization     | `packages/runtime/src/request-planning.ts` | descriptors, requestKey, optimizer contracts | DB access                       |
+| Relay transport / reconnect         | `packages/runtime/src/relay-session.ts`    | generic relay session execution              | feature semantics               |
+| Storage / reconcile materialization | `packages/adapter-dexie/src/index.ts`      | adapter contract only                        | relay retry policy              |
 
 #### 2. Public API & Plugin API Catalog
 
 | Surface                           | Final Path                       | Visibility               | Purpose                                |
 | --------------------------------- | -------------------------------- | ------------------------ | -------------------------------------- |
-| Coordinator factory/types         | `packages/resonote/src/index.ts` | public package           | package-level typed integration        |
+| Generic Coordinator factory/types | `packages/runtime/src/index.ts`  | public package           | generic runtime integration            |
+| Resonote plugins/flows            | `packages/resonote/src/index.ts` | public package           | Resonote-specific integration          |
 | App singleton accessors           | `src/shared/auftakt/resonote.ts` | app-facing               | Resonote app import point              |
 | `registerPlugin()`                | façade + package                 | public                   | plugin registration entry              |
 | `registerProjection()`            | plugin API only                  | public plugin capability | projection / derived view registration |
@@ -659,7 +684,7 @@ surface が coordinator/package-owned semantics に留まること」を指す�
 
 | NIP    | Target Level  | Current Status                                   | Canonical Owner                                        | Proof / Test Anchor                                                                                                                                            | Scope Notes                                                                                                                                                                                                                                                                                                   |
 | ------ | ------------- | ------------------------------------------------ | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| NIP-01 | public        | implemented (runtime-owned REQ/replay + EOSE/OK) | `packages/core/src/relay-session.ts`                   | `packages/core/src/relay-session.contract.test.ts`                                                                                                             | Contract tests cover REQ routing/replay, backward EOSE completion, and publish OK acknowledgements. Runtime-governing internals as coordinator behavior only.                                                                                                                                                 |
+| NIP-01 | public        | implemented (runtime-owned REQ/replay + EOSE/OK) | `packages/runtime/src/relay-session.ts`                | `packages/runtime/src/relay-session.contract.test.ts`                                                                                                          | Contract tests cover REQ routing/replay, backward EOSE completion, and publish OK acknowledgements. Runtime-governing internals as coordinator behavior only.                                                                                                                                                 |
 | NIP-02 | public        | implemented                                      | `src/shared/browser/follows.svelte.ts`                 | `src/shared/browser/follows.test.ts`<br>`src/features/follows/application/follow-actions.test.ts`                                                              | public follow-list behavior。WoT filtering は kind:3 の上に載る Resonote behavior                                                                                                                                                                                                                             |
 | NIP-03 | public        | implemented                                      | `packages/core/src/nip03-open-timestamps.ts`           | `packages/core/src/nip03-open-timestamps.contract.test.ts`                                                                                                     | Core NIP-03 OpenTimestamps helpers build and parse kind:1040 attestation events with base64 OTS content, target e/k tags, relay filters, and an external verification boundary for OTS Bitcoin attestations.                                                                                                  |
 | NIP-04 | public-compat | implemented (compat fallback only)               | `src/shared/browser/mute.svelte.ts`                    | `src/shared/browser/mute.test.ts`                                                                                                                              | private mute-tag 復号の compatibility fallback。DM 全面対応は主張しない                                                                                                                                                                                                                                       |
@@ -667,20 +692,20 @@ surface が coordinator/package-owned semantics に留まること」を指す�
 | NIP-07 | public        | implemented                                      | `src/shared/nostr/client.ts`                           | `src/shared/nostr/client-integration.test.ts`                                                                                                                  | browser signer integration via `window.nostr`                                                                                                                                                                                                                                                                 |
 | NIP-09 | public        | implemented                                      | `packages/adapter-dexie/src/index.ts`                  | `packages/core/src/reconcile.contract.test.ts`<br>`packages/adapter-dexie/src/materialization.contract.test.ts`                                                | package-owned tombstone verification と late-event suppression                                                                                                                                                                                                                                                |
 | NIP-10 | public        | implemented                                      | `src/features/comments/application/comment-actions.ts` | `src/features/comments/application/comment-actions.test.ts`<br>`e2e/reply-thread.test.ts`                                                                      | reply threading と parent linkage                                                                                                                                                                                                                                                                             |
-| NIP-11 | internal      | implemented (runtime-only bounded support)       | `packages/core/src/relay-session.ts`                   | `packages/core/src/relay-session.contract.test.ts`                                                                                                             | runtime-only relay request-limit policy shapes shard queueing and reconnect replay. No public relay metadata surface and no broader NIP-11 discovery claim.                                                                                                                                                   |
+| NIP-11 | internal      | implemented (runtime-only bounded support)       | `packages/runtime/src/relay-session.ts`                | `packages/runtime/src/relay-session.contract.test.ts`                                                                                                          | runtime-only relay request-limit policy shapes shard queueing and reconnect replay. No public relay metadata surface and no broader NIP-11 discovery claim.                                                                                                                                                   |
 | NIP-13 | public        | implemented                                      | `packages/core/src/nip13-proof-of-work.ts`             | `packages/core/src/nip13-proof-of-work.contract.test.ts`                                                                                                       | Core proof-of-work helpers build and parse `nonce` tags, count leading zero bits from event ids, calculate difficulty, and validate committed target difficulty.                                                                                                                                              |
 | NIP-14 | public        | implemented                                      | `packages/core/src/nip14-subject.ts`                   | `packages/core/src/nip14-subject.contract.test.ts`                                                                                                             | Core subject tag helpers build, parse, and rewrite kind:1 text event subjects, derive `Re:` reply subjects, and expose the 80 character recommendation.                                                                                                                                                       |
 | NIP-17 | public        | implemented                                      | `packages/core/src/nip17-direct-message.ts`            | `packages/core/src/nip17-direct-message.contract.test.ts`                                                                                                      | Core private direct-message model builds kind:14 chat and kind:15 file rumors, wraps each participant through NIP-59 gift wrap, and builds/parses kind:10050 DM relay lists.                                                                                                                                  |
 | NIP-18 | public        | implemented                                      | `src/features/comments/application/comment-actions.ts` | `src/shared/nostr/events.test.ts`<br>`src/features/comments/application/comment-actions.test.ts`<br>`src/features/comments/ui/comment-list-view-model.test.ts` | NIP-18 kind:6 text-note and kind:16 generic repost builders require target relay hints; comment ReNote uses coordinator fetch-by-id before publish.                                                                                                                                                           |
-| NIP-19 | public        | implemented                                      | `packages/core/src/crypto.ts`                          | `src/shared/nostr/nip19-decode.test.ts`<br>`src/features/nip19-resolver/application/resolve-nip19-navigation.test.ts`<br>`e2e/nip19-routes.test.ts`            | standard `npub` / `nsec` / `note` / `nprofile` / `nevent` / `naddr` / `nrelay` encode/decode を core で対応。app route は profile/event subset に限定し、`nsec` は link 化しない。`ncontent` は Resonote-specific extension                                                                                   |
+| NIP-19 | public        | implemented                                      | `packages/core/src/crypto.ts`                          | `src/shared/nostr/nip19-decode.test.ts`<br>`src/features/nip19-resolver/application/resolve-nip19-navigation.test.ts`<br>`e2e/nip19-routes.test.ts`            | standard `npub` / `nsec` / `note` / `nprofile` / `nevent` / `naddr` / `nrelay` encode/decode を core で対応. app route は profile/event subset に限定し、`nsec` は link 化しない。`ncontent` は Resonote-specific extension                                                                                   |
 | NIP-21 | public        | implemented                                      | `packages/core/src/nip21-uri.ts`                       | `packages/core/src/nip21-uri.contract.test.ts`<br>`src/features/nip19-resolver/application/resolve-nip19-navigation.test.ts`                                   | Core `nostr:` URI parser accepts non-secret NIP-19 identifiers and rejects `nsec`; app resolver normalizes profile/event routes through existing NIP-19 navigation.                                                                                                                                           |
 | NIP-22 | public        | implemented                                      | `src/features/comments/application/comment-actions.ts` | `src/features/comments/application/comment-actions.test.ts`                                                                                                    | comment kind:1111 publish flow (event construction + publish path)                                                                                                                                                                                                                                            |
 | NIP-23 | public        | implemented                                      | `packages/core/src/nip23-long-form.ts`                 | `packages/core/src/nip23-long-form.contract.test.ts`                                                                                                           | Core long-form model builds and parses kind:30023 articles and kind:30024 drafts with `d` tag identifiers, Markdown content, title/image/summary/published_at metadata, topics, and reference tags.                                                                                                           |
 | NIP-24 | public        | implemented                                      | `packages/core/src/nip24-extra-metadata.ts`            | `packages/core/src/nip24-extra-metadata.contract.test.ts`                                                                                                      | Core extra metadata helpers parse/build kind:0 profile metadata including `display_name`, `website`, `banner`, `bot`, and `birthday`, detect deprecated kind:3 relay maps for NIP-65 migration, and build/parse generic `r`/`i`/`title`/`t` tags with lowercase hashtag validation.                           |
 | NIP-25 | public        | implemented                                      | `src/features/comments/application/comment-actions.ts` | `src/features/comments/application/comment-actions.test.ts`                                                                                                    | reaction kind:7 publish flow (event construction + publish path)                                                                                                                                                                                                                                              |
 | NIP-27 | public        | implemented                                      | `packages/core/src/nip27-references.ts`                | `packages/core/src/nip27-references.contract.test.ts`<br>`src/shared/nostr/content-parser.test.ts`                                                             | Core parser extracts NIP-21 profile/event/addressable references from text content, builds optional p-tag/q-tag/a-tag mention tags, and powers the app content parser.                                                                                                                                        |
-| NIP-28 | public        | implemented                                      | `packages/core/src/nip28-public-chat.ts`               | `packages/core/src/nip28-public-chat.contract.test.ts`                                                                                                         | Core public chat helpers build and parse kind:40 channel creation, kind:41 metadata, kind:42 root/reply messages, kind:43 hide-message and kind:44 mute-user moderation events, channel metadata JSON, categories, and relay filters.                                                                         |
-| NIP-30 | public        | implemented                                      | `packages/resonote/src/runtime.ts`                     | `packages/resonote/src/custom-emoji.contract.test.ts`                                                                                                          | Custom emoji tags enforce NIP-30 shortcode names and the coordinator read model resolves kind:10030 lists plus kind:30030 emoji sets.                                                                                                                                                                         |
+| NIP-28 | public        | implemented                                      | `packages/core/src/nip28-public-chat.ts`               | `packages/core/src/nip28-public-chat.contract.test.ts`                                                                                                         | Core public chat helpers build and parse kind:40 channel creation, kind:41 metadata, kind:42 root/reply messages, kind:43 hide-message and kind:44 mutes-user moderation events, channel metadata JSON, categories, and relay filters.                                                                        |
+| NIP-30 | public        | implemented                                      | `packages/runtime/src/runtime.ts`                      | `packages/runtime/src/custom-emoji.contract.test.ts`                                                                                                           | Custom emoji tags enforce NIP-30 shortcode names and the coordinator read model resolves kind:10030 lists plus kind:30030 emoji sets.                                                                                                                                                                         |
 | NIP-31 | internal      | implemented                                      | `packages/core/src/nip31-alt.ts`                       | `packages/core/src/nip31-alt.contract.test.ts`<br>`src/shared/nostr/events.test.ts`                                                                            | Core alt-tag fallback helpers parse and build human-readable summaries for unknown/custom events; kind:17 content reaction events include an `alt` tag.                                                                                                                                                       |
 | NIP-32 | public        | implemented                                      | `packages/core/src/nip32-label.ts`                     | `packages/core/src/nip32-label.contract.test.ts`                                                                                                               | Core labeling helpers build and parse kind:1985 label events, `L` tag namespaces, `l` tag label marks, `e`/`p`/`a`/`r`/`t` targets with relay hints, and self-report/self-label tags on non-label events.                                                                                                     |
 | NIP-36 | public        | implemented                                      | `packages/core/src/nip36-content-warning.ts`           | `packages/core/src/nip36-content-warning.contract.test.ts`<br>`src/shared/nostr/events.test.ts`                                                                | Core content-warning helpers parse optional reasons; comment event builder emits NIP-36 `content-warning` tags for sensitive comments.                                                                                                                                                                        |
@@ -688,10 +713,10 @@ surface が coordinator/package-owned semantics に留まること」を指す�
 | NIP-38 | public        | implemented                                      | `packages/core/src/nip38-user-status.ts`               | `packages/core/src/nip38-user-status.contract.test.ts`                                                                                                         | Core user status helpers build and parse kind:30315 addressable events, `d` tag status types including `general`/`music`, NIP-40 expiration, `r`/`p`/`e`/`a` link tags, relay filters, and empty-content clear semantics.                                                                                     |
 | NIP-39 | public        | implemented                                      | `packages/core/src/nip39-external-identity.ts`         | `packages/core/src/nip39-external-identity.contract.test.ts`                                                                                                   | Core external identity helpers build and parse kind:10011 events with `i` tag `platform:identity` proof claims, preserve future extra parameters, derive github/twitter/mastodon/telegram proof URLs, and build exact `#i` relay filters.                                                                     |
 | NIP-40 | internal      | implemented                                      | `packages/adapter-dexie/src/index.ts`                  | `packages/core/src/nip40-expiration.contract.test.ts`<br>`packages/adapter-dexie/src/materialization.contract.test.ts`                                         | Core expiration-tag helpers drive Dexie-local visibility filtering, rejected expired writes, replaceable-head cleanup, negentropy omission, and explicit expired-event compaction.                                                                                                                            |
-| NIP-42 | internal      | implemented                                      | `packages/core/src/relay-session.ts`                   | `packages/core/src/relay-session.contract.test.ts`                                                                                                             | AUTH challenge storage, kind:22242 signing, AUTH OK handling, and `auth-required:` EVENT/REQ retry live in the core relay session.                                                                                                                                                                            |
+| NIP-42 | internal      | implemented                                      | `packages/runtime/src/relay-session.ts`                | `packages/runtime/src/relay-session.contract.test.ts`                                                                                                          | AUTH challenge storage, kind:22242 signing, AUTH OK handling, and `auth-required:` EVENT/REQ retry live in the generic relay session.                                                                                                                                                                         |
 | NIP-43 | internal      | implemented                                      | `packages/core/src/nip43-relay-access.ts`              | `packages/core/src/nip43-relay-access.contract.test.ts`                                                                                                        | Core relay access helpers build and parse protected member lists, add/remove member events, join requests, invite claims, leave requests, claim tags, restricted OK messages, and supported_nips capability checks.                                                                                           |
 | NIP-44 | public        | implemented                                      | `src/shared/browser/mute.svelte.ts`                    | `src/shared/browser/mute.test.ts`                                                                                                                              | encrypted mute/private-tag path                                                                                                                                                                                                                                                                               |
-| NIP-45 | internal      | implemented                                      | `packages/core/src/relay-session.ts`                   | `packages/core/src/relay-session.contract.test.ts`                                                                                                             | Core relay session sends NIP-45 `COUNT` requests, parses `COUNT` responses including approximate/HLL fields, and maps `CLOSED` or invalid payloads to unsupported/failed results.                                                                                                                             |
+| NIP-45 | internal      | implemented                                      | `packages/runtime/src/relay-session.ts`                | `packages/runtime/src/relay-session.contract.test.ts`                                                                                                          | Generic relay session sends NIP-45 `COUNT` requests, parses `COUNT` responses including approximate/HLL fields, and maps `CLOSED` or invalid payloads to unsupported/failed results.                                                                                                                          |
 | NIP-46 | public        | implemented                                      | `packages/core/src/nip46-remote-signing.ts`            | `packages/core/src/nip46-remote-signing.contract.test.ts`                                                                                                      | Core remote-signing helpers build and parse bunker/nostrconnect URLs, permission strings, JSON-RPC request/response payloads, auth challenges, and kind:24133 encrypted event envelopes.                                                                                                                      |
 | NIP-48 | public        | implemented                                      | `packages/core/src/nip48-proxy-tags.ts`                | `packages/core/src/nip48-proxy-tags.contract.test.ts`                                                                                                          | Core proxy tag helpers build, append, and parse `proxy` tags on any event kind, covering activitypub/web URL IDs, atproto AT URI IDs, rss URL-with-fragment IDs, custom protocols, and source ID format validation.                                                                                           |
 | NIP-50 | public        | implemented                                      | `packages/core/src/nip50-search.ts`                    | `packages/core/src/nip50-search.contract.test.ts`                                                                                                              | Core search filter helpers build and parse NIP-50 `search` field queries, preserve normal filter constraints, detect relay support from `supported_nips`, and parse extension tokens.                                                                                                                         |
@@ -704,13 +729,11 @@ surface が coordinator/package-owned semantics に留まること」を指す�
 | NIP-59 | internal      | implemented                                      | `packages/core/src/nip59-gift-wrap.ts`                 | `packages/core/src/nip59-gift-wrap.contract.test.ts`                                                                                                           | Core gift-wrap protocol builds unsigned rumors, kind:13 seals with empty tags, kind:1059 gift wraps with recipient p-tags, randomized past timestamps, ephemeral wrapper keys, and injected NIP-44 encryption.                                                                                                |
 | NIP-62 | internal      | implemented                                      | `packages/adapter-dexie/src/index.ts`                  | `packages/core/src/nip62-request-to-vanish.contract.test.ts`<br>`packages/adapter-dexie/src/materialization.contract.test.ts`                                  | Dexie materialization applies kind:62 request-to-vanish retention with relay/ALL_RELAYS parsing, author cutoff suppression, NIP-09 deletion marker removal, and NIP-59 gift-wrap p-tag cleanup.                                                                                                               |
 | NIP-65 | public        | implemented                                      | `src/shared/browser/relays.svelte.ts`                  | `src/shared/browser/relays-fetch.test.ts`<br>`src/features/relays/application/relay-actions.test.ts`                                                           | Read path is proven for kind:10002 consumption (`created_at` latest wins) with intended fallback to kind:3 only when kind:10002 yields no relay entries. Write path is separately proven by kind:10002 publish tests.                                                                                         |
-| NIP-66 | internal      | implemented                                      | `packages/resonote/src/runtime.ts`                     | `packages/core/src/relay-capability.contract.test.ts`<br>`packages/resonote/src/relay-metrics-nip66.contract.test.ts`                                          | Coordinator-local relay metrics parse NIP-66 kind:30166 discovery and kind:10166 monitor announcements; absence of metrics never blocks relay operation.                                                                                                                                                      |
 | NIP-68 | public        | implemented                                      | `packages/core/src/nip68-picture.ts`                   | `packages/core/src/nip68-picture.contract.test.ts`                                                                                                             | Core NIP-68 helpers build and parse kind:20 picture events with title/content, multiple imeta image tags, accepted image media types, fallback and annotate-user imeta fields, content-warning, tagged pubkeys, image hashes, hashtags, location, geohash, and language tags.                                 |
-| NIP-70 | internal      | implemented                                      | `packages/core/src/relay-session.ts`                   | `packages/core/src/relay-session.contract.test.ts`                                                                                                             | Protected publish path recognizes the single-item `["-"]` tag and authenticates before EVENT retry when relay policy requires NIP-42.                                                                                                                                                                         |
 | NIP-71 | public        | implemented                                      | `packages/core/src/nip71-video.ts`                     | `packages/core/src/nip71-video.contract.test.ts`                                                                                                               | Core NIP-71 video helpers build and parse kind:21 normal videos, kind:22 short videos, addressable kind:34235/34236 videos with d tags, imeta video variants with duration and bitrate fields, text-track, segment, origin, participant, hashtag, and reference tags.                                         |
 | NIP-72 | public        | implemented                                      | `packages/core/src/nip72-community.ts`                 | `packages/core/src/nip72-community.contract.test.ts`                                                                                                           | Core NIP-72 moderated community helpers build and parse kind:34550 community definitions with moderators and relay markers, NIP-22 kind:1111 top-level and reply post tags scoped to communities, and kind:4550 approval events for event IDs or addressable posts.                                           |
 | NIP-73 | public        | implemented                                      | `src/shared/content/*.ts`                              | `src/shared/content/providers.test.ts`                                                                                                                         | canonical external content IDs via provider `toNostrTag()`                                                                                                                                                                                                                                                    |
-| NIP-77 | internal-only | implemented (internal-only)                      | `packages/resonote/src/runtime.ts`                     | `packages/resonote/src/relay-repair.contract.test.ts`<br>`packages/resonote/src/public-api.contract.test.ts`                                                   | negentropy repair only。public/package root surfaces は leak-free を維持                                                                                                                                                                                                                                      |
+| NIP-77 | internal-only | implemented (internal-only)                      | `packages/runtime/src/relay-repair.ts`                 | `packages/runtime/src/relay-repair.contract.test.ts`<br>`packages/runtime/src/public-api.contract.test.ts`                                                     | negentropy repair only。public/package root surfaces は leak-free を維持                                                                                                                                                                                                                                      |
 | NIP-78 | public        | implemented                                      | `packages/core/src/nip78-application-data.ts`          | `packages/core/src/nip78-application-data.contract.test.ts`                                                                                                    | Core application data model builds and parses kind:30078 addressable events with required `d` tags while preserving opaque content and custom tags.                                                                                                                                                           |
 | NIP-7D | public        | implemented                                      | `packages/core/src/nip7d-thread.ts`                    | `packages/core/src/nip7d-thread.contract.test.ts`                                                                                                              | Core thread model builds and parses kind:11 threads with `title` tags and NIP-22 kind:1111 root comment tags for thread replies.                                                                                                                                                                              |
 | NIP-84 | public        | implemented                                      | `packages/core/src/nip84-highlight.ts`                 | `packages/core/src/nip84-highlight.contract.test.ts`                                                                                                           | Core NIP-84 highlight helpers build and parse kind:9802 highlight events with source event/address/URL references, author/editor attribution p-tags, context tags, quote-highlight comment tags, and mention-marked p/r tags.                                                                                 |
