@@ -61,8 +61,8 @@ export interface RelayRepairStore {
 
 export interface RelayRepairRuntime {
   getEventsDB(): Promise<RelayRepairStore>;
-  getRxNostr(): Promise<unknown>;
-  createRxBackwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): unknown;
+  getRelaySession(): Promise<unknown>;
+  createBackwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): unknown;
 }
 
 interface NegentropySessionRuntime {
@@ -343,8 +343,8 @@ async function fetchRelayCandidateEventsFromRelay(
 ): Promise<unknown[]> {
   if (filters.length === 0) return [];
 
-  const rxNostr = (await runtime.getRxNostr()) as NegentropySessionRuntime;
-  const req = runtime.createRxBackwardReq({
+  const relaySession = (await runtime.getRelaySession()) as NegentropySessionRuntime;
+  const req = runtime.createBackwardReq({
     requestKey: createNegentropyRepairRequestKey({ filters, relayUrl, scope }),
     coalescingScope: REPAIR_REQUEST_COALESCING_SCOPE
   }) as {
@@ -358,7 +358,7 @@ async function fetchRelayCandidateEventsFromRelay(
     let settled = false;
     const timeout = setTimeout(() => finish(), timeoutMs ?? 10_000);
 
-    const sub = rxNostr
+    const sub = relaySession
       .use(req, {
         on: {
           relays: [relayUrl],
@@ -476,7 +476,7 @@ export async function repairEventsFromRelay(
     return fallbackRepairEventsFromRelay(runtime, options, 'unsupported');
   }
 
-  const session = (await runtime.getRxNostr()) as Partial<NegentropySessionRuntime>;
+  const session = (await runtime.getRelaySession()) as Partial<NegentropySessionRuntime>;
 
   if (typeof session.requestNegentropySync !== 'function') {
     cacheUnsupportedNegentropyRelay(runtime, options.relayUrl);

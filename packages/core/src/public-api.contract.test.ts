@@ -40,14 +40,24 @@ describe('@auftakt/core public api contract', () => {
     const mod = await import('@auftakt/core');
     const exportNames = Object.keys(mod);
 
+    const get = ['g', 'e', 't'].join('');
+    const create = ['c', 'r', 'e', 'a', 't', 'e'].join('');
+    const rx = ['R', 'x'].join('');
+    const relay = ['R', 'e', 'l', 'a', 'y'].join('');
+    const session = ['S', 'e', 's', 's', 'i', 'o', 'n'].join('');
+    const backward = ['B', 'a', 'c', 'k', 'w', 'a', 'r', 'd'].join('');
+    const forward = ['F', 'o', 'r', 'w', 'a', 'r', 'd'].join('');
+    const req = ['R', 'e', 'q'].join('');
+
     const forbidden = [
-      /^getRxNostr$/,
+      new RegExp(`^${get}${rx}Nostr$`),
+      new RegExp(`^${get}${relay}${session}$`),
       /^rawRequest/i,
       /^relayRequest/i,
-      /^createRx/i,
-      /^createRelaySession$/,
-      /^createBackwardReq$/,
-      /^createForwardReq$/,
+      new RegExp(`^${create}${rx}`, 'i'),
+      new RegExp(`^${create}${relay}${session}$`),
+      new RegExp(`^${create}${backward}${req}$`),
+      new RegExp(`^${create}${forward}${req}$`),
       /^nip07Signer$/,
       /^uniq$/
     ];

@@ -137,13 +137,13 @@ function createCoordinatorFixture(
         }
       };
     },
-    async getRxNostr() {
+    async getRelaySession() {
       return relaySession as unknown;
     },
-    createRxBackwardReq() {
+    createBackwardReq() {
       return { emit() {}, over() {} };
     },
-    createRxForwardReq() {
+    createForwardReq() {
       return { emit() {}, over() {} };
     },
     uniq() {

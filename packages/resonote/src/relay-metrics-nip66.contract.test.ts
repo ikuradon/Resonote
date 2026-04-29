@@ -33,13 +33,13 @@ function createCoordinator(eventsByKind: Map<number, StoredEvent[]>) {
         put: async () => true,
         putWithReconcile: async () => ({ stored: true, emissions: [] })
       }),
-      getRxNostr: async () => ({
+      getRelaySession: async () => ({
         use: () => ({
           subscribe: () => ({ unsubscribe() {} })
         })
       }),
-      createRxBackwardReq: () => ({ emit() {}, over() {} }),
-      createRxForwardReq: () => ({ emit() {}, over() {} }),
+      createBackwardReq: () => ({ emit() {}, over() {} }),
+      createForwardReq: () => ({ emit() {}, over() {} }),
       uniq: () => ({}) as unknown,
       merge: () => ({}) as unknown,
       getRelayConnectionState: async () => null,

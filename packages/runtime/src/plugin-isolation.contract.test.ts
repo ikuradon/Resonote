@@ -54,7 +54,7 @@ describe('@auftakt/runtime plugin isolation', () => {
       'getRelaySet',
       'getUser'
     ]);
-    expect(observedKeys[0]).not.toContain('getRxNostr');
+    expect(observedKeys[0]).not.toContain('getRelaySession');
     expect(observedKeys[0]).not.toContain('getEventsDB');
     expect(observedKeys[0]).not.toContain('getEvent');
     expect(observedKeys[0]).not.toContain('getUser');
@@ -62,7 +62,7 @@ describe('@auftakt/runtime plugin isolation', () => {
     expect(observedKeys[0]).not.toContain('getRelaySet');
     expect(observedKeys[0]).not.toContain('getRelayHints');
     expect(observedKeys[0]).not.toContain('openEventsDb');
-    expect(observedModelKeys[0]).not.toContain('getRxNostr');
+    expect(observedModelKeys[0]).not.toContain('getRelaySession');
     expect(observedModelKeys[0]).not.toContain('getEventsDB');
     expect(observedModelKeys[0]).not.toContain('openEventsDb');
     expect(observedModelKeys[0]).not.toContain('materializerQueue');
@@ -72,9 +72,9 @@ describe('@auftakt/runtime plugin isolation', () => {
   it('provides plugins only registration functions and no coordinator handles', async () => {
     const coordinator = createTestCoordinator();
     const forbiddenKeys = [
-      'getRxNostr',
-      'createRxBackwardReq',
-      'createRxForwardReq',
+      'getRelaySession',
+      'createBackwardReq',
+      'createForwardReq',
       'getEventsDB',
       'openEventsDb',
       'materializerQueue',
@@ -108,9 +108,9 @@ describe('@auftakt/runtime plugin isolation', () => {
           expect(api).not.toHaveProperty(key);
         }
         const rawModelForbiddenKeys = [
-          'getRxNostr',
-          'createRxBackwardReq',
-          'createRxForwardReq',
+          'getRelaySession',
+          'createBackwardReq',
+          'createForwardReq',
           'getEventsDB',
           'openEventsDb',
           'materializerQueue',

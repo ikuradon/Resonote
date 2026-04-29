@@ -4,7 +4,7 @@ import {
   type ReconcileEmission,
   type StoredEvent
 } from '@auftakt/core';
-import { createRelayMetricsPlugin,registerRuntimePlugin } from '@auftakt/runtime';
+import { createRelayMetricsPlugin, registerRuntimePlugin } from '@auftakt/runtime';
 import { describe, expect, it, vi } from 'vitest';
 
 import { COMMENTS_FLOW, CONTENT_RESOLUTION_FLOW } from './plugins/resonote-flows.js';
@@ -40,7 +40,7 @@ function createTestCoordinator({
         put: async () => true,
         putWithReconcile: async (event: StoredEvent) => putWithReconcile(event)
       }),
-      getRxNostr: async () => ({
+      getRelaySession: async () => ({
         use: () => ({
           subscribe: (observer: {
             next?: (packet: { event: unknown; from?: string }) => void;
@@ -56,8 +56,8 @@ function createTestCoordinator({
           }
         })
       }),
-      createRxBackwardReq: () => ({ emit() {}, over() {} }),
-      createRxForwardReq: () => ({ emit() {}, over() {} }),
+      createBackwardReq: () => ({ emit() {}, over() {} }),
+      createForwardReq: () => ({ emit() {}, over() {} }),
       uniq: () => ({}) as unknown,
       merge: () => ({}) as unknown,
       getRelayConnectionState: async () => null,
@@ -249,7 +249,7 @@ describe('@auftakt/resonote built-in plugins', () => {
             return { stored: true, emissions: [] };
           }
         }),
-        getRxNostr: async () => ({
+        getRelaySession: async () => ({
           use: () => ({
             subscribe: (observer: {
               next?: (packet: { event: unknown; from?: string }) => void;
@@ -263,8 +263,8 @@ describe('@auftakt/resonote built-in plugins', () => {
             }
           })
         }),
-        createRxBackwardReq: () => ({ emit() {}, over() {} }),
-        createRxForwardReq: () => ({ emit() {}, over() {} }),
+        createBackwardReq: () => ({ emit() {}, over() {} }),
+        createForwardReq: () => ({ emit() {}, over() {} }),
         uniq: () => ({}) as unknown,
         merge: () => ({}) as unknown,
         getRelayConnectionState: async () => null,

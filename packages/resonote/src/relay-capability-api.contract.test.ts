@@ -55,7 +55,7 @@ function createCapabilityRuntime() {
         }
       };
     },
-    async getRxNostr() {
+    async getRelaySession() {
       return {
         setRelayCapabilities(next: Record<string, RelayExecutionCapability | undefined>) {
           Object.assign(capabilities, next);
@@ -87,10 +87,10 @@ function createCapabilityRuntime() {
         }
       };
     },
-    createRxBackwardReq() {
+    createBackwardReq() {
       return { emit() {}, over() {} };
     },
-    createRxForwardReq() {
+    createForwardReq() {
       return { emit() {}, over() {} };
     },
     uniq() {

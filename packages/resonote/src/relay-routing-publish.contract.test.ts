@@ -82,11 +82,11 @@ function createRuntime() {
         putWithReconcile: async () => ({ stored: true, emissions: [] })
       };
     },
-    async getRxNostr() {
+    async getRelaySession() {
       return { use: () => ({ subscribe: () => ({ unsubscribe() {} }) }) };
     },
-    createRxBackwardReq: () => ({ emit() {}, over() {} }),
-    createRxForwardReq: () => ({ emit() {}, over() {} }),
+    createBackwardReq: () => ({ emit() {}, over() {} }),
+    createForwardReq: () => ({ emit() {}, over() {} }),
     uniq: () => ({}) as unknown,
     merge: () => ({}) as unknown,
     getRelayConnectionState: async () => null,

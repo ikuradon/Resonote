@@ -380,7 +380,7 @@ describe('coordinator read relay selection integration', () => {
           putWithReconcile: async () => ({ stored: true, emissions: [] })
         };
       },
-      async getRxNostr() {
+      async getRelaySession() {
         return {
           use(_req: { emit(input: unknown): void }, options: unknown) {
             const entry = { options, emitted: [] as unknown[] };
@@ -394,7 +394,7 @@ describe('coordinator read relay selection integration', () => {
           }
         };
       },
-      createRxBackwardReq() {
+      createBackwardReq() {
         return {
           emit(input: unknown) {
             createdRequests.at(-1)?.emitted.push(input);
@@ -402,7 +402,7 @@ describe('coordinator read relay selection integration', () => {
           over() {}
         };
       },
-      createRxForwardReq() {
+      createForwardReq() {
         return { emit() {}, over() {} };
       },
       uniq: () => ({}) as unknown,
@@ -479,7 +479,7 @@ describe('coordinator read relay selection integration', () => {
           putWithReconcile: async () => ({ stored: true, emissions: [] })
         };
       },
-      async getRxNostr() {
+      async getRelaySession() {
         return {
           use(_req: { emit(input: unknown): void }, options: unknown) {
             const entry = { options, emitted: [] as unknown[] };
@@ -493,7 +493,7 @@ describe('coordinator read relay selection integration', () => {
           }
         };
       },
-      createRxBackwardReq() {
+      createBackwardReq() {
         return {
           emit(input: unknown) {
             createdRequests.at(-1)?.emitted.push(input);
@@ -501,7 +501,7 @@ describe('coordinator read relay selection integration', () => {
           over() {}
         };
       },
-      createRxForwardReq() {
+      createForwardReq() {
         return { emit() {}, over() {} };
       },
       uniq: () => ({}) as unknown,
@@ -571,7 +571,7 @@ describe('coordinator read relay selection integration', () => {
           putWithReconcile: async () => ({ stored: true, emissions: [] })
         };
       },
-      async getRxNostr() {
+      async getRelaySession() {
         return {
           use(_req: { emit(input: unknown): void }, options: unknown) {
             const entry = { options, emitted: [] as unknown[] };
@@ -585,7 +585,7 @@ describe('coordinator read relay selection integration', () => {
           }
         };
       },
-      createRxBackwardReq() {
+      createBackwardReq() {
         return {
           emit(input: unknown) {
             createdRequests.at(-1)?.emitted.push(input);
@@ -593,7 +593,7 @@ describe('coordinator read relay selection integration', () => {
           over() {}
         };
       },
-      createRxForwardReq() {
+      createForwardReq() {
         return { emit() {}, over() {} };
       },
       uniq: () => ({}) as unknown,

@@ -12,7 +12,7 @@ export interface CoordinatorReadRuntime {
       emissions?: ReconcileEmission[];
     }>;
   }>;
-  getRxNostr(): Promise<{
+  getRelaySession(): Promise<{
     use(
       req: { emit(input: unknown): void; over(): void },
       options?: unknown
@@ -24,7 +24,7 @@ export interface CoordinatorReadRuntime {
       }): { unsubscribe(): void };
     };
   }>;
-  createRxBackwardReq(options?: { requestKey?: string }): {
+  createBackwardReq(options?: { requestKey?: string }): {
     emit(input: unknown): void;
     over(): void;
   };
@@ -68,8 +68,8 @@ function isCoordinatorReadRuntime(value: unknown): value is CoordinatorReadRunti
     typeof value === 'object' &&
     value !== null &&
     'getEventsDB' in value &&
-    'getRxNostr' in value &&
-    'createRxBackwardReq' in value
+    'getRelaySession' in value &&
+    'createBackwardReq' in value
   );
 }
 
@@ -157,14 +157,14 @@ async function fetchAndCacheByIdFromRelay(
   eventId: string
 ): Promise<StoredEvent | null> {
   try {
-    const rxNostr = await runtime.getRxNostr();
+    const relaySession = await runtime.getRelaySession();
     const event = await new Promise<StoredEvent | null>((resolve) => {
       const requestKey = createRuntimeRequestKey({
         mode: 'backward',
         filters: [{ ids: [eventId] }],
         scope: 'runtime:cachedFetchById'
       });
-      const req = runtime.createRxBackwardReq({ requestKey });
+      const req = runtime.createBackwardReq({ requestKey });
       let found: StoredEvent | null = null;
       const pending = new Set<Promise<void>>();
       const finish = () => {
@@ -172,7 +172,7 @@ async function fetchAndCacheByIdFromRelay(
         sub.unsubscribe();
         void Promise.allSettled([...pending]).then(() => resolve(found));
       };
-      const sub = rxNostr.use(req).subscribe({
+      const sub = relaySession.use(req).subscribe({
         next: (packet) => {
           const task = (async () => {
             const stored = await ingestRelayPacketEvent(runtime, packet.event, packet.from ?? '');
@@ -355,19 +355,19 @@ function createLatestReadDriver<TEvent extends StoredEvent>(
 
   void (async () => {
     try {
-      const rxNostr = await runtime.getRxNostr();
+      const relaySession = await runtime.getRelaySession();
       if (state.destroyed) return;
       const requestKey = createRuntimeRequestKey({
         mode: 'backward',
         filters: [{ kinds: [kind], authors: [pubkey], limit: 1 }],
         scope: 'runtime:useCachedLatest'
       });
-      const req = runtime.createRxBackwardReq({ requestKey });
+      const req = runtime.createBackwardReq({ requestKey });
       state.timeout = setTimeout(() => {
         state.sub?.unsubscribe();
         settleRelay();
       }, 10_000);
-      state.sub = rxNostr.use(req).subscribe({
+      state.sub = relaySession.use(req).subscribe({
         next: (packet) => {
           void (async () => {
             const stored = await ingestRelayPacketEvent(runtime, packet.event, packet.from ?? '');

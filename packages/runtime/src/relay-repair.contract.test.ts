@@ -159,15 +159,15 @@ async function createRuntimeFixture(options: {
         putQuarantine: eventsDB.putQuarantine.bind(eventsDB)
       } as Awaited<ReturnType<typeof createDexieEventStore>>;
     },
-    async getRxNostr() {
+    async getRelaySession() {
       return session as unknown;
     },
-    createRxBackwardReq(options) {
-      const request = new FakeBackwardRequest(options?.requestKey);
+    createBackwardReq(options?: { requestKey?: string; coalescingScope?: string }) {
+      const request = new FakeBackwardRequest(options?.requestKey as RequestKey | undefined);
       createdRequests.push(request);
       return request as unknown;
     },
-    createRxForwardReq() {
+    createForwardReq() {
       throw new Error('not used in relay repair contract tests');
     },
     uniq() {

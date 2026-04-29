@@ -124,17 +124,17 @@ function createFixture() {
         }
       };
     },
-    async getRxNostr() {
+    async getRelaySession() {
       return rawSession as never;
     },
-    createRxBackwardReq(options) {
+    createBackwardReq(options) {
       return new FakeRelayRequest(
         'backward',
         options?.requestKey,
         options?.coalescingScope
       ) as never;
     },
-    createRxForwardReq(options) {
+    createForwardReq(options) {
       return new FakeRelayRequest(
         'forward',
         options?.requestKey,
@@ -179,14 +179,14 @@ function subscribeSharedForward(
   filter: Record<string, unknown>,
   scope: string
 ) {
-  const req = refs.rxNostrMod.createRxForwardReq({
+  const req = refs.relaySessionMod.createForwardReq({
     requestKey: createRuntimeRequestKey({
       mode: 'forward',
       scope,
       filters: [filter]
     })
   }) as FakeRelayRequest;
-  const sub = refs.rxNostr.use(req).pipe(refs.rxNostrMod.uniq()).subscribe({});
+  const sub = refs.relaySession.use(req).pipe(refs.relaySessionMod.uniq()).subscribe({});
   req.emit(filter);
   return sub;
 }
@@ -197,14 +197,14 @@ function subscribeSharedBackward(
   scope: string,
   onComplete: () => void
 ) {
-  const req = refs.rxNostrMod.createRxBackwardReq({
+  const req = refs.relaySessionMod.createBackwardReq({
     requestKey: createRuntimeRequestKey({
       mode: 'backward',
       scope,
       filters: [filter]
     })
   }) as FakeRelayRequest;
-  const sub = refs.rxNostr.use(req).pipe(refs.rxNostrMod.uniq()).subscribe({
+  const sub = refs.relaySession.use(req).pipe(refs.relaySessionMod.uniq()).subscribe({
     complete: onComplete
   });
   req.emit(filter);
@@ -274,14 +274,14 @@ describe('@auftakt/runtime shared subscription registry contract', () => {
     const refs = await loadEventSubscriptionDeps(runtime);
     const filter = { '#I': ['spotify:track:abc'], kinds: [1111] };
 
-    const appReq = refs.rxNostrMod.createRxBackwardReq({
+    const appReq = refs.relaySessionMod.createBackwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'backward',
         scope: 'contract:registry:app',
         filters: [filter]
       })
     }) as FakeRelayRequest;
-    const repairReq = refs.rxNostrMod.createRxBackwardReq({
+    const repairReq = refs.relaySessionMod.createBackwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'backward',
         scope: 'timeline:repair:negentropy',
@@ -290,8 +290,11 @@ describe('@auftakt/runtime shared subscription registry contract', () => {
       coalescingScope: REPAIR_REQUEST_COALESCING_SCOPE
     }) as FakeRelayRequest;
 
-    const appSub = refs.rxNostr.use(appReq).pipe(refs.rxNostrMod.uniq()).subscribe({});
-    const repairSub = refs.rxNostr.use(repairReq).pipe(refs.rxNostrMod.uniq()).subscribe({});
+    const appSub = refs.relaySession.use(appReq).pipe(refs.relaySessionMod.uniq()).subscribe({});
+    const repairSub = refs.relaySession
+      .use(repairReq)
+      .pipe(refs.relaySessionMod.uniq())
+      .subscribe({});
     appReq.emit(filter);
     repairReq.emit(filter);
     appReq.over();

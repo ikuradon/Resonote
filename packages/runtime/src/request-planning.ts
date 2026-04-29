@@ -108,12 +108,12 @@ export interface RelaySessionLike {
 
 export interface SessionRuntime<TEvent extends StoredEvent = StoredEvent>
   extends QueryRuntime<TEvent>, RelayObservationRuntime {
-  getRxNostr(): Promise<RelaySessionLike>;
-  createRxBackwardReq(options?: {
+  getRelaySession(): Promise<RelaySessionLike>;
+  createBackwardReq(options?: {
     requestKey?: RequestKey;
     coalescingScope?: string;
   }): RelayRequestLike;
-  createRxForwardReq(options?: {
+  createForwardReq(options?: {
     requestKey?: RequestKey;
     coalescingScope?: string;
   }): RelayRequestLike;
@@ -257,17 +257,17 @@ export interface SubscriptionHandle {
 }
 
 export interface EventSubscriptionRefs {
-  rxNostr: {
+  relaySession: {
     use(req: unknown): {
       pipe(...ops: unknown[]): { subscribe(observer: unknown): SubscriptionHandle };
     };
   };
-  rxNostrMod: {
-    createRxBackwardReq(options?: {
+  relaySessionMod: {
+    createBackwardReq(options?: {
       requestKey?: RequestKey;
       coalescingScope?: string;
     }): RelayRequestLike;
-    createRxForwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): {
+    createForwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): {
       emit(input: unknown): void;
       over?: () => void;
     };
@@ -352,12 +352,12 @@ export async function fetchEventById<TEvent>(
 export async function loadEventSubscriptionDeps<TEvent extends StoredEvent>(
   runtime: SessionRuntime<TEvent>
 ): Promise<EventSubscriptionRefs> {
-  const rxNostr = await runtime.getRxNostr();
+  const relaySession = await runtime.getRelaySession();
   return {
-    rxNostr,
-    rxNostrMod: {
-      createRxBackwardReq: (options) => runtime.createRxBackwardReq(options),
-      createRxForwardReq: (options) => runtime.createRxForwardReq(options),
+    relaySession,
+    relaySessionMod: {
+      createBackwardReq: (options) => runtime.createBackwardReq(options),
+      createForwardReq: (options) => runtime.createForwardReq(options),
       uniq: () => runtime.uniq()
     },
     rxjsMerge: (...args) => runtime.merge(...(args as Array<ObservableLike<unknown>>))
@@ -372,7 +372,7 @@ export function startBackfillAndLiveSubscription<TEvent extends StoredEvent>(
   onBackwardComplete: () => void,
   onError?: (error: unknown) => void
 ): SubscriptionHandle[] {
-  const { createRxBackwardReq, createRxForwardReq, uniq } = refs.rxNostrMod;
+  const { createBackwardReq, createForwardReq, uniq } = refs.relaySessionMod;
   const backwardFilters = maxCreatedAt
     ? filters.map((filter) => ({ ...filter, since: maxCreatedAt + 1 }))
     : filters;
@@ -387,10 +387,10 @@ export function startBackfillAndLiveSubscription<TEvent extends StoredEvent>(
     scope: 'timeline:startBackfillAndLiveSubscription:forward'
   });
 
-  const backward = createRxBackwardReq({ requestKey: backwardRequestKey });
-  const forward = createRxForwardReq({ requestKey: forwardRequestKey });
+  const backward = createBackwardReq({ requestKey: backwardRequestKey });
+  const forward = createForwardReq({ requestKey: forwardRequestKey });
 
-  const backwardSub = refs.rxNostr
+  const backwardSub = refs.relaySession
     .use(backward)
     .pipe(uniq())
     .subscribe({
@@ -405,7 +405,7 @@ export function startBackfillAndLiveSubscription<TEvent extends StoredEvent>(
       }
     });
 
-  const forwardSub = refs.rxNostr
+  const forwardSub = refs.relaySession
     .use(forward)
     .pipe(uniq())
     .subscribe({
@@ -429,7 +429,7 @@ export function startMergedLiveSubscription<TEvent extends StoredEvent>(
   onPacket: (event: TEvent, relayHint?: string) => void,
   onError?: (error: unknown) => void
 ): SubscriptionHandle {
-  const { createRxBackwardReq, createRxForwardReq, uniq } = refs.rxNostrMod;
+  const { createBackwardReq, createForwardReq, uniq } = refs.relaySessionMod;
   const backwardRequestKey = createRuntimeRequestKey({
     mode: 'backward',
     filters,
@@ -440,11 +440,14 @@ export function startMergedLiveSubscription<TEvent extends StoredEvent>(
     filters,
     scope: 'timeline:startMergedLiveSubscription:forward'
   });
-  const backward = createRxBackwardReq({ requestKey: backwardRequestKey });
-  const forward = createRxForwardReq({ requestKey: forwardRequestKey });
+  const backward = createBackwardReq({ requestKey: backwardRequestKey });
+  const forward = createForwardReq({ requestKey: forwardRequestKey });
 
   const sub = refs
-    .rxjsMerge(refs.rxNostr.use(backward).pipe(uniq()), refs.rxNostr.use(forward).pipe(uniq()))
+    .rxjsMerge(
+      refs.relaySession.use(backward).pipe(uniq()),
+      refs.relaySession.use(forward).pipe(uniq())
+    )
     .subscribe({
       next: (packet: unknown) => {
         const { event, from } = packet as { event: TEvent; from?: string };
@@ -467,13 +470,13 @@ export function startDeletionReconcile<TEvent extends StoredEvent>(
   onDeletionEvent: (event: TEvent) => void,
   onComplete: () => void
 ): { sub: SubscriptionHandle; timeout: ReturnType<typeof setTimeout> } {
-  const { createRxBackwardReq, uniq } = refs.rxNostrMod;
+  const { createBackwardReq, uniq } = refs.relaySessionMod;
   const requestKey = createRuntimeRequestKey({
     mode: 'backward',
     filters: [{ kinds: [deletionKind], '#e': [...cachedIds] }],
     scope: 'timeline:startDeletionReconcile'
   });
-  const reconcileBackward = createRxBackwardReq({ requestKey });
+  const reconcileBackward = createBackwardReq({ requestKey });
   const chunkSize = 50;
 
   let completed = false;
@@ -485,7 +488,7 @@ export function startDeletionReconcile<TEvent extends StoredEvent>(
     onComplete();
   }
 
-  const sub = refs.rxNostr
+  const sub = refs.relaySession
     .use(reconcileBackward)
     .pipe(uniq())
     .subscribe({
@@ -518,7 +521,7 @@ export async function fetchFollowGraph<TEvent extends StoredEvent>(
   followKind = 3,
   batchSize = 100
 ): Promise<{ directFollows: Set<string>; wot: Set<string> }> {
-  const rxNostr = await runtime.getRxNostr();
+  const relaySession = await runtime.getRelaySession();
   const eventsDB = await runtime.getEventsDB();
 
   const directFollows = await new Promise<Set<string>>((resolve) => {
@@ -527,10 +530,10 @@ export async function fetchFollowGraph<TEvent extends StoredEvent>(
       filters: [{ kinds: [followKind], authors: [pubkey], limit: 1 }],
       scope: 'timeline:fetchFollowGraph:direct'
     });
-    const req = runtime.createRxBackwardReq({ requestKey });
+    const req = runtime.createBackwardReq({ requestKey });
     let latestEvent: TEvent | null = null;
 
-    const sub = rxNostr.use(req).subscribe({
+    const sub = relaySession.use(req).subscribe({
       next: (packet) => {
         const event = (packet as { event: TEvent }).event;
         void cacheEvent(eventsDB, event);
@@ -567,8 +570,8 @@ export async function fetchFollowGraph<TEvent extends StoredEvent>(
       filters: [{ kinds: [followKind], authors: followArray }],
       scope: 'timeline:fetchFollowGraph:wot'
     });
-    const req = runtime.createRxBackwardReq({ requestKey });
-    const sub = rxNostr.use(req).subscribe({
+    const req = runtime.createBackwardReq({ requestKey });
+    const sub = relaySession.use(req).subscribe({
       next: (packet) => {
         if (callbacks.isCancelled()) return;
         const event = (packet as { event: TEvent }).event;
@@ -609,16 +612,16 @@ export async function subscribeDualFilterStreams<TEvent extends StoredEvent>(
     onError(error: unknown): void;
   }
 ): Promise<SubscriptionLike[]> {
-  const rxNostr = await runtime.getRxNostr();
+  const relaySession = await runtime.getRelaySession();
   const subscriptions: SubscriptionLike[] = [];
-  const primaryBackward = runtime.createRxBackwardReq({
+  const primaryBackward = runtime.createBackwardReq({
     requestKey: createRuntimeRequestKey({
       mode: 'backward',
       filters: [options.primaryFilter],
       scope: 'timeline:subscribeDualFilterStreams:primary:backward'
     })
   });
-  const primaryForward = runtime.createRxForwardReq({
+  const primaryForward = runtime.createForwardReq({
     requestKey: createRuntimeRequestKey({
       mode: 'forward',
       filters: [options.primaryFilter],
@@ -629,8 +632,8 @@ export async function subscribeDualFilterStreams<TEvent extends StoredEvent>(
   subscriptions.push(
     runtime
       .merge(
-        rxNostr.use(primaryBackward).pipe(runtime.uniq()),
-        rxNostr.use(primaryForward).pipe(runtime.uniq())
+        relaySession.use(primaryBackward).pipe(runtime.uniq()),
+        relaySession.use(primaryForward).pipe(runtime.uniq())
       )
       .subscribe({
         next: (packet) => handlers.onPrimaryPacket(packet as { event: TEvent; from?: string }),
@@ -644,14 +647,14 @@ export async function subscribeDualFilterStreams<TEvent extends StoredEvent>(
 
   if (!options.secondaryFilters || options.secondaryFilters.length === 0) return subscriptions;
 
-  const secondaryBackward = runtime.createRxBackwardReq({
+  const secondaryBackward = runtime.createBackwardReq({
     requestKey: createRuntimeRequestKey({
       mode: 'backward',
       filters: options.secondaryFilters,
       scope: 'timeline:subscribeDualFilterStreams:secondary:backward'
     })
   });
-  const secondaryForward = runtime.createRxForwardReq({
+  const secondaryForward = runtime.createForwardReq({
     requestKey: createRuntimeRequestKey({
       mode: 'forward',
       filters: options.secondaryFilters,
@@ -662,8 +665,8 @@ export async function subscribeDualFilterStreams<TEvent extends StoredEvent>(
   subscriptions.push(
     runtime
       .merge(
-        rxNostr.use(secondaryBackward).pipe(runtime.uniq()),
-        rxNostr.use(secondaryForward).pipe(runtime.uniq())
+        relaySession.use(secondaryBackward).pipe(runtime.uniq()),
+        relaySession.use(secondaryForward).pipe(runtime.uniq())
       )
       .subscribe({
         next: (packet) => handlers.onSecondaryPacket(packet as { event: TEvent; from?: string }),

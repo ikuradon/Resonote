@@ -44,13 +44,13 @@ function createTestCoordinator() {
     runtime: {
       fetchLatestEvent: async () => null,
       getEventsDB: async () => store,
-      getRxNostr: async () => ({
+      getRelaySession: async () => ({
         use: () => ({
           subscribe: () => ({ unsubscribe() {} })
         })
       }),
-      createRxBackwardReq: () => ({ emit() {}, over() {} }),
-      createRxForwardReq: () => ({ emit() {}, over() {} }),
+      createBackwardReq: () => ({ emit() {}, over() {} }),
+      createForwardReq: () => ({ emit() {}, over() {} }),
       uniq: () => ({}) as unknown,
       merge: () => ({}) as unknown,
       getRelayConnectionState: async () => null,

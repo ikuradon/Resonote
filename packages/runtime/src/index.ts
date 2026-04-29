@@ -67,7 +67,8 @@ export {
   createRelayListFlowPlugin,
   createRelayMetricsPlugin,
   RELAY_LIST_FLOW,
-  RELAY_METRICS_READ_MODEL} from './plugins/generic-plugins.js';
+  RELAY_METRICS_READ_MODEL
+} from './plugins/generic-plugins.js';
 export type {
   CoordinatorSignedPublishRuntime,
   PendingDrainResult,
@@ -162,7 +163,6 @@ export type {
   CountResult,
   CreateRelayRequestOptions,
   CreateRelaySessionOptions,
-  CreateRxNostrSessionOptions,
   DefaultRelayConfig,
   EventPacket,
   OkPacketAgainstEvent,
@@ -177,9 +177,6 @@ export {
   createBackwardReq,
   createForwardReq,
   createRelaySession,
-  createRxBackwardReq,
-  createRxForwardReq,
-  createRxNostrSession,
   nip07Signer,
   uniq
 } from './relay-session.js';
@@ -221,7 +218,8 @@ export {
 } from './request-planning.js';
 export type {
   AuftaktRuntimeCoordinator,
-  CreateAuftaktRuntimeCoordinatorOptions} from './runtime.js';
+  CreateAuftaktRuntimeCoordinatorOptions
+} from './runtime.js';
 export { createAuftaktRuntimeCoordinator } from './runtime.js';
 export type {
   RuntimeManagedRelayRequest,

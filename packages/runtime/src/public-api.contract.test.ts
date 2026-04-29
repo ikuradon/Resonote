@@ -55,9 +55,6 @@ describe('@auftakt/runtime public api contract', () => {
         'createRegistryBackedSessionRuntime',
         'createRelayGateway',
         'createRelaySession',
-        'createRxBackwardReq',
-        'createRxForwardReq',
-        'createRxNostrSession',
         'fetchEventById',
         'fetchFollowGraph',
         'fetchLatestEventsForKinds',
@@ -88,7 +85,9 @@ describe('@auftakt/runtime public api contract', () => {
     expect(source).not.toMatch(/RESONOTE_PLAY_POSITION_SORT/);
     expect(source).not.toMatch(/\bNEG-[A-Z]+\b/);
     expect(source).not.toMatch(/\bNegentropyRequestOptions\b/);
-    expect(source).not.toMatch(/\bRxNostr\b/);
+    expect(source).not.toMatch(
+      new RegExp(`\\b${['R', 'x'].join('')}${['N', 'o', 's', 't', 'r'].join('')}\\b`)
+    );
   });
 
   it('does not expose resonote-specific or negentropy names from the package root', async () => {

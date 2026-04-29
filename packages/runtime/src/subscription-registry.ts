@@ -82,16 +82,16 @@ export function createRegistryBackedSessionRuntime<TEvent extends StoredEvent>(
     fetchBackwardFirst: (...args) => queryRuntime.fetchBackwardFirst(...args),
     fetchLatestEvent: (...args) => queryRuntime.fetchLatestEvent(...args),
     getEventsDB: () => queryRuntime.getEventsDB(),
-    getRxNostr: async () => {
-      const rawSession = await runtime.getRxNostr();
+    getRelaySession: async () => {
+      const rawSession = await runtime.getRelaySession();
       const registrySession = registry.createRelaySession();
       return Object.assign(Object.create(rawSession as object), {
         use: (req: RelayRequestLike, useOptions?: RuntimeRelayUseOptions) =>
           registrySession.use(req, useOptions)
       }) as RelaySessionLike;
     },
-    createRxBackwardReq: (requestOptions) => runtime.createRxBackwardReq(requestOptions),
-    createRxForwardReq: (requestOptions) => runtime.createRxForwardReq(requestOptions),
+    createBackwardReq: (requestOptions) => runtime.createBackwardReq(requestOptions),
+    createForwardReq: (requestOptions) => runtime.createForwardReq(requestOptions),
     uniq: () => runtime.uniq(),
     merge: (...streams) => runtime.merge(...streams),
     getRelayConnectionState: (url) => runtime.getRelayConnectionState(url),
@@ -192,7 +192,7 @@ class RuntimeSubscriptionRegistry {
 
   private getRawSession(): Promise<RelaySessionLike> {
     if (!this.rawSessionPromise) {
-      this.rawSessionPromise = this.runtime.getRxNostr();
+      this.rawSessionPromise = this.runtime.getRelaySession();
     }
     return this.rawSessionPromise;
   }
@@ -295,11 +295,11 @@ class RuntimeSubscriptionRegistry {
 
     const transportRequest =
       request.mode === 'backward'
-        ? this.runtime.createRxBackwardReq({
+        ? this.runtime.createBackwardReq({
             requestKey: request.requestKey,
             coalescingScope: request.coalescingScope
           })
-        : this.runtime.createRxForwardReq({
+        : this.runtime.createForwardReq({
             requestKey: request.requestKey,
             coalescingScope: request.coalescingScope
           });

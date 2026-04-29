@@ -351,7 +351,7 @@ class RelaySocket {
   }
 }
 
-export interface RxNostr {
+export interface RelaySessionApi {
   getDefaultRelays(): Record<string, DefaultRelayConfig>;
   setDefaultRelays(relays: string[]): void;
   getRelayStatus(url: string): RelayStatus | undefined;
@@ -378,8 +378,6 @@ export interface CreateRelaySessionOptions {
   readonly requestOptimizer?: RelayRequestOptimizerOptions;
   readonly relayLifecycle?: RelayLifecycleOptions;
 }
-
-export type CreateRxNostrSessionOptions = CreateRelaySessionOptions;
 
 export interface RelayRequestOptimizerOptions {
   readonly defaultMaxFiltersPerRequest?: number;
@@ -432,7 +430,7 @@ interface RelayAuthState {
   readonly pendingByPubkey: Map<string, Promise<boolean>>;
 }
 
-class RelaySession implements RxNostr {
+class RelaySession implements RelaySessionApi {
   private readonly defaultRelays = new Map<string, DefaultRelayConfig>();
   private readonly connections = new Map<string, RelaySocket>();
   private readonly messages = new Subject<{ from: string; message: unknown }>();
@@ -1927,7 +1925,7 @@ class RelaySession implements RxNostr {
   }
 }
 
-export function createRelaySession(options: CreateRelaySessionOptions): RxNostr {
+export function createRelaySession(options: CreateRelaySessionOptions): RelaySessionApi {
   return new RelaySession(
     options.eoseTimeout ?? 10_000,
     options.defaultRelays,
@@ -1936,24 +1934,12 @@ export function createRelaySession(options: CreateRelaySessionOptions): RxNostr 
   );
 }
 
-export function createRxNostrSession(options: CreateRxNostrSessionOptions): RxNostr {
-  return createRelaySession(options);
-}
-
 export function createBackwardReq(options?: CreateRelayRequestOptions): RelayRequest {
   return new MutableRelayRequest('backward', options?.requestKey, options?.coalescingScope);
 }
 
 export function createForwardReq(options?: CreateRelayRequestOptions): RelayRequest {
   return new MutableRelayRequest('forward', options?.requestKey, options?.coalescingScope);
-}
-
-export function createRxBackwardReq(options?: CreateRelayRequestOptions): RelayRequest {
-  return createBackwardReq(options);
-}
-
-export function createRxForwardReq(options?: CreateRelayRequestOptions): RelayRequest {
-  return createForwardReq(options);
 }
 
 export function uniq<T extends { event?: { id?: string } }>() {

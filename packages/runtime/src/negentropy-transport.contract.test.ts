@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createRxNostrSession } from './index.js';
+import { createRelaySession } from './index.js';
 
 type Listener = (event?: unknown) => void;
 
@@ -71,7 +71,7 @@ describe('@auftakt/runtime negentropy transport contract', () => {
   });
 
   it('uses a dedicated negentropy subscription namespace and reports unsupported relays', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: ['wss://relay.contract.test'],
       eoseTimeout: 100
     });

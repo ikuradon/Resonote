@@ -181,9 +181,9 @@ interface CoordinatorReadRuntime {
     listRelayCapabilities?(): Promise<RelayCapabilityRecord[]>;
     putRelayCapability?(record: RelayCapabilityRecord): Promise<void>;
   }>;
-  getRxNostr(): Promise<NegentropySessionRuntime>;
+  getRelaySession(): Promise<NegentropySessionRuntime>;
   getDefaultRelays?(): Promise<readonly string[]> | readonly string[];
-  createRxBackwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): {
+  createBackwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): {
     emit(input: unknown): void;
     over(): void;
   };
@@ -251,8 +251,8 @@ function createMaterializedSubscriptionRuntime(
     ) => runtime.fetchBackwardFirst<TOutput>(filters, options),
     fetchLatestEvent: (...args) => runtime.fetchLatestEvent(...args),
     getEventsDB: () => runtime.getEventsDB(),
-    getRxNostr: async () => {
-      const session = await runtime.getRxNostr();
+    getRelaySession: async () => {
+      const session = await runtime.getRelaySession();
 
       return {
         use: (req, options) =>
@@ -260,7 +260,7 @@ function createMaterializedSubscriptionRuntime(
             const pendingMaterializations = new Set<Promise<void>>();
             let settled:
               | { readonly type: 'complete' }
-              | { readonly type: 'error'; readonly error: unknown }
+              | { readonly type: 'error'; error: unknown }
               | null = null;
             let disposed = false;
 
@@ -320,8 +320,8 @@ function createMaterializedSubscriptionRuntime(
           })
       };
     },
-    createRxBackwardReq: (options) => runtime.createRxBackwardReq(options),
-    createRxForwardReq: (options) => runtime.createRxForwardReq(options),
+    createBackwardReq: (options) => runtime.createBackwardReq(options),
+    createForwardReq: (options) => runtime.createForwardReq(options),
     uniq: () => runtime.uniq(),
     merge: (...streams) => runtime.merge(...streams),
     getRelayConnectionState: (url) => runtime.getRelayConnectionState(url),
@@ -330,9 +330,9 @@ function createMaterializedSubscriptionRuntime(
 }
 
 function readRelayPacketCandidate(packet: unknown): {
-  readonly packet: Record<string, unknown>;
-  readonly event: unknown;
-  readonly relayUrl: string;
+  packet: Record<string, unknown>;
+  event: unknown;
+  relayUrl: string;
 } | null {
   if (typeof packet !== 'object' || packet === null || !('event' in packet)) {
     return null;
@@ -365,8 +365,8 @@ function isCoordinatorReadRuntime(value: unknown): value is CoordinatorReadRunti
     typeof value === 'object' &&
     value !== null &&
     'getEventsDB' in value &&
-    'getRxNostr' in value &&
-    'createRxBackwardReq' in value
+    'getRelaySession' in value &&
+    'createBackwardReq' in value
   );
 }
 
@@ -531,7 +531,7 @@ function createOrdinaryReadRelayGateway(
 ) {
   return createRelayGateway({
     requestNegentropySync: async ({ relayUrl, filter, initialMessageHex }) => {
-      const session = (await runtime.getRxNostr()) as Partial<NegentropySessionRuntime>;
+      const session = (await runtime.getRelaySession()) as Partial<NegentropySessionRuntime>;
       if (typeof session.requestNegentropySync !== 'function') {
         return {
           capability: 'unsupported' as const,
@@ -616,7 +616,7 @@ async function selectOrdinaryReadVerificationRelays(
 
   if (relays.length > 0) return relays;
 
-  const session = (await runtime.getRxNostr()) as Partial<{
+  const session = (await runtime.getRelaySession()) as Partial<{
     getDefaultRelays(): Record<string, { read: boolean }>;
   }>;
   const sessionDefaults = Object.entries(session.getDefaultRelays?.() ?? {})
@@ -634,8 +634,8 @@ async function fetchRelayCandidateEventsFromDefaultReadRelays(
 ): Promise<Array<{ event: unknown; relayUrl: string }>> {
   if (filters.length === 0) return [];
 
-  const rxNostr = await runtime.getRxNostr();
-  const req = runtime.createRxBackwardReq({
+  const relaySession = await runtime.getRelaySession();
+  const req = runtime.createBackwardReq({
     requestKey: createRuntimeRequestKey({
       mode: 'backward',
       filters,
@@ -647,7 +647,7 @@ async function fetchRelayCandidateEventsFromDefaultReadRelays(
   return new Promise((resolve, reject) => {
     let settled = false;
     const timeout = setTimeout(() => finish(), options?.timeoutMs ?? 10_000);
-    const sub = rxNostr.use(req).subscribe({
+    const sub = relaySession.use(req).subscribe({
       next: (packet) => {
         candidates.push({
           event: packet.event,
@@ -725,7 +725,7 @@ function createLatestReadDriver<TEvent extends StoredEvent>(
   const startRelay = async () => {
     try {
       if (state.destroyed) return;
-      const rxNostr = await runtime.getRxNostr();
+      const relaySession = await runtime.getRelaySession();
       if (state.destroyed) return;
 
       const requestKey = createRuntimeRequestKey({
@@ -733,14 +733,14 @@ function createLatestReadDriver<TEvent extends StoredEvent>(
         filters: [{ kinds: [kind], authors: [pubkey], limit: 1 }],
         scope: 'resonote:coordinator:useCachedLatest'
       });
-      const req = runtime.createRxBackwardReq({ requestKey });
+      const req = runtime.createBackwardReq({ requestKey });
 
       state.timeout = setTimeout(() => {
         state.sub?.unsubscribe();
         settleRelay();
       }, 10_000);
 
-      state.sub = rxNostr.use(req).subscribe({
+      state.sub = relaySession.use(req).subscribe({
         next: (packet) => {
           void (async () => {
             if (state.destroyed) return;
@@ -845,7 +845,7 @@ async function coordinatorFetchById(
   }
   const gateway = createRelayGateway({
     requestNegentropySync: async ({ relayUrl, filter, initialMessageHex }) => {
-      const session = (await runtime.getRxNostr()) as Partial<NegentropySessionRuntime>;
+      const session = (await runtime.getRelaySession()) as Partial<NegentropySessionRuntime>;
       if (typeof session.requestNegentropySync !== 'function') {
         return {
           capability: 'unsupported' as const,
@@ -875,7 +875,7 @@ async function coordinatorFetchById(
     materializerQueue: createMaterializerQueue(),
     relayGateway: {
       verify: async (filters) => {
-        const session = (await runtime.getRxNostr()) as Partial<{
+        const session = (await runtime.getRelaySession()) as Partial<{
           getDefaultRelays(): Record<string, { read: boolean }>;
         }>;
         const relays = Object.entries(session.getDefaultRelays?.() ?? {})
@@ -986,17 +986,17 @@ async function fetchAndCacheByIdFromRelay(
   eventId: string
 ): Promise<StoredEvent | null> {
   try {
-    const rxNostr = await runtime.getRxNostr();
+    const relaySession = await runtime.getRelaySession();
     const event = await new Promise<StoredEvent | null>((resolve) => {
       const requestKey = createRuntimeRequestKey({
         mode: 'backward',
         filters: [{ ids: [eventId] }],
         scope: 'resonote:coordinator:cachedFetchById'
       });
-      const req = runtime.createRxBackwardReq({ requestKey });
+      const req = runtime.createBackwardReq({ requestKey });
       let found: StoredEvent | null = null;
       const pendingMaterializations = new Set<Promise<void>>();
-      const sub = rxNostr.use(req).subscribe({
+      const sub = relaySession.use(req).subscribe({
         next: (packet) => {
           const task = (async () => {
             const result = await ingestRelayEvent({
@@ -1226,10 +1226,10 @@ export interface ResonoteRuntime {
     listRelayCapabilities?(): Promise<RelayCapabilityRecord[]>;
     putRelayCapability?(record: RelayCapabilityRecord): Promise<void>;
   }>;
-  getRxNostr(): Promise<unknown>;
+  getRelaySession(): Promise<unknown>;
   getDefaultRelays?(): Promise<readonly string[]> | readonly string[];
-  createRxBackwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): unknown;
-  createRxForwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): unknown;
+  createBackwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): unknown;
+  createForwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): unknown;
   uniq(): unknown;
   merge(...streams: unknown[]): unknown;
   getRelayConnectionState(url: string): Promise<RelayObservationSnapshot | null>;
@@ -1532,7 +1532,7 @@ async function applyRelayCapabilitiesToRuntime(
   registry: RelayCapabilityRegistry,
   urls: readonly string[]
 ): Promise<void> {
-  const session = await runtime.getRxNostr();
+  const session = await runtime.getRelaySession();
   if (typeof session !== 'object' || session === null) return;
 
   const capabilitySession = session as Partial<RelayCapabilitySession>;
@@ -2225,8 +2225,8 @@ async function fetchRelayCandidateEventsFromRelay(
 ): Promise<unknown[]> {
   if (filters.length === 0) return [];
 
-  const rxNostr = (await runtime.getRxNostr()) as NegentropySessionRuntime;
-  const req = runtime.createRxBackwardReq({
+  const relaySession = (await runtime.getRelaySession()) as NegentropySessionRuntime;
+  const req = runtime.createBackwardReq({
     requestKey: createNegentropyRepairRequestKey({ filters, relayUrl, scope }),
     coalescingScope: REPAIR_REQUEST_COALESCING_SCOPE
   }) as {
@@ -2240,7 +2240,7 @@ async function fetchRelayCandidateEventsFromRelay(
     let settled = false;
     const timeout = setTimeout(() => finish(), timeoutMs ?? 10_000);
 
-    const sub = rxNostr
+    const sub = relaySession
       .use(req, {
         on: {
           relays: [relayUrl],

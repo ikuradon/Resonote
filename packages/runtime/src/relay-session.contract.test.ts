@@ -3,7 +3,7 @@ import { createRuntimeRequestKey } from '@auftakt/core';
 import { REPAIR_REQUEST_COALESCING_SCOPE } from '@auftakt/runtime';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createRxBackwardReq, createRxForwardReq, createRxNostrSession } from './index.js';
+import { createBackwardReq, createForwardReq, createRelaySession } from './index.js';
 
 type Listener = (event?: unknown) => void;
 
@@ -119,11 +119,11 @@ describe('relay replay request identity contract', () => {
   });
 
   it('reconnect replays forward streams by logical requestKey', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
-    const req = createRxForwardReq({
+    const req = createForwardReq({
       requestKey: 'rq:v1:contract-reconnect' as RequestKey
     });
     const received: string[] = [];
@@ -176,11 +176,11 @@ describe('relay replay request identity contract', () => {
   });
 
   it('queues REQ commands while relay is reconnecting and flushes after open', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
-    const req = createRxBackwardReq({
+    const req = createBackwardReq({
       requestKey: 'rq:v1:contract-queued-req' as RequestKey
     });
     const sub = session.use(req).subscribe({});
@@ -201,11 +201,11 @@ describe('relay replay request identity contract', () => {
   });
 
   it('unsubscribe removes replay record and stops restoration', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
-    const req = createRxForwardReq({
+    const req = createForwardReq({
       requestKey: 'rq:v1:contract-unsubscribe' as RequestKey
     });
     const sub = session.use(req).subscribe({});
@@ -228,11 +228,11 @@ describe('relay replay request identity contract', () => {
   });
 
   it('completes backward requests after relay EOSE closes the pending subscription', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
-    const req = createRxBackwardReq({
+    const req = createBackwardReq({
       requestKey: 'rq:v1:contract-backward-eose' as RequestKey
     });
     let completed = false;
@@ -264,7 +264,7 @@ describe('relay replay request identity contract', () => {
   });
 
   it('surfaces relay OK acknowledgements for published events', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
@@ -319,7 +319,7 @@ describe('relay replay request identity contract', () => {
 
   it('answers NIP-42 AUTH challenges and retries auth-required EVENT writes', async () => {
     const signer = createContractSigner('pubkey-auth');
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
@@ -403,11 +403,11 @@ describe('relay replay request identity contract', () => {
 
   it('authenticates before publishing NIP-70 protected events when a challenge is known', async () => {
     const signer = createContractSigner('pubkey-protected');
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
-    const req = createRxForwardReq({
+    const req = createForwardReq({
       requestKey: 'rq:v1:contract-protected-auth-bootstrap' as RequestKey
     });
     const readSub = session.use(req, { signer }).subscribe({});
@@ -461,11 +461,11 @@ describe('relay replay request identity contract', () => {
 
   it('answers NIP-42 AUTH challenges and retries auth-required REQ shards', async () => {
     const signer = createContractSigner('pubkey-reader');
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
-    const req = createRxBackwardReq({
+    const req = createBackwardReq({
       requestKey: 'rq:v1:contract-auth-required-req' as RequestKey
     });
     const received: string[] = [];
@@ -532,11 +532,11 @@ describe('relay replay request identity contract', () => {
   });
 
   it('typed runtime observation marks one relay success + one relay backoff as degraded relay', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL, RELAY_B_URL],
       eoseTimeout: 100
     });
-    const req = createRxForwardReq({
+    const req = createForwardReq({
       requestKey: 'rq:v1:contract-degraded-relay' as RequestKey
     });
     const statePackets: Array<{ from: string; state: string; aggregate: string }> = [];
@@ -589,11 +589,11 @@ describe('relay replay request identity contract', () => {
   });
 
   it('aggregate session becomes degraded when all relays disconnect', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
-    const req = createRxForwardReq({
+    const req = createForwardReq({
       requestKey: 'rq:v1:contract-all-disconnect' as RequestKey
     });
     const states: string[] = [];
@@ -623,7 +623,7 @@ describe('relay replay request identity contract', () => {
   });
 
   it('keeps default relays open after backward request completion', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100,
       relayLifecycle: {
@@ -631,7 +631,7 @@ describe('relay replay request identity contract', () => {
         retry: { strategy: 'off' }
       }
     });
-    const req = createRxBackwardReq({
+    const req = createBackwardReq({
       requestKey: 'rq:v1:contract-default-lazy-keep' as RequestKey
     });
     let completed = false;
@@ -663,7 +663,7 @@ describe('relay replay request identity contract', () => {
   });
 
   it('idle-disconnects temporary relays after backward request completion', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100,
       relayLifecycle: {
@@ -671,7 +671,7 @@ describe('relay replay request identity contract', () => {
         retry: { strategy: 'off' }
       }
     });
-    const req = createRxBackwardReq({
+    const req = createBackwardReq({
       requestKey: 'rq:v1:contract-temporary-idle' as RequestKey
     });
     const states: Array<{ from: string; state: string; reason: string }> = [];
@@ -727,7 +727,7 @@ describe('relay replay request identity contract', () => {
 
   it('reconnects forward streams only after configured backoff delay', async () => {
     vi.useFakeTimers();
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100,
       relayLifecycle: {
@@ -739,7 +739,7 @@ describe('relay replay request identity contract', () => {
         }
       }
     });
-    const req = createRxForwardReq({
+    const req = createForwardReq({
       requestKey: 'rq:v1:contract-delayed-reconnect' as RequestKey
     });
     const states: Array<{ state: string; reason: string }> = [];
@@ -781,14 +781,14 @@ describe('relay replay request identity contract', () => {
   });
 
   it('does not reconnect when retry strategy is off', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100,
       relayLifecycle: {
         retry: { strategy: 'off' }
       }
     });
-    const req = createRxForwardReq({
+    const req = createForwardReq({
       requestKey: 'rq:v1:contract-retry-off' as RequestKey
     });
     const sub = session.use(req).subscribe({});
@@ -814,11 +814,11 @@ describe('relay replay request identity contract', () => {
   });
 
   it('reconnect emits replaying -> live transition in typed observation', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
-    const req = createRxForwardReq({
+    const req = createForwardReq({
       requestKey: 'rq:v1:contract-replay-observation' as RequestKey
     });
     const states: Array<{ relay: string; state: string; aggregate: string; reason: string }> = [];
@@ -872,18 +872,18 @@ describe('relay replay request identity contract', () => {
       kinds: [1],
       authors: ['pubkey-a', 'pubkey-b']
     };
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
-    const leftReq = createRxForwardReq({
+    const leftReq = createForwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'forward',
         scope: 'contract:coalesce:left',
         filters: [leftFilter]
       })
     });
-    const rightReq = createRxForwardReq({
+    const rightReq = createForwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'forward',
         scope: 'contract:coalesce:right',
@@ -924,7 +924,7 @@ describe('relay replay request identity contract', () => {
       { authors: ['pubkey-a'], kinds: [1] },
       { authors: ['pubkey-b'], kinds: [1] }
     ];
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL, RELAY_B_URL],
       eoseTimeout: 100,
       requestOptimizer: {
@@ -934,7 +934,7 @@ describe('relay replay request identity contract', () => {
         }
       }
     });
-    const req = createRxForwardReq({
+    const req = createForwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'forward',
         scope: 'contract:capability-aware',
@@ -979,14 +979,14 @@ describe('relay replay request identity contract', () => {
 
   it('adapts queued shards when a relay learns max_filters from CLOSED', async () => {
     const filters = [{ ids: ['a'] }, { ids: ['b'] }, { ids: ['c'] }];
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100,
       requestOptimizer: {
         defaultMaxFiltersPerRequest: 2
       }
     });
-    const req = createRxBackwardReq({
+    const req = createBackwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'backward',
         scope: 'contract:adaptive-max-filters',
@@ -1030,7 +1030,7 @@ describe('relay replay request identity contract', () => {
       { authors: ['pubkey-a'], kinds: [1] },
       { authors: ['pubkey-b'], kinds: [1] }
     ];
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL, RELAY_B_URL],
       eoseTimeout: 100,
       requestOptimizer: {
@@ -1040,7 +1040,7 @@ describe('relay replay request identity contract', () => {
         }
       }
     });
-    const req = createRxForwardReq({
+    const req = createForwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'forward',
         scope: 'contract:capability-aware-reconnect',
@@ -1090,18 +1090,18 @@ describe('relay replay request identity contract', () => {
   it('reconnect replays one shared logical group without duplicate outbound REQs', async () => {
     const leftFilter = { authors: ['pubkey-a', 'pubkey-b'], kinds: [1] };
     const rightFilter = { kinds: [1], authors: ['pubkey-b', 'pubkey-a'] };
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
-    const leftReq = createRxForwardReq({
+    const leftReq = createForwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'forward',
         scope: 'contract:shared-replay:left',
         filters: [leftFilter]
       })
     });
-    const rightReq = createRxForwardReq({
+    const rightReq = createForwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'forward',
         scope: 'contract:shared-replay:right',
@@ -1140,18 +1140,18 @@ describe('relay replay request identity contract', () => {
   it('reconnect replays one shared logical group once per reconnect cycle', async () => {
     const leftFilter = { authors: ['pubkey-a', 'pubkey-b'], kinds: [1] };
     const rightFilter = { kinds: [1], authors: ['pubkey-b', 'pubkey-a'] };
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
-    const leftReq = createRxForwardReq({
+    const leftReq = createForwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'forward',
         scope: 'contract:shared-replay-cycle:left',
         filters: [leftFilter]
       })
     });
-    const rightReq = createRxForwardReq({
+    const rightReq = createForwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'forward',
         scope: 'contract:shared-replay-cycle:right',
@@ -1203,11 +1203,11 @@ describe('relay replay request identity contract', () => {
         defaultReadRelays: false
       }
     };
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
-    const appReq = createRxBackwardReq({
+    const appReq = createBackwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'backward',
         scope: 'contract:repair-isolation:app',
@@ -1218,7 +1218,7 @@ describe('relay replay request identity contract', () => {
         }
       })
     });
-    const repairReq = createRxBackwardReq({
+    const repairReq = createBackwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'backward',
         scope: 'timeline:repair:negentropy',
@@ -1258,18 +1258,18 @@ describe('relay replay request identity contract', () => {
   it('keeps shared transport active until the final logical consumer detaches', async () => {
     const leftFilter = { authors: ['pubkey-a', 'pubkey-b'], kinds: [1] };
     const rightFilter = { kinds: [1], authors: ['pubkey-b', 'pubkey-a'] };
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
-    const leftReq = createRxForwardReq({
+    const leftReq = createForwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'forward',
         scope: 'contract:shared-unshare:left',
         filters: [leftFilter]
       })
     });
-    const rightReq = createRxForwardReq({
+    const rightReq = createForwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'forward',
         scope: 'contract:shared-unshare:right',
@@ -1302,11 +1302,11 @@ describe('relay replay request identity contract', () => {
   });
 
   it('dispose is represented as runtime-owned aggregate transition', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
-    const req = createRxForwardReq({
+    const req = createForwardReq({
       requestKey: 'rq:v1:contract-disposed' as RequestKey
     });
     const sub = session.use(req).subscribe({});
@@ -1325,7 +1325,7 @@ describe('relay replay request identity contract', () => {
   });
 
   it('uses a dedicated negentropy subscription namespace and reports unsupported relays', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
@@ -1362,7 +1362,7 @@ describe('relay replay request identity contract', () => {
   });
 
   it('reports failed negentropy sync on timeout and closes the dedicated negentropy subscription', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
@@ -1395,7 +1395,7 @@ describe('relay replay request identity contract', () => {
   });
 
   it('sends NIP-45 COUNT requests and resolves count responses', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
@@ -1430,7 +1430,7 @@ describe('relay replay request identity contract', () => {
   });
 
   it('reports unsupported NIP-45 COUNT when relay closes the request', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
@@ -1458,7 +1458,7 @@ describe('relay replay request identity contract', () => {
   });
 
   it('rejects malformed NIP-45 COUNT payloads and empty local count requests', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
@@ -1497,11 +1497,11 @@ describe('relay replay request identity contract', () => {
   });
 
   it('rejects requests that omit canonical requestKey instead of inventing a legacy fallback', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100
     });
-    const req = createRxForwardReq();
+    const req = createForwardReq();
 
     await expect(
       new Promise<void>((resolve, reject) => {
@@ -1517,7 +1517,7 @@ describe('relay replay request identity contract', () => {
   });
 
   it('queues backward shards by max_subscriptions and releases them after EOSE', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100,
       requestOptimizer: {
@@ -1534,7 +1534,7 @@ describe('relay replay request identity contract', () => {
         }
       }
     });
-    const req = createRxBackwardReq({
+    const req = createBackwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'backward',
         scope: 'contract:max-subscriptions-queue',
@@ -1579,7 +1579,7 @@ describe('relay replay request identity contract', () => {
   });
 
   it('publishes capability packets when shard queue state changes', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100,
       requestOptimizer: {
@@ -1607,7 +1607,7 @@ describe('relay replay request identity contract', () => {
         }
       }
     });
-    const req = createRxBackwardReq({
+    const req = createBackwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'backward',
         scope: 'contract:queue-observation',
@@ -1639,7 +1639,7 @@ describe('relay replay request identity contract', () => {
 
   it('learns max_filters from CLOSED and reports the safety bound', async () => {
     const learned: unknown[] = [];
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100,
       requestOptimizer: {
@@ -1647,7 +1647,7 @@ describe('relay replay request identity contract', () => {
         onCapabilityLearned: (event) => learned.push(event)
       }
     });
-    const req = createRxBackwardReq({
+    const req = createBackwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'backward',
         scope: 'contract:learn-max-filters',
@@ -1680,7 +1680,7 @@ describe('relay replay request identity contract', () => {
   });
 
   it('emits normalized capability state after temporary relay idle disconnect', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100,
       relayLifecycle: {
@@ -1688,7 +1688,7 @@ describe('relay replay request identity contract', () => {
         retry: { strategy: 'off' }
       }
     });
-    const req = createRxBackwardReq({
+    const req = createBackwardReq({
       requestKey: 'rq:v1:contract-idle-capability-observation' as RequestKey
     });
     const capabilityPackets: Array<{
@@ -1748,7 +1748,7 @@ describe('relay replay request identity contract', () => {
   });
 
   it('emits a duplicate event id once per logical consumer across shards', async () => {
-    const session = createRxNostrSession({
+    const session = createRelaySession({
       defaultRelays: [RELAY_URL],
       eoseTimeout: 100,
       requestOptimizer: {
@@ -1765,7 +1765,7 @@ describe('relay replay request identity contract', () => {
         }
       }
     });
-    const req = createRxForwardReq({
+    const req = createForwardReq({
       requestKey: createRuntimeRequestKey({
         mode: 'forward',
         scope: 'contract:dedup-shards',
