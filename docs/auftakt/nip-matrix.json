@@ -302,11 +302,11 @@
     {
       "nip": "38",
       "level": "public",
-      "status": "not-started",
-      "owner": "docs/auftakt/nip-matrix.json",
-      "proof": "docs/auftakt/nip-matrix.json",
+      "status": "implemented",
+      "owner": "packages/core/src/nip38-user-status.ts",
+      "proof": "packages/core/src/nip38-user-status.contract.test.ts",
       "priority": "P3",
-      "scopeNotes": "User status read model pending"
+      "scopeNotes": "Core NIP-38 user status helpers build and parse kind:30315 addressable events, d tag status types including general/music, NIP-40 expiration, r/p/e/a link tags, relay filters, and empty content clear semantics"
     },
     {
       "nip": "39",

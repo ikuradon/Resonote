@@ -939,6 +939,58 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-38 user-status pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['38'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('38', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P3',
+            scopeNotes: 'User status read model pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain(
+      'NIP-38 must stay implemented after user-status model coverage'
+    );
+    expect(result.errors).toContain('NIP-38 owner must be packages/core/src/nip38-user-status.ts');
+    expect(result.errors).toContain(
+      'NIP-38 proof must be packages/core/src/nip38-user-status.contract.test.ts'
+    );
+    expect(result.errors).toContain(
+      'NIP-38 scopeNotes must not use stale user-status-pending wording'
+    );
+  });
+
+  it('accepts the implemented NIP-38 user-status claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['38'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('38', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip38-user-status.ts',
+            proof: 'packages/core/src/nip38-user-status.contract.test.ts',
+            priority: 'P3',
+            scopeNotes:
+              'Core NIP-38 user status helpers build and parse kind:30315 addressable events, d tag status types including general/music, NIP-40 expiration, r/p/e/a link tags, relay filters, and empty content clear semantics.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-40 expiration-compaction pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['40'], sourceUrl: 'source', sourceDate: '2026-04-24' },

@@ -80,6 +80,8 @@ const REQUIRED_NIP36_OWNER = 'packages/core/src/nip36-content-warning.ts';
 const REQUIRED_NIP36_PROOF = 'packages/core/src/nip36-content-warning.contract.test.ts';
 const REQUIRED_NIP37_OWNER = 'packages/core/src/nip37-draft-wrap.ts';
 const REQUIRED_NIP37_PROOF = 'packages/core/src/nip37-draft-wrap.contract.test.ts';
+const REQUIRED_NIP38_OWNER = 'packages/core/src/nip38-user-status.ts';
+const REQUIRED_NIP38_PROOF = 'packages/core/src/nip38-user-status.contract.test.ts';
 const REQUIRED_NIP40_OWNER = 'packages/adapter-dexie/src/index.ts';
 const REQUIRED_NIP40_PROOF = 'packages/adapter-dexie/src/materialization.contract.test.ts';
 const REQUIRED_NIP46_OWNER = 'packages/core/src/nip46-remote-signing.ts';
@@ -334,6 +336,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '37') {
     errors.push(...validateNip37MatrixEntry(entry));
+  }
+  if (entry.nip === '38') {
+    errors.push(...validateNip38MatrixEntry(entry));
   }
   if (entry.nip === '40') {
     errors.push(...validateNip40MatrixEntry(entry));
@@ -724,6 +729,34 @@ function validateNip37MatrixEntry(entry: NipMatrixEntry): string[] {
     /not-started|pending|draft event handling pending/i.test(`${entry.status} ${entry.scopeNotes}`)
   ) {
     errors.push('NIP-37 scopeNotes must not use stale draft-pending wording');
+  }
+  return errors;
+}
+
+function validateNip38MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-38 must stay implemented after user-status model coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP38_OWNER) {
+    errors.push(`NIP-38 owner must be ${REQUIRED_NIP38_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP38_PROOF) {
+    errors.push(`NIP-38 proof must be ${REQUIRED_NIP38_PROOF}`);
+  }
+  if (
+    !/(30315|user status)/i.test(entry.scopeNotes) ||
+    !/(d tag|status type|general|music)/i.test(entry.scopeNotes) ||
+    !/(expiration|NIP-40)/i.test(entry.scopeNotes) ||
+    !/(r\/p\/e\/a|links|link tags)/i.test(entry.scopeNotes) ||
+    !/(clear|empty content)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-38 scopeNotes must mention kind:30315 status type, expiration, links, and clear semantics'
+    );
+  }
+  if (/not-started|pending|read model pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-38 scopeNotes must not use stale user-status-pending wording');
   }
   return errors;
 }

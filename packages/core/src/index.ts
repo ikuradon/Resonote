@@ -204,6 +204,32 @@ export {
   parseNip37PrivateRelayTagsJson,
   stringifyNip37PrivateRelayTags
 } from './nip37-draft-wrap.js';
+export type {
+  BuildNip38UserStatusEventInput,
+  BuildNip38UserStatusFilterInput,
+  Nip38KnownStatusType,
+  Nip38StatusLink,
+  Nip38StatusLinkInput,
+  Nip38StatusLinkTagName,
+  Nip38StatusType,
+  Nip38UserStatusSnapshot
+} from './nip38-user-status.js';
+export {
+  buildNip38ClearStatusEvent,
+  buildNip38StatusLinkTag,
+  buildNip38UserStatusEvent,
+  buildNip38UserStatusFilter,
+  isNip38KnownStatusType,
+  isNip38StatusClear,
+  isNip38StatusLinkTagName,
+  isNip38UserStatusEvent,
+  NIP38_LINK_TAGS,
+  NIP38_STATUS_TYPES,
+  NIP38_USER_STATUS_KIND,
+  parseNip38StatusLinks,
+  parseNip38StatusType,
+  parseNip38UserStatusEvent
+} from './nip38-user-status.js';
 export {
   buildNip40ExpirationTag,
   hasNip40Expiration,
