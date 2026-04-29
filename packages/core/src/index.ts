@@ -28,6 +28,23 @@ export {
   sortNegentropyEventRefsAsc
 } from './negentropy.js';
 export type {
+  BuildNip7dThreadInput,
+  BuildNip7dThreadReplyTagsInput,
+  Nip7dThreadReplyRoot,
+  Nip7dThreadSnapshot
+} from './nip7d-thread.js';
+export {
+  buildNip7dThreadEvent,
+  buildNip7dThreadReplyTags,
+  isNip7dThreadEvent,
+  isNip7dThreadReply,
+  NIP7D_THREAD_KIND,
+  NIP7D_THREAD_REPLY_KIND,
+  NIP7D_THREAD_ROOT_SCOPE,
+  parseNip7dThreadEvent,
+  parseNip7dThreadReplyRoot
+} from './nip7d-thread.js';
+export type {
   BuildNip17ChatMessageInput,
   BuildNip17ConversationGiftWrapsInput,
   BuildNip17FileMessageInput,

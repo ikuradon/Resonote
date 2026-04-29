@@ -86,6 +86,8 @@ const REQUIRED_NIP66_OWNER = 'packages/resonote/src/runtime.ts';
 const REQUIRED_NIP66_PROOF = 'packages/resonote/src/relay-metrics-nip66.contract.test.ts';
 const REQUIRED_NIP78_OWNER = 'packages/core/src/nip78-application-data.ts';
 const REQUIRED_NIP78_PROOF = 'packages/core/src/nip78-application-data.contract.test.ts';
+const REQUIRED_NIP7D_OWNER = 'packages/core/src/nip7d-thread.ts';
+const REQUIRED_NIP7D_PROOF = 'packages/core/src/nip7d-thread.contract.test.ts';
 const REQUIRED_NIP98_OWNER = 'packages/core/src/nip98-http-auth.ts';
 const REQUIRED_NIP98_PROOF = 'packages/core/src/nip98-http-auth.contract.test.ts';
 const REQUIRED_RELAY_SESSION_OWNER = 'packages/core/src/relay-session.ts';
@@ -336,6 +338,9 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (entry.nip === '78') {
     errors.push(...validateNip78MatrixEntry(entry));
+  }
+  if (entry.nip === '7D') {
+    errors.push(...validateNip7dMatrixEntry(entry));
   }
   if (entry.nip === '98') {
     errors.push(...validateNip98MatrixEntry(entry));
@@ -811,6 +816,32 @@ function validateNip78MatrixEntry(entry: NipMatrixEntry): string[] {
     )
   ) {
     errors.push('NIP-78 scopeNotes must not use stale application-data-pending wording');
+  }
+  return errors;
+}
+
+function validateNip7dMatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-7D must stay implemented after thread model coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP7D_OWNER) {
+    errors.push(`NIP-7D owner must be ${REQUIRED_NIP7D_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP7D_PROOF) {
+    errors.push(`NIP-7D proof must be ${REQUIRED_NIP7D_PROOF}`);
+  }
+  if (
+    !/kind:11|kind 11|thread/i.test(entry.scopeNotes) ||
+    !/(title|root)/i.test(entry.scopeNotes) ||
+    !/(NIP-22|1111|comment)/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-7D scopeNotes must mention kind:11 threads, title/root tags, and NIP-22 comments'
+    );
+  }
+  if (/not-started|pending|threads model pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
+    errors.push('NIP-7D scopeNotes must not use stale thread-pending wording');
   }
   return errors;
 }

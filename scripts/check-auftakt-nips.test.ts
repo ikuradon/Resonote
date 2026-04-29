@@ -1237,6 +1237,54 @@ describe('NIP matrix entry validation', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('rejects stale NIP-7D thread pending claims', () => {
+    const result = checkNipMatrix(
+      { nips: ['7D'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('7D', {
+            status: 'not-started',
+            owner: 'docs/auftakt/nip-matrix.json',
+            proof: 'docs/auftakt/nip-matrix.json',
+            priority: 'P2',
+            scopeNotes: 'Threads model pending'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toContain('NIP-7D must stay implemented after thread model coverage');
+    expect(result.errors).toContain('NIP-7D owner must be packages/core/src/nip7d-thread.ts');
+    expect(result.errors).toContain(
+      'NIP-7D proof must be packages/core/src/nip7d-thread.contract.test.ts'
+    );
+    expect(result.errors).toContain('NIP-7D scopeNotes must not use stale thread-pending wording');
+  });
+
+  it('accepts the implemented NIP-7D thread claim', () => {
+    const result = checkNipMatrix(
+      { nips: ['7D'], sourceUrl: 'source', sourceDate: '2026-04-24' },
+      {
+        sourceUrl: 'source',
+        sourceDate: '2026-04-24',
+        entries: [
+          entry('7D', {
+            status: 'implemented',
+            owner: 'packages/core/src/nip7d-thread.ts',
+            proof: 'packages/core/src/nip7d-thread.contract.test.ts',
+            priority: 'P2',
+            scopeNotes:
+              'Core NIP-7D thread model builds and parses kind:11 threads with title tags and NIP-22 kind:1111 root comment tags for thread replies.'
+          })
+        ]
+      }
+    );
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('rejects stale NIP-98 HTTP auth pending claims', () => {
     const result = checkNipMatrix(
       { nips: ['98'], sourceUrl: 'source', sourceDate: '2026-04-24' },
