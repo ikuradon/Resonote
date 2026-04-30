@@ -556,6 +556,67 @@ describe('EventCoordinator read policy', () => {
     });
   });
 
+  it('waits for subscription candidate materialization before visible handlers and completion', async () => {
+    const accepted = {
+      id: 'materialized-before-complete',
+      pubkey: 'alice',
+      created_at: 10,
+      kind: 1,
+      tags: [],
+      content: 'visible'
+    };
+    const calls: string[] = [];
+    let releaseMaterialization: (() => void) | null = null;
+    let candidateHandler:
+      | ((candidate: { event: unknown; relayUrl: string }) => Promise<void> | void)
+      | undefined;
+    let completeHandler: (() => void) | undefined;
+    const coordinator = createEventCoordinator({
+      transport: {
+        subscribe: vi.fn((_filters, _options, handlers) => {
+          candidateHandler = handlers.onCandidate;
+          completeHandler = handlers.onComplete;
+          return { unsubscribe: vi.fn() };
+        })
+      },
+      ingestRelayCandidate: vi.fn(async () => ({ ok: true as const, event: accepted })),
+      store: {
+        getById: vi.fn(async () => null),
+        putWithReconcile: vi.fn(
+          async () =>
+            new Promise<{ stored: true }>((resolve) => {
+              releaseMaterialization = () => {
+                calls.push('stored');
+                resolve({ stored: true });
+              };
+            })
+        )
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+
+    coordinator.subscribe(
+      [{ kinds: [1] }],
+      { policy: 'localFirst' },
+      {
+        onEvent: () => {
+          calls.push('event');
+        },
+        onComplete: () => {
+          calls.push('complete');
+        }
+      }
+    );
+    void candidateHandler?.({ event: { raw: true }, relayUrl: 'wss://relay.example' });
+    await vi.waitFor(() => expect(releaseMaterialization).toBeTypeOf('function'));
+    completeHandler?.();
+
+    expect(calls).toEqual([]);
+    releaseMaterialization?.();
+
+    await vi.waitFor(() => expect(calls).toEqual(['stored', 'event', 'complete']));
+  });
+
   it('drops rejected subscription candidates before consumer callbacks', async () => {
     const onEvent = vi.fn();
     let candidateHandler:

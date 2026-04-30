@@ -67,6 +67,13 @@ describe('@auftakt/runtime plugin isolation', () => {
     expect(observedModelKeys[0]).not.toContain('openEventsDb');
     expect(observedModelKeys[0]).not.toContain('materializerQueue');
     expect(observedModelKeys[0]).not.toContain('relayGateway');
+    expect(observedModelKeys[0]).not.toContain('repairRelay');
+    expect(observedModelKeys[0]).not.toContain('repairRuntime');
+    expect(observedModelKeys[0]).not.toContain('publishTransportRuntime');
+    expect(observedModelKeys[0]).not.toContain('createBackwardReq');
+    expect(observedModelKeys[0]).not.toContain('createForwardReq');
+    expect(observedModelKeys[0]).not.toContain('Dexie');
+    expect(observedModelKeys[0]).not.toContain('REQ');
   });
 
   it('provides plugins only registration functions and no coordinator handles', async () => {
@@ -83,7 +90,14 @@ describe('@auftakt/runtime plugin isolation', () => {
       'getUser',
       'getAddressable',
       'getRelaySet',
-      'getRelayHints'
+      'getRelayHints',
+      'repairRelay',
+      'repairRuntime',
+      'publishTransportRuntime',
+      'publishTransport',
+      'rawPublishTransport',
+      'Dexie',
+      'REQ'
     ];
 
     await coordinator.registerPlugin({
@@ -114,7 +128,14 @@ describe('@auftakt/runtime plugin isolation', () => {
           'getEventsDB',
           'openEventsDb',
           'materializerQueue',
-          'relayGateway'
+          'relayGateway',
+          'repairRelay',
+          'repairRuntime',
+          'publishTransportRuntime',
+          'publishTransport',
+          'rawPublishTransport',
+          'Dexie',
+          'REQ'
         ];
         for (const key of rawModelForbiddenKeys) {
           expect(api.models).not.toHaveProperty(key);

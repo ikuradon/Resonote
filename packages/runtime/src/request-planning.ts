@@ -283,7 +283,7 @@ export async function cacheEvent<TEvent extends StoredEvent>(
   try {
     await eventsDB.put(event);
   } catch {
-    // Best-effort cache writes for brownfield compatibility.
+    // Best-effort cache writes for brownfield interop.
   }
 }
 
@@ -364,6 +364,43 @@ export async function loadEventSubscriptionDeps<TEvent extends StoredEvent>(
   };
 }
 
+function readPacketEventId(packet: unknown): string | null {
+  if (typeof packet !== 'object' || packet === null || !('event' in packet)) return null;
+  const event = (packet as { event?: unknown }).event;
+  if (typeof event !== 'object' || event === null || !('id' in event)) return null;
+  const id = (event as { id?: unknown }).id;
+  return typeof id === 'string' ? id : null;
+}
+
+function createVisiblePacketForwarder<TEvent extends StoredEvent>(
+  onPacket: (event: TEvent, relayHint?: string) => void
+): (packet: unknown) => void {
+  const deliveredIds = new Set<string>();
+  return (packet: unknown) => {
+    const eventId = readPacketEventId(packet);
+    if (eventId) {
+      if (deliveredIds.has(eventId)) return;
+      deliveredIds.add(eventId);
+    }
+    const { event, from } = packet as { event: TEvent; from?: string };
+    onPacket(event, from);
+  };
+}
+
+function createObjectPacketForwarder<TEvent extends StoredEvent>(
+  onPacket: (packet: { event: TEvent; from?: string }) => void
+): (packet: unknown) => void {
+  const deliveredIds = new Set<string>();
+  return (packet: unknown) => {
+    const eventId = readPacketEventId(packet);
+    if (eventId) {
+      if (deliveredIds.has(eventId)) return;
+      deliveredIds.add(eventId);
+    }
+    onPacket(packet as { event: TEvent; from?: string });
+  };
+}
+
 export function startBackfillAndLiveSubscription<TEvent extends StoredEvent>(
   refs: EventSubscriptionRefs,
   filters: Array<Record<string, unknown>>,
@@ -389,15 +426,13 @@ export function startBackfillAndLiveSubscription<TEvent extends StoredEvent>(
 
   const backward = createBackwardReq({ requestKey: backwardRequestKey });
   const forward = createForwardReq({ requestKey: forwardRequestKey });
+  const forwardVisiblePacket = createVisiblePacketForwarder(onPacket);
 
   const backwardSub = refs.relaySession
     .use(backward)
     .pipe(uniq())
     .subscribe({
-      next: (packet: unknown) => {
-        const { event, from } = packet as { event: TEvent; from?: string };
-        onPacket(event, from);
-      },
+      next: forwardVisiblePacket,
       complete: onBackwardComplete,
       error: (error: unknown) => {
         onError?.(error);
@@ -409,10 +444,7 @@ export function startBackfillAndLiveSubscription<TEvent extends StoredEvent>(
     .use(forward)
     .pipe(uniq())
     .subscribe({
-      next: (packet: unknown) => {
-        const { event, from } = packet as { event: TEvent; from?: string };
-        onPacket(event, from);
-      },
+      next: forwardVisiblePacket,
       error: (error: unknown) => onError?.(error)
     });
 
@@ -442,6 +474,7 @@ export function startMergedLiveSubscription<TEvent extends StoredEvent>(
   });
   const backward = createBackwardReq({ requestKey: backwardRequestKey });
   const forward = createForwardReq({ requestKey: forwardRequestKey });
+  const forwardVisiblePacket = createVisiblePacketForwarder(onPacket);
 
   const sub = refs
     .rxjsMerge(
@@ -449,10 +482,7 @@ export function startMergedLiveSubscription<TEvent extends StoredEvent>(
       refs.relaySession.use(forward).pipe(uniq())
     )
     .subscribe({
-      next: (packet: unknown) => {
-        const { event, from } = packet as { event: TEvent; from?: string };
-        onPacket(event, from);
-      },
+      next: forwardVisiblePacket,
       error: (error: unknown) => onError?.(error)
     });
 
@@ -628,6 +658,7 @@ export async function subscribeDualFilterStreams<TEvent extends StoredEvent>(
       scope: 'timeline:subscribeDualFilterStreams:primary:forward'
     })
   });
+  const forwardPrimaryPacket = createObjectPacketForwarder(handlers.onPrimaryPacket);
 
   subscriptions.push(
     runtime
@@ -636,7 +667,7 @@ export async function subscribeDualFilterStreams<TEvent extends StoredEvent>(
         relaySession.use(primaryForward).pipe(runtime.uniq())
       )
       .subscribe({
-        next: (packet) => handlers.onPrimaryPacket(packet as { event: TEvent; from?: string }),
+        next: forwardPrimaryPacket,
         error: (error) => handlers.onError(error)
       })
   );
@@ -661,6 +692,7 @@ export async function subscribeDualFilterStreams<TEvent extends StoredEvent>(
       scope: 'timeline:subscribeDualFilterStreams:secondary:forward'
     })
   });
+  const forwardSecondaryPacket = createObjectPacketForwarder(handlers.onSecondaryPacket);
 
   subscriptions.push(
     runtime
@@ -669,7 +701,7 @@ export async function subscribeDualFilterStreams<TEvent extends StoredEvent>(
         relaySession.use(secondaryForward).pipe(runtime.uniq())
       )
       .subscribe({
-        next: (packet) => handlers.onSecondaryPacket(packet as { event: TEvent; from?: string }),
+        next: forwardSecondaryPacket,
         error: (error) => handlers.onError(error)
       })
   );

@@ -285,24 +285,63 @@ export function createEventCoordinator(deps: {
     }
 
     const deliveredEventIds = new Set<string>();
+    const pendingDeliveries = new Set<Promise<void>>();
+    let disposed = false;
+    let transportSettled:
+      | { readonly type: 'complete' }
+      | { readonly type: 'error'; readonly error: unknown }
+      | null = null;
 
-    return deps.transport.subscribe(filters, options, {
+    const finishIfIdle = () => {
+      if (!transportSettled || pendingDeliveries.size > 0 || disposed) return;
+      if (transportSettled.type === 'error') {
+        handlers.onError?.(transportSettled.error);
+        return;
+      }
+      handlers.onComplete?.();
+    };
+
+    const transportHandle = deps.transport.subscribe(filters, options, {
       onCandidate: async (candidate) => {
-        const acceptedResult = await acceptAndMaterializeCandidate(candidate);
-        if (!acceptedResult.ok) return;
+        const delivery = (async () => {
+          const acceptedResult = await acceptAndMaterializeCandidate(candidate);
+          if (!acceptedResult.ok || disposed) return;
 
-        const event = acceptedResult.accepted.event;
-        if (deliveredEventIds.has(event.id)) return;
-        deliveredEventIds.add(event.id);
+          const event = acceptedResult.accepted.event;
+          if (deliveredEventIds.has(event.id)) return;
+          deliveredEventIds.add(event.id);
 
-        await handlers.onEvent({
-          event: event as TEvent,
-          relayHint: acceptedResult.accepted.relayUrl || undefined
-        });
+          await handlers.onEvent({
+            event: event as TEvent,
+            relayHint: acceptedResult.accepted.relayUrl || undefined
+          });
+        })();
+
+        pendingDeliveries.add(delivery);
+        try {
+          await delivery;
+        } finally {
+          pendingDeliveries.delete(delivery);
+          finishIfIdle();
+        }
       },
-      onComplete: handlers.onComplete,
-      onError: handlers.onError
+      onComplete: () => {
+        transportSettled = { type: 'complete' };
+        finishIfIdle();
+      },
+      onError: (error) => {
+        transportSettled = { type: 'error', error };
+        finishIfIdle();
+      }
     });
+
+    return {
+      unsubscribe() {
+        disposed = true;
+        pendingDeliveries.clear();
+        transportHandle.unsubscribe();
+      }
+    };
   }
 
   async function publish(event: StoredEvent): Promise<EventCoordinatorPublishResult> {
