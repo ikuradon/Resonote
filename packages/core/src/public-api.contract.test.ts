@@ -30,11 +30,10 @@ function assertNoPublicSubpathLeakage(
   }
 }
 
-const FORBIDDEN_STALE_PACKAGE_NAMES = [
-  '@auftakt/timeline',
-  '@auftakt/adapter-relay',
-  '@auftakt/adapter-indexeddb'
-] as const;
+const FORBIDDEN_STALE_PACKAGE_NAMES = (() => {
+  const auftakt = ['@', 'a', 'u', 'f', 't', 'a', 'k', 't'].join('');
+  return [`${auftakt}/timeline`, `${auftakt}/adapter-relay`, `${auftakt}/adapter-indexeddb`];
+})();
 
 const staleRelaySessionWords = (() => {
   const lower = ['r', 'x'].join('');

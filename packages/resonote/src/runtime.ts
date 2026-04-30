@@ -722,6 +722,14 @@ function createLatestReadDriver<TEvent extends StoredEvent>(
     notifyLatestRead(state);
   };
 
+  const pendingRelayMaterializations = new Set<Promise<void>>();
+  let relayFinished = false;
+
+  const settleRelayIfIdle = () => {
+    if (!relayFinished || pendingRelayMaterializations.size > 0) return;
+    settleRelay();
+  };
+
   const startRelay = async () => {
     try {
       if (state.destroyed) return;
@@ -742,7 +750,7 @@ function createLatestReadDriver<TEvent extends StoredEvent>(
 
       state.sub = relaySession.use(req).subscribe({
         next: (packet) => {
-          void (async () => {
+          const task = (async () => {
             if (state.destroyed) return;
             const result = await ingestRelayEvent({
               relayUrl: typeof packet.from === 'string' ? packet.from : '',
@@ -761,14 +769,21 @@ function createLatestReadDriver<TEvent extends StoredEvent>(
             state.relayHit = true;
             notifyLatestRead(state);
           })();
+          pendingRelayMaterializations.add(task);
+          void task.finally(() => {
+            pendingRelayMaterializations.delete(task);
+            settleRelayIfIdle();
+          });
         },
         complete: () => {
           if (state.timeout) clearTimeout(state.timeout);
-          settleRelay();
+          relayFinished = true;
+          settleRelayIfIdle();
         },
         error: () => {
           if (state.timeout) clearTimeout(state.timeout);
-          settleRelay();
+          relayFinished = true;
+          settleRelayIfIdle();
         }
       });
 
@@ -793,6 +808,7 @@ function createLatestReadDriver<TEvent extends StoredEvent>(
     destroy() {
       state.destroyed = true;
       state.sub?.unsubscribe();
+      pendingRelayMaterializations.clear();
       if (state.timeout) clearTimeout(state.timeout);
       state.listeners.clear();
     }

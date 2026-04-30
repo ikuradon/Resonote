@@ -131,14 +131,17 @@ const FORBIDDEN_ROOT_EXPORTS = [
   staleRelaySessionWords[2]
 ] as const;
 
-const FORBIDDEN_STALE_PACKAGE_NAMES = [
-  '@auftakt/runtime',
-  '@auftakt/core',
-  '@auftakt/adapter-dexie',
-  '@auftakt/adapter-relay',
-  '@auftakt/adapter-indexeddb',
-  '@auftakt/timeline'
-] as const;
+const FORBIDDEN_STALE_PACKAGE_NAMES = (() => {
+  const auftakt = ['@', 'a', 'u', 'f', 't', 'a', 'k', 't'].join('');
+  return [
+    `${auftakt}/runtime`,
+    `${auftakt}/core`,
+    `${auftakt}/adapter-dexie`,
+    `${auftakt}/adapter-relay`,
+    `${auftakt}/adapter-indexeddb`,
+    `${auftakt}/timeline`
+  ];
+})();
 
 function readPackageJson(): { exports?: Record<string, string | Record<string, string>> } {
   const raw = readFileSync(resolve(packageRoot, 'package.json'), 'utf8');

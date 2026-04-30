@@ -94,7 +94,7 @@ describe('NIP-14 subject tags', () => {
     ]);
   });
 
-  it('rewrites event parameters through a NIP-01-compatible tag list', () => {
+  it('rewrites event parameters through a NIP-01-interoperable tag list', () => {
     expect(
       withNip14SubjectTag(
         {

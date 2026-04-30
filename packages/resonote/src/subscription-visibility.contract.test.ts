@@ -4,9 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   createResonoteCoordinator,
+  type LatestReadDriver,
   type ResonoteRuntime,
-  startCommentSubscription
-} from './runtime.js';
+  startCommentSubscription,
+  useCachedLatest} from './runtime.js';
 
 const RELAY_SECRET_KEY = new Uint8Array(32).fill(9);
 
@@ -39,6 +40,10 @@ class CapturingRelaySession {
 
   emit(index: number, event: unknown, from = 'wss://relay.example'): void {
     this.observers[index]?.next?.({ event, from });
+  }
+
+  complete(index: number): void {
+    this.observers[index]?.complete?.();
   }
 }
 
@@ -86,6 +91,8 @@ function invalidRelayEvent() {
 function createCoordinatorFixture(
   options: {
     relaySelectionPolicy?: Parameters<typeof createResonoteCoordinator>[0]['relaySelectionPolicy'];
+    localLatest?: StoredEvent | null;
+    materializeGate?: Promise<void>;
   } = {}
 ) {
   const relaySession = new CapturingRelaySession();
@@ -101,7 +108,7 @@ function createCoordinatorFixture(
     async getEventsDB() {
       return {
         async getByPubkeyAndKind() {
-          return null;
+          return options.localLatest ?? null;
         },
         async getManyByPubkeysAndKind() {
           return [];
@@ -125,10 +132,12 @@ function createCoordinatorFixture(
         async deleteByIds() {},
         async clearAll() {},
         async put(event: StoredEvent) {
+          await options.materializeGate;
           materialized.push(event);
           return true;
         },
         async putWithReconcile(event: StoredEvent) {
+          await options.materializeGate;
           materialized.push(event);
           return { stored: true, emissions: [] };
         },
@@ -196,7 +205,7 @@ function createCoordinatorFixture(
     }
   });
 
-  return { coordinator, materialized, quarantined, relaySession };
+  return { coordinator, materialized, quarantined, relaySession, runtime };
 }
 
 describe('@auftakt/resonote subscription visibility', () => {
@@ -259,6 +268,127 @@ describe('@auftakt/resonote subscription visibility', () => {
     expect(onMentionPacket).toHaveBeenCalledWith({ event, from: 'wss://relay.example' });
     expect(materialized).toEqual([event]);
     expect(quarantined).toHaveLength(1);
+  });
+
+  it('keeps shared comment subscription alive after one consumer unsubscribes', async () => {
+    const { coordinator, relaySession } = createCoordinatorFixture();
+    const leftRefs = await coordinator.loadCommentSubscriptionDeps();
+    const rightRefs = await coordinator.loadCommentSubscriptionDeps();
+    const leftPacket = vi.fn();
+    const rightPacket = vi.fn();
+    const filters = [{ kinds: [1111], '#I': ['spotify:track:abc'] }];
+
+    const left = startCommentSubscription(leftRefs, filters, null, leftPacket, vi.fn());
+    startCommentSubscription(rightRefs, filters, null, rightPacket, vi.fn());
+
+    await waitFor(() => relaySession.observers.length > 0);
+    for (const handle of left) handle.unsubscribe();
+
+    const event = validEvent({ content: 'after-left-unsubscribe' });
+    for (let index = 0; index < relaySession.observers.length; index += 1) {
+      relaySession.emit(index, event);
+    }
+
+    await waitFor(() => rightPacket.mock.calls.length === 1);
+    expect(leftPacket).not.toHaveBeenCalled();
+    expect(rightPacket).toHaveBeenCalledWith(event, 'wss://relay.example');
+  });
+
+  it('quarantines invalid relay candidates without materializing or exposing them', async () => {
+    const { coordinator, materialized, quarantined, relaySession } = createCoordinatorFixture();
+    const refs = await coordinator.loadCommentSubscriptionDeps();
+    const onPacket = vi.fn();
+
+    startCommentSubscription(
+      refs,
+      [{ kinds: [1111], '#I': ['spotify:track:abc'] }],
+      null,
+      onPacket,
+      vi.fn()
+    );
+
+    await waitFor(() => relaySession.observers.length > 0);
+    const invalid = invalidRelayEvent();
+    relaySession.emit(0, invalid, 'wss://bad-relay.example');
+    await waitFor(() => quarantined.length === 1);
+
+    expect(onPacket).not.toHaveBeenCalled();
+    expect(materialized).toEqual([]);
+    expect(quarantined[0]).toEqual(
+      expect.objectContaining({
+        relayUrl: 'wss://bad-relay.example',
+        eventId: 'not-a-valid-nostr-event',
+        rawEvent: invalid
+      })
+    );
+  });
+
+  it('does not expose duplicate visible comment events from backfill and live streams', async () => {
+    const { coordinator, relaySession } = createCoordinatorFixture();
+    const refs = await coordinator.loadCommentSubscriptionDeps();
+    const onPacket = vi.fn();
+
+    startCommentSubscription(
+      refs,
+      [{ kinds: [1111], '#I': ['spotify:track:abc'] }],
+      null,
+      onPacket,
+      vi.fn()
+    );
+
+    await waitFor(() => relaySession.observers.length > 0);
+    const event = validEvent({ content: 'same-event' });
+    for (let index = 0; index < relaySession.observers.length; index += 1) {
+      relaySession.emit(index, event, `wss://relay-${index}.example`);
+    }
+
+    await waitFor(() => onPacket.mock.calls.length === 1);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(onPacket).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps local latest reads partial until relay event materializes and settles', async () => {
+    let releaseMaterialization: (() => void) | null = null;
+    const local = validEvent({ kind: 0, content: 'local', created_at: 100 });
+    const remote = validEvent({ kind: 0, content: 'remote', created_at: 200 });
+    const { materialized, relaySession, runtime } = createCoordinatorFixture({
+      localLatest: local,
+      materializeGate: new Promise<void>((resolve) => {
+        releaseMaterialization = resolve;
+      })
+    });
+    const driver = useCachedLatest<LatestReadDriver<StoredEvent>>(runtime, local.pubkey, 0);
+    const snapshots: Array<ReturnType<typeof driver.getSnapshot>> = [];
+    const unsubscribe = driver.subscribe(() => snapshots.push(driver.getSnapshot()));
+
+    await waitFor(() => snapshots.some((snapshot) => snapshot.event?.id === local.id));
+    expect(driver.getSnapshot()).toMatchObject({
+      event: expect.objectContaining({ id: local.id }),
+      settlement: expect.objectContaining({ phase: 'partial' })
+    });
+
+    await waitFor(() => relaySession.observers.length > 0);
+    relaySession.emit(0, remote);
+    await waitFor(() => releaseMaterialization !== null);
+    relaySession.complete(0);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(driver.getSnapshot()).toMatchObject({
+      event: expect.objectContaining({ id: local.id }),
+      settlement: expect.objectContaining({ phase: 'partial' })
+    });
+
+    releaseMaterialization?.();
+    await waitFor(
+      () => materialized.length === 1 && driver.getSnapshot().settlement.phase === 'settled'
+    );
+
+    expect(driver.getSnapshot()).toMatchObject({
+      event: expect.objectContaining({ id: remote.id }),
+      settlement: expect.objectContaining({ phase: 'settled', provenance: 'mixed' })
+    });
+    unsubscribe();
+    driver.destroy();
   });
 
   it('applies coordinator relay selection policy overrides to subscription routing', async () => {

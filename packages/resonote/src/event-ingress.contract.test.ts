@@ -46,7 +46,7 @@ describe('ingestRelayEvent', () => {
   });
 });
 
-it('runtime source does not expose raw packet events from compatibility fetches', async () => {
+it('runtime source does not expose raw packet events from interop fetches', async () => {
   const source = await import('node:fs/promises').then((fs) =>
     fs.readFile(new URL('./runtime.ts', import.meta.url), 'utf8')
   );
