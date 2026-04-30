@@ -50,8 +50,8 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  const { disposeRxNostr } = await import('./client.js');
-  disposeRxNostr();
+  const { disposeRelaySession } = await import('./client.js');
+  disposeRelaySession();
   try {
     await waitFor(() => pool.connections.size === 0, { timeout: 3000 });
   } finally {
@@ -154,20 +154,20 @@ describe('logical requestKey replay identity (integration)', () => {
     'accepts planner-generated requestKey for forward subscriptions',
     { timeout: 15_000 },
     async () => {
-      const [{ getRxNostr }, { createRxForwardReq }] = await Promise.all([
+      const [{ getRelaySession }, { createForwardReq }] = await Promise.all([
         import('./client.js'),
         import('@auftakt/runtime')
       ]);
-      const rxNostr = await getRxNostr();
+      const relaySession = await getRelaySession();
       const requestKey = createRuntimeRequestKey({
         mode: 'forward',
         scope: 'client-integration:logical-replay',
         filters: [{ kinds: [1], authors: [pubkey] }]
       });
-      const req = createRxForwardReq({ requestKey });
+      const req = createForwardReq({ requestKey });
       const receivedIds: string[] = [];
 
-      const sub = rxNostr.use(req).subscribe({
+      const sub = relaySession.use(req).subscribe({
         next: (packet) => {
           receivedIds.push(packet.event.id);
         }
@@ -190,19 +190,19 @@ describe('logical requestKey replay identity (integration)', () => {
 
 describe('relay observation contract (integration)', () => {
   it('returns runtime-owned typed relay observation shape', async () => {
-    const [{ getRxNostr, getRelayConnectionState }, { createRxForwardReq }] = await Promise.all([
+    const [{ getRelaySession, getRelayConnectionState }, { createForwardReq }] = await Promise.all([
       import('./client.js'),
       import('@auftakt/runtime')
     ]);
 
-    const rxNostr = await getRxNostr();
+    const relaySession = await getRelaySession();
     const requestKey = createRuntimeRequestKey({
       mode: 'forward',
       scope: 'client-integration:relay-observation',
       filters: [{ kinds: [1], authors: [pubkey] }]
     });
-    const req = createRxForwardReq({ requestKey });
-    const sub = rxNostr.use(req).subscribe({});
+    const req = createForwardReq({ requestKey });
+    const sub = relaySession.use(req).subscribe({});
 
     req.emit({ kinds: [1], authors: [pubkey] });
 

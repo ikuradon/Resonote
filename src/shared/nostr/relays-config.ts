@@ -9,11 +9,11 @@ export { DEFAULT_RELAYS };
 
 export async function applyUserRelays(pubkey: string): Promise<string[]> {
   log.info('Fetching user relay list (kind:10002)', { pubkey: shortHex(pubkey) });
-  const { fetchLatestEvent, setDefaultRelays } = await import('$shared/nostr/client.js');
+  const { readLatestEvent, setPreferredRelays } = await import('$shared/auftakt/resonote.js');
 
   async function applyFallbackDefaults(reason: string, error?: unknown): Promise<string[]> {
     try {
-      await setDefaultRelays(DEFAULT_RELAYS);
+      await setPreferredRelays(DEFAULT_RELAYS);
     } catch (fallbackError) {
       log.warn(`Failed to apply default relays after ${reason}`, fallbackError);
     }
@@ -29,7 +29,7 @@ export async function applyUserRelays(pubkey: string): Promise<string[]> {
 
   let relayTags: string[][];
   try {
-    const latest = await fetchLatestEvent(pubkey, RELAY_LIST_KIND);
+    const latest = await readLatestEvent(pubkey, RELAY_LIST_KIND);
     relayTags = latest?.tags ?? [];
   } catch (err) {
     return applyFallbackDefaults('Failed to fetch user relays, using defaults', err);
@@ -42,7 +42,7 @@ export async function applyUserRelays(pubkey: string): Promise<string[]> {
 
   const urls = entries.map((entry) => entry.url);
   try {
-    await setDefaultRelays(urls);
+    await setPreferredRelays(urls);
     log.info('Applied user relays', { count: urls.length, relays: urls });
     return urls;
   } catch (err) {
@@ -52,6 +52,6 @@ export async function applyUserRelays(pubkey: string): Promise<string[]> {
 
 export async function resetToDefaultRelays(): Promise<void> {
   log.info('Resetting to default relays');
-  const { setDefaultRelays } = await import('$shared/nostr/client.js');
-  await setDefaultRelays(DEFAULT_RELAYS);
+  const { setPreferredRelays } = await import('$shared/auftakt/resonote.js');
+  await setPreferredRelays(DEFAULT_RELAYS);
 }

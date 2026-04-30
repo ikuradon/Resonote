@@ -96,7 +96,7 @@ describe('decodeNip19', () => {
     expect(result).toEqual({ type: 'nrelay', relay: TEST_RELAY });
   });
 
-  it('core encoders are byte-compatible with canonical NIP-19 outputs', () => {
+  it('core encoders are byte-interoperable with canonical NIP-19 outputs', () => {
     expect(coreNpubEncode(TEST_PUBKEY_HEX)).toBe(CANONICAL_NPUB);
     expect(coreNsecEncode(TEST_SECRET_KEY_HEX)).toBe(CANONICAL_NSEC);
     expect(coreNoteEncode(TEST_EVENT_ID_HEX)).toBe(CANONICAL_NOTE);

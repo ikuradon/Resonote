@@ -61,8 +61,8 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  const { disposeRxNostr } = await import('./client.js');
-  disposeRxNostr();
+  const { disposeRelaySession } = await import('./client.js');
+  disposeRelaySession();
   try {
     await waitFor(() => pool.connections.size === 0, { timeout: 3000 });
   } finally {

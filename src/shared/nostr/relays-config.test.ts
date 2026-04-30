@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockFetchLatestEvent = vi.fn();
-const mockSetDefaultRelays = vi.fn();
+const mockReadLatestEvent = vi.fn();
+const mockSetPreferredRelays = vi.fn();
 
-vi.mock('$shared/nostr/client.js', () => ({
-  fetchLatestEvent: mockFetchLatestEvent,
-  setDefaultRelays: mockSetDefaultRelays
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  readLatestEvent: mockReadLatestEvent,
+  setPreferredRelays: mockSetPreferredRelays
 }));
 
 vi.mock('$shared/nostr/relays.js', () => ({
@@ -38,19 +38,19 @@ describe('relays-config: applyUserRelays', () => {
   });
 
   it('falls back to default relays when no relay list found', async () => {
-    mockFetchLatestEvent.mockResolvedValueOnce(null);
+    mockReadLatestEvent.mockResolvedValueOnce(null);
 
     const { applyUserRelays } = await import('./relays-config.js');
     const result = await applyUserRelays('deadbeef'.repeat(8));
     expect(result).toEqual(['wss://relay1.example.com', 'wss://relay2.example.com']);
-    expect(mockSetDefaultRelays).toHaveBeenCalledWith([
+    expect(mockSetPreferredRelays).toHaveBeenCalledWith([
       'wss://relay1.example.com',
       'wss://relay2.example.com'
     ]);
   });
 
   it('applies user relays when kind:10002 event found', async () => {
-    mockFetchLatestEvent.mockResolvedValueOnce({
+    mockReadLatestEvent.mockResolvedValueOnce({
       created_at: 1000,
       content: '',
       tags: [
@@ -62,7 +62,7 @@ describe('relays-config: applyUserRelays', () => {
     const { applyUserRelays } = await import('./relays-config.js');
     const result = await applyUserRelays('deadbeef'.repeat(8));
     expect(result).toEqual(['wss://user-relay1.example.com', 'wss://user-relay2.example.com']);
-    expect(mockSetDefaultRelays).toHaveBeenCalledWith([
+    expect(mockSetPreferredRelays).toHaveBeenCalledWith([
       'wss://user-relay1.example.com',
       'wss://user-relay2.example.com'
     ]);
@@ -70,12 +70,12 @@ describe('relays-config: applyUserRelays', () => {
 
   it('waits for default relay update before resolving', async () => {
     let resolveSetDefaultRelays!: () => void;
-    mockSetDefaultRelays.mockReturnValueOnce(
+    mockSetPreferredRelays.mockReturnValueOnce(
       new Promise<void>((resolve) => {
         resolveSetDefaultRelays = resolve;
       })
     );
-    mockFetchLatestEvent.mockResolvedValueOnce({
+    mockReadLatestEvent.mockResolvedValueOnce({
       created_at: 1000,
       content: '',
       tags: [['r', 'wss://user-relay.example.com']]
@@ -88,7 +88,7 @@ describe('relays-config: applyUserRelays', () => {
     });
 
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(mockSetDefaultRelays).toHaveBeenCalledWith(['wss://user-relay.example.com']);
+    expect(mockSetPreferredRelays).toHaveBeenCalledWith(['wss://user-relay.example.com']);
     expect(resolved).toBe(false);
 
     resolveSetDefaultRelays();
@@ -97,18 +97,18 @@ describe('relays-config: applyUserRelays', () => {
   });
 
   it('falls back to defaults on subscription error', async () => {
-    mockFetchLatestEvent.mockRejectedValueOnce(new Error('network'));
+    mockReadLatestEvent.mockRejectedValueOnce(new Error('network'));
 
     const { applyUserRelays } = await import('./relays-config.js');
     const result = await applyUserRelays('deadbeef'.repeat(8));
     expect(result).toEqual(['wss://relay1.example.com', 'wss://relay2.example.com']);
-    expect(mockSetDefaultRelays).toHaveBeenCalledWith([
+    expect(mockSetPreferredRelays).toHaveBeenCalledWith([
       'wss://relay1.example.com',
       'wss://relay2.example.com'
     ]);
   });
   it('uses the materialized latest relay list event', async () => {
-    mockFetchLatestEvent.mockResolvedValueOnce({
+    mockReadLatestEvent.mockResolvedValueOnce({
       created_at: 2000,
       content: '',
       tags: [['r', 'wss://new-relay.example.com']]
@@ -117,11 +117,11 @@ describe('relays-config: applyUserRelays', () => {
     const { applyUserRelays } = await import('./relays-config.js');
     const result = await applyUserRelays('deadbeef'.repeat(8));
     expect(result).toEqual(['wss://new-relay.example.com']);
-    expect(mockSetDefaultRelays).toHaveBeenCalledWith(['wss://new-relay.example.com']);
+    expect(mockSetPreferredRelays).toHaveBeenCalledWith(['wss://new-relay.example.com']);
   });
 
   it('passes the relay list kind to the materialized latest helper', async () => {
-    mockFetchLatestEvent.mockResolvedValueOnce({
+    mockReadLatestEvent.mockResolvedValueOnce({
       created_at: 1000,
       content: '',
       tags: [['r', 'wss://relay.example.com']]
@@ -130,7 +130,7 @@ describe('relays-config: applyUserRelays', () => {
     const { applyUserRelays } = await import('./relays-config.js');
     const result = await applyUserRelays('deadbeef'.repeat(8));
     expect(result).toEqual(['wss://relay.example.com']);
-    expect(mockFetchLatestEvent).toHaveBeenCalledWith('deadbeef'.repeat(8), 10002);
+    expect(mockReadLatestEvent).toHaveBeenCalledWith('deadbeef'.repeat(8), 10002);
   });
 });
 
@@ -139,10 +139,10 @@ describe('relays-config: resetToDefaultRelays', () => {
     vi.clearAllMocks();
   });
 
-  it('calls setDefaultRelays with default relay list', async () => {
+  it('calls setPreferredRelays with default relay list', async () => {
     const { resetToDefaultRelays } = await import('./relays-config.js');
     await resetToDefaultRelays();
-    expect(mockSetDefaultRelays).toHaveBeenCalledWith([
+    expect(mockSetPreferredRelays).toHaveBeenCalledWith([
       'wss://relay1.example.com',
       'wss://relay2.example.com'
     ]);

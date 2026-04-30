@@ -5,7 +5,7 @@ import {
   type RelayObservationRuntime,
   type RelayObservationSnapshot
 } from '@auftakt/core';
-import { createRxNostrSession, nip07Signer } from '@auftakt/runtime';
+import { createRelaySession, nip07Signer } from '@auftakt/runtime';
 import type { EventParameters } from 'nostr-typedef';
 
 import { fetchMaterializedLatestEvent } from '$shared/nostr/materialized-latest.js';
@@ -27,30 +27,30 @@ interface RelayPublishOptions {
   };
 }
 
-type RxNostr = ReturnType<typeof createRxNostrSession>;
+type RelaySession = ReturnType<typeof createRelaySession>;
 
-let initPromise: Promise<RxNostr> | undefined;
-let rxNostr: RxNostr | undefined;
+let initPromise: Promise<RelaySession> | undefined;
+let relaySession: RelaySession | undefined;
 const publishAckHistory = new Map<string, PublishAckPacket[]>();
 
-export async function getRxNostr(): Promise<RxNostr> {
-  if (rxNostr) return rxNostr;
+export async function getRelaySession(): Promise<RelaySession> {
+  if (relaySession) return relaySession;
   if (initPromise) return initPromise;
 
-  log.info('Initializing RxNostr...');
+  log.info('Initializing RelaySession...');
 
-  rxNostr = createRxNostrSession({
+  relaySession = createRelaySession({
     defaultRelays: DEFAULT_RELAYS,
     eoseTimeout: 10_000
   });
-  log.info('RxNostr initialized', { relays: DEFAULT_RELAYS });
-  initPromise = Promise.resolve(rxNostr);
+  log.info('RelaySession initialized', { relays: DEFAULT_RELAYS });
+  initPromise = Promise.resolve(relaySession);
 
   return initPromise;
 }
 
 export async function getDefaultRelayUrls(): Promise<string[]> {
-  const instance = await getRxNostr();
+  const instance = await getRelaySession();
   return Object.keys(instance.getDefaultRelays());
 }
 
@@ -59,7 +59,7 @@ export async function castSigned(
   options?: { successThreshold?: number } & RelayPublishOptions
 ): Promise<void> {
   const threshold = options?.successThreshold ?? 0.5;
-  const instance = await getRxNostr();
+  const instance = await getRelaySession();
   const relayCount = Object.keys(instance.getDefaultRelays()).length;
   const targetRelayCount = options?.on?.relays?.length ?? relayCount;
   const needed = Math.max(1, Math.ceil(targetRelayCount * threshold));
@@ -126,11 +126,11 @@ export async function fetchLatestEvent(
 }
 
 export async function setDefaultRelays(urls: string[]): Promise<void> {
-  const instance = await getRxNostr();
+  const instance = await getRelaySession();
   instance.setDefaultRelays(urls);
 }
 
-function createRelayObservationRuntime(instance: RxNostr): RelayObservationRuntime {
+function createRelayObservationRuntime(instance: RelaySession): RelayObservationRuntime {
   return {
     getRelayConnectionState(url: string): Promise<RelayObservationSnapshot | null> {
       const status = instance.getRelayStatus(url);
@@ -167,20 +167,20 @@ function createRelayObservationRuntime(instance: RxNostr): RelayObservationRunti
 export async function getRelayConnectionState(
   url: string
 ): Promise<RelayObservationSnapshot | null> {
-  const instance = await getRxNostr();
+  const instance = await getRelaySession();
   return createRelayObservationRuntime(instance).getRelayConnectionState(url);
 }
 
 export async function observeRelayConnectionStates(
   onPacket: (packet: RelayObservationPacket) => void
 ): Promise<{ unsubscribe(): void }> {
-  const instance = await getRxNostr();
+  const instance = await getRelaySession();
   return createRelayObservationRuntime(instance).observeRelayConnectionStates(onPacket);
 }
-export function disposeRxNostr(): void {
-  log.info('Disposing RxNostr');
-  rxNostr?.dispose();
-  rxNostr = undefined;
+export function disposeRelaySession(): void {
+  log.info('Disposing RelaySession');
+  relaySession?.dispose();
+  relaySession = undefined;
   initPromise = undefined;
   publishAckHistory.clear();
 }

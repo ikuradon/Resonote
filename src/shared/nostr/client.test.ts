@@ -20,7 +20,7 @@ const useSubscribeMock = vi.fn<(callbacks: UseCallbacks) => { unsubscribe: () =>
 }));
 const fetchMaterializedLatestEventMock = vi.fn();
 
-const mockRxNostr = {
+const mockRelaySession = {
   setDefaultRelays: vi.fn(),
   getDefaultRelays: vi.fn(() => ({
     'wss://relay1.test': { read: true, write: true },
@@ -39,9 +39,9 @@ vi.mock('@auftakt/core', async (importOriginal) => {
 vi.mock('@auftakt/runtime', async (importOriginal) => {
   const actual = await importOriginal();
   return Object.assign({}, actual, {
-    createRxNostrSession: vi.fn(({ defaultRelays }: { defaultRelays: string[] }) => {
-      mockRxNostr.setDefaultRelays(defaultRelays);
-      return mockRxNostr;
+    createRelaySession: vi.fn(({ defaultRelays }: { defaultRelays: string[] }) => {
+      mockRelaySession.setDefaultRelays(defaultRelays);
+      return mockRelaySession;
     }),
     nip07Signer: vi.fn(() => 'mock-signer')
   });
@@ -72,63 +72,63 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('getRxNostr', () => {
-  it('should return an RxNostr instance', async () => {
-    const { getRxNostr } = await import('./client.js');
-    const instance = await getRxNostr();
-    expect(instance).toBe(mockRxNostr);
+describe('getRelaySession', () => {
+  it('should return an RelaySession instance', async () => {
+    const { getRelaySession } = await import('./client.js');
+    const instance = await getRelaySession();
+    expect(instance).toBe(mockRelaySession);
   });
 
   it('should return the same instance when called twice (singleton)', async () => {
-    const { getRxNostr } = await import('./client.js');
-    const first = await getRxNostr();
-    const second = await getRxNostr();
+    const { getRelaySession } = await import('./client.js');
+    const first = await getRelaySession();
+    const second = await getRelaySession();
     expect(first).toBe(second);
   });
 
   it('should resolve to the same instance for concurrent calls', async () => {
-    const { getRxNostr } = await import('./client.js');
-    const [result1, result2] = await Promise.all([getRxNostr(), getRxNostr()]);
+    const { getRelaySession } = await import('./client.js');
+    const [result1, result2] = await Promise.all([getRelaySession(), getRelaySession()]);
     expect(result1).toBe(result2);
-    expect(result1).toBe(mockRxNostr);
+    expect(result1).toBe(mockRelaySession);
   });
 
   it('should call setDefaultRelays with DEFAULT_RELAYS during init', async () => {
-    const { getRxNostr } = await import('./client.js');
-    await getRxNostr();
-    expect(mockRxNostr.setDefaultRelays).toHaveBeenCalledOnce();
-    expect(mockRxNostr.setDefaultRelays).toHaveBeenCalledWith([
+    const { getRelaySession } = await import('./client.js');
+    await getRelaySession();
+    expect(mockRelaySession.setDefaultRelays).toHaveBeenCalledOnce();
+    expect(mockRelaySession.setDefaultRelays).toHaveBeenCalledWith([
       'wss://relay1.test',
       'wss://relay2.test'
     ]);
   });
 });
 
-describe('disposeRxNostr', () => {
-  it('should clear the instance so next getRxNostr creates a new one', async () => {
-    const { getRxNostr, disposeRxNostr } = await import('./client.js');
-    const first = await getRxNostr();
-    expect(first).toBe(mockRxNostr);
+describe('disposeRelaySession', () => {
+  it('should clear the instance so next getRelaySession creates a new one', async () => {
+    const { getRelaySession, disposeRelaySession } = await import('./client.js');
+    const first = await getRelaySession();
+    expect(first).toBe(mockRelaySession);
 
-    disposeRxNostr();
-    expect(mockRxNostr.dispose).toHaveBeenCalledOnce();
+    disposeRelaySession();
+    expect(mockRelaySession.dispose).toHaveBeenCalledOnce();
 
-    const second = await getRxNostr();
-    expect(second).toBe(mockRxNostr);
-    expect(mockRxNostr.setDefaultRelays).toHaveBeenCalledTimes(2);
+    const second = await getRelaySession();
+    expect(second).toBe(mockRelaySession);
+    expect(mockRelaySession.setDefaultRelays).toHaveBeenCalledTimes(2);
   });
 
   it('is safe to call when no instance exists', async () => {
-    const { disposeRxNostr } = await import('./client.js');
-    expect(() => disposeRxNostr()).not.toThrow();
+    const { disposeRelaySession } = await import('./client.js');
+    expect(() => disposeRelaySession()).not.toThrow();
   });
 });
 
 describe('castSigned', () => {
   it('resolves when threshold OKs received', async () => {
     const { castSigned } = await import('./client.js');
-    const { getRxNostr } = await import('./client.js');
-    await getRxNostr();
+    const { getRelaySession } = await import('./client.js');
+    await getRelaySession();
 
     sendSubscribeMock.mockImplementation((callbacks: SendCallbacks) => {
       void Promise.resolve().then(() => {
@@ -142,8 +142,8 @@ describe('castSigned', () => {
   });
 
   it('resolves on complete if at least one OK', async () => {
-    const { castSigned, getRxNostr } = await import('./client.js');
-    await getRxNostr();
+    const { castSigned, getRelaySession } = await import('./client.js');
+    await getRelaySession();
 
     sendSubscribeMock.mockImplementation((callbacks: SendCallbacks) => {
       void Promise.resolve().then(() => {
@@ -158,8 +158,8 @@ describe('castSigned', () => {
   });
 
   it('rejects when all relays reject and stream completes', async () => {
-    const { castSigned, getRxNostr } = await import('./client.js');
-    await getRxNostr();
+    const { castSigned, getRelaySession } = await import('./client.js');
+    await getRelaySession();
 
     sendSubscribeMock.mockImplementation((callbacks: SendCallbacks) => {
       void Promise.resolve().then(() => {
@@ -176,8 +176,8 @@ describe('castSigned', () => {
   });
 
   it('rejects on error', async () => {
-    const { castSigned, getRxNostr } = await import('./client.js');
-    await getRxNostr();
+    const { castSigned, getRelaySession } = await import('./client.js');
+    await getRelaySession();
 
     sendSubscribeMock.mockImplementation((callbacks: SendCallbacks) => {
       void Promise.resolve().then(() => {
@@ -192,8 +192,8 @@ describe('castSigned', () => {
   });
 
   it('resolves immediately once threshold reached, ignoring later packets', async () => {
-    const { castSigned, getRxNostr } = await import('./client.js');
-    await getRxNostr();
+    const { castSigned, getRelaySession } = await import('./client.js');
+    await getRelaySession();
 
     sendSubscribeMock.mockImplementation((callbacks: SendCallbacks) => {
       void Promise.resolve().then(() => {
@@ -215,8 +215,8 @@ describe('castSigned', () => {
   });
 
   it('ignores error after already resolved', async () => {
-    const { castSigned, getRxNostr } = await import('./client.js');
-    await getRxNostr();
+    const { castSigned, getRelaySession } = await import('./client.js');
+    await getRelaySession();
 
     sendSubscribeMock.mockImplementation((callbacks: SendCallbacks) => {
       void Promise.resolve().then(() => {
