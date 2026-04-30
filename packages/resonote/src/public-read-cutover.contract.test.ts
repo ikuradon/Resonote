@@ -405,6 +405,37 @@ describe('@auftakt/resonote public read cutover', () => {
     expect(event).toEqual(newestEvent);
   });
 
+  it('returns the newest relay event from fetchBackwardFirst when local-first reads include stale cache', async () => {
+    const localEvent = finalizeEvent(
+      {
+        kind: 1,
+        content: 'stale local event',
+        tags: [],
+        created_at: 100
+      },
+      RELAY_SECRET_KEY
+    );
+    const relayEvent = finalizeEvent(
+      {
+        kind: 1,
+        content: 'newer relay event',
+        tags: [],
+        created_at: 200
+      },
+      RELAY_SECRET_KEY
+    );
+    const { coordinator } = createCoordinatorFixture({
+      getAllByKind: async () => [localEvent],
+      relayEvents: [relayEvent]
+    });
+
+    const event = await coordinator.fetchBackwardFirst<typeof relayEvent>([
+      { kinds: [1], limit: 1 }
+    ]);
+
+    expect(event).toEqual(relayEvent);
+  });
+
   it('still verifies cached public by-id reads with temporary relay hints', async () => {
     const localEvent = finalizeEvent(
       {

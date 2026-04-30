@@ -258,6 +258,7 @@ describe('relay replay request identity contract', () => {
     socket.message(['EOSE', subId]);
 
     await waitUntil(() => completed);
+    expect(socket.sent[1]).toEqual(['CLOSE', subId]);
 
     sub.unsubscribe();
     session.dispose();
@@ -711,6 +712,87 @@ describe('relay replay request identity contract', () => {
 
     expect(socket.readyState).toBe(FakeWebSocket.OPEN);
     expect(session.getRelayStatus(RELAY_URL)?.connection).toBe('open');
+
+    sub.unsubscribe();
+    session.dispose();
+  });
+
+  it('deduplicates normalized relay selections against default relays', async () => {
+    const normalizedRelayUrl = `${RELAY_URL}/`;
+    const session = createRelaySession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
+    const req = createBackwardReq({
+      requestKey: 'rq:v1:contract-default-normalized-dedupe' as RequestKey
+    });
+
+    const sub = session
+      .use(req, {
+        on: {
+          relays: [normalizedRelayUrl]
+        }
+      })
+      .subscribe({});
+    req.emit({ kinds: [1] });
+    req.over();
+
+    await waitUntil(() => FakeWebSocket.instances.length > 0);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(FakeWebSocket.instances.map((socket) => socket.url)).toEqual([RELAY_URL]);
+
+    sub.unsubscribe();
+    session.dispose();
+  });
+
+  it('keeps normalized default relay selections open after backward request completion', async () => {
+    const normalizedRelayUrl = `${RELAY_URL}/`;
+    const session = createRelaySession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100,
+      relayLifecycle: {
+        idleDisconnectMs: 10,
+        retry: { strategy: 'off' }
+      }
+    });
+    const req = createBackwardReq({
+      requestKey: 'rq:v1:contract-default-normalized-lazy-keep' as RequestKey
+    });
+    let completed = false;
+
+    const sub = session
+      .use(req, {
+        on: {
+          defaultReadRelays: false,
+          relays: [normalizedRelayUrl]
+        }
+      })
+      .subscribe({
+        complete: () => {
+          completed = true;
+        }
+      });
+
+    req.emit({ kinds: [1] });
+    req.over();
+
+    await waitUntil(() =>
+      FakeWebSocket.instances.some((socket) => socket.url === normalizedRelayUrl)
+    );
+    const socket = FakeWebSocket.instances.find((entry) => entry.url === normalizedRelayUrl);
+    if (!socket) throw new Error('normalized default socket was not created');
+    socket.open();
+    await waitUntil(() => socket.sent.length > 0);
+
+    const [, subId] = socket.sent[0] as [string, string, Record<string, unknown>];
+    socket.message(['EOSE', subId]);
+    await waitUntil(() => completed);
+    expect(socket.sent[1]).toEqual(['CLOSE', subId]);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(socket.readyState).toBe(FakeWebSocket.OPEN);
+    expect(session.getRelayStatus(normalizedRelayUrl)?.connection).toBe('open');
 
     sub.unsubscribe();
     session.dispose();
@@ -1612,16 +1694,18 @@ describe('relay replay request identity contract', () => {
 
     const firstSubId = (socket.sent[0] as [string, string, ...unknown[]])[1];
     socket.message(['EOSE', firstSubId]);
-    await waitUntil(() => socket.sent.length === 2);
+    await waitUntil(() => socket.sent.length === 3);
+    expect(socket.sent[1]).toEqual(['CLOSE', firstSubId]);
 
     expect(session.getRelayCapabilitySnapshot(RELAY_URL)).toMatchObject({
       queueDepth: 1,
       activeSubscriptions: 1
     });
 
-    const secondSubId = (socket.sent[1] as [string, string, ...unknown[]])[1];
+    const secondSubId = (socket.sent[2] as [string, string, ...unknown[]])[1];
     socket.message(['EOSE', secondSubId]);
-    await waitUntil(() => socket.sent.length === 3);
+    await waitUntil(() => socket.sent.length === 5);
+    expect(socket.sent[3]).toEqual(['CLOSE', secondSubId]);
 
     expect(session.getRelayCapabilitySnapshot(RELAY_URL)).toMatchObject({
       queueDepth: 0,

@@ -1178,6 +1178,19 @@ function selectNewestVisibleEvent<TEvent extends StoredEvent>(
   );
 }
 
+function selectNewestBackwardResult<TEvent>(events: readonly TEvent[]): TEvent | null {
+  return (
+    [...events].sort((left, right) => {
+      const leftEvent = left as Partial<StoredEvent>;
+      const rightEvent = right as Partial<StoredEvent>;
+      const leftCreatedAt = leftEvent.created_at ?? 0;
+      const rightCreatedAt = rightEvent.created_at ?? 0;
+      if (rightCreatedAt !== leftCreatedAt) return rightCreatedAt - leftCreatedAt;
+      return (rightEvent.id ?? '').localeCompare(leftEvent.id ?? '');
+    })[0] ?? null
+  );
+}
+
 async function fetchLatestEventFromReadRuntime(
   runtime: CoordinatorReadRuntime,
   pubkey: string,
@@ -1686,7 +1699,7 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
         cloneFetchBackwardOptions(options),
         relaySelectionPolicy
       );
-      return events[0] ?? null;
+      return selectNewestBackwardResult(events);
     },
     fetchLatestEvent: (pubkey, kind) =>
       fetchLatestEventFromReadRuntime(coordinatorReadRuntime, pubkey, kind, relaySelectionPolicy),
@@ -2001,7 +2014,7 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
         cloneFetchBackwardOptions(options),
         relaySelectionPolicy
       );
-      return events[0] ?? null;
+      return selectNewestBackwardResult(events);
     },
     cachedFetchById: (eventId) =>
       cachedFetchByIdRuntime.cachedFetchById(coordinatorReadRuntime, eventId),
@@ -2282,7 +2295,7 @@ export async function fetchBackwardFirst<TEvent>(
       filters,
       cloneFetchBackwardOptions(options)
     );
-    return events[0] ?? null;
+    return selectNewestBackwardResult(events);
   }
   return runtime.fetchBackwardFirst<TEvent>(filters, cloneFetchBackwardOptions(options));
 }

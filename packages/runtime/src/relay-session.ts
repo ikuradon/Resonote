@@ -4,6 +4,7 @@ import {
   type EventSigner,
   type Filter as RequestFilter,
   type NegentropyTransportResult,
+  normalizeRelayUrl,
   parseRelayLimitClosedReason,
   type RelayCapabilityLearningEvent,
   type RelayConnectionState,
@@ -108,6 +109,10 @@ export interface CountResult {
 export interface RelaySendOptions {
   signer?: EventSigner;
   on?: RelaySelectionOptions;
+}
+
+function normalizeRelaySessionKey(url: string): string {
+  return normalizeRelayUrl(url) ?? url;
 }
 
 export interface RelayRequest {
@@ -439,6 +444,7 @@ interface RelayAuthState {
 
 class RelaySession implements RelaySessionApi {
   private readonly defaultRelays = new Map<string, DefaultRelayConfig>();
+  private readonly defaultRelayKeys = new Set<string>();
   private readonly connections = new Map<string, RelaySocket>();
   private readonly messages = new Subject<{ from: string; message: unknown }>();
   private readonly states = new Subject<ConnectionStatePacket>();
@@ -476,14 +482,17 @@ class RelaySession implements RelaySessionApi {
   }
 
   setDefaultRelays(relays: string[]): void {
-    const next = new Map<string, DefaultRelayConfig>();
+    const nextByKey = new Map<string, DefaultRelayConfig>();
     for (const relay of relays) {
-      next.set(relay, { url: relay, read: true, write: true });
+      const key = normalizeRelaySessionKey(relay);
+      if (nextByKey.has(key)) continue;
+      nextByKey.set(key, { url: relay, read: true, write: true });
       this.registerRelayLifecyclePolicy(relay, 'lazy-keep');
     }
+    const nextKeys = new Set(nextByKey.keys());
 
     for (const [url, connection] of this.connections.entries()) {
-      if (!next.has(url)) {
+      if (!nextKeys.has(normalizeRelaySessionKey(url))) {
         connection.close();
         this.relayLifecyclePolicies.delete(url);
         this.connections.delete(url);
@@ -491,8 +500,11 @@ class RelaySession implements RelaySessionApi {
     }
 
     this.defaultRelays.clear();
-    for (const [url, config] of next.entries()) {
+    this.defaultRelayKeys.clear();
+    for (const [key, config] of nextByKey.entries()) {
+      const url = config.url;
       this.defaultRelays.set(url, config);
+      this.defaultRelayKeys.add(key);
     }
   }
 
@@ -786,6 +798,9 @@ class RelaySession implements RelaySessionApi {
             }
           }
           group.pendingSubIds.delete(incomingSubId);
+          if (type === 'EOSE') {
+            this.closeRelaySubscription(from, incomingSubId);
+          }
           this.releaseRelaySubId(group, from, incomingSubId);
           void this.pumpRelayShardQueue(group, from)
             .catch(() => {
@@ -995,6 +1010,12 @@ class RelaySession implements RelaySessionApi {
 
   private groupOwnsRelaySubId(group: ActiveRequestGroup, relayUrl: string, subId: string): boolean {
     return [...(group.transportSubIds.get(relayUrl)?.values() ?? [])].includes(subId);
+  }
+
+  private closeRelaySubscription(relayUrl: string, subId: string): void {
+    const relay = this.connections.get(relayUrl);
+    if (!relay) return;
+    void relay.send(['CLOSE', subId]).catch(() => {});
   }
 
   private dropRelayPendingSubIds(group: ActiveRequestGroup, relayUrl: string): void {
@@ -1650,7 +1671,6 @@ class RelaySession implements RelaySessionApi {
 
   private registerRelayLifecyclePolicy(url: string, mode: RelayLifecycleMode): void {
     const current = this.relayLifecyclePolicies.get(url);
-    if (current?.mode === 'lazy-keep') return;
     if (current?.mode === mode) return;
 
     const policy =
@@ -1658,6 +1678,17 @@ class RelaySession implements RelaySessionApi {
         ? this.relayLifecycleOptions.defaultRelay
         : this.relayLifecycleOptions.temporaryRelay;
     this.relayLifecyclePolicies.set(url, policy);
+  }
+
+  private isDefaultRelayUrl(url: string): boolean {
+    return this.defaultRelayKeys.has(normalizeRelaySessionKey(url));
+  }
+
+  private addResolvedRelay(target: Map<string, string>, relay: string): void {
+    const key = normalizeRelaySessionKey(relay);
+    if (!target.has(key)) {
+      target.set(key, relay);
+    }
   }
 
   private getRelayLifecyclePolicy(url: string): RelayLifecyclePolicy {
@@ -1834,37 +1865,37 @@ class RelaySession implements RelaySessionApi {
   }
 
   private resolveReadRelays(selection?: RelaySelectionOptions): string[] {
-    const urls = new Set<string>();
+    const urls = new Map<string, string>();
     if (selection?.defaultReadRelays ?? true) {
       for (const [url, config] of this.defaultRelays.entries()) {
-        if (config.read) urls.add(url);
+        if (config.read) this.addResolvedRelay(urls, url);
       }
     }
     for (const relay of selection?.relays ?? []) {
       this.registerRelayLifecyclePolicy(
         relay,
-        this.defaultRelays.has(relay) ? 'lazy-keep' : 'lazy'
+        this.isDefaultRelayUrl(relay) ? 'lazy-keep' : 'lazy'
       );
-      urls.add(relay);
+      this.addResolvedRelay(urls, relay);
     }
-    return [...urls];
+    return [...urls.values()];
   }
 
   private resolveWriteRelays(selection?: RelaySelectionOptions): string[] {
-    const urls = new Set<string>();
+    const urls = new Map<string, string>();
     if (selection?.defaultWriteRelays ?? true) {
       for (const [url, config] of this.defaultRelays.entries()) {
-        if (config.write) urls.add(url);
+        if (config.write) this.addResolvedRelay(urls, url);
       }
     }
     for (const relay of selection?.relays ?? []) {
       this.registerRelayLifecyclePolicy(
         relay,
-        this.defaultRelays.has(relay) ? 'lazy-keep' : 'lazy'
+        this.isDefaultRelayUrl(relay) ? 'lazy-keep' : 'lazy'
       );
-      urls.add(relay);
+      this.addResolvedRelay(urls, relay);
     }
-    return [...urls];
+    return [...urls.values()];
   }
 
   private async signEvent(

@@ -196,7 +196,7 @@
           <button
             type="button"
             onclick={() => onRepost(comment)}
-            disabled={acting}
+            disabled={acting || !comment.relayHint}
             class="rounded p-1 text-text-muted transition-colors hover:text-text-secondary disabled:opacity-50"
             title={t('repost.title')}
           >
@@ -337,7 +337,7 @@
         <button
           type="button"
           onclick={() => onRepost(comment)}
-          disabled={acting}
+          disabled={acting || !comment.relayHint}
           aria-label="ReNote"
           class="flex items-center gap-1 rounded-md border border-border-subtle px-2.5 py-1 text-xs text-text-muted transition-colors hover:text-text-secondary disabled:opacity-50"
           title={t('repost.title')}
