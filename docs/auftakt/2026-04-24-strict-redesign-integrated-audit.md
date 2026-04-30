@@ -15,7 +15,7 @@ target architecture.
 
 The target architecture requires:
 
-- rx-nostr-like reconnect resilience and automatic REQ optimization with
+- relay-session-like reconnect resilience and automatic REQ optimization with
   batching, sharding, relay capability awareness, and replay.
 - NDK-like ergonomic API access.
 - strfry-inspired local-first seamless event processing.
@@ -52,7 +52,7 @@ plans.
 | Signature verification gate                 | Satisfied | Relay candidates pass `validateRelayEvent()` through `ingestRelayEvent()` before storage or public result emission.                                                           | Core transport packets remain internal-only data.                                                              |
 | Local-first + mandatory remote verification | Satisfied | `cacheOnly` is the only policy that suppresses remote verification; non-cacheOnly remote hits require accepted ingress before becoming visible.                               | Local hits can still be returned early with settlement state.                                                  |
 | kind:5 visibility                           | Partial   | `packages/adapter-dexie/src/index.ts` stores deletion events and suppresses late targets through its deletion index.                                                          | Semantics are close; repair and compaction coverage must stay tied to the materializer contract tests.         |
-| REQ optimization                            | Partial   | `packages/core/src/request-planning.ts` canonicalizes requests and shards filters; `relay-session.ts` replays forward streams.                                                | Missing rx-nostr-style NIP-11 queue/capability learning and negentropy-first ordinary-read verification.       |
+| REQ optimization                            | Partial   | `packages/core/src/request-planning.ts` canonicalizes requests and shards filters; `relay-session.ts` replays forward streams.                                                | Missing relay-session-style NIP-11 queue/capability learning and negentropy-first ordinary-read verification.  |
 | Storage backend                             | Partial   | `packages/adapter-dexie` owns durable events, tag indexes, replaceable heads, deletion index, relay hints, pending publishes, and compaction helpers.                         | Hot-path indexing and compaction policy remain the places to watch as data volume grows.                       |
 | Plugin boundary                             | Satisfied | Plugin APIs expose registration and read-model/flow handles only, not raw Dexie, relay sessions, or materializer queue internals.                                             | Resonote-only flows remain package-owned facade flows.                                                         |
 | NIP compliance                              | Satisfied | `check:auftakt:nips` validates the local matrix against the inventory.                                                                                                        | Official inventory refresh remains a maintenance task.                                                         |
@@ -60,7 +60,7 @@ plans.
 
 ## Goal-by-Goal Audit
 
-### 1. rx-nostr-like reconnect and REQ optimization
+### 1. relay-session-like reconnect and REQ optimization
 
 Current implementation has meaningful primitives:
 
@@ -79,7 +79,7 @@ Missing for parity:
 - idle relay disconnect and lazy connection policy.
 - mandatory verify/repair pass for every non-cacheOnly read.
 
-rx-nostr explicitly advertises auto sign/verify, adaptive reconnection, NIP-11
+relay-session explicitly advertises auto sign/verify, adaptive reconnection, NIP-11
 REQ queueing, reactive relay pool reconstruction, monitoring, lazy connection,
 and idling connection. Auftakt should not clone the API shape, but should adopt
 the operational policies.
@@ -102,7 +102,7 @@ Add:
   addressable coordinates.
 - `sync(filters)`, `syncAndSubscribe(filters)`, `read(filter, policy)`,
   `publish(event, policy)`, and `repair(filter, relays)` as coordinator APIs.
-- pluggable cache adapters conceptually compatible with Dexie and future
+- pluggable cache adapters conceptually interoperable with Dexie and future
   worker/SQLite/WASM stores.
 - typed signing adapters for NIP-07, NIP-46, local private key, and pre-signed
   events.
@@ -138,7 +138,7 @@ not a strfry-like local relay database. It lacks:
 The only sustainable definition is:
 
 1. Fetch or vendor the official `nostr-protocol/nips` index.
-2. Classify every listed NIP as public, internal, compatibility-only,
+2. Classify every listed NIP as public, internal, interop-only,
    unsupported-by-design, or out-of-scope.
 3. Assign owner files and proof anchors.
 4. Fail CI when the official list changes and the local matrix is not updated.
@@ -167,7 +167,7 @@ Required changes:
 
 ## External Implementation Lessons
 
-### rx-nostr
+### relay-session
 
 Take:
 
@@ -294,7 +294,7 @@ must stay in place before implementation:
 1. Spec 1 explicitly states that signature verification is a hard gate before
    `Materializer.apply()` and before any consumer-visible emission.
 2. Spec 1 adds a `quarantine` table and invalid event policy.
-3. Spec 2 imports rx-nostr-style NIP-11 command/REQ queue behavior.
+3. Spec 2 imports relay-session-style NIP-11 command/REQ queue behavior.
 4. Spec 2 defines `cacheOnly` as the only normal policy that suppresses
    remote verification.
 5. Spec 3 moves Resonote-only comments/content flows out of generic built-ins
@@ -323,7 +323,7 @@ must stay in place before implementation:
 
 ## Primary Sources Consulted
 
-- rx-nostr: https://github.com/penpenpng/rx-nostr
+- relay-session: https://github.com/penpenpng/relay-session
 - NDK: https://github.com/nostr-dev-kit/ndk
 - NDK Sync & Negentropy: https://nostr-dev-kit.github.io/ndk/sync/index.html
 - strfry architecture: https://github.com/hoytech/strfry/blob/master/docs/architecture.md

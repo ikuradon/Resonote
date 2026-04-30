@@ -6,8 +6,8 @@
       "nip": "01",
       "level": "public",
       "status": "implemented",
-      "owner": "packages/core/src/relay-session.ts",
-      "proof": "packages/core/src/relay-session.contract.test.ts",
+      "owner": "packages/runtime/src/relay-session.ts",
+      "proof": "packages/runtime/src/relay-session.contract.test.ts",
       "priority": "P0",
       "scopeNotes": "Runtime-owned REQ/replay, EVENT/EOSE/OK handling, and publish acknowledgements as coordinator behavior only"
     },
@@ -31,12 +31,12 @@
     },
     {
       "nip": "04",
-      "level": "public-compat",
+      "level": "public-interop",
       "status": "implemented",
       "owner": "src/shared/browser/mute.svelte.ts",
       "proof": "src/shared/browser/mute.test.ts",
       "priority": "P3",
-      "scopeNotes": "Compatibility fallback for private mute-tag decryption only; no broad DM support claim"
+      "scopeNotes": "Interop fallback for private mute-tag decryption only; no broad DM support claim"
     },
     {
       "nip": "05",
@@ -96,10 +96,10 @@
       "nip": "11",
       "level": "internal",
       "status": "implemented",
-      "owner": "packages/core/src/relay-session.ts",
-      "proof": "packages/core/src/relay-session.contract.test.ts",
+      "owner": "packages/runtime/src/relay-session.ts",
+      "proof": "packages/runtime/src/relay-session.contract.test.ts",
       "priority": "P0",
-      "scopeNotes": "Runtime-only relay request-limit policy shapes shard queueing and reconnect replay; no public relay metadata surface claim"
+      "scopeNotes": "Runtime-only relay request-limit policy shapes shard queueing and reconnect replay; no public relay metadata discovery claim"
     },
     {
       "nip": "13",
@@ -618,8 +618,8 @@
       "nip": "77",
       "level": "internal-only",
       "status": "implemented",
-      "owner": "packages/resonote/src/runtime.ts",
-      "proof": "packages/resonote/src/relay-repair.contract.test.ts",
+      "owner": "packages/runtime/src/relay-repair.ts",
+      "proof": "packages/runtime/src/relay-repair.contract.test.ts",
       "priority": "P0",
       "scopeNotes": "Internal-only negentropy repair capability; public/package root surfaces remain leak-free"
     },

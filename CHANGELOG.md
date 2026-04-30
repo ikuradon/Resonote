@@ -56,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Preview deploy workflow for PR environments with automatic cleanup
 - E2E tests with Playwright (Chromium) and 4-way CI sharding
 - Structure guard tests to prevent legacy import regressions
-- rx-nostr integration tests with MockPool WebSocket mock
+- relay-session integration tests with MockPool WebSocket mock
 
 ### Fixed
 
@@ -79,7 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Mute settings blur persistence on SPA navigation for readOnly users
 - Settings icon position in header nav
 - Preview deploy artifact upload for `.svelte-kit/` directory
-- `ContentfulStatusCode` type for Hono `c.json()` overload compatibility
+- `ContentfulStatusCode` type for Hono `c.json()` overload interop
 - Duplicate Cache-Control headers in server route handlers
 - Security headers moved from `_headers` to `hooks.server.ts` for SSR routes
 - E2E test updates for SoundCloud Sets support and podcast feed UI redesign
