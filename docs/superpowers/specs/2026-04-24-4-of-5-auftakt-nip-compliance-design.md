@@ -39,7 +39,7 @@ This spec excludes:
 Compliance levels:
 
 - `public`: user-facing feature support exposed by Resonote.
-- `public-compat`: compatibility path for a bounded user-facing behavior.
+- `public-interop`: interop path for a bounded user-facing behavior.
 - `internal`: runtime behavior needed by coordinator or relay repair.
 - `internal-only`: implementation detail with no public claim.
 - `not-supported`: deliberately unsupported.
@@ -133,7 +133,7 @@ Priority buckets:
   planned support boundary.
 - `P2`: classified but deferred, not-supported, or not-applicable by default.
   The matrix must record why.
-- `compatibility-only`: supported only for bounded compatibility. Do not build
+- `interop-only`: supported only for bounded interop. Do not build
   new primary surfaces on these NIPs.
 
 ## P0 Foundation Inventory
@@ -237,9 +237,9 @@ P2 NIPs:
 - NIP-BE: BLE communications
 - NIP-C0: code snippets
 
-## Compatibility-Only / Unrecommended Inventory
+## Interop-Only / Unrecommended Inventory
 
-Compatibility-only NIPs:
+Interop-only NIPs:
 
 - NIP-04: encrypted direct message. Deprecated in favor of NIP-17.
 - NIP-08: mentions. Deprecated in favor of NIP-27.
@@ -247,7 +247,7 @@ Compatibility-only NIPs:
 - NIP-96: HTTP file storage integration. Replaced by Blossom direction.
 - NIP-EE: E2EE messaging using MLS. Superseded by Marmot per official README.
 
-Compatibility-only means no new primary runtime surface is built on the NIP.
+Interop-only means no new primary runtime surface is built on the NIP.
 Existing import, fallback, or migration behavior must stay bounded and tested.
 
 ## Verification

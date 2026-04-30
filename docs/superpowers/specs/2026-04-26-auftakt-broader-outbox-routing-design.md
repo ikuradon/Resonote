@@ -27,7 +27,7 @@ client flows:
 - Add UI controls for routing policy.
 - Add new public API signatures for publish or read calls.
 - Implement a full relay category model, trust model, relay freshness scoring,
-  or Amethyst-compatible relay database.
+  or Amethyst-interoperable relay database.
 - Treat temporary hints as durable relay configuration.
 - Expand the NDK-like entity/model API surface in this slice.
 
@@ -157,7 +157,7 @@ Add or extend focused contract tests:
 Existing ordinary read gateway, publish settlement, and relay selection tests
 must keep passing.
 
-## Compatibility
+## Interop
 
 No app-facing or package public API signatures change. Existing callers keep
 using `publishSignedEvent`, `publishSignedEvents`, `fetchBackwardEvents`,

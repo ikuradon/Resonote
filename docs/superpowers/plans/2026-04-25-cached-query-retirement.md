@@ -90,12 +90,12 @@ function createCachedReadRuntime(): CachedReadRuntime {
       listNegentropyEventRefs: vi.fn(async () => []),
       put: vi.fn(async () => true)
     }),
-    getRxNostr: async () => ({
+    getRelaySession: async () => ({
       use: () => ({
         subscribe: subscribeMock
       })
     }),
-    createRxBackwardReq: () => ({
+    createBackwardReq: () => ({
       emit: vi.fn(),
       over: vi.fn()
     })
@@ -295,7 +295,7 @@ export interface CachedReadRuntime {
     putQuarantine?(record: unknown): Promise<void>;
     putWithReconcile?(event: StoredEvent): Promise<unknown>;
   }>;
-  getRxNostr(): Promise<{
+  getRelaySession(): Promise<{
     use(
       req: { emit(input: unknown): void; over(): void },
       options?: { on?: { relays?: readonly string[]; defaultReadRelays?: boolean } }
@@ -307,7 +307,7 @@ export interface CachedReadRuntime {
       }): { unsubscribe(): void };
     };
   }>;
-  createRxBackwardReq(options?: unknown): {
+  createBackwardReq(options?: unknown): {
     emit(input: unknown): void;
     over(): void;
   };

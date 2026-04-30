@@ -97,7 +97,7 @@ Backward read:
 4. Accepted relay events are materialized before they can appear in the returned
    event list.
 
-By-id compatibility remains compatible with the existing cached gateway path.
+By-id interop remains interoperable with the existing cached gateway path.
 This slice can share helper code where practical, but it should not weaken the
 existing relay-hint behavior or cached by-id tests.
 
@@ -138,7 +138,7 @@ Existing relay gateway contract tests should remain focused on gateway behavior.
 Runtime tests should prove the ordinary public read surfaces are wired to that
 gateway.
 
-## Compatibility
+## Interop
 
 No public API changes are allowed. Existing consumers of
 `fetchBackwardEventsFromReadRuntime()`, `fetchLatestEventFromReadRuntime()`,

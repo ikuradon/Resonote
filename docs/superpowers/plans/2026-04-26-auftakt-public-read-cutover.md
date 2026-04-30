@@ -89,7 +89,7 @@ function createCoordinatorFixture({
         putWithReconcile: async (event: unknown) => putWithReconcile(event),
         putQuarantine: async (record: unknown) => putQuarantine(record)
       }),
-      getRxNostr: async () => ({
+      getRelaySession: async () => ({
         use(_req: { emit(input: unknown): void }, options: unknown) {
           const entry = { options, emitted: [] as unknown[] };
           createdRequests.push(entry);
@@ -109,13 +109,13 @@ function createCoordinatorFixture({
           };
         }
       }),
-      createRxBackwardReq: () => ({
+      createBackwardReq: () => ({
         emit(input: unknown) {
           createdRequests.at(-1)?.emitted.push(input);
         },
         over() {}
       }),
-      createRxForwardReq: () => ({ emit() {}, over() {} }),
+      createForwardReq: () => ({ emit() {}, over() {} }),
       uniq: () => ({}) as unknown,
       merge: () => ({}) as unknown,
       getRelayConnectionState: async () => null,

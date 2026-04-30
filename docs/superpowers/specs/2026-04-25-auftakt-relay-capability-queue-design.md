@@ -37,7 +37,7 @@ observe relay capability limits without exposing raw transport internals.
 - Persist NIP-11 success and failure state in Dexie with explicit TTLs.
 - Preserve learned safety bounds from REQ errors indefinitely.
 - Use effective relay limits to batch, shard, queue, and replay REQ traffic.
-- Keep unknown or failed NIP-11 relays behavior-compatible by treating missing
+- Keep unknown or failed NIP-11 relays behavior-interoperable by treating missing
   limits as unlimited unless a learned safety bound exists.
 - Add `snapshotRelayCapabilities()` and `observeRelayCapabilities()` as a
   separate capability observation surface.
@@ -49,7 +49,7 @@ observe relay capability limits without exposing raw transport internals.
 - NDK-style entity handles.
 - Broad outbox routing for replies, reactions, `nevent`, or `naddr`.
 - Lazy connect, idle disconnect, or adaptive reconnect policy changes beyond
-  queue compatibility.
+  queue interop.
 - UI redesign for relay settings.
 - Publishing raw NIP-11 relay documents as public app API.
 
@@ -220,13 +220,13 @@ relay limit from `null`.
 12. Capability observation packets fire on NIP-11 updates, learned updates, queue
     depth changes, and active subscription changes.
 
-## Rx-Nostr Compatibility Model
+## Rx-Nostr Interop Model
 
-This design follows rx-nostr's batching and sharding ideas, not its public API.
+This design follows relay-session's batching and sharding ideas, not its public API.
 The internal behavior should preserve these properties:
 
 - app callers create one logical read or subscription
-- the runtime batches compatible filters under one logical request
+- the runtime batches interoperable filters under one logical request
 - relay-specific shard plans respect `max_filters`
 - relay-specific queues respect `max_subscriptions`
 - reconnect replay restores the same relay-specific shard policy
@@ -306,7 +306,7 @@ Facade tests should cover:
 
 - `$shared/auftakt/resonote.ts` delegates `snapshotRelayCapabilities()` and
   `observeRelayCapabilities()` to the coordinator
-- existing relay status APIs remain source-compatible and separate from
+- existing relay status APIs remain source-interoperable and separate from
   capability APIs
 
 Completion verification:

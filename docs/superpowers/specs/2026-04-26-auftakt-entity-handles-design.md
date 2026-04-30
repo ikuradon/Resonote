@@ -39,7 +39,7 @@ request/session APIs、repair internals、routing helpers、plugin internals は
 - Handle result は `ReadSettlement` と handle-level state を必ず含む。
 - Handles は coordinator reads、read models、relay selection policy、visibility
   filtering へ委譲する。
-- Existing facade functions は source-compatible に残す。
+- Existing facade functions は source-interoperable に残す。
 - Public package closure と plugin isolation を維持する。
 
 ## Non-Goals
@@ -270,7 +270,7 @@ Implementation should add focused contracts for:
   sessions or mutable routing indexes.
 - `RelayHintsHandle.fetch()` exposes normalized read-only hints and cannot record or mutate hints.
 - Plugin API remains limited to `registerProjection`, `registerReadModel`, and `registerFlow`.
-- Existing facade compatibility tests still pass.
+- Existing facade interop tests still pass.
 - Strict closure guard rejects raw relay/storage/materializer leakage.
 
 Verification gate:
@@ -289,7 +289,7 @@ pnpm run check:auftakt-migration -- --proof
 - Entity Handles are added as `ResonoteCoordinator` methods, not package-level factory exports.
 - API naming follows NDK's `getUser(...).fetchProfile()` ergonomics where useful.
 - Results are settlement-first and expose handle-level state.
-- Existing facade function names remain source-compatible.
+- Existing facade function names remain source-interoperable.
 - Handles use coordinator-owned relay selection and visibility filtering.
 - Handles do not expose raw relay session, raw WebSocket packet, raw Dexie handle, raw Dexie row,
   materializer queue, plugin registry internals, mutable routing index, or transport subscription

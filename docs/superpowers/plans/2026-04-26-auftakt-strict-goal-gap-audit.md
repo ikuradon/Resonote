@@ -59,7 +59,7 @@ Missing
 
 ## Seven Goal Matrix
 
-rx-nostr-like reconnect and REQ optimization
+relay-session-like reconnect and REQ optimization
 NDK-like API convenience
 strfry-like local-first event processing
 NIP compliance
@@ -173,7 +173,7 @@ const REQUIRED_AUDIT_SECTIONS = [
 const REQUIRED_CLASSIFICATIONS = ['Satisfied', 'Scoped-Satisfied', 'Partial', 'Missing'];
 
 const REQUIRED_STRICT_GOAL_AREAS = [
-  'rx-nostr-like reconnect and REQ optimization',
+  'relay-session-like reconnect and REQ optimization',
   'NDK-like API convenience',
   'strfry-like local-first event processing',
   'NIP compliance',
@@ -365,25 +365,25 @@ implemented.
 
 ## Seven Goal Matrix
 
-| Area                                         | Verdict            | Evidence                                                                                                                                                                         | Strict Gap                                                                                                                                                                                                                                       | First Implementation Phase Decision                                                                 |
-| -------------------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| rx-nostr-like reconnect and REQ optimization | `Scoped-Satisfied` | `packages/core/src/relay-session.ts`, `packages/core/src/request-planning.ts`, and core contract tests prove reconnect replay, request coalescing, shard planning, and queueing. | Ordinary reads are not uniformly defined as negentropy-first repair with REQ fallback, and adaptive reconnect/read policy is not a strict target proof.                                                                                          | Audit and classify transport policy gaps; keep transport behavior unchanged in this phase.          |
-| NDK-like API convenience                     | `Scoped-Satisfied` | `src/shared/auftakt/resonote.ts`, `ResonoteCoordinator`, entity handles, relay hints, and package public API tests provide high-level access.                                    | The API is ergonomic for current Resonote flows, not a broad NDK-style model system. Some convenience APIs are allowlisted package-owned helpers rather than plugin registry calls.                                                              | Inventory public, facade, and plugin surfaces with explicit allowed reasons.                        |
-| strfry-like local-first event processing     | `Partial`          | `EventCoordinator`, Dexie materialization, quarantine, hot index, deletion handling, replaceable heads, relay hints, and strict closure guards exist.                            | The browser store is not a full local relay database abstraction, and raw session usage remains inside coordinator-owned runtime helpers. Allowed internal transport zones need explicit audit classification.                                   | Add a coordinator mediation audit that separates public leaks from internal transport dependencies. |
-| NIP compliance                               | `Scoped-Satisfied` | `scripts/check-auftakt-nips.ts`, `docs/auftakt/nips-inventory.json`, and `docs/auftakt/nip-matrix.json` validate scoped matrix coverage.                                         | Complete compliance must mean matrix-managed classification, not unlimited implementation of every possible NIP behavior. `unsupported-by-design` and `out-of-scope` claims must stay explicit.                                                  | Guard against ambiguous strict-completion wording.                                                  |
-| Offline incremental and kind:5               | `Partial`          | Dexie pending publishes, deletion event storage, deletion index, target suppression, late target suppression, and repair tests exist.                                            | Sync cursor and restart-safe incremental repair semantics are not first-class strict proof for all read flows. Publish settlement is durable but not a full coordinator settlement vocabulary.                                                   | Record incremental repair and publish settlement as prioritized follow-up candidates.               |
-| Minimal core plus plugin extensions          | `Scoped-Satisfied` | Core owns vocabulary, crypto, request planning, relay session, settlement, reconcile, and validation. Resonote runtime registers built-in read models and flows.                 | Core exposes protocol primitives for package composition. Strict mediation must state that production app and plugin APIs cannot use core relay IO primitives directly.                                                                          | Distinguish core primitive exports from app-facing runtime APIs in the audit gate.                  |
-| Single coordinator and database mediation    | `Scoped-Satisfied` | App facade and package root avoid raw request/session exports. Runtime paths materialize relay candidates before public results.                                                 | The phrase "all core/extension APIs" can be read as banning necessary internal transport helpers. The strict target is public/app/plugin mediation, while coordinator-owned internals may use transport primitives when raw results cannot leak. | Add guard coverage for allowed internal transport zones and forbidden public leaks.                 |
+| Area                                              | Verdict            | Evidence                                                                                                                                                                         | Strict Gap                                                                                                                                                                                                                                       | First Implementation Phase Decision                                                                 |
+| ------------------------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| relay-session-like reconnect and REQ optimization | `Scoped-Satisfied` | `packages/core/src/relay-session.ts`, `packages/core/src/request-planning.ts`, and core contract tests prove reconnect replay, request coalescing, shard planning, and queueing. | Ordinary reads are not uniformly defined as negentropy-first repair with REQ fallback, and adaptive reconnect/read policy is not a strict target proof.                                                                                          | Audit and classify transport policy gaps; keep transport behavior unchanged in this phase.          |
+| NDK-like API convenience                          | `Scoped-Satisfied` | `src/shared/auftakt/resonote.ts`, `ResonoteCoordinator`, entity handles, relay hints, and package public API tests provide high-level access.                                    | The API is ergonomic for current Resonote flows, not a broad NDK-style model system. Some convenience APIs are allowlisted package-owned helpers rather than plugin registry calls.                                                              | Inventory public, facade, and plugin surfaces with explicit allowed reasons.                        |
+| strfry-like local-first event processing          | `Partial`          | `EventCoordinator`, Dexie materialization, quarantine, hot index, deletion handling, replaceable heads, relay hints, and strict closure guards exist.                            | The browser store is not a full local relay database abstraction, and raw session usage remains inside coordinator-owned runtime helpers. Allowed internal transport zones need explicit audit classification.                                   | Add a coordinator mediation audit that separates public leaks from internal transport dependencies. |
+| NIP compliance                                    | `Scoped-Satisfied` | `scripts/check-auftakt-nips.ts`, `docs/auftakt/nips-inventory.json`, and `docs/auftakt/nip-matrix.json` validate scoped matrix coverage.                                         | Complete compliance must mean matrix-managed classification, not unlimited implementation of every possible NIP behavior. `unsupported-by-design` and `out-of-scope` claims must stay explicit.                                                  | Guard against ambiguous strict-completion wording.                                                  |
+| Offline incremental and kind:5                    | `Partial`          | Dexie pending publishes, deletion event storage, deletion index, target suppression, late target suppression, and repair tests exist.                                            | Sync cursor and restart-safe incremental repair semantics are not first-class strict proof for all read flows. Publish settlement is durable but not a full coordinator settlement vocabulary.                                                   | Record incremental repair and publish settlement as prioritized follow-up candidates.               |
+| Minimal core plus plugin extensions               | `Scoped-Satisfied` | Core owns vocabulary, crypto, request planning, relay session, settlement, reconcile, and validation. Resonote runtime registers built-in read models and flows.                 | Core exposes protocol primitives for package composition. Strict mediation must state that production app and plugin APIs cannot use core relay IO primitives directly.                                                                          | Distinguish core primitive exports from app-facing runtime APIs in the audit gate.                  |
+| Single coordinator and database mediation         | `Scoped-Satisfied` | App facade and package root avoid raw request/session exports. Runtime paths materialize relay candidates before public results.                                                 | The phrase "all core/extension APIs" can be read as banning necessary internal transport helpers. The strict target is public/app/plugin mediation, while coordinator-owned internals may use transport primitives when raw results cannot leak. | Add guard coverage for allowed internal transport zones and forbidden public leaks.                 |
 
 ## Coordinator Mediation Audit
 
-| Layer              | Allowed                                                                                       | Forbidden                                                                                  |
-| ------------------ | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| app-facing facade  | high-level reads, subscriptions, publish, relay status, relay capabilities, feature helpers   | raw relay session, raw request objects, adapter storage handles                            |
-| package public API | coordinator factory, coordinator types, plugin registration, data-only projection metadata    | raw negentropy, raw relay request helpers, direct storage handles                          |
-| plugin API         | `registerProjection`, `registerReadModel`, `registerFlow`                                     | `getRxNostr`, `getEventsDB`, `openEventsDb`, materializer queue, raw transport packet APIs |
-| runtime internals  | coordinator-owned transport adapters, registry adapters, repair adapters, materializers       | returning raw relay candidates to public results                                           |
-| core primitives    | protocol primitives for package composition, crypto, validation, relay session implementation | production app relay IO through core primitives                                            |
+| Layer              | Allowed                                                                                       | Forbidden                                                                                       |
+| ------------------ | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| app-facing facade  | high-level reads, subscriptions, publish, relay status, relay capabilities, feature helpers   | raw relay session, raw request objects, adapter storage handles                                 |
+| package public API | coordinator factory, coordinator types, plugin registration, data-only projection metadata    | raw negentropy, raw relay request helpers, direct storage handles                               |
+| plugin API         | `registerProjection`, `registerReadModel`, `registerFlow`                                     | `getRelaySession`, `getEventsDB`, `openEventsDb`, materializer queue, raw transport packet APIs |
+| runtime internals  | coordinator-owned transport adapters, registry adapters, repair adapters, materializers       | returning raw relay candidates to public results                                                |
+| core primitives    | protocol primitives for package composition, crypto, validation, relay session implementation | production app relay IO through core primitives                                                 |
 
 ## First Implementation Phase
 
@@ -402,7 +402,7 @@ It excludes:
 
 - NIP-wide implementation expansion
 - runtime transport redesign
-- full NDK-compatible model expansion
+- full NDK-interoperable model expansion
 - persistence migration to Worker, SQLite, WASM, or a real relay process
 - UI behavior changes
 
@@ -472,9 +472,12 @@ Append these tests to `scripts/check-auftakt-strict-goal-audit.test.ts` inside t
 it('allows raw transport tokens only in approved internal transport zones', () => {
   const result = checkStrictGoalAudit([
     file(STRICT_GOAL_AUDIT_PATH, validAuditText),
-    file('packages/resonote/src/runtime.ts', 'const rxNostr = await runtime.getRxNostr();'),
-    file('src/shared/nostr/client.ts', 'createRxNostrSession({ defaultRelays: [] });'),
-    file('packages/core/src/relay-session.ts', 'export function createRxNostrSession() {}')
+    file(
+      'packages/resonote/src/runtime.ts',
+      'const relaySession = await runtime.getRelaySession();'
+    ),
+    file('src/shared/nostr/client.ts', 'createRelaySession({ defaultRelays: [] });'),
+    file('packages/core/src/relay-session.ts', 'export function createRelaySession() {}')
   ]);
 
   expect(result).toEqual({ ok: true, errors: [] });
@@ -483,12 +486,12 @@ it('allows raw transport tokens only in approved internal transport zones', () =
 it('flags raw transport usage in app production code', () => {
   const result = checkStrictGoalAudit([
     file(STRICT_GOAL_AUDIT_PATH, validAuditText),
-    file('src/features/comments/application/leaky-transport.ts', 'await getRxNostr();')
+    file('src/features/comments/application/leaky-transport.ts', 'await getRelaySession();')
   ]);
 
   expect(result.ok).toBe(false);
   expect(result.errors).toContain(
-    'src/features/comments/application/leaky-transport.ts uses raw transport token getRxNostr outside an approved coordinator transport zone'
+    'src/features/comments/application/leaky-transport.ts uses raw transport token getRelaySession outside an approved coordinator transport zone'
   );
 });
 
@@ -497,7 +500,7 @@ it('flags raw storage and transport handles in production plugins', () => {
     file(STRICT_GOAL_AUDIT_PATH, validAuditText),
     file(
       'packages/resonote/src/plugins/leaky-plugin.ts',
-      'api.registerFlow("leaky", { getEventsDB, createRxBackwardReq });'
+      'api.registerFlow("leaky", { getEventsDB, createBackwardReq });'
     )
   ]);
 
@@ -506,7 +509,7 @@ it('flags raw storage and transport handles in production plugins', () => {
     'packages/resonote/src/plugins/leaky-plugin.ts exposes raw plugin handle getEventsDB'
   );
   expect(result.errors).toContain(
-    'packages/resonote/src/plugins/leaky-plugin.ts exposes raw plugin handle createRxBackwardReq'
+    'packages/resonote/src/plugins/leaky-plugin.ts exposes raw plugin handle createBackwardReq'
   );
 });
 ```
@@ -527,19 +530,19 @@ Add these constants below `AMBIGUOUS_STRICT_COMPLETION_PATTERNS` in `scripts/che
 
 ```ts
 const RAW_TRANSPORT_TOKENS = [
-  'getRxNostr',
-  'createRxBackwardReq',
-  'createRxForwardReq',
-  'createRxNostrSession',
-  'RxNostr'
+  'getRelaySession',
+  'createBackwardReq',
+  'createForwardReq',
+  'createRelaySession',
+  'RelaySession'
 ];
 
 const RAW_PLUGIN_HANDLE_TOKENS = [
-  'getRxNostr',
+  'getRelaySession',
   'getEventsDB',
   'openEventsDb',
-  'createRxBackwardReq',
-  'createRxForwardReq',
+  'createBackwardReq',
+  'createForwardReq',
   'materializerQueue',
   'DexieEventStore'
 ];
@@ -759,15 +762,15 @@ Auftakt の 7 つの主要目標に対する現在の達成状況を以下に定
 Change the verdict values in the §14.3 table to:
 
 ```md
-| 目標 (Goal)                                 | 判定 (Verdict)   | 理由・理由                                                                                                                                                         |
-| ------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| rx-nostr級 reconnect + REQ optimization     | Scoped-Satisfied | scoped contract tests および E2E proof によって再接続性と REQ 最適化が証明済み。厳格な ordinary-read negentropy-first 化は strict gap audit で後続候補として扱う。 |
-| NDK級 API convenience                       | Scoped-Satisfied | façade と高レベル API の整備、および leak guard による ergonomics 保護が証明済み。広範な NDK-style model system は strict gap audit で後続候補として扱う。         |
-| strfry的 local-first seamless processing    | Partial          | `ReadSettlement` / reconcile / tombstone の一貫した動作は証明済み。完全な local relay database abstraction と内部 raw transport 分類は strict gap audit で扱う。   |
-| scoped NIP compliance                       | Scoped-Satisfied | matrix + owner は定義済み。NIP-11 は runtime-only の限定的サポートであり、無制限の全 NIP 実装ではなく matrix-managed compliance として扱う。                       |
-| offline incremental + kind:5                | Partial          | kind:5/tombstone および pending publish proof は存在する。sync cursor と restart-safe incremental repair の全面 proof は strict gap audit で後続候補として扱う。   |
-| minimal core + plugin-based higher features | Scoped-Satisfied | public API 基盤の上で、高次機能の plugin 移行と隔離が証明済み。core primitive と app-facing runtime API の層分離は strict goal audit gate で維持する。             |
-| strict single coordinator model             | Scoped-Satisfied | packages/resonote への集約と全 API の inventory 監査が完了している。内部 coordinator transport helper の許容範囲は strict goal audit gate で分類する。             |
+| 目標 (Goal)                                  | 判定 (Verdict)   | 理由・理由                                                                                                                                                         |
+| -------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| relay-session級 reconnect + REQ optimization | Scoped-Satisfied | scoped contract tests および E2E proof によって再接続性と REQ 最適化が証明済み。厳格な ordinary-read negentropy-first 化は strict gap audit で後続候補として扱う。 |
+| NDK級 API convenience                        | Scoped-Satisfied | façade と高レベル API の整備、および leak guard による ergonomics 保護が証明済み。広範な NDK-style model system は strict gap audit で後続候補として扱う。         |
+| strfry的 local-first seamless processing     | Partial          | `ReadSettlement` / reconcile / tombstone の一貫した動作は証明済み。完全な local relay database abstraction と内部 raw transport 分類は strict gap audit で扱う。   |
+| scoped NIP compliance                        | Scoped-Satisfied | matrix + owner は定義済み。NIP-11 は runtime-only の限定的サポートであり、無制限の全 NIP 実装ではなく matrix-managed compliance として扱う。                       |
+| offline incremental + kind:5                 | Partial          | kind:5/tombstone および pending publish proof は存在する。sync cursor と restart-safe incremental repair の全面 proof は strict gap audit で後続候補として扱う。   |
+| minimal core + plugin-based higher features  | Scoped-Satisfied | public API 基盤の上で、高次機能の plugin 移行と隔離が証明済み。core primitive と app-facing runtime API の層分離は strict goal audit gate で維持する。             |
+| strict single coordinator model              | Scoped-Satisfied | packages/resonote への集約と全 API の inventory 監査が完了している。内部 coordinator transport helper の許容範囲は strict goal audit gate で分類する。             |
 ```
 
 - [ ] **Step 7: Run the real checker and verify it passes**
@@ -891,9 +894,9 @@ Append this test inside `describe('@auftakt/resonote plugin isolation', () => { 
 it('provides plugins only registration functions and no coordinator handles', async () => {
   const coordinator = createTestCoordinator();
   const forbiddenKeys = [
-    'getRxNostr',
-    'createRxBackwardReq',
-    'createRxForwardReq',
+    'getRelaySession',
+    'createBackwardReq',
+    'createForwardReq',
     'getEventsDB',
     'openEventsDb',
     'materializerQueue',

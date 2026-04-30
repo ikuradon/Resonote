@@ -329,7 +329,7 @@ In `scripts/check-auftakt-nips.ts`, add near the interfaces:
 ```ts
 const KNOWN_LEVELS = new Set([
   'public',
-  'public-compat',
+  'public-interop',
   'internal',
   'internal-only',
   'scoped-out'

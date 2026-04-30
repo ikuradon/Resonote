@@ -11,7 +11,7 @@ coordinator-owned surface where local storage is the source of truth, relays are
 repair and verification inputs, and raw relay packets never become public API
 results.
 
-The broader goals for rx-nostr-like request optimization, NDK-like entity APIs,
+The broader goals for relay-session-like request optimization, NDK-like entity APIs,
 and expanded outbox intelligence remain valid, but they are handoff work after
 this surface rewrite.
 
@@ -44,7 +44,7 @@ details.
 - Local Dexie storage plus hot indexes are the read source of truth.
 - `cacheOnly` is the only normal policy that suppresses remote verification.
 - `kind:5` handling remains critical-priority materialization work.
-- Existing app-facing facade functions stay source-compatible unless a function
+- Existing app-facing facade functions stay source-interoperable unless a function
   is proven to be internal-only and unused by production consumers.
 - Tests and guards prove that raw relay events cannot escape to public read or
   subscription results.
@@ -139,8 +139,8 @@ or missing visibility through coordinator results rather than raw storage rows.
   or coordinator-backed helpers.
 - Replace `src/shared/nostr/cached-query.svelte.ts` direct runtime helper use
   with the same coordinator-backed facade path.
-- Reduce `ResonoteRuntime` dependencies on `getRxNostr`,
-  `createRxBackwardReq`, and `createRxForwardReq` to an internal transport
+- Reduce `ResonoteRuntime` dependencies on `getRelaySession`,
+  `createBackwardReq`, and `createForwardReq` to an internal transport
   implementation dependency, not a public runtime contract.
 - Keep `src/shared/auftakt/resonote.ts` as the single app-facing import point.
 - Keep plugin APIs limited to projections, read models, and flows. Plugins do

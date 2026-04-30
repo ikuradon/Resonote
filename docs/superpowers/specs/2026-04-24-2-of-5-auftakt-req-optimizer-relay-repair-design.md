@@ -17,7 +17,7 @@ still be shaped by the caller, and optimization does not consistently account
 for hot-cache coverage, durable local coverage, relay capabilities, reconnect
 state, or repair policy.
 
-The target is an rx-nostr-class relay lifecycle with automatic difference-check
+The target is an relay-session-class relay lifecycle with automatic difference-check
 optimization: callers describe intent, and the coordinator chooses the smallest
 safe remote verification work. `localFirst` means local data is emitted first;
 it does not mean relay verification is skipped.
@@ -137,7 +137,7 @@ Difference check strategy:
 
 Batching:
 
-- queue REQ, EVENT, CLOSE, AUTH, and NEG-* commands while a relay is connecting
+- queue REQ, EVENT, CLOSE, AUTH, and NEG-\* commands while a relay is connecting
   or replaying
 - never exceed known `max_subscriptions`; excess logical requests wait in a
   per-relay fair queue

@@ -180,11 +180,11 @@ Add a request recorder near `createdRequests`:
 const negentropyRequests: NegentropyRequestRecord[] = [];
 ```
 
-Replace the current `getRxNostr: async () => ({ ... })` object with this block:
+Replace the current `getRelaySession: async () => ({ ... })` object with this block:
 
 ```ts
-      getRxNostr: async () => {
-        const rxNostr: {
+      getRelaySession: async () => {
+        const relaySession: {
           use(
             req: { emit(input: unknown): void },
             options: unknown
@@ -217,7 +217,7 @@ Replace the current `getRxNostr: async () => ({ ... })` object with this block:
         };
 
         if (negentropyResult !== undefined) {
-          rxNostr.requestNegentropySync = async (request) => {
+          relaySession.requestNegentropySync = async (request) => {
             negentropyRequests.push(request);
             return typeof negentropyResult === 'function'
               ? negentropyResult(request)
@@ -225,7 +225,7 @@ Replace the current `getRxNostr: async () => ({ ... })` object with this block:
           };
         }
 
-        return rxNostr;
+        return relaySession;
       },
 ```
 
@@ -394,7 +394,7 @@ function createOrdinaryReadRelayGateway(
 ) {
   return createRelayGateway({
     requestNegentropySync: async ({ relayUrl, filter, initialMessageHex }) => {
-      const session = (await runtime.getRxNostr()) as Partial<NegentropySessionRuntime>;
+      const session = (await runtime.getRelaySession()) as Partial<NegentropySessionRuntime>;
       if (typeof session.requestNegentropySync !== 'function') {
         return {
           capability: 'unsupported' as const,
@@ -477,7 +477,7 @@ async function selectOrdinaryReadVerificationRelays(
 
   if (relays.length > 0) return relays;
 
-  const session = (await runtime.getRxNostr()) as Partial<{
+  const session = (await runtime.getRelaySession()) as Partial<{
     getDefaultRelays(): Record<string, { read: boolean }>;
   }>;
   const sessionDefaults = Object.entries(session.getDefaultRelays?.() ?? {})
@@ -514,9 +514,9 @@ verify: async (filters) => {
 };
 ```
 
-- [ ] **Step 3: Delete obsolete direct runtime candidate helper**
+- [ ] **Step 3: Delete retired direct runtime candidate helper**
 
-Delete the obsolete `fetchRelayCandidateEventsFromRuntime()` helper from
+Delete the retired `fetchRelayCandidateEventsFromRuntime()` helper from
 `packages/resonote/src/runtime.ts` after `createRuntimeEventCoordinator()` no
 longer calls it. Remove the whole function:
 
@@ -695,7 +695,7 @@ Add the public read contract test to `collectFiles()`:
 
 - [ ] **Step 5: Update the strict goal gap audit document**
 
-In `docs/auftakt/2026-04-26-strict-goal-gap-audit.md`, add this exact sentence to the `rx-nostr-like reconnect and REQ optimization` evidence or the `Verification` section:
+In `docs/auftakt/2026-04-26-strict-goal-gap-audit.md`, add this exact sentence to the `relay-session-like reconnect and REQ optimization` evidence or the `Verification` section:
 
 ```md
 Ordinary read capability verification now routes latest and backward coordinator reads through negentropy-first RelayGateway verification with REQ fallback.

@@ -173,7 +173,7 @@ Completion criteria:
 - handle methods express deleted, missing, local, partial, repaired, and
   relay-confirmed states through high-level settlement data
 - handles use relay selection policy rather than caller-built relay fan-out
-- existing facade compatibility tests still pass
+- existing facade interop tests still pass
 - plugin APIs remain limited to read models, projections, and flows
 - strict closure guards prove handles cannot leak raw transport or storage
   internals
@@ -238,7 +238,7 @@ Wave-specific verification should add:
   reconnect/backoff, and status observation
 - selection tests for relay candidate composition, temporary hint isolation,
   publish audience routing, fallback, and relay hint read-only behavior
-- handle tests for raw surface closure, facade compatibility, settlement state,
+- handle tests for raw surface closure, facade interop, settlement state,
   deletion state, and partial results
 - NIP automation tests for official inventory fixtures, matrix drift,
   owner/proof gaps, and README/status sync

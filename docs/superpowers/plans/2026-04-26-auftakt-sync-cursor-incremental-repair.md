@@ -804,7 +804,7 @@ export async function repairEventsFromRelay(
     return fallbackRepairEventsFromRelay(runtime, options, 'unsupported');
   }
 
-  const session = (await runtime.getRxNostr()) as Partial<NegentropySessionRuntime>;
+  const session = (await runtime.getRelaySession()) as Partial<NegentropySessionRuntime>;
 
   if (typeof session.requestNegentropySync !== 'function') {
     cacheUnsupportedNegentropyRelay(runtime, options.relayUrl);

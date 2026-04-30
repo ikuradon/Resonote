@@ -6,7 +6,7 @@ Branch: feat/auftakt
 ## Goal
 
 Close the strict-gap follow-up for sync cursor incremental repair while keeping
-the existing repair API compatible.
+the existing repair API interoperable.
 
 The current repair path can materialize missing relay events and correctly
 handles late kind:5 deletion events, but it does not persist a restart-safe
@@ -161,7 +161,7 @@ Add focused contract coverage:
 - strict audit coverage records sync cursor incremental repair as implemented
   for this slice and requires the adapter/runtime evidence.
 
-## Compatibility
+## Interop
 
 The app-facing repair API remains unchanged. Runtime fixtures and non-Dexie
 stores that do not implement cursor methods keep existing repair behavior.

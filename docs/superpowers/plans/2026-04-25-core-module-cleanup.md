@@ -32,6 +32,7 @@
 ### Task 1: Add Module Boundary Contract
 
 **Files:**
+
 - Create: `packages/core/src/module-boundary.contract.test.ts`
 - Test: `packages/core/src/module-boundary.contract.test.ts`
 
@@ -115,6 +116,7 @@ Expected: commit succeeds with only the new contract test staged.
 ### Task 2: Move Settlement and Reconcile Helpers
 
 **Files:**
+
 - Modify: `packages/core/src/settlement.ts`
 - Modify: `packages/core/src/reconcile.ts`
 - Modify: `packages/core/src/request-planning.ts`
@@ -129,10 +131,7 @@ Copy the existing `ReadSettlementReducerInput` interface and `reduceReadSettleme
 `packages/core/src/settlement.ts` should start with:
 
 ```ts
-import type {
-  ReadSettlement,
-  ReadSettlementLocalProvenance
-} from './vocabulary.js';
+import type { ReadSettlement, ReadSettlementLocalProvenance } from './vocabulary.js';
 
 export interface ReadSettlementReducerInput {
   readonly localSettled: boolean;
@@ -258,7 +257,9 @@ export function reconcileReplayRepairSubjects(
     'repaired-replay' | 'repaired-negentropy' | 'restored-replay'
   >
 ): ReconcileEmission[];
-export function reconcileNegentropyRepairSubjects(subjectIds: readonly string[]): ReconcileEmission[];
+export function reconcileNegentropyRepairSubjects(
+  subjectIds: readonly string[]
+): ReconcileEmission[];
 export function reconcileOfflineDelivery(
   subjectId: string,
   decision: OfflineDeliveryDecision
@@ -270,32 +271,32 @@ export function reconcileOfflineDelivery(
 Delete these exported declarations from `packages/core/src/request-planning.ts`:
 
 ```ts
-ReadSettlementReducerInput
-reduceReadSettlement
-ReconcileEmission
-ReplaceableCandidate
-DeletionEventLike
-DeletionReconcileResult
-OfflineDeliveryDecision
-mapReasonToConsumerState
-emitReconcile
-reconcileReplaceableCandidates
-reconcileDeletionSubjects
-extractDeletionTargetIds
-verifyDeletionTargets
-reconcileDeletionTargets
-reconcileReplayRepairSubjects
-reconcileNegentropyRepairSubjects
-reconcileOfflineDelivery
+ReadSettlementReducerInput;
+reduceReadSettlement;
+ReconcileEmission;
+ReplaceableCandidate;
+DeletionEventLike;
+DeletionReconcileResult;
+OfflineDeliveryDecision;
+mapReasonToConsumerState;
+emitReconcile;
+reconcileReplaceableCandidates;
+reconcileDeletionSubjects;
+extractDeletionTargetIds;
+verifyDeletionTargets;
+reconcileDeletionTargets;
+reconcileReplayRepairSubjects;
+reconcileNegentropyRepairSubjects;
+reconcileOfflineDelivery;
 ```
 
 Also remove now-unused imports of these vocabulary types from the top of `request-planning.ts`:
 
 ```ts
-ConsumerVisibleState
-ReadSettlement
-ReadSettlementLocalProvenance
-ReconcileReasonCode
+ConsumerVisibleState;
+ReadSettlement;
+ReadSettlementLocalProvenance;
+ReconcileReasonCode;
 ```
 
 - [ ] **Step 4: Run settlement and reconcile tests**
@@ -327,6 +328,7 @@ Expected: commit succeeds with the two focused modules populated.
 ### Task 3: Move Relay Request and Negentropy Helpers
 
 **Files:**
+
 - Modify: `packages/core/src/relay-request.ts`
 - Modify: `packages/core/src/negentropy.ts`
 - Modify: `packages/core/src/request-planning.ts`
@@ -392,16 +394,16 @@ export const REPAIR_REQUEST_COALESCING_SCOPE = 'timeline:repair';
 Move the existing bodies for these non-exported helpers as well:
 
 ```ts
-stableSortStrings
-normalizePrimitiveArray
-normalizeObjectEntries
-normalizeValue
-splitSelectorAndWindow
-toStableJson
-hashRequestDescriptor
-normalizeTransportFilters
-stableSortFilters
-resolveMaxFiltersPerShard
+stableSortStrings;
+normalizePrimitiveArray;
+normalizeObjectEntries;
+normalizeValue;
+splitSelectorAndWindow;
+toStableJson;
+hashRequestDescriptor;
+normalizeTransportFilters;
+stableSortFilters;
+resolveMaxFiltersPerShard;
 ```
 
 Move the existing public functions:
@@ -507,23 +509,23 @@ Keep `RelayRequestLike`, `SubscriptionLike`, `ObservableLike`, `RelaySessionLike
 Delete these declarations from `packages/core/src/request-planning.ts`:
 
 ```ts
-Filter
-RelayReadOverlayOptions
-FetchBackwardOptions
-RuntimeRequestDescriptorOptions
-RequestExecutionPlanOptions
-RequestOptimizerCapabilities
-OptimizedRequestShard
-OptimizedLogicalRequestPlan
-REPAIR_REQUEST_COALESCING_SCOPE
-NegentropyEventRef
-sortNegentropyEventRefsAsc
-matchesStoredEventFilter
-filterNegentropyEventRefs
-buildLogicalRequestDescriptor
-createRuntimeRequestKey
-buildRequestExecutionPlan
-createNegentropyRepairRequestKey
+Filter;
+RelayReadOverlayOptions;
+FetchBackwardOptions;
+RuntimeRequestDescriptorOptions;
+RequestExecutionPlanOptions;
+RequestOptimizerCapabilities;
+OptimizedRequestShard;
+OptimizedLogicalRequestPlan;
+REPAIR_REQUEST_COALESCING_SCOPE;
+NegentropyEventRef;
+sortNegentropyEventRefsAsc;
+matchesStoredEventFilter;
+filterNegentropyEventRefs;
+buildLogicalRequestDescriptor;
+createRuntimeRequestKey;
+buildRequestExecutionPlan;
+createNegentropyRepairRequestKey;
 ```
 
 Also delete private helper functions used only by those moved declarations.
@@ -559,6 +561,7 @@ Expected: commit succeeds with `relay-request.ts` and `negentropy.ts` populated.
 ### Task 4: Replace Core Wildcard Exports With Explicit Exports
 
 **Files:**
+
 - Modify: `packages/core/src/index.ts`
 - Modify: `packages/core/src/public-api.contract.test.ts`
 - Test: `packages/core/src/public-api.contract.test.ts`
@@ -584,9 +587,7 @@ export {
 } from './crypto.js';
 export type { Nip19Decoded, SignedNostrEvent, UnsignedNostrEvent } from './vocabulary.js';
 
-export {
-  validateRelayEvent
-} from './event-validation.js';
+export { validateRelayEvent } from './event-validation.js';
 export type {
   RelayEventValidationFailureReason,
   RelayEventValidationResult
@@ -647,16 +648,16 @@ export {
   createBackwardReq,
   createForwardReq,
   createRelaySession,
-  createRxBackwardReq,
-  createRxForwardReq,
-  createRxNostrSession,
+  createBackwardReq,
+  createForwardReq,
+  createRelaySession,
   uniq
 } from './relay-session.js';
 export type {
   ConnectionStatePacket,
   CreateRelayRequestOptions,
   CreateRelaySessionOptions,
-  CreateRxNostrSessionOptions,
+  CreateRelaySessionSessionOptions,
   DefaultRelayConfig,
   EventPacket,
   EventSigner,
@@ -667,7 +668,7 @@ export type {
   RelaySendOptions,
   RelayStatus,
   RelayUseOptions,
-  RxNostr,
+  RelaySession,
   SignedEventShape,
   UnsignedEvent
 } from './relay-session.js';
@@ -753,21 +754,21 @@ If TypeScript reports that an exported name does not exist, inspect the actual m
 Append this test to `packages/core/src/public-api.contract.test.ts`:
 
 ```ts
-  it('exposes the expected package-root names explicitly', async () => {
-    const mod = await import('@auftakt/core');
+it('exposes the expected package-root names explicitly', async () => {
+  const mod = await import('@auftakt/core');
 
-    expect(mod).toEqual(
-      expect.objectContaining({
-        buildRequestExecutionPlan: expect.any(Function),
-        createRuntimeRequestKey: expect.any(Function),
-        reduceReadSettlement: expect.any(Function),
-        reconcileReplayRepairSubjects: expect.any(Function),
-        filterNegentropyEventRefs: expect.any(Function),
-        createRxNostrSession: expect.any(Function),
-        validateRelayEvent: expect.any(Function)
-      })
-    );
-  });
+  expect(mod).toEqual(
+    expect.objectContaining({
+      buildRequestExecutionPlan: expect.any(Function),
+      createRuntimeRequestKey: expect.any(Function),
+      reduceReadSettlement: expect.any(Function),
+      reconcileReplayRepairSubjects: expect.any(Function),
+      filterNegentropyEventRefs: expect.any(Function),
+      createRelaySession: expect.any(Function),
+      validateRelayEvent: expect.any(Function)
+    })
+  );
+});
 ```
 
 - [ ] **Step 3: Run core public and boundary tests**
@@ -808,6 +809,7 @@ Expected: commit succeeds and `module-boundary.contract.test.ts` passes.
 ### Task 5: Final Verification
 
 **Files:**
+
 - Review all changed files.
 
 - [ ] **Step 1: Verify no empty core stubs remain**

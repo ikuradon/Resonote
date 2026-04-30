@@ -28,7 +28,7 @@ than returning raw relay results.
 The remaining public read gaps in this slice are:
 
 - `fetchLatestEvent`, which still delegates to `relayStatusRuntime.fetchLatestEvent`.
-- `fetchNostrEventById`, which performs a direct DB read and then a compatibility
+- `fetchNostrEventById`, which performs a direct DB read and then a interop
   backward fetch path instead of using the same coordinator read helper.
 
 ## Scope

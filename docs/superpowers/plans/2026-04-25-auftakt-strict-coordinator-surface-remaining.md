@@ -176,13 +176,13 @@ function createCoordinatorFixture() {
         }
       };
     },
-    async getRxNostr() {
+    async getRelaySession() {
       return relaySession as unknown;
     },
-    createRxBackwardReq() {
+    createBackwardReq() {
       return { emit() {}, over() {} };
     },
-    createRxForwardReq() {
+    createForwardReq() {
       return { emit() {}, over() {} };
     },
     uniq() {
@@ -332,8 +332,8 @@ function createMaterializedSubscriptionRuntime(
     ) => runtime.fetchBackwardFirst<TOutput>(filters, options),
     fetchLatestEvent: (...args) => runtime.fetchLatestEvent(...args),
     getEventsDB: () => runtime.getEventsDB(),
-    getRxNostr: async () => {
-      const session = await runtime.getRxNostr();
+    getRelaySession: async () => {
+      const session = await runtime.getRelaySession();
 
       return {
         use: (req, options) =>
@@ -401,8 +401,8 @@ function createMaterializedSubscriptionRuntime(
           })
       };
     },
-    createRxBackwardReq: (options) => runtime.createRxBackwardReq(options),
-    createRxForwardReq: (options) => runtime.createRxForwardReq(options),
+    createBackwardReq: (options) => runtime.createBackwardReq(options),
+    createForwardReq: (options) => runtime.createForwardReq(options),
     uniq: () => runtime.uniq(),
     merge: (...streams) => runtime.merge(...streams),
     getRelayConnectionState: (url) => runtime.getRelayConnectionState(url),
@@ -553,7 +553,7 @@ runtime: {
       return { stored: true, emissions: [] };
     }
   }),
-  getRxNostr: async () => ({
+  getRelaySession: async () => ({
     use: () => ({
       subscribe: (observer: {
         next?: (packet: { event: unknown; from?: string }) => void;
@@ -567,8 +567,8 @@ runtime: {
       }
     })
   }),
-  createRxBackwardReq: () => ({ emit() {}, over() {} }),
-  createRxForwardReq: () => ({ emit() {}, over() {} }),
+  createBackwardReq: () => ({ emit() {}, over() {} }),
+  createForwardReq: () => ({ emit() {}, over() {} }),
   uniq: () => ({}) as unknown,
   merge: () => ({}) as unknown,
   getRelayConnectionState: async () => null,
@@ -630,8 +630,8 @@ interface CoordinatorReadRuntime {
       readonly lastSeenAt: number;
     }): Promise<void>;
   }>;
-  getRxNostr(): Promise<NegentropySessionRuntime>;
-  createRxBackwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): {
+  getRelaySession(): Promise<NegentropySessionRuntime>;
+  createBackwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): {
     emit(input: unknown): void;
     over(): void;
   };
@@ -777,8 +777,8 @@ async function fetchRelayCandidateEventsFromRuntime(
 ): Promise<Array<{ event: unknown; relayUrl: string }>> {
   if (filters.length === 0) return [];
 
-  const rxNostr = await runtime.getRxNostr();
-  const req = runtime.createRxBackwardReq({
+  const relaySession = await runtime.getRelaySession();
+  const req = runtime.createBackwardReq({
     requestKey: createRuntimeRequestKey({
       mode: 'backward',
       filters,
@@ -800,7 +800,7 @@ async function fetchRelayCandidateEventsFromRuntime(
   return new Promise((resolve) => {
     let settled = false;
     const timeout = setTimeout(() => finish(), options.timeoutMs ?? 10_000);
-    const sub = rxNostr.use(req, useOptions).subscribe({
+    const sub = relaySession.use(req, useOptions).subscribe({
       next: (packet) => {
         candidates.push({
           event: packet.event,

@@ -151,7 +151,7 @@ The existing `repairEventsFromRelay(runtime, { relayUrl })` remains a
 single-relay explicit repair API. It is not broadened in this completion wave.
 
 The shared vocabulary still includes `intent: 'repair'`. Contracts should lock
-that repair-compatible overlay building uses the same policy path, so a future
+that repair-interoperable overlay building uses the same policy path, so a future
 multi-relay repair coordinator can reuse the same planner without introducing a
 separate routing vocabulary.
 
@@ -201,7 +201,7 @@ Focused contracts should cover:
 - `@auftakt/resonote` package root still does not expose raw routing helpers or
   the default policy constant.
 - `@auftakt/core` still exposes the pure planner for manual routing.
-- Repair-compatible overlay building can use `intent: 'repair'` with the shared
+- Repair-interoperable overlay building can use `intent: 'repair'` with the shared
   policy path while the existing explicit single-relay repair API stays
   unchanged.
 

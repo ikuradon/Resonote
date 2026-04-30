@@ -19,7 +19,7 @@
 - Modify `src/shared/nostr/query.ts`: keep the public bridge thin and coordinator-backed; do not construct package runtime helpers directly here.
 - Modify `src/shared/nostr/query.test.ts`: update assertions from raw request construction to coordinator mediation.
 - Modify `src/shared/nostr/cached-query.svelte.ts`: route through the facade/coordinator-backed driver instead of constructing raw read runtime locally.
-- Modify `src/shared/nostr/cached-query.test.ts`: keep source-compatible behavior and prove relay results are materialized before emission.
+- Modify `src/shared/nostr/cached-query.test.ts`: keep source-interoperable behavior and prove relay results are materialized before emission.
 - Modify `scripts/check-auftakt-strict-closure.ts`: extend guard coverage for production `src/shared/nostr` raw event emission.
 - Modify `docs/auftakt/2026-04-24-strict-redesign-integrated-audit.md`: update verdict notes after the implementation closes the runtime-type gap.
 
@@ -152,7 +152,7 @@ export interface EventCoordinatorStore {
 }
 ```
 
-In the returned object from `createEventCoordinator()`, rename `materializeFromRelay` to `materialize`, keep a compatibility alias, and update `read()` to accept one filter or an array:
+In the returned object from `createEventCoordinator()`, rename `materializeFromRelay` to `materialize`, keep a interop alias, and update `read()` to accept one filter or an array:
 
 ```ts
 async function materialize(
@@ -856,8 +856,8 @@ async function fetchRelayCandidateEventsFromRuntime(
   filters: readonly RuntimeFilter[],
   options: { readonly timeoutMs?: number; readonly scope: string }
 ): Promise<Array<{ event: unknown; relayUrl: string }>> {
-  const rxNostr = (await runtime.getRxNostr()) as NegentropySessionRuntime;
-  const req = runtime.createRxBackwardReq({
+  const relaySession = (await runtime.getRelaySession()) as NegentropySessionRuntime;
+  const req = runtime.createBackwardReq({
     requestKey: createRuntimeRequestKey({
       mode: 'backward',
       filters,
@@ -872,7 +872,7 @@ async function fetchRelayCandidateEventsFromRuntime(
   return new Promise((resolve) => {
     let settled = false;
     const timeout = setTimeout(() => finish(), options.timeoutMs ?? 10_000);
-    const sub = rxNostr.use(req).subscribe({
+    const sub = relaySession.use(req).subscribe({
       next: (packet) => {
         candidates.push({
           event: packet.event,
@@ -1087,7 +1087,7 @@ fetchBackwardFirst: (filters, options) =>
 ```
 
 The facade must not import `src/shared/nostr/query.ts`, because `query.ts` will
-become a compatibility bridge that delegates back to the facade.
+become a interop bridge that delegates back to the facade.
 
 - [ ] **Step 2: Add facade exports for backward reads**
 
@@ -1231,7 +1231,7 @@ describe('fetchBackwardFirst', () => {
 });
 ```
 
-- [ ] **Step 5: Keep cached query bridge source-compatible**
+- [ ] **Step 5: Keep cached query bridge source-interoperable**
 
 In `src/shared/nostr/cached-query.svelte.ts`, keep the overloads but import helpers from the facade:
 

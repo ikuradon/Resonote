@@ -16,9 +16,9 @@ request objects, materializer queues, or transport packets.
 
 ## Non-Goals
 
-- Add a broad NDK-compatible class hierarchy.
+- Add a broad NDK-interoperable class hierarchy.
 - Expose package-root value factories such as `getEvent()` or `getUser()`.
-- Expose `getEventsDB()`, `openEventsDb()`, `getRxNostr()`, request builders,
+- Expose `getEventsDB()`, `openEventsDb()`, `getRelaySession()`, request builders,
   materializer queues, or relay gateway internals to plugins.
 - Change app-facing read and publish call signatures.
 - Change built-in read model, flow, or projection names.
@@ -124,9 +124,9 @@ Both async external plugin registration and synchronous built-in plugin
 registration receive the same API shape. Existing built-in plugins can ignore
 `models`.
 
-## Compatibility
+## Interop
 
-This is a backward-compatible v1 extension. Existing plugins that use only
+This is a backward-interoperable v1 extension. Existing plugins that use only
 registration functions continue to work because `models` is additive.
 
 The API version remains `v1`. A version bump is not needed because no existing
@@ -154,9 +154,9 @@ an unsuccessful registration.
 The model namespace must not expose mutable storage or transport objects.
 Isolation tests continue to forbid:
 
-- `getRxNostr`
-- `createRxBackwardReq`
-- `createRxForwardReq`
+- `getRelaySession`
+- `createBackwardReq`
+- `createForwardReq`
 - `getEventsDB`
 - `openEventsDb`
 - `materializerQueue`

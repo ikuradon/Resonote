@@ -29,7 +29,7 @@ relay sessions or raw storage handles.
   - Add publish input normalization coverage.
   - Add by-id hint planner integration coverage.
   - Add coordinator read policy override coverage.
-  - Add repair-compatible overlay coverage.
+  - Add repair-interoperable overlay coverage.
 - Modify `packages/resonote/src/relay-routing-publish.contract.test.ts`
   - Add coordinator publish policy override coverage.
 - Modify `packages/resonote/src/subscription-visibility.contract.test.ts`
@@ -234,7 +234,7 @@ it('applies coordinator relay selection policy overrides to by-id reads', async 
         putWithReconcile: async () => ({ stored: true, emissions: [] })
       };
     },
-    async getRxNostr() {
+    async getRelaySession() {
       return {
         use(_req: { emit(input: unknown): void }, options: unknown) {
           const entry = { options, emitted: [] as unknown[] };
@@ -248,7 +248,7 @@ it('applies coordinator relay selection policy overrides to by-id reads', async 
         }
       };
     },
-    createRxBackwardReq() {
+    createBackwardReq() {
       return {
         emit(input: unknown) {
           createdRequests.at(-1)?.emitted.push(input);
@@ -256,7 +256,7 @@ it('applies coordinator relay selection policy overrides to by-id reads', async 
         over() {}
       };
     },
-    createRxForwardReq() {
+    createForwardReq() {
       return { emit() {}, over() {} };
     },
     uniq: () => ({}) as unknown,
@@ -791,7 +791,7 @@ it('routes by-id relay hints as temporary planner candidates', async () => {
         putWithReconcile: async () => ({ stored: true, emissions: [] })
       };
     },
-    async getRxNostr() {
+    async getRelaySession() {
       return {
         use(_req: { emit(input: unknown): void }, options: unknown) {
           const entry = { options, emitted: [] as unknown[] };
@@ -805,7 +805,7 @@ it('routes by-id relay hints as temporary planner candidates', async () => {
         }
       };
     },
-    createRxBackwardReq() {
+    createBackwardReq() {
       return {
         emit(input: unknown) {
           createdRequests.at(-1)?.emitted.push(input);
@@ -813,7 +813,7 @@ it('routes by-id relay hints as temporary planner candidates', async () => {
         over() {}
       };
     },
-    createRxForwardReq() {
+    createForwardReq() {
       return { emit() {}, over() {} };
     },
     uniq: () => ({}) as unknown,
@@ -896,7 +896,7 @@ The full method should read:
     },
 ```
 
-- [ ] **Step 4: Add a repair-compatible overlay contract**
+- [ ] **Step 4: Add a repair-interoperable overlay contract**
 
 Append this test inside the `resonote relay selection runtime` describe block in
 `packages/resonote/src/relay-selection-runtime.contract.test.ts`:
@@ -933,7 +933,7 @@ pnpm exec vitest run packages/resonote/src/relay-selection-runtime.contract.test
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit by-id and repair-compatible routing**
+- [ ] **Step 6: Commit by-id and repair-interoperable routing**
 
 Run:
 
@@ -984,7 +984,7 @@ The resulting block includes:
         buildRequestExecutionPlan: expect.any(Function),
         calculateRelayReconnectDelay: expect.any(Function),
         createRuntimeRequestKey: expect.any(Function),
-        createRxNostrSession: expect.any(Function),
+        createRelaySession: expect.any(Function),
         filterNegentropyEventRefs: expect.any(Function),
         normalizeRelayLifecycleOptions: expect.any(Function),
         normalizeRelaySelectionPolicy: expect.any(Function),

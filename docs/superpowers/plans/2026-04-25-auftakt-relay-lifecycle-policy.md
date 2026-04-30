@@ -276,7 +276,7 @@ expect(mod).toEqual(
     buildRequestExecutionPlan: expect.any(Function),
     calculateRelayReconnectDelay: expect.any(Function),
     createRuntimeRequestKey: expect.any(Function),
-    createRxNostrSession: expect.any(Function),
+    createRelaySession: expect.any(Function),
     filterNegentropyEventRefs: expect.any(Function),
     normalizeRelayLifecycleOptions: expect.any(Function),
     reconcileReplayRepairSubjects: expect.any(Function),
@@ -370,7 +370,7 @@ Append these tests inside the existing `describe('relay replay request identity 
 
 ```ts
 it('keeps default relays open after backward request completion', async () => {
-  const session = createRxNostrSession({
+  const session = createRelaySession({
     defaultRelays: [RELAY_URL],
     eoseTimeout: 100,
     relayLifecycle: {
@@ -378,7 +378,7 @@ it('keeps default relays open after backward request completion', async () => {
       retry: { strategy: 'off' }
     }
   });
-  const req = createRxBackwardReq({
+  const req = createBackwardReq({
     requestKey: 'rq:v1:contract-default-lazy-keep' as RequestKey
   });
   let completed = false;
@@ -410,7 +410,7 @@ it('keeps default relays open after backward request completion', async () => {
 });
 
 it('idle-disconnects temporary relays after backward request completion', async () => {
-  const session = createRxNostrSession({
+  const session = createRelaySession({
     defaultRelays: [RELAY_URL],
     eoseTimeout: 100,
     relayLifecycle: {
@@ -418,7 +418,7 @@ it('idle-disconnects temporary relays after backward request completion', async 
       retry: { strategy: 'off' }
     }
   });
-  const req = createRxBackwardReq({
+  const req = createBackwardReq({
     requestKey: 'rq:v1:contract-temporary-idle' as RequestKey
   });
   const states: Array<{ from: string; state: string; reason: string }> = [];
@@ -480,7 +480,7 @@ Append these tests after the temporary idle test:
 ```ts
 it('reconnects forward streams only after configured backoff delay', async () => {
   vi.useFakeTimers();
-  const session = createRxNostrSession({
+  const session = createRelaySession({
     defaultRelays: [RELAY_URL],
     eoseTimeout: 100,
     relayLifecycle: {
@@ -492,7 +492,7 @@ it('reconnects forward streams only after configured backoff delay', async () =>
       }
     }
   });
-  const req = createRxForwardReq({
+  const req = createForwardReq({
     requestKey: 'rq:v1:contract-delayed-reconnect' as RequestKey
   });
   const states: Array<{ state: string; reason: string }> = [];
@@ -534,14 +534,14 @@ it('reconnects forward streams only after configured backoff delay', async () =>
 });
 
 it('does not reconnect when retry strategy is off', async () => {
-  const session = createRxNostrSession({
+  const session = createRelaySession({
     defaultRelays: [RELAY_URL],
     eoseTimeout: 100,
     relayLifecycle: {
       retry: { strategy: 'off' }
     }
   });
-  const req = createRxForwardReq({
+  const req = createForwardReq({
     requestKey: 'rq:v1:contract-retry-off' as RequestKey
   });
   const sub = session.use(req).subscribe({});
@@ -979,7 +979,7 @@ this.maybeScheduleIdleDisconnect(relayUrl);
 Replace `createRelaySession()` with:
 
 ```ts
-export function createRelaySession(options: CreateRelaySessionOptions): RxNostr {
+export function createRelaySession(options: CreateRelaySessionOptions): RelaySession {
   return new RelaySession(
     options.eoseTimeout ?? 10_000,
     options.defaultRelays,
@@ -1012,7 +1012,7 @@ Expected: commit includes only `relay-session.ts`.
 
 ---
 
-### Task 4: Lock Observation Compatibility And Strict Surface
+### Task 4: Lock Observation Interop And Strict Surface
 
 **Files:**
 
@@ -1037,7 +1037,7 @@ Append this test inside the `relay replay request identity contract` describe bl
 
 ```ts
 it('emits normalized capability state after temporary relay idle disconnect', async () => {
-  const session = createRxNostrSession({
+  const session = createRelaySession({
     defaultRelays: [RELAY_URL],
     eoseTimeout: 100,
     relayLifecycle: {
@@ -1045,7 +1045,7 @@ it('emits normalized capability state after temporary relay idle disconnect', as
       retry: { strategy: 'off' }
     }
   });
-  const req = createRxBackwardReq({
+  const req = createBackwardReq({
     requestKey: 'rq:v1:contract-idle-capability-observation' as RequestKey
   });
   const capabilityPackets: Array<{

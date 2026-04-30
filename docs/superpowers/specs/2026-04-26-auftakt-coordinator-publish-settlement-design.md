@@ -54,7 +54,7 @@ publish-specific so read settlement semantics do not become overloaded.
 3. Publish through the configured transport.
 4. Record `published` relay hints for matching successful acknowledgements.
 5. On transport failure, enqueue retryable signed events and rethrow the
-   original error for public compatibility.
+   original error for public interop.
 
 The runtime-level `publishSignedEventWithOfflineFallback()` helper should
 delegate to a coordinator-oriented publish function for signed events. Existing
@@ -83,7 +83,7 @@ Public batch publish:
 
 Retry queued publishes:
 
-1. `retryQueuedSignedPublishes()` remains compatible with
+1. `retryQueuedSignedPublishes()` remains interoperable with
    `drainPendingPublishes()`.
 2. Its delivery decisions are reduced into publish settlement internally.
 3. Existing `PendingDrainResult` and reconcile emissions remain the public
@@ -117,12 +117,12 @@ Add focused contract coverage:
   `publish()` materializes before transport, records successful relay hints, and
   returns settlement data.
 - `packages/resonote/src/publish-queue.contract.test.ts` proves public helper
-  compatibility: single failure queues and rethrows, batch queues only failed
+  interop: single failure queues and rethrows, batch queues only failed
   signed events, and retry drains retain existing result shape.
 - strict audit coverage is updated so coordinator-owned publish settlement is
   no longer only a follow-up note.
 
-## Compatibility
+## Interop
 
 No app-facing imports need to change. `publishSignedEvent()`,
 `publishSignedEvents()`, and `retryPendingPublishes()` continue to return
@@ -136,7 +136,7 @@ needed.
 - Core has publish settlement vocabulary and reducer contract tests.
 - Coordinator publish returns settlement data and owns local materialization,
   relay hint recording, and queue decisions.
-- Existing public publish API behavior remains compatible.
+- Existing public publish API behavior remains interoperable.
 - Strict gap audit text and/or gate recognizes coordinator-owned publish
   settlement as implemented for this slice.
 - Package tests and strict Auftakt gates pass.

@@ -75,7 +75,7 @@ The closure work makes the strict architecture the only production architecture.
 
 - No migration from the old `resonote-events` or `resonote-pending-publishes`
   databases.
-- No compatibility shim for `@auftakt/adapter-indexeddb`.
+- No interop shim for `@auftakt/adapter-indexeddb`.
 - No UI redesign.
 - No new Nostr feature read model.
 - No expansion of the NIP matrix beyond keeping existing checks accurate.
@@ -141,7 +141,7 @@ moving behavior into package-owned APIs where practical:
 - `putPendingPublish`
 - pending publish drain/update helpers
 
-The bridge is compatibility glue, not a new ownership layer. New behavior belongs
+The bridge is interop glue, not a new ownership layer. New behavior belongs
 in `@auftakt/adapter-dexie` or `@auftakt/resonote`.
 
 ## Relay Event Visibility
@@ -177,7 +177,7 @@ For other reads:
 4. Coordinator schedules `RelayGateway.verify()`.
 5. Relay results enter ingress and materialization before any public emission.
 
-`fetchBackwardEvents()` compatibility wrappers must use the same coordinator
+`fetchBackwardEvents()` interop wrappers must use the same coordinator
 path. They may keep their public function names until later cleanup, but they
 cannot return raw relay packets.
 

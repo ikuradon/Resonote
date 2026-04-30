@@ -26,7 +26,7 @@ Both files match the `direct-shared-nostr-consumer-import` semantic guard.
 - Restore the mechanical completion gate by planning fixes for
   `pnpm run check:auftakt-complete`.
 - Include stale script and status cleanup where it affects completion
-  confidence, especially the obsolete `src/shared/nostr/cached-query.test.ts`
+  confidence, especially the retired `src/shared/nostr/cached-query.test.ts`
   reference in `test:auftakt:app-regression`.
 - Convert only real gaps into implementation tasks.
 

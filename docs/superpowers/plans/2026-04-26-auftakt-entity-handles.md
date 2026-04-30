@@ -143,10 +143,10 @@ function createCoordinatorFixture(
     runtime: {
       fetchLatestEvent: async () => null,
       getEventsDB,
-      getRxNostr: async () => ({ use: () => ({ subscribe: () => ({ unsubscribe() {} }) }) }),
+      getRelaySession: async () => ({ use: () => ({ subscribe: () => ({ unsubscribe() {} }) }) }),
       getDefaultRelays: () => ['wss://default.example/'],
-      createRxBackwardReq: () => ({ emit() {}, over() {} }),
-      createRxForwardReq: () => ({ emit() {}, over() {} }),
+      createBackwardReq: () => ({ emit() {}, over() {} }),
+      createForwardReq: () => ({ emit() {}, over() {} }),
       uniq: () => ({}),
       merge: () => ({}),
       getRelayConnectionState: async () => null,

@@ -56,7 +56,7 @@ publish, reply, reaction, and mention intents.
   materializer ownership.
 - Support read, subscribe, repair, publish, reply, reaction, and mention intents
   with one selection vocabulary.
-- Keep existing facade functions source-compatible while routing them through
+- Keep existing facade functions source-interoperable while routing them through
   the new policy internally.
 
 ## Non-Goals
@@ -259,7 +259,7 @@ Temporary hints never mutate durable defaults. Durable relay hints are read-only
 inputs except for coordinator/materializer-owned writes from seen, repaired, or
 published events.
 
-## Compatibility
+## Interop
 
 Existing facade functions remain available:
 
@@ -301,7 +301,7 @@ Resonote tests should cover:
 - plain publish using author write relays and default fallback
 - reply, reaction, and mention publish collecting audience candidates
 - strategy selection defaults to conservative outbox for Resonote runtime
-- facade compatibility for existing exported functions
+- facade interop for existing exported functions
 - plugin isolation from raw relay, storage, and routing handles
 
 The completion gate for this wave should include:

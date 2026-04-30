@@ -4,7 +4,7 @@
 
 **Goal:** Make publish outcomes first-class coordinator-owned settlement data while preserving the public `Promise<void>` publish API.
 
-**Architecture:** Add publish settlement vocabulary to `@auftakt/core`, then make `EventCoordinator.publish()` own local materialization, relay publish, relay hint recording, and queue decisions. Keep app-facing helpers compatible by delegating signed publish attempts through a coordinator-backed path and by retaining existing retry drain result shapes.
+**Architecture:** Add publish settlement vocabulary to `@auftakt/core`, then make `EventCoordinator.publish()` own local materialization, relay publish, relay hint recording, and queue decisions. Keep app-facing helpers interoperable by delegating signed publish attempts through a coordinator-backed path and by retaining existing retry drain result shapes.
 
 **Tech Stack:** TypeScript, Vitest, `@auftakt/core`, `@auftakt/resonote`, existing event coordinator, relay selection runtime, pending publish queue.
 
@@ -19,7 +19,7 @@
 - Modify `packages/resonote/src/event-coordinator.ts`: return publish settlement data and materialize before transport.
 - Modify `packages/resonote/src/event-coordinator.contract.test.ts`: coordinator publish workflow contracts.
 - Modify `packages/resonote/src/runtime.ts`: add coordinator-backed publish helper and route public coordinator publish methods through it.
-- Modify `packages/resonote/src/publish-queue.contract.test.ts`: compatibility and helper-level settlement coverage.
+- Modify `packages/resonote/src/publish-queue.contract.test.ts`: interop and helper-level settlement coverage.
 - Modify `docs/auftakt/2026-04-26-strict-goal-gap-audit.md`: update follow-up status for coordinator-owned publish settlement.
 - Modify `scripts/check-auftakt-strict-goal-audit.ts`: require the updated publish settlement evidence.
 - Modify `scripts/check-auftakt-strict-goal-audit.test.ts`: lock the audit gate.
@@ -630,7 +630,7 @@ it('publishes signed events through coordinator materialization and relay hints'
 });
 ```
 
-- [ ] **Step 3: Add signed failure compatibility assertion**
+- [ ] **Step 3: Add signed failure interop assertion**
 
 Keep the existing `queues retryable single publish failures while preserving the caller-visible error` test. It must still expect:
 
@@ -780,9 +780,9 @@ publishSignedEvents: async (params) => {
 },
 ```
 
-- [ ] **Step 6: Keep standalone helper compatibility**
+- [ ] **Step 6: Keep standalone helper interop**
 
-Leave `publishSignedEventWithOfflineFallback()` and `publishSignedEventsWithOfflineFallback()` behavior unchanged. These exported helpers remain legacy-compatible package utilities used by focused contracts.
+Leave `publishSignedEventWithOfflineFallback()` and `publishSignedEventsWithOfflineFallback()` behavior unchanged. These exported helpers remain legacy-interoperable package utilities used by focused contracts.
 
 - [ ] **Step 7: Run focused runtime publish tests**
 

@@ -18,7 +18,7 @@ This plan implements only the approved relay selection and outbox routing design
 - strategy presets and budgets
 - Resonote read/subscription/repair input collection
 - Resonote publish/reply/reaction/mention audience collection
-- facade compatibility and closure verification
+- facade interop and closure verification
 
 This plan does not implement entity handles, relay settings UI, NIP inventory automation, or capability/lifecycle rewrites.
 
@@ -163,7 +163,7 @@ expect(mod).toEqual(
     buildRequestExecutionPlan: expect.any(Function),
     calculateRelayReconnectDelay: expect.any(Function),
     createRuntimeRequestKey: expect.any(Function),
-    createRxNostrSession: expect.any(Function),
+    createRelaySession: expect.any(Function),
     filterNegentropyEventRefs: expect.any(Function),
     normalizeRelayLifecycleOptions: expect.any(Function),
     normalizeRelaySelectionPolicy: expect.any(Function),
@@ -1145,7 +1145,7 @@ describe('coordinator read relay selection integration', () => {
           putWithReconcile: async () => ({ stored: true, emissions: [] })
         };
       },
-      async getRxNostr() {
+      async getRelaySession() {
         return {
           use(req: { emit(input: unknown): void }, options: unknown) {
             const entry = { options, emitted: [] as unknown[] };
@@ -1159,7 +1159,7 @@ describe('coordinator read relay selection integration', () => {
           }
         };
       },
-      createRxBackwardReq() {
+      createBackwardReq() {
         return {
           emit(input: unknown) {
             createdRequests.at(-1)?.emitted.push(input);
@@ -1167,7 +1167,7 @@ describe('coordinator read relay selection integration', () => {
           over() {}
         };
       },
-      createRxForwardReq() {
+      createForwardReq() {
         return { emit() {}, over() {} };
       },
       uniq: () => ({}) as unknown,
@@ -1414,11 +1414,11 @@ function createRuntime() {
         putWithReconcile: async () => ({ stored: true, emissions: [] })
       };
     },
-    async getRxNostr() {
+    async getRelaySession() {
       return { use: () => ({ subscribe: () => ({ unsubscribe() {} }) }) };
     },
-    createRxBackwardReq: () => ({ emit() {}, over() {} }),
-    createRxForwardReq: () => ({ emit() {}, over() {} }),
+    createBackwardReq: () => ({ emit() {}, over() {} }),
+    createForwardReq: () => ({ emit() {}, over() {} }),
     uniq: () => ({}) as unknown,
     merge: () => ({}) as unknown,
     getRelayConnectionState: async () => null,
@@ -1607,7 +1607,7 @@ interface RelayPublishOptions {
 }
 
 export async function getDefaultRelayUrls(): Promise<string[]> {
-  const instance = await getRxNostr();
+  const instance = await getRelaySession();
   return Object.keys(instance.getDefaultRelays());
 }
 
@@ -1616,7 +1616,7 @@ export async function castSigned(
   options?: { successThreshold?: number } & RelayPublishOptions
 ): Promise<void> {
   const threshold = options?.successThreshold ?? 0.5;
-  const instance = await getRxNostr();
+  const instance = await getRelaySession();
   const relayCount = Object.keys(instance.getDefaultRelays()).length;
   const targetRelayCount = options?.on?.relays?.length ?? relayCount;
   const needed = Math.max(1, Math.ceil(targetRelayCount * threshold));
@@ -1675,7 +1675,7 @@ import {
   fetchLatestEvent as fetchLatestEventImpl,
   getDefaultRelayUrls,
   getRelayConnectionState as getRelayConnectionStateImpl,
-  getRxNostr,
+  getRelaySession,
   observePublishAcks as observePublishAcksImpl,
   observeRelayConnectionStates as observeRelayConnectionStatesImpl,
   setDefaultRelays as setDefaultRelaysImpl
@@ -1732,9 +1732,9 @@ Modify `packages/resonote/src/public-api.contract.test.ts` by extending the forb
 
 ```ts
 const forbidden = [
-  /^createRxBackwardReq$/,
-  /^createRxForwardReq$/,
-  /^getRxNostr$/,
+  /^createBackwardReq$/,
+  /^createForwardReq$/,
+  /^getRelaySession$/,
   /^useReq/i,
   /^rawRequest/i,
   /^relayRequest/i,
@@ -1823,7 +1823,7 @@ Spec coverage:
 - Core NIP-65 ownership is covered by Tasks 1 and 2.
 - Strategy presets, budgets, default-only, conservative, and strict fan-out are covered by Task 2.
 - Resonote input collection is covered by Task 3.
-- Read, subscription, and repair-compatible overlays are covered by Task 4.
+- Read, subscription, and repair-interoperable overlays are covered by Task 4.
 - Publish, reply, reaction, and mention audience routing are covered by Task 5.
 - Public surface and plugin closure are covered by Task 6.
 - Existing capability queue and lifecycle behavior remain untouched except for using selected relays as existing session options.

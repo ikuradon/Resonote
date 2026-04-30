@@ -33,7 +33,7 @@
 - Modify: `src/shared/nostr/pending-publishes.ts`
   - Replace standalone `idb` database with Dexie pending publish helpers.
 - Modify: `src/shared/nostr/query.ts`
-  - Pass the Dexie event DB bridge into package compatibility fetch helpers.
+  - Pass the Dexie event DB bridge into package interop fetch helpers.
 - Modify: `packages/resonote/src/event-coordinator.ts`
   - Accept `materializerQueue`, `relayGateway`, and real quarantine dependencies.
   - Route materialization through the queue.
@@ -61,6 +61,7 @@
 ### Task 1: Add Strict Closure Guard
 
 **Files:**
+
 - Create: `scripts/check-auftakt-strict-closure.ts`
 - Create: `scripts/check-auftakt-strict-closure.test.ts`
 - Modify: `package.json`
@@ -119,7 +120,10 @@ describe('checkStrictClosure', () => {
 
   it('requires queue and gateway production references', () => {
     const result = checkStrictClosure([
-      file('packages/resonote/src/event-coordinator.ts', 'export function createEventCoordinator() {}'),
+      file(
+        'packages/resonote/src/event-coordinator.ts',
+        'export function createEventCoordinator() {}'
+      ),
       file('packages/resonote/src/runtime.ts', 'export const runtime = {};')
     ]);
 
@@ -192,7 +196,7 @@ export function checkStrictClosure(files: readonly StrictClosureFile[]): StrictC
       errors.push('packages/adapter-indexeddb exists');
       continue;
     }
-    if (file.text.includes("@auftakt/adapter-indexeddb")) {
+    if (file.text.includes('@auftakt/adapter-indexeddb')) {
       errors.push(`${file.path} imports @auftakt/adapter-indexeddb`);
     }
     if (
@@ -207,10 +211,7 @@ export function checkStrictClosure(files: readonly StrictClosureFile[]): StrictC
     ) {
       errors.push(`${file.path} exposes raw packet.event to public results`);
     }
-    if (
-      file.path === 'src/shared/nostr/pending-publishes.ts' &&
-      file.text.includes("from 'idb'")
-    ) {
+    if (file.path === 'src/shared/nostr/pending-publishes.ts' && file.text.includes("from 'idb'")) {
       errors.push('src/shared/nostr/pending-publishes.ts still uses standalone idb storage');
     }
   }
@@ -305,6 +306,7 @@ Expected: commit succeeds.
 ### Task 2: Extend Dexie Store to Cover App Runtime Methods
 
 **Files:**
+
 - Modify: `packages/adapter-dexie/src/index.ts`
 - Modify: `packages/adapter-dexie/src/schema.ts`
 - Create: `packages/adapter-dexie/src/app-bridge.contract.test.ts`
@@ -319,7 +321,12 @@ import { describe, expect, it } from 'vitest';
 
 import { createDexieEventStore } from './index.js';
 
-const event = (id: string, overrides: Partial<Parameters<Awaited<ReturnType<typeof createDexieEventStore>>['putEvent']>[0]> = {}) => ({
+const event = (
+  id: string,
+  overrides: Partial<
+    Parameters<Awaited<ReturnType<typeof createDexieEventStore>>['putEvent']>[0]
+  > = {}
+) => ({
   id,
   pubkey: overrides.pubkey ?? 'alice',
   created_at: overrides.created_at ?? 1,
@@ -339,7 +346,9 @@ describe('Dexie app bridge contract', () => {
 
     await expect(store.getByPubkeyAndKind('alice', 0)).resolves.toMatchObject({ id: 'profile' });
     await expect(store.getManyByPubkeysAndKind(['alice', 'bob'], 0)).resolves.toHaveLength(2);
-    await expect(store.getByReplaceKey('alice', 39701, 'https://example.com')).resolves.toMatchObject({
+    await expect(
+      store.getByReplaceKey('alice', 39701, 'https://example.com')
+    ).resolves.toMatchObject({
       id: 'bookmark'
     });
     await expect(store.getByTagValue('e:root', 1111)).resolves.toEqual([
@@ -390,7 +399,12 @@ const pendingEvent = {
 describe('Dexie pending publishes', () => {
   it('adds, drains, and removes confirmed pending publishes', async () => {
     const store = await createDexieEventStore({ dbName: `dexie-pending-${Date.now()}` });
-    await store.putPendingPublish({ id: pendingEvent.id, status: 'retrying', created_at: 10, event: pendingEvent });
+    await store.putPendingPublish({
+      id: pendingEvent.id,
+      status: 'retrying',
+      created_at: 10,
+      event: pendingEvent
+    });
 
     const deliver = vi.fn(async () => 'confirmed' as const);
     const result = await store.drainPendingPublishes(deliver);
@@ -405,7 +419,12 @@ describe('Dexie pending publishes', () => {
 
   it('keeps retrying pending publishes in Dexie', async () => {
     const store = await createDexieEventStore({ dbName: `dexie-pending-retry-${Date.now()}` });
-    await store.putPendingPublish({ id: pendingEvent.id, status: 'retrying', created_at: 10, event: pendingEvent });
+    await store.putPendingPublish({
+      id: pendingEvent.id,
+      status: 'retrying',
+      created_at: 10,
+      event: pendingEvent
+    });
 
     const result = await store.drainPendingPublishes(async () => 'retrying' as const);
 
@@ -579,6 +598,7 @@ Expected: commit succeeds.
 ### Task 3: Cut Shared Event DB and Pending Publishes to Dexie
 
 **Files:**
+
 - Modify: `src/shared/nostr/event-db.ts`
 - Modify: `src/shared/nostr/pending-publishes.ts`
 - Modify: `src/shared/nostr/cached-query.svelte.ts`
@@ -594,8 +614,8 @@ it('uses a Dexie-backed event db bridge', async () => {
     fs.readFile(new URL('./event-db.ts', import.meta.url), 'utf8')
   );
 
-  expect(source).toContain("@auftakt/adapter-dexie");
-  expect(source).not.toContain("@auftakt/adapter-indexeddb");
+  expect(source).toContain('@auftakt/adapter-dexie');
+  expect(source).not.toContain('@auftakt/adapter-indexeddb');
 });
 ```
 
@@ -638,26 +658,26 @@ export function resetEventsDB(): void {
 }
 ```
 
-- [ ] **Step 4: Pass the event DB into query compatibility helpers**
+- [ ] **Step 4: Pass the event DB into query interop helpers**
 
 Modify `src/shared/nostr/query.ts`:
 
 ```ts
-import { createRxBackwardReq } from '@auftakt/core';
+import { createBackwardReq } from '@auftakt/core';
 
 import { fetchBackwardEvents as fetchBackwardEventsHelper } from '../../../packages/resonote/src/runtime.js';
-import { getRxNostr } from './client.js';
+import { getRelaySession } from './client.js';
 import { getEventsDB } from './event-db.js';
 ```
 
 Change the helper call in `fetchBackwardEvents()`:
 
 ```ts
-  return fetchBackwardEventsHelper<TEvent>(
-    { getRxNostr, createRxBackwardReq, getEventsDB },
-    filters,
-    options
-  );
+return fetchBackwardEventsHelper<TEvent>(
+  { getRelaySession, createBackwardReq, getEventsDB },
+  filters,
+  options
+);
 ```
 
 - [ ] **Step 5: Replace pending publish bridge**
@@ -683,7 +703,11 @@ export interface PendingEvent extends NostrEvent {
 }
 
 export interface PendingDrainResult {
-  readonly emissions: Array<{ readonly subjectId: string; readonly state: string; readonly reason: string }>;
+  readonly emissions: Array<{
+    readonly subjectId: string;
+    readonly state: string;
+    readonly reason: string;
+  }>;
   readonly settledCount: number;
   readonly retryingCount: number;
 }
@@ -775,6 +799,7 @@ Expected: commit succeeds.
 ### Task 4: Wire MaterializerQueue and RelayGateway Into Coordinator
 
 **Files:**
+
 - Modify: `packages/resonote/src/event-coordinator.ts`
 - Modify: `packages/resonote/src/event-coordinator.contract.test.ts`
 - Modify: `packages/resonote/src/runtime.ts`
@@ -819,7 +844,9 @@ it('uses relay gateway for non-cacheOnly reads', async () => {
   const relayGateway = {
     verify: vi.fn(async () => ({
       strategy: 'fallback-req' as const,
-      events: [{ id: 'remote', pubkey: 'p1', created_at: 1, kind: 1, tags: [], content: '', sig: 'sig' }]
+      events: [
+        { id: 'remote', pubkey: 'p1', created_at: 1, kind: 1, tags: [], content: '', sig: 'sig' }
+      ]
     }))
   };
   const coordinator = createEventCoordinator({
@@ -936,13 +963,13 @@ In `materializeFromRelay()`, replace direct store write with queued work:
 In `read()`, replace `deps.relay.verify()` call with:
 
 ```ts
-      if (options.policy !== 'cacheOnly') {
-        if (deps.relayGateway) {
-          void deps.relayGateway.verify(filters, { reason: options.policy });
-        } else {
-          void deps.relay.verify(filters, { reason: options.policy });
-        }
-      }
+if (options.policy !== 'cacheOnly') {
+  if (deps.relayGateway) {
+    void deps.relayGateway.verify(filters, { reason: options.policy });
+  } else {
+    void deps.relay.verify(filters, { reason: options.policy });
+  }
+}
 ```
 
 - [ ] **Step 6: Connect production runtime imports**
@@ -957,57 +984,57 @@ import { createRelayGateway } from './relay-gateway.js';
 Inside `coordinatorFetchById()`, pass production dependencies:
 
 ```ts
-  const gateway = createRelayGateway({
-    requestNegentropySync: async ({ relayUrl, filter, initialMessageHex }) => {
-      const session = (await runtime.getRxNostr()) as Partial<NegentropySessionRuntime>;
-      if (typeof session.requestNegentropySync !== 'function') {
-        return { capability: 'unsupported' as const, reason: 'missing-negentropy' };
-      }
-      return session.requestNegentropySync({ relayUrl, filter, initialMessageHex });
-    },
-    fetchByReq: async (filters, options) =>
-      fetchRepairEventsFromRelay(
-        runtime as ResonoteRuntime,
-        filters,
-        options.relayUrl,
-        5_000,
-        'coordinator:gateway'
-      ),
-    listLocalRefs: async (filters) => {
-      const db = await runtime.getEventsDB();
-      return filterNegentropyEventRefs(await db.listNegentropyEventRefs(), filters);
+const gateway = createRelayGateway({
+  requestNegentropySync: async ({ relayUrl, filter, initialMessageHex }) => {
+    const session = (await runtime.getRelaySession()) as Partial<NegentropySessionRuntime>;
+    if (typeof session.requestNegentropySync !== 'function') {
+      return { capability: 'unsupported' as const, reason: 'missing-negentropy' };
     }
-  });
+    return session.requestNegentropySync({ relayUrl, filter, initialMessageHex });
+  },
+  fetchByReq: async (filters, options) =>
+    fetchRepairEventsFromRelay(
+      runtime as ResonoteRuntime,
+      filters,
+      options.relayUrl,
+      5_000,
+      'coordinator:gateway'
+    ),
+  listLocalRefs: async (filters) => {
+    const db = await runtime.getEventsDB();
+    return filterNegentropyEventRefs(await db.listNegentropyEventRefs(), filters);
+  }
+});
 
-  const coordinator = createEventCoordinator({
-    materializerQueue: createMaterializerQueue(),
-    relayGateway: {
-      verify: async (filters, _options) => {
-        const session = (await runtime.getRxNostr()) as Partial<{
-          getDefaultRelays(): Record<string, { read: boolean }>;
-        }>;
-        const relays = Object.entries(session.getDefaultRelays?.() ?? {})
-          .filter(([, config]) => config.read)
-          .map(([relayUrl]) => relayUrl);
-        const results = await Promise.all(
-          relays.map((relayUrl) => gateway.verify(filters, { relayUrl }))
-        );
-        return { events: results.flatMap((result) => result.events as StoredEvent[]) };
-      }
-    },
-    store: {
-      getById: async (id) => {
-        const cached = readCachedById(state, id);
-        if (cached.hit) return cached.event;
-        const db = await runtime.getEventsDB();
-        return db.getById(id);
-      },
-      putWithReconcile: async (event) => materializeIncomingEvent(runtime, event)
-    },
-    relay: {
-      verify: async (filters) => verifyByIdFilters(runtime, state, filters)
+const coordinator = createEventCoordinator({
+  materializerQueue: createMaterializerQueue(),
+  relayGateway: {
+    verify: async (filters, _options) => {
+      const session = (await runtime.getRelaySession()) as Partial<{
+        getDefaultRelays(): Record<string, { read: boolean }>;
+      }>;
+      const relays = Object.entries(session.getDefaultRelays?.() ?? {})
+        .filter(([, config]) => config.read)
+        .map(([relayUrl]) => relayUrl);
+      const results = await Promise.all(
+        relays.map((relayUrl) => gateway.verify(filters, { relayUrl }))
+      );
+      return { events: results.flatMap((result) => result.events as StoredEvent[]) };
     }
-  });
+  },
+  store: {
+    getById: async (id) => {
+      const cached = readCachedById(state, id);
+      if (cached.hit) return cached.event;
+      const db = await runtime.getEventsDB();
+      return db.getById(id);
+    },
+    putWithReconcile: async (event) => materializeIncomingEvent(runtime, event)
+  },
+  relay: {
+    verify: async (filters) => verifyByIdFilters(runtime, state, filters)
+  }
+});
 ```
 
 - [ ] **Step 7: Run coordinator tests**
@@ -1046,6 +1073,7 @@ Expected: commit succeeds.
 ### Task 5: Remove Raw Relay Event Public Bypasses and Persist Quarantine
 
 **Files:**
+
 - Modify: `packages/resonote/src/runtime.ts`
 - Modify: `packages/resonote/src/event-ingress.contract.test.ts`
 - Modify: `src/shared/nostr/query.ts`
@@ -1057,7 +1085,7 @@ Expected: commit succeeds.
 Append to `packages/resonote/src/event-ingress.contract.test.ts`:
 
 ```ts
-it('runtime source does not expose raw packet events from compatibility fetches', async () => {
+it('runtime source does not expose raw packet events from interop fetches', async () => {
   const source = await import('node:fs/promises').then((fs) =>
     fs.readFile(new URL('./runtime.ts', import.meta.url), 'utf8')
   );
@@ -1118,23 +1146,23 @@ Extend `CoordinatorReadRuntime.getEventsDB()` return type with:
 In `createLatestReadDriver()` and `fetchAndCacheByIdFromRelay()`, replace:
 
 ```ts
-quarantine: async () => {}
+quarantine: async () => {};
 ```
 
 with:
 
 ```ts
-quarantine: (record) => quarantineRelayEvent(runtime, record)
+quarantine: (record) => quarantineRelayEvent(runtime, record);
 ```
 
-- [ ] **Step 5: Materialize compatibility backward fetches**
+- [ ] **Step 5: Materialize interop backward fetches**
 
-In `packages/resonote/src/runtime.ts`, change `BackwardFetchRuntime` so compatibility fetches always have a durable store:
+In `packages/resonote/src/runtime.ts`, change `BackwardFetchRuntime` so interop fetches always have a durable store:
 
 ```ts
 interface BackwardFetchRuntime extends Pick<CoordinatorReadRuntime, 'getEventsDB'> {
-  getRxNostr(): Promise<NegentropySessionRuntime>;
-  createRxBackwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): {
+  getRelaySession(): Promise<NegentropySessionRuntime>;
+  createBackwardReq(options?: { requestKey?: RequestKey; coalescingScope?: string }): {
     emit(input: unknown): void;
     over(): void;
   };
@@ -1172,19 +1200,19 @@ with:
 At the top of the Promise callback, add:
 
 ```ts
-    const pendingMaterializations = new Set<Promise<void>>();
+const pendingMaterializations = new Set<Promise<void>>();
 ```
 
 In `settleResolve()` and `settleReject()`, wait for pending materialization:
 
 ```ts
-      void Promise.allSettled([...pendingMaterializations]).then(() => resolve(events));
+void Promise.allSettled([...pendingMaterializations]).then(() => resolve(events));
 ```
 
 and:
 
 ```ts
-      void Promise.allSettled([...pendingMaterializations]).then(() => reject(error));
+void Promise.allSettled([...pendingMaterializations]).then(() => reject(error));
 ```
 
 - [ ] **Step 6: Cut direct latest relay reads through materialized query helper**
@@ -1201,15 +1229,13 @@ export async function fetchLatestEvent(
     [{ kinds: [kind], authors: [pubkey], limit: 1 }],
     { timeoutMs: 10_000 }
   );
-  return event
-    ? { tags: event.tags, content: event.content, created_at: event.created_at }
-    : null;
+  return event ? { tags: event.tags, content: event.content, created_at: event.created_at } : null;
 }
 ```
 
 - [ ] **Step 7: Cut relay config fetch through materialized latest helper**
 
-In `src/shared/nostr/relays-config.ts`, replace direct `rxNostr.use(req)` fetching with:
+In `src/shared/nostr/relays-config.ts`, replace direct `relaySession.use(req)` fetching with:
 
 ```ts
 const { fetchLatestEvent, setDefaultRelays } = await import('$shared/nostr/client.js');
@@ -1218,7 +1244,7 @@ const relayTags = latest?.tags ?? [];
 ```
 
 Remove the now-unused imports and local variables for `createRuntimeRequestKey`,
-`createRxBackwardReq`, `getRxNostr`, `rxNostr`, and `req`. Keep the existing
+`createBackwardReq`, `getRelaySession`, `relaySession`, and `req`. Keep the existing
 fallback/default relay behavior after `relayTags` is computed.
 
 - [ ] **Step 8: Run targeted tests**
@@ -1257,6 +1283,7 @@ Expected: commit succeeds.
 ### Task 6: Record Publish Relay Hints Through Dexie
 
 **Files:**
+
 - Modify: `packages/resonote/src/runtime.ts`
 - Modify: `packages/resonote/src/relay-hints.contract.test.ts`
 
@@ -1356,18 +1383,18 @@ export async function publishSignedEventWithOfflineFallback(
 After successful `castSigned(event)`, add:
 
 ```ts
-    const pending = toRetryableSignedEvent(event);
-    if (pending && runtime.observePublishAcks && hints) {
-      await runtime.observePublishAcks(pending, async (packet) => {
-        if (!packet.ok || packet.eventId !== pending.id) return;
-        await hints.recordRelayHint({
-          eventId: pending.id,
-          relayUrl: packet.relayUrl,
-          source: 'published',
-          lastSeenAt: Math.floor(Date.now() / 1000)
-        });
-      });
-    }
+const pending = toRetryableSignedEvent(event);
+if (pending && runtime.observePublishAcks && hints) {
+  await runtime.observePublishAcks(pending, async (packet) => {
+    if (!packet.ok || packet.eventId !== pending.id) return;
+    await hints.recordRelayHint({
+      eventId: pending.id,
+      relayUrl: packet.relayUrl,
+      source: 'published',
+      lastSeenAt: Math.floor(Date.now() / 1000)
+    });
+  });
+}
 ```
 
 Keep the existing offline fallback in the `catch` branch.
@@ -1419,6 +1446,7 @@ Expected: commit succeeds.
 ### Task 7: Delete adapter-indexeddb and Update Package References
 
 **Files:**
+
 - Delete: `packages/adapter-indexeddb/`
 - Modify: `package.json`
 - Modify: `packages/AGENTS.md`
@@ -1555,6 +1583,7 @@ Expected: commit succeeds.
 ### Task 8: Final Strict Closure Verification
 
 **Files:**
+
 - Review all changed files.
 
 - [ ] **Step 1: Verify no legacy adapter references remain**

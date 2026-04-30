@@ -14,7 +14,7 @@
 
 - Create `packages/core/src/relay-capability.ts`: capability types, effective-limit calculation, CLOSED reason parser, normalized snapshot helpers.
 - Modify `packages/core/src/index.ts`: export capability types and helpers.
-- Modify `packages/core/src/relay-request.ts`: use `maxFilters` naming while preserving current `maxFiltersPerShard` input compatibility.
+- Modify `packages/core/src/relay-request.ts`: use `maxFilters` naming while preserving current `maxFiltersPerShard` input interop.
 - Modify `packages/core/src/relay-session.ts`: accept live relay capability updates, queue shards by `maxSubscriptions`, observe queue state, learn from `CLOSED`, deduplicate event ids per logical consumer.
 - Modify `packages/core/src/relay-session.contract.test.ts`: prove queueing, learning, replay, and duplicate suppression.
 - Create `packages/core/src/relay-capability.contract.test.ts`: prove effective limit calculation and CLOSED reason parsing.
@@ -436,7 +436,7 @@ Append these tests inside the existing `describe('relay replay request identity 
 
 ```ts
 it('queues backward shards by max_subscriptions and releases them after EOSE', async () => {
-  const session = createRxNostrSession({
+  const session = createRelaySession({
     defaultRelays: [RELAY_URL],
     eoseTimeout: 100,
     requestOptimizer: {
@@ -453,7 +453,7 @@ it('queues backward shards by max_subscriptions and releases them after EOSE', a
       }
     }
   });
-  const req = createRxBackwardReq({
+  const req = createBackwardReq({
     requestKey: createRuntimeRequestKey({
       mode: 'backward',
       scope: 'contract:max-subscriptions-queue',
@@ -498,7 +498,7 @@ it('queues backward shards by max_subscriptions and releases them after EOSE', a
 });
 
 it('publishes capability packets when shard queue state changes', async () => {
-  const session = createRxNostrSession({
+  const session = createRelaySession({
     defaultRelays: [RELAY_URL],
     eoseTimeout: 100,
     requestOptimizer: {
@@ -526,7 +526,7 @@ it('publishes capability packets when shard queue state changes', async () => {
       }
     }
   });
-  const req = createRxBackwardReq({
+  const req = createBackwardReq({
     requestKey: createRuntimeRequestKey({
       mode: 'backward',
       scope: 'contract:queue-observation',
@@ -583,7 +583,7 @@ import {
 } from './relay-capability.js';
 ```
 
-Update `RxNostr`:
+Update `RelaySession`:
 
 ```ts
   setRelayCapabilities(capabilities: Record<string, RelayExecutionCapability | undefined>): void;
@@ -922,7 +922,7 @@ Append these tests inside the existing relay session `describe` block:
 ```ts
 it('learns max_filters from CLOSED and reports the safety bound', async () => {
   const learned: unknown[] = [];
-  const session = createRxNostrSession({
+  const session = createRelaySession({
     defaultRelays: [RELAY_URL],
     eoseTimeout: 100,
     requestOptimizer: {
@@ -930,7 +930,7 @@ it('learns max_filters from CLOSED and reports the safety bound', async () => {
       onCapabilityLearned: (event) => learned.push(event)
     }
   });
-  const req = createRxBackwardReq({
+  const req = createBackwardReq({
     requestKey: createRuntimeRequestKey({
       mode: 'backward',
       scope: 'contract:learn-max-filters',
@@ -963,7 +963,7 @@ it('learns max_filters from CLOSED and reports the safety bound', async () => {
 });
 
 it('emits a duplicate event id once per logical consumer across shards', async () => {
-  const session = createRxNostrSession({
+  const session = createRelaySession({
     defaultRelays: [RELAY_URL],
     eoseTimeout: 100,
     requestOptimizer: {
@@ -980,7 +980,7 @@ it('emits a duplicate event id once per logical consumer across shards', async (
       }
     }
   });
-  const req = createRxForwardReq({
+  const req = createForwardReq({
     requestKey: createRuntimeRequestKey({
       mode: 'forward',
       scope: 'contract:dedup-shards',
@@ -1876,7 +1876,7 @@ function createCapabilityRuntime() {
         }
       };
     },
-    async getRxNostr() {
+    async getRelaySession() {
       return {
         setRelayCapabilities(next: Record<string, RelayExecutionCapability | undefined>) {
           Object.assign(capabilities, next);
@@ -1908,10 +1908,10 @@ function createCapabilityRuntime() {
         }
       };
     },
-    createRxBackwardReq() {
+    createBackwardReq() {
       return { emit() {}, over() {} };
     },
-    createRxForwardReq() {
+    createForwardReq() {
       return { emit() {}, over() {} };
     },
     uniq() {
@@ -2143,7 +2143,7 @@ async function applyRelayCapabilitiesToRuntime(
   urls: readonly string[]
 ): Promise<void> {
   const subscribedSessions = getCapabilitySubscribedSessions();
-  const session = (await runtime.getRxNostr()) as Partial<{
+  const session = (await runtime.getRelaySession()) as Partial<{
     setRelayCapabilities(capabilities: Record<string, RelayExecutionCapability | undefined>): void;
     setRelayCapabilityLearningHandler(
       handler: ((event: RelayCapabilityLearningEvent) => void) | null
@@ -2497,7 +2497,7 @@ If no docs or guard update was required, do not create an empty commit.
 - Learned safety bounds retained indefinitely: Task 1 model tests, Task 4 Dexie tests, Task 5 registry tests.
 - NIP-11 failure cannot loosen learned bounds: Task 1, Task 4, Task 5.
 - Effective strictest limit calculation: Task 1 and Task 2.
-- rx-nostr-style batch, shard, queue, coalesce: Task 2 and existing request identity tests.
+- relay-session-style batch, shard, queue, coalesce: Task 2 and existing request identity tests.
 - CLOSED error learning: Task 3 and Task 5.
 - Duplicate event-id emission suppression: Task 3.
 - Separate capability APIs with normalized fields only: Task 5, Task 6, Task 7.

@@ -184,7 +184,7 @@ pnpm run check:auftakt-migration -- --proof
 
 Entity Handles では追加で以下を確認する。
 
-- facade compatibility tests
+- facade interop tests
 - handle settlement state tests
 - deletion / missing / partial / repaired state tests
 - package-root closure tests

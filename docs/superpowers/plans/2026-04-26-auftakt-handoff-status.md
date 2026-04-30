@@ -322,7 +322,7 @@ Expected: a focused docs commit containing only the Entity Handles design.
 Use the `superpowers:writing-plans` skill with this prompt:
 
 ```text
-docs/superpowers/specs/2026-04-26-auftakt-entity-handles-design.md の implementation plan を作る。TDDで、package-root closure、facade compatibility、handle settlement state、deleted/missing/partial/repaired state、plugin isolation を個別タスクに分ける。実装は coordinator API に委譲し、raw relay/storage/materializer internals を公開しない。
+docs/superpowers/specs/2026-04-26-auftakt-entity-handles-design.md の implementation plan を作る。TDDで、package-root closure、facade interop、handle settlement state、deleted/missing/partial/repaired state、plugin isolation を個別タスクに分ける。実装は coordinator API に委譲し、raw relay/storage/materializer internals を公開しない。
 ```
 
 Expected: plan creation starts from the approved Entity Handles design.
@@ -339,7 +339,7 @@ addressable(coord) replacement/deletion visibility
 relaySet(subject) policy-backed relay selection
 relayHints(eventId) read-only durable hint exposure
 plugin isolation
-facade compatibility
+facade interop
 strict closure guard
 ```
 

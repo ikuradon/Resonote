@@ -54,12 +54,12 @@ Migration is additive and reversible during rollout:
    eligibility.
 
 Failed migration must not delete the old database. The app starts in degraded
-storage mode or continues with the old adapter when compatibility mode is still
+storage mode or continues with the old adapter when interop mode is still
 available.
 
 Rollback is allowed only before new writes become Dexie-only. Once the
 coordinator has accepted Dexie-only pending publishes, deletion index rows, or
-relay hints, rollback must either replay those rows into the compatibility store
+relay hints, rollback must either replay those rows into the interop store
 or remain on Dexie with a degraded warning.
 
 Migration also creates `pending_publishes` and `event_relay_hints`. Pending

@@ -54,7 +54,7 @@ state by creating fresh runtime objects.
 read functions and types.
 
 After this change, `src/shared/nostr/` no longer owns cached read public API.
-It keeps transport and compatibility helpers that are still active, such as
+It keeps transport and interop helpers that are still active, such as
 `query.ts`, `client.ts`, and `event-db.ts`.
 
 ## Data Flow
@@ -72,9 +72,9 @@ $shared/auftakt/resonote.js
 No production consumer may import `cached-query.svelte.ts` or `cached-query.ts`,
 because both files are removed.
 
-## Compatibility
+## Interop
 
-The public facade remains source-compatible for production consumers:
+The public facade remains source-interoperable for production consumers:
 
 - `$shared/auftakt/resonote.js` still exports `cachedFetchById`.
 - `$shared/auftakt/resonote.js` still exports `invalidateFetchByIdCache`.

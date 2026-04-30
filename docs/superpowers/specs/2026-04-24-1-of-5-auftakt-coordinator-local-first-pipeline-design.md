@@ -89,11 +89,11 @@ rules.
 External runtime APIs become coordinator operations:
 
 ```ts
-coordinator.read(filter, policy)
-coordinator.subscribe(filter, policy, handlers)
-coordinator.publish(event, policy)
-coordinator.repair(filter, relayPolicy)
-coordinator.registerPlugin(plugin)
+coordinator.read(filter, policy);
+coordinator.subscribe(filter, policy, handlers);
+coordinator.publish(event, policy);
+coordinator.repair(filter, relayPolicy);
+coordinator.registerPlugin(plugin);
 ```
 
 Read policy values:
@@ -106,7 +106,7 @@ Read policy values:
 - `repair`: use replay, backfill, or negentropy repair behavior.
 
 `src/shared/nostr/client.ts` and `src/shared/nostr/query.ts` become
-compatibility wrappers. They must not own relay access in the final state.
+interop wrappers. They must not own relay access in the final state.
 
 Package responsibilities:
 
@@ -290,7 +290,7 @@ subscriber state. A temporary verifier failure reports degraded relay/security
 settlement instead of emitting the raw event.
 
 Migration failure must not silently destroy the old IndexedDB data. The app must
-either keep using the old adapter in compatibility mode or fail startup with a
+either keep using the old adapter in interop mode or fail startup with a
 clear degraded storage state.
 
 ## Verification

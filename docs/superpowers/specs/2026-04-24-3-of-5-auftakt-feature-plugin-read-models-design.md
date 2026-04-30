@@ -46,10 +46,10 @@ This spec excludes:
 Plugins register capabilities through a versioned API:
 
 ```ts
-api.registerProjection(definition)
-api.registerReadModel(name, readModel)
-api.registerFlow(name, flow)
-api.registerCommand(name, command)
+api.registerProjection(definition);
+api.registerReadModel(name, readModel);
+api.registerFlow(name, flow);
+api.registerCommand(name, command);
 ```
 
 Plugins receive only coordinator-safe handles:
@@ -129,10 +129,11 @@ Coordinator/storage concerns, not plugins:
 - `quarantine`
 
 These are maintained by the coordinator/materializer and durable store from Spec
+
 1. They are used as inputs for reply/repost/reaction relay hints,
-nevent/naddr resolution, outbox/inbox routing, relay repair, and relay quality
-scoring. UI can read them through an optional read model, but plugin code does
-not own their writes.
+   nevent/naddr resolution, outbox/inbox routing, relay repair, and relay quality
+   scoring. UI can read them through an optional read model, but plugin code does
+   not own their writes.
 
 An optional `relayMetricsModel` may expose read-only relay quality and liveness
 data to features. It must not write relay hints, mutate capability records, or
