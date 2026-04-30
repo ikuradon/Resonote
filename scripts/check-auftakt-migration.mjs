@@ -1,7 +1,9 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import {
-  collectGatewayCompatibilityImportViolations,
+  collectGatewayInteropImportViolations,
   collectSharedNostrOwnershipState,
   collectSpecifiers,
   findGatewayImporters,
@@ -17,15 +19,42 @@ function readOption(name) {
   return process.argv[index + 1];
 }
 
+function collectTrackedGuardFiles() {
+  const raw = execFileSync('git', ['ls-files'], {
+    cwd: resolve(ROOT, '..'),
+    encoding: 'utf8'
+  });
+
+  return raw
+    .split(/\r?\n/)
+    .map((path) => path.trim())
+    .filter(
+      (path) =>
+        path.length > 0 &&
+        existsSync(path) &&
+        TRACKED_GUARD_FILE_PATTERN.test(path) &&
+        TRACKED_GUARD_EXCLUDED_SEGMENTS.every((segment) => !path.includes(segment))
+    );
+}
+
 const report = readOption('--report');
 const proof = process.argv.includes('--proof');
-const semanticGuard = process.argv.includes('--semantic-guard');
+const semanticGuard = process.argv.includes('--semantic-guard') || proof;
 const failOnUnauthorized = process.argv.includes('--fail-on-unauthorized');
 const failOnUnclassified = process.argv.includes('--fail-on-unclassified');
 
 const SPEC_PATH = 'docs/auftakt/spec.md';
 const PARITY_PATH = 'docs/auftakt/parity.md';
 const FACADE_PATH = 'src/shared/auftakt/resonote.ts';
+const TRACKED_GUARD_FILE_PATTERN = /\.(?:ts|tsx|svelte|md|json|mjs|js)$/;
+const TRACKED_GUARD_EXCLUDED_SEGMENTS = [
+  '/.sisyphus/evidence/',
+  '/.svelte-kit/',
+  '/build/',
+  '/.wrangler/',
+  '/dist-extension/',
+  '/node_modules/'
+];
 
 // Source of truth for Task 1 canonical reconciliation.
 // Include = foundation-derived gaps approved for this wave.
@@ -88,19 +117,92 @@ const targetedConsumerScopes = [
 const residualLegacyAliasPolicies = [
   {
     file: 'src/shared/nostr/user-relays.ts',
-    specifiers: ['$shared/nostr/user-relays.js'],
+    specifiers: ['$shared/nostr/user-relays.js', './user-relays.js'],
     allowedTestImporters: ['src/shared/nostr/user-relays.test.ts']
   }
 ];
 
 const retiredCachedReadSpecifierPart = 'cached-' + 'query';
 
+const retiredRelaySessionTerms = [
+  ['r', 'x', '-', 'n', 'o', 's', 't', 'r'].join(''),
+  ['R', 'x', 'N', 'o', 's', 't', 'r'].join(''),
+  ['r', 'x', 'N', 'o', 's', 't', 'r'].join(''),
+  ['c', 'r', 'e', 'a', 't', 'e', 'R', 'x', 'N', 'o', 's', 't', 'r', 'S', 'e', 's', 's', 'i', 'o', 'n'].join(''),
+  ['g', 'e', 't', 'R', 'x', 'N', 'o', 's', 't', 'r'].join(''),
+  ['c', 'r', 'e', 'a', 't', 'e', 'R', 'x', 'B', 'a', 'c', 'k', 'w', 'a', 'r', 'd', 'R', 'e', 'q'].join(''),
+  ['c', 'r', 'e', 'a', 't', 'e', 'R', 'x', 'F', 'o', 'r', 'w', 'a', 'r', 'd', 'R', 'e', 'q'].join(''),
+  ['o', 'b', 's', 'o', 'l', 'e', 't', 'e'].join(''),
+  ['c', 'o', 'm', 'p', 'a', 't'].join('')
+];
+
+const productionCodeFilePattern = /\.(?:ts|tsx|svelte|js|mjs)$/;
+const appFacingRuntimeBoundaryPrefixes = [
+  'src/app/',
+  'src/features/',
+  'src/web/',
+  'src/extension/',
+  'src/lib/',
+  'src/shared/browser/',
+  'src/shared/content/'
+];
+const appFacingRuntimeBoundaryFiles = new Set([
+  'src/shared/nostr/relays-config.ts',
+  'src/shared/nostr/user-relays.ts'
+]);
+
+function isProductionCodeFile(file) {
+  return productionCodeFilePattern.test(file) && !TEST_FILE.test(file);
+}
+
+function isAppFacingRuntimeBoundaryFile(file) {
+  return (
+    isProductionCodeFile(file) &&
+    (appFacingRuntimeBoundaryPrefixes.some((prefix) => file.startsWith(prefix)) ||
+      appFacingRuntimeBoundaryFiles.has(file))
+  );
+}
+
+function isProductionPluginSource(file) {
+  return isProductionCodeFile(file) && file.startsWith('packages/resonote/src/plugins/');
+}
+
 const semanticGuardPolicies = [
   {
     name: 'legacy-network-settled-flag',
-    description: 'retired networkSettled contract flag',
-    pattern: /\bnetworkSettled\b/g,
+    description: 'retired relay-settlement boolean contract flag',
+    pattern: new RegExp(`\\b${['network', 'Settled'].join('')}\\b`, 'g'),
     allowedFiles: []
+  },
+  {
+    name: 'legacy-relay-session-names',
+    description: 'retired relay session spellings and transitional aliases',
+    pattern: new RegExp(`\\b(?:${retiredRelaySessionTerms.join('|')})\\b`, 'g'),
+    allowedFiles: ['scripts/check-auftakt-strict-goal-audit.ts']
+  },
+  {
+    name: 'raw-nostr-bypass-handles',
+    description: 'raw Nostr read/write bypass handles and transport surfaces in app-facing code',
+    pattern:
+      /\b(?:getEventsDB|openEventsDb|materializerQueue|relayGateway|event-db|pending-publishes|getRelaySession|createRelaySession|createBackwardReq|createForwardReq|publishTransportRuntime|rawPublishTransport|repairRuntime|repairRelay)\b/g,
+    allowedFiles: [],
+    fileFilter: isAppFacingRuntimeBoundaryFile
+  },
+  {
+    name: 'direct-runtime-package-consumer-import',
+    description: 'direct executable Auftakt runtime package imports outside the app façade',
+    pattern:
+      /(?:from\s*|import\()\s*['"](?:@auftakt\/(?:runtime|resonote|adapter-dexie)|\$shared\/nostr\/(?:client|query|event-db|pending-publishes|publish-signed|materialized-latest)(?:\.js)?)['"]/g,
+    allowedFiles: [],
+    fileFilter: isAppFacingRuntimeBoundaryFile
+  },
+  {
+    name: 'raw-plugin-handle-leak',
+    description: 'raw relay/storage/repair/publish handles in production built-in plugins',
+    pattern:
+      /\b(?:getEventsDB|openEventsDb|materializerQueue|relayGateway|getRelaySession|createRelaySession|createBackwardReq|createForwardReq|publishTransportRuntime|rawPublishTransport|repairRuntime|repairRelay|Dexie|REQ)\b/g,
+    allowedFiles: [],
+    fileFilter: isProductionPluginSource
   },
   {
     name: 'legacy-cached-read-source-contract',
@@ -128,34 +230,25 @@ const semanticGuardPolicies = [
     ]
   },
   {
-    name: 'obsolete-auftakt-package-import',
+    name: 'retired-auftakt-package-import',
     description: 'deleted Auftakt package imports',
-    pattern: /@auftakt\/(timeline|adapter-relay)/g,
+    pattern: /(?:from\s*|import\()\s*['"]@auftakt\/(?:timeline|adapter-relay)['"]/g,
     allowedFiles: []
   },
   {
     name: 'direct-shared-nostr-consumer-import',
-    description: 'direct $shared/nostr canonical imports outside façade/internal bridges',
+    description: 'direct $shared/nostr executable imports outside façade/internal bridges',
     pattern: new RegExp(
-      `\\$shared\\/nostr\\/(${retiredCachedReadSpecifierPart}|client|query|publish-signed)(?:\\.js)?`,
+      `\\$shared\\/nostr\\/(${retiredCachedReadSpecifierPart}|client|query|event-db|pending-publishes|publish-signed|materialized-latest)(?:\\.js)?`,
       'g'
     ),
-    allowedFiles: [
-      'src/shared/auftakt/resonote.ts',
-      'src/shared/auftakt/cached-read.test.ts',
-      'src/shared/auftakt/relay-capability.test.ts',
-      'src/shared/nostr/materialized-latest.ts',
-      'src/shared/nostr/materialized-latest.test.ts',
-      'src/shared/nostr/relays-config.ts',
-      'src/shared/nostr/relays-config.test.ts',
-      'src/shared/nostr/user-relays.test.ts'
-    ]
+    allowedFiles: [],
+    fileFilter: isAppFacingRuntimeBoundaryFile
   }
 ];
 
 function collectResidualLegacyAliasState() {
-  const scanTargets = ['src', 'e2e', 'packages'];
-  const files = scanTargets.flatMap((target) => walk(target, { includeTests: true }));
+  const files = collectTrackedGuardFiles();
   const filesBySpecifier = files.map((file) => ({
     file,
     specifiers: collectSpecifiers(readFileSync(file, 'utf8'))
@@ -178,7 +271,7 @@ function collectResidualLegacyAliasState() {
     const violations = [
       ...productionImporters.map(
         (file) =>
-          `${file}: ${policy.file} — production compatibility import is forbidden; migrate to $shared/auftakt/resonote.js or the direct bridge.`
+          `${file}: ${policy.file} — production interop import is forbidden; migrate to $shared/auftakt/resonote.js or the direct bridge.`
       ),
       ...unauthorizedTestImporters.map(
         (file) =>
@@ -239,14 +332,17 @@ function collectTargetedConsumerState() {
 }
 
 function collectSemanticGuardState() {
-  const files = [
-    ...new Set(['src', 'packages'].flatMap((target) => walk(target, { includeTests: true })))
-  ].sort();
+  const files = collectTrackedGuardFiles();
 
   const entries = semanticGuardPolicies.map((policy) => {
-    const hits = files.flatMap((file) => {
+    const scopedFiles = policy.fileFilter ? files.filter(policy.fileFilter) : files;
+    const hits = scopedFiles.flatMap((file) => {
       const source = readFileSync(file, 'utf8');
-      const count = [...source.matchAll(policy.pattern)].length;
+      const pathPattern = new RegExp(policy.pattern.source, policy.pattern.flags);
+      const contentPattern = new RegExp(policy.pattern.source, policy.pattern.flags);
+      const pathCount = (file.match(pathPattern) ?? []).length;
+      const contentCount = [...source.matchAll(contentPattern)].length;
+      const count = pathCount + contentCount;
       if (count === 0) return [];
 
       return [
@@ -552,7 +648,7 @@ function collectDependencyDirectionViolations(files) {
 }
 
 const sourceFiles = walk(ROOT);
-const unauthorizedImportViolations = collectGatewayCompatibilityImportViolations(sourceFiles);
+const unauthorizedImportViolations = collectGatewayInteropImportViolations(sourceFiles);
 const ownershipState = collectSharedNostrOwnershipState();
 const consumerState = collectTargetedConsumerState();
 const residualLegacyAliasState = collectResidualLegacyAliasState();

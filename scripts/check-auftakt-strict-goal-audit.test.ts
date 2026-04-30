@@ -25,7 +25,7 @@ Missing
 
 ## Seven Goal Matrix
 
-rx-nostr-like reconnect and REQ optimization
+relay-session-like reconnect and REQ optimization
 NDK-like API convenience
 strfry-like local-first event processing
 NIP compliance
@@ -199,7 +199,7 @@ describe('checkStrictGoalAudit', () => {
 Ordinary reads are not uniformly defined as negentropy-first repair with REQ fallback.
 The API is ergonomic for current Resonote flows, not a broad NDK-style model system.
 Adaptive reconnect/read policy beyond the current coordinator gateway behavior remains guarded as future transport policy work.
-| rx-nostr-like reconnect and REQ optimization | \`Scoped-Satisfied\` | stale |
+| relay-session-like reconnect and REQ optimization | \`Scoped-Satisfied\` | stale |
 | strfry-like local-first event processing | \`Partial\` | stale |
 | Offline incremental and kind:5 | \`Partial\` | stale |
 | NDK-like API convenience | \`Scoped-Satisfied\` | stale |
@@ -216,7 +216,7 @@ Adaptive reconnect/read policy beyond the current coordinator gateway behavior r
           '厳格な ordinary-read negentropy-first 化は strict gap audit で後続候補として扱う。',
           'adaptive reconnect/read policy は strict gap audit で後続候補として扱う。',
           '広範な NDK-style model system は strict gap audit で後続候補として扱う。',
-          '| rx-nostr級 reconnect + REQ optimization | Scoped-Satisfied | stale |',
+          '| relay-session級 reconnect + REQ optimization | Scoped-Satisfied | stale |',
           '| NDK級 API convenience | Scoped-Satisfied | stale |',
           '| minimal core + plugin-based higher features | Scoped-Satisfied | stale |',
           '| strfry的 local-first seamless processing | Partial | stale |',
@@ -227,7 +227,7 @@ Adaptive reconnect/read policy beyond the current coordinator gateway behavior r
 
     expect(result.ok).toBe(false);
     expect(result.errors).toContain(
-      `${STRICT_GOAL_AUDIT_PATH} must not leave rx-nostr-like reconnect and REQ optimization as Scoped-Satisfied after adaptive REQ proof closure`
+      `${STRICT_GOAL_AUDIT_PATH} must not leave relay-session-like reconnect and REQ optimization as Scoped-Satisfied after adaptive REQ proof closure`
     );
     expect(result.errors).toContain(
       `${STRICT_GOAL_AUDIT_PATH} must not mark strfry-like local-first event processing as Partial after coordinator/local-store proof closure`
@@ -251,7 +251,7 @@ Adaptive reconnect/read policy beyond the current coordinator gateway behavior r
       `${STRICT_GOAL_AUDIT_PATH} must not describe adaptive REQ optimization as a remaining future transport-policy gap after shard requeue proof closure`
     );
     expect(result.errors).toContain(
-      'docs/auftakt/spec.md must not leave rx-nostr級 reconnect + REQ optimization as Scoped-Satisfied after adaptive REQ proof closure'
+      'docs/auftakt/spec.md must not leave relay-session級 reconnect + REQ optimization as Scoped-Satisfied after adaptive REQ proof closure'
     );
     expect(result.errors).toContain(
       'docs/auftakt/spec.md must not mark strfry的 local-first seamless processing as Partial after strict proof closure'
@@ -470,9 +470,12 @@ Adaptive reconnect/read policy beyond the current coordinator gateway behavior r
     const result = checkStrictGoalAudit([
       file(STRICT_GOAL_AUDIT_PATH, validAuditText),
       ...validRequiredProofFiles,
-      file('packages/resonote/src/runtime.ts', 'const rxNostr = await runtime.getRxNostr();'),
-      file('src/shared/nostr/client.ts', 'createRxNostrSession({ defaultRelays: [] });'),
-      file('packages/runtime/src/relay-session.ts', 'export function createRxNostrSession() {}')
+      file(
+        'packages/resonote/src/runtime.ts',
+        'const relaySession = await runtime.getRelaySession();'
+      ),
+      file('src/shared/nostr/client.ts', 'createRelaySession({ defaultRelays: [] });'),
+      file('packages/runtime/src/relay-session.ts', 'export function createRelaySession() {}')
     ]);
 
     expect(result).toEqual({ ok: true, errors: [] });
@@ -482,12 +485,12 @@ Adaptive reconnect/read policy beyond the current coordinator gateway behavior r
     const result = checkStrictGoalAudit([
       file(STRICT_GOAL_AUDIT_PATH, validAuditText),
       ...validRequiredProofFiles,
-      file('src/features/comments/application/leaky-transport.ts', 'await getRxNostr();')
+      file('src/features/comments/application/leaky-transport.ts', 'await getRelaySession();')
     ]);
 
     expect(result.ok).toBe(false);
     expect(result.errors).toContain(
-      'src/features/comments/application/leaky-transport.ts uses raw transport token getRxNostr outside an approved coordinator transport zone'
+      'src/features/comments/application/leaky-transport.ts uses raw transport token getRelaySession outside an approved coordinator transport zone'
     );
   });
 
@@ -497,7 +500,7 @@ Adaptive reconnect/read policy beyond the current coordinator gateway behavior r
       ...validRequiredProofFiles,
       file(
         'packages/resonote/src/plugins/leaky-plugin.ts',
-        'api.registerFlow("leaky", { getEventsDB, createRxBackwardReq });'
+        'api.registerFlow("leaky", { getEventsDB, createBackwardReq });'
       )
     ]);
 
@@ -506,7 +509,7 @@ Adaptive reconnect/read policy beyond the current coordinator gateway behavior r
       'packages/resonote/src/plugins/leaky-plugin.ts exposes raw plugin handle getEventsDB'
     );
     expect(result.errors).toContain(
-      'packages/resonote/src/plugins/leaky-plugin.ts exposes raw plugin handle createRxBackwardReq'
+      'packages/resonote/src/plugins/leaky-plugin.ts exposes raw plugin handle createBackwardReq'
     );
   });
 

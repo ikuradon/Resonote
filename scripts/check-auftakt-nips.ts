@@ -24,7 +24,7 @@ export interface NipMatrix {
 
 const KNOWN_LEVELS = new Set([
   'public',
-  'public-compat',
+  'public-interop',
   'internal',
   'internal-only',
   'scoped-out'
@@ -154,6 +154,12 @@ const REQUIRED_NIPC7_OWNER = 'packages/core/src/nipC7-chats.ts';
 const REQUIRED_NIPC7_PROOF = 'packages/core/src/nipC7-chats.contract.test.ts';
 const REQUIRED_RELAY_SESSION_OWNER = 'packages/core/src/relay-session.ts';
 const REQUIRED_RELAY_SESSION_PROOF = 'packages/core/src/relay-session.contract.test.ts';
+const REQUIRED_NIP01_OWNER = 'packages/runtime/src/relay-session.ts';
+const REQUIRED_NIP01_PROOF = 'packages/runtime/src/relay-session.contract.test.ts';
+const REQUIRED_NIP11_OWNER = 'packages/runtime/src/relay-session.ts';
+const REQUIRED_NIP11_PROOF = 'packages/runtime/src/relay-session.contract.test.ts';
+const REQUIRED_NIP65_OWNER = 'src/shared/browser/relays.svelte.ts';
+const REQUIRED_NIP65_READ_PROOF = 'src/shared/browser/relays-fetch.test.ts';
 
 export function checkNipMatrix(
   inventory: NipInventory,
@@ -341,11 +347,20 @@ function validateMatrixEntry(entry: NipMatrixEntry): string[] {
   if (entry.nip === '03') {
     errors.push(...validateNip03MatrixEntry(entry));
   }
+  if (entry.nip === '01') {
+    errors.push(...validateNip01MatrixEntry(entry));
+  }
   if (entry.nip === '05') {
     errors.push(...validateNip05MatrixEntry(entry));
   }
   if (entry.nip === '07') {
     errors.push(...validateNip07MatrixEntry(entry));
+  }
+  if (entry.nip === '11') {
+    errors.push(...validateNip11MatrixEntry(entry));
+  }
+  if (entry.nip === '65') {
+    errors.push(...validateNip65MatrixEntry(entry));
   }
   if (entry.nip === '13') {
     errors.push(...validateNip13MatrixEntry(entry));
@@ -1911,6 +1926,69 @@ function validateNipC7MatrixEntry(entry: NipMatrixEntry): string[] {
   }
   if (/not-started|pending|chats pending/i.test(`${entry.status} ${entry.scopeNotes}`)) {
     errors.push('NIP-C7 scopeNotes must not use stale chat-pending wording');
+  }
+  return errors;
+}
+
+function validateNip01MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-01 must stay implemented after runtime REQ/replay coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP01_OWNER) {
+    errors.push(`NIP-01 owner must be ${REQUIRED_NIP01_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP01_PROOF) {
+    errors.push(`NIP-01 proof must be ${REQUIRED_NIP01_PROOF}`);
+  }
+  if (!/(REQ|replay|EOSE|OK)/i.test(entry.scopeNotes)) {
+    errors.push('NIP-01 scopeNotes must mention REQ, replay, EOSE, and OK coverage');
+  }
+  return errors;
+}
+
+function validateNip11MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-11 must stay implemented after runtime-only bounded support coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP11_OWNER) {
+    errors.push(`NIP-11 owner must be ${REQUIRED_NIP11_OWNER}`);
+  }
+  if (entry.proof !== REQUIRED_NIP11_PROOF) {
+    errors.push(`NIP-11 proof must be ${REQUIRED_NIP11_PROOF}`);
+  }
+  if (!/(request-limit|shard queueing|reconnect replay|runtime-only)/i.test(entry.scopeNotes)) {
+    errors.push(
+      'NIP-11 scopeNotes must mention request limits, shard queueing, reconnect replay, and runtime-only support'
+    );
+  }
+  if (/public relay metadata surface|broader NIP-11 discovery claim/i.test(entry.scopeNotes)) {
+    errors.push('NIP-11 scopeNotes must not claim public relay metadata discovery');
+  }
+  return errors;
+}
+
+function validateNip65MatrixEntry(entry: NipMatrixEntry): string[] {
+  const errors: string[] = [];
+  if (entry.status !== 'implemented') {
+    errors.push('NIP-65 must stay implemented after relay list read/write coverage');
+  }
+  if (entry.owner !== REQUIRED_NIP65_OWNER) {
+    errors.push(`NIP-65 owner must be ${REQUIRED_NIP65_OWNER}`);
+  }
+  if (!entry.proof.includes(REQUIRED_NIP65_READ_PROOF)) {
+    errors.push(`NIP-65 proof must include ${REQUIRED_NIP65_READ_PROOF}`);
+  }
+  if (
+    !/kind:10002/i.test(entry.scopeNotes) ||
+    !/kind:3/i.test(entry.scopeNotes) ||
+    !/read path/i.test(entry.scopeNotes) ||
+    !/write path/i.test(entry.scopeNotes)
+  ) {
+    errors.push(
+      'NIP-65 scopeNotes must mention kind:10002 read path, kind:3 fallback, and write path coverage'
+    );
   }
   return errors;
 }

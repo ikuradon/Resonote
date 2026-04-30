@@ -26,7 +26,7 @@ export const bannedImportPatterns = [
   }
 ];
 
-export const gatewayCompatibilityImport = '$shared/nostr/gateway.js';
+export const gatewayInteropImport = '$shared/nostr/gateway.js';
 
 export const retiredAuftaktInternalImports = [
   '$shared/auftakt/comment-subscriptions.js',
@@ -137,17 +137,17 @@ export function collectBannedImportViolations(sourceFiles) {
  * @param {string[]} sourceFiles
  * @returns {string[]}
  */
-export function collectGatewayCompatibilityImportViolations(sourceFiles) {
+export function collectGatewayInteropImportViolations(sourceFiles) {
   /** @type {string[]} */
   const violations = [];
 
   for (const file of sourceFiles) {
     const source = readFileSync(file, 'utf8');
     const specifiers = collectSpecifiers(source);
-    if (!specifiers.includes(gatewayCompatibilityImport)) continue;
+    if (!specifiers.includes(gatewayInteropImport)) continue;
 
     violations.push(
-      `${file}: ${gatewayCompatibilityImport} — gateway.ts has been retired; import the façade/bridge/private runtime module you actually need instead.`
+      `${file}: ${gatewayInteropImport} — gateway.ts has been retired; import the façade/bridge/private runtime module you actually need instead.`
     );
   }
 
@@ -186,7 +186,7 @@ export function findGatewayImporters(sourceFiles) {
   return sourceFiles
     .filter((file) => {
       const source = readFileSync(file, 'utf8');
-      return collectSpecifiers(source).includes(gatewayCompatibilityImport);
+      return collectSpecifiers(source).includes(gatewayInteropImport);
     })
     .sort();
 }

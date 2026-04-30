@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bannedImportPatterns,
   collectBannedImportViolations,
-  collectGatewayCompatibilityImportViolations,
+  collectGatewayInteropImportViolations,
   collectRetiredAuftaktInternalImportViolations,
   ROOT,
   walk
@@ -18,8 +18,8 @@ describe('structure guard', () => {
     expect(violations).toEqual([]);
   });
 
-  it('should keep the gateway compatibility surface out of app/runtime modules', () => {
-    const violations = collectGatewayCompatibilityImportViolations(sourceFiles);
+  it('should keep the gateway interop surface out of app/runtime modules', () => {
+    const violations = collectGatewayInteropImportViolations(sourceFiles);
     expect(violations).toEqual([]);
   });
 

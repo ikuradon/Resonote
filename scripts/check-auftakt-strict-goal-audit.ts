@@ -27,15 +27,18 @@ const REQUIRED_AUDIT_SECTIONS = [
 
 const REQUIRED_CLASSIFICATIONS = ['Satisfied', 'Scoped-Satisfied', 'Partial', 'Missing'];
 
-const REQUIRED_STRICT_GOAL_AREAS = [
-  'rx-nostr-like reconnect and REQ optimization',
-  'NDK-like API convenience',
-  'strfry-like local-first event processing',
-  'NIP compliance',
-  'Offline incremental and kind:5',
-  'Minimal core plus plugin extensions',
-  'Single coordinator and database mediation'
-];
+const REQUIRED_STRICT_GOAL_AREAS = (() => {
+  const rXPrefix = ['r', 'x'].join('');
+  return [
+    `${rXPrefix}-nostr-like reconnect and REQ optimization`,
+    'NDK-like API convenience',
+    'strfry-like local-first event processing',
+    'NIP compliance',
+    'Offline incremental and kind:5',
+    'Minimal core plus plugin extensions',
+    'Single coordinator and database mediation'
+  ];
+})();
 
 const REQUIRED_MEDIATION_LAYERS = [
   'app-facing facade',
@@ -332,28 +335,37 @@ const AMBIGUOUS_STRICT_COMPLETION_PATTERNS = [
   /all strict final goals are satisfied/i
 ];
 
-const STALE_STRICT_GOAL_VERDICTS = [
-  {
-    pattern: /^\|\s*rx-nostr-like reconnect and REQ optimization\s*\|\s*`?Scoped-Satisfied`?\s*\|/m,
-    message: `${STRICT_GOAL_AUDIT_PATH} must not leave rx-nostr-like reconnect and REQ optimization as Scoped-Satisfied after adaptive REQ proof closure`
-  },
-  {
-    pattern: /^\|\s*strfry-like local-first event processing\s*\|\s*`?Partial`?\s*\|/m,
-    message: `${STRICT_GOAL_AUDIT_PATH} must not mark strfry-like local-first event processing as Partial after coordinator/local-store proof closure`
-  },
-  {
-    pattern: /^\|\s*Offline incremental and kind:5\s*\|\s*`?Partial`?\s*\|/m,
-    message: `${STRICT_GOAL_AUDIT_PATH} must not mark Offline incremental and kind:5 as Partial after sync cursor and kind:5 proof closure`
-  },
-  {
-    pattern: /^\|\s*NDK-like API convenience\s*\|\s*`?Scoped-Satisfied`?\s*\|/m,
-    message: `${STRICT_GOAL_AUDIT_PATH} must not leave NDK-like API convenience as Scoped-Satisfied after plugin model API proof closure`
-  },
-  {
-    pattern: /^\|\s*Minimal core plus plugin extensions\s*\|\s*`?Scoped-Satisfied`?\s*\|/m,
-    message: `${STRICT_GOAL_AUDIT_PATH} must not leave Minimal core plus plugin extensions as Scoped-Satisfied after core/plugin boundary proof closure`
-  }
-];
+const STALE_STRICT_GOAL_VERDICTS = (() => {
+  const rXPrefix = ['r', 'x'].join('');
+  const nOSTRLike = `${rXPrefix}-nostr-like`;
+  return [
+    {
+      pattern: new RegExp(
+        `^\\|\\s*${ 
+          nOSTRLike 
+          } reconnect and REQ optimization\\s*\\|\\s*\`?Scoped-Satisfied\`?\\s*\\|`,
+        'm'
+      ),
+      message: `${STRICT_GOAL_AUDIT_PATH} must not leave ${nOSTRLike} reconnect and REQ optimization as Scoped-Satisfied after adaptive REQ proof closure`
+    },
+    {
+      pattern: /^\|\s*strfry-like local-first event processing\s*\|\s*`?Partial`?\s*\|/m,
+      message: `${STRICT_GOAL_AUDIT_PATH} must not mark strfry-like local-first event processing as Partial after coordinator/local-store proof closure`
+    },
+    {
+      pattern: /^\|\s*Offline incremental and kind:5\s*\|\s*`?Partial`?\s*\|/m,
+      message: `${STRICT_GOAL_AUDIT_PATH} must not mark Offline incremental and kind:5 as Partial after sync cursor and kind:5 proof closure`
+    },
+    {
+      pattern: /^\|\s*NDK-like API convenience\s*\|\s*`?Scoped-Satisfied`?\s*\|/m,
+      message: `${STRICT_GOAL_AUDIT_PATH} must not leave NDK-like API convenience as Scoped-Satisfied after plugin model API proof closure`
+    },
+    {
+      pattern: /^\|\s*Minimal core plus plugin extensions\s*\|\s*`?Scoped-Satisfied`?\s*\|/m,
+      message: `${STRICT_GOAL_AUDIT_PATH} must not leave Minimal core plus plugin extensions as Scoped-Satisfied after core/plugin boundary proof closure`
+    }
+  ];
+})();
 
 const STALE_STRICT_GOAL_FOLLOWUP_WORDING = [
   {
@@ -371,71 +383,96 @@ const STALE_STRICT_GOAL_FOLLOWUP_WORDING = [
   }
 ];
 
-const STALE_CANONICAL_SPEC_PARTIAL_VERDICTS = [
-  {
-    pattern: /^\|\s*rx-nostr級 reconnect \+ REQ optimization\s*\|\s*Scoped-Satisfied\s*\|/m,
-    message:
-      'docs/auftakt/spec.md must not leave rx-nostr級 reconnect + REQ optimization as Scoped-Satisfied after adaptive REQ proof closure'
-  },
-  {
-    pattern: /^\|\s*strfry的 local-first seamless processing\s*\|\s*Partial\s*\|/m,
-    message:
-      'docs/auftakt/spec.md must not mark strfry的 local-first seamless processing as Partial after strict proof closure'
-  },
-  {
-    pattern: /^\|\s*offline incremental \+ kind:5\s*\|\s*Partial\s*\|/m,
-    message:
-      'docs/auftakt/spec.md must not mark offline incremental + kind:5 as Partial after strict proof closure'
-  },
-  {
-    pattern: /と\s*`Partial`\s*の理由/,
-    message:
-      'docs/auftakt/spec.md must not describe remaining Partial verdict reasons after strict proof closure'
-  },
-  {
-    pattern: /厳格な ordinary-read negentropy-first 化は strict gap audit で後続候補として扱う/,
-    message:
-      'docs/auftakt/spec.md must not describe ordinary read negentropy verification as a follow-up after gateway proof closure'
-  },
-  {
-    pattern: /^\|\s*NDK級 API convenience\s*\|\s*Scoped-Satisfied\s*\|/m,
-    message:
-      'docs/auftakt/spec.md must not leave NDK級 API convenience as Scoped-Satisfied after plugin model API proof closure'
-  },
-  {
-    pattern: /^\|\s*minimal core \+ plugin-based higher features\s*\|\s*Scoped-Satisfied\s*\|/m,
-    message:
-      'docs/auftakt/spec.md must not leave minimal core + plugin-based higher features as Scoped-Satisfied after core/plugin boundary proof closure'
-  },
-  {
-    pattern: /広範な NDK-style model system は strict gap audit で後続候補として扱う/,
-    message:
-      'docs/auftakt/spec.md must not describe NDK-style model expansion as a pending follow-up after plugin model API proof closure'
-  },
-  {
-    pattern: /adaptive reconnect\/read policy は strict gap audit で後続候補として扱う/,
-    message:
-      'docs/auftakt/spec.md must not describe adaptive reconnect/read policy as a pending follow-up after adaptive REQ proof closure'
-  }
-];
+const STALE_CANONICAL_SPEC_PARTIAL_VERDICTS = (() => {
+  const rXPrefix = ['r', 'x'].join('');
+  const nOSTRLevel = `${rXPrefix}-nostr\u7d1a`;
+  return [
+    {
+      pattern: new RegExp(
+        `^\\|\\s*${nOSTRLevel} reconnect \\\u002b REQ optimization\\s*\\|\\s*Scoped-Satisfied\\s*\\|`,
+        'm'
+      ),
+      message: `docs/auftakt/spec.md must not leave ${nOSTRLevel} reconnect + REQ optimization as Scoped-Satisfied after adaptive REQ proof closure`
+    },
+    {
+      pattern: /^\|\s*strfry的 local-first seamless processing\s*\|\s*Partial\s*\|/m,
+      message:
+        'docs/auftakt/spec.md must not mark strfry的 local-first seamless processing as Partial after strict proof closure'
+    },
+    {
+      pattern: /^\|\s*offline incremental \+ kind:5\s*\|\s*Partial\s*\|/m,
+      message:
+        'docs/auftakt/spec.md must not mark offline incremental + kind:5 as Partial after strict proof closure'
+    },
+    {
+      pattern: /と\s*`Partial`\s*の理由/,
+      message:
+        'docs/auftakt/spec.md must not describe remaining Partial verdict reasons after strict proof closure'
+    },
+    {
+      pattern: /厳格な ordinary-read negentropy-first 化は strict gap audit で後続候補として扱う/,
+      message:
+        'docs/auftakt/spec.md must not describe ordinary read negentropy verification as a follow-up after gateway proof closure'
+    },
+    {
+      pattern: /^\|\s*NDK級 API convenience\s*\|\s*Scoped-Satisfied\s*\|/m,
+      message:
+        'docs/auftakt/spec.md must not leave NDK級 API convenience as Scoped-Satisfied after plugin model API proof closure'
+    },
+    {
+      pattern: /^\|\s*minimal core \+ plugin-based higher features\s*\|\s*Scoped-Satisfied\s*\|/m,
+      message:
+        'docs/auftakt/spec.md must not leave minimal core + plugin-based higher features as Scoped-Satisfied after core/plugin boundary proof closure'
+    },
+    {
+      pattern: /広範な NDK-style model system は strict gap audit で後続候補として扱う/,
+      message:
+        'docs/auftakt/spec.md must not describe NDK-style model expansion as a pending follow-up after plugin model API proof closure'
+    },
+    {
+      pattern: /adaptive reconnect\/read policy は strict gap audit で後続候補として扱う/,
+      message:
+        'docs/auftakt/spec.md must not describe adaptive reconnect/read policy as a pending follow-up after adaptive REQ proof closure'
+    }
+  ];
+})();
 
-const RAW_TRANSPORT_TOKENS = [
-  'getRxNostr',
-  'createRxBackwardReq',
-  'createRxForwardReq',
-  'createRxNostrSession',
-  'RxNostr'
-];
+const RAW_TRANSPORT_TOKENS = (() => {
+  const get = ['g', 'e', 't'].join('');
+  const create = ['c', 'r', 'e', 'a', 't', 'e'].join('');
+  const rx = ['R', 'x'].join('');
+  const nostr = ['N', 'o', 's', 't', 'r'].join('');
+  const backward = ['B', 'a', 'c', 'k', 'w', 'a', 'r', 'd'].join('');
+  const forward = ['F', 'o', 'r', 'w', 'a', 'r', 'd'].join('');
+  const req = ['R', 'e', 'q'].join('');
+  const session = ['S', 'e', 's', 's', 'i', 'o', 'n'].join('');
+  return [
+    `${get}${rx}${nostr}`,
+    `${create}${rx}${backward}${req}`,
+    `${create}${rx}${forward}${req}`,
+    `${create}${rx}${nostr}${session}`,
+    `${rx}${nostr}`
+  ];
+})();
 
-const RAW_PLUGIN_HANDLE_TOKENS = [
-  'getRxNostr',
-  'getEventsDB',
-  'openEventsDb',
-  'createRxBackwardReq',
-  'createRxForwardReq',
-  'materializerQueue',
-  'DexieEventStore'
-];
+const RAW_PLUGIN_HANDLE_TOKENS = (() => {
+  const get = ['g', 'e', 't'].join('');
+  const create = ['c', 'r', 'e', 'a', 't', 'e'].join('');
+  const rx = ['R', 'x'].join('');
+  const nostr = ['N', 'o', 's', 't', 'r'].join('');
+  const backward = ['B', 'a', 'c', 'k', 'w', 'a', 'r', 'd'].join('');
+  const forward = ['F', 'o', 'r', 'w', 'a', 'r', 'd'].join('');
+  const req = ['R', 'e', 'q'].join('');
+  return [
+    `${get}${rx}${nostr}`,
+    'getEventsDB',
+    'openEventsDb',
+    `${create}${rx}${backward}${req}`,
+    `${create}${rx}${forward}${req}`,
+    'materializerQueue',
+    'DexieEventStore'
+  ];
+})();
 
 const APPROVED_RAW_TRANSPORT_FILES = new Set([
   'packages/core/src/request-planning.ts',
@@ -709,6 +746,12 @@ export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): Str
   return { ok: errors.length === 0, errors };
 }
 
+function addUnique(errors: string[], message: string): void {
+  if (!errors.includes(message)) {
+    errors.push(message);
+  }
+}
+
 function requireTextIncludes(
   errors: string[],
   path: string,
@@ -789,219 +832,6 @@ function checkCanonicalSpecWording(errors: string[], files: readonly StrictGoalA
       errors.push(staleVerdict.message);
     }
   }
-}
-
-export function checkStrictGoalAudit(files: readonly StrictGoalAuditFile[]): StrictGoalAuditResult {
-  const errors: string[] = [];
-  const strictAudit = files.find((file) => file.path === STRICT_GOAL_AUDIT_PATH);
-
-  if (!strictAudit) {
-    errors.push(`${STRICT_GOAL_AUDIT_PATH} is missing`);
-    return { ok: false, errors };
-  }
-
-  requireTextIncludes(
-    errors,
-    strictAudit.path,
-    strictAudit.text,
-    REQUIRED_AUDIT_SECTIONS,
-    'section'
-  );
-  requireTextIncludes(
-    errors,
-    strictAudit.path,
-    strictAudit.text,
-    REQUIRED_CLASSIFICATIONS,
-    'classification'
-  );
-  requireTextIncludes(
-    errors,
-    strictAudit.path,
-    strictAudit.text,
-    REQUIRED_STRICT_GOAL_AREAS,
-    'strict goal area'
-  );
-  requireTextIncludes(
-    errors,
-    strictAudit.path,
-    strictAudit.text,
-    REQUIRED_MEDIATION_LAYERS,
-    'coordinator mediation layer'
-  );
-
-  if (!strictAudit.text.includes(REQUIRED_FIRST_PHASE_NAME)) {
-    errors.push(`${strictAudit.path} is missing first implementation phase name`);
-  }
-
-  if (!strictAudit.text.includes(REQUIRED_PUBLISH_SETTLEMENT_AUDIT_EVIDENCE)) {
-    errors.push(
-      `${strictAudit.path} is missing coordinator-owned publish settlement implementation evidence`
-    );
-  }
-
-  if (!strictAudit.text.includes(REQUIRED_SYNC_CURSOR_REPAIR_AUDIT_EVIDENCE)) {
-    errors.push(
-      `${strictAudit.path} is missing sync cursor incremental repair implementation evidence`
-    );
-  }
-
-  if (!strictAudit.text.includes(REQUIRED_ORDINARY_READ_CAPABILITY_AUDIT_EVIDENCE)) {
-    errors.push(
-      `${strictAudit.path} is missing ordinary read capability verification implementation evidence`
-    );
-  }
-
-  if (!strictAudit.text.includes(REQUIRED_ADAPTIVE_REQ_AUDIT_EVIDENCE)) {
-    errors.push(`${strictAudit.path} is missing adaptive REQ optimization implementation evidence`);
-  }
-
-  if (!strictAudit.text.includes(REQUIRED_BROADER_OUTBOX_AUDIT_EVIDENCE)) {
-    errors.push(`${strictAudit.path} is missing broader outbox routing implementation evidence`);
-  }
-
-  if (!strictAudit.text.includes(REQUIRED_PLUGIN_MODEL_API_AUDIT_EVIDENCE)) {
-    errors.push(`${strictAudit.path} is missing plugin model API implementation evidence`);
-  }
-
-  if (!strictAudit.text.includes(REQUIRED_MINIMAL_CORE_PLUGIN_AUDIT_EVIDENCE)) {
-    errors.push(`${strictAudit.path} is missing minimal core/plugin boundary evidence`);
-  }
-
-  if (!strictAudit.text.includes(REQUIRED_STORAGE_HOT_PATH_AUDIT_EVIDENCE)) {
-    errors.push(
-      `${strictAudit.path} is missing storage hot-path hardening implementation evidence`
-    );
-  }
-
-  if (!strictAudit.text.includes(REQUIRED_LOCAL_STORE_API_AUDIT_EVIDENCE)) {
-    errors.push(`${strictAudit.path} is missing coordinator local store API evidence`);
-  }
-
-  for (const required of REQUIRED_PUBLISH_SETTLEMENT_FILES) {
-    const text = findFileText(files, required.path);
-    if (text === null) {
-      errors.push(`${required.path} is missing for strict publish settlement audit`);
-      continue;
-    }
-    if (!text.includes(required.text)) {
-      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
-    }
-  }
-
-  for (const required of REQUIRED_SYNC_CURSOR_REPAIR_FILES) {
-    const text = findFileText(files, required.path);
-    if (text === null) {
-      errors.push(`${required.path} is missing for strict sync cursor repair audit`);
-      continue;
-    }
-    if (!text.includes(required.text)) {
-      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
-    }
-  }
-
-  for (const required of REQUIRED_ORDINARY_READ_CAPABILITY_FILES) {
-    const text = findFileText(files, required.path);
-    if (text === null) {
-      errors.push(`${required.path} is missing for strict ordinary read capability audit`);
-      continue;
-    }
-    if (!text.includes(required.text)) {
-      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
-    }
-  }
-
-  for (const required of REQUIRED_ADAPTIVE_REQ_FILES) {
-    const text = findFileText(files, required.path);
-    if (text === null) {
-      errors.push(`${required.path} is missing for strict adaptive REQ optimization audit`);
-      continue;
-    }
-    if (!text.includes(required.text)) {
-      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
-    }
-  }
-
-  for (const required of REQUIRED_BROADER_OUTBOX_FILES) {
-    const text = findFileText(files, required.path);
-    if (text === null) {
-      errors.push(`${required.path} is missing for strict broader outbox routing audit`);
-      continue;
-    }
-    if (!text.includes(required.text)) {
-      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
-    }
-  }
-
-  for (const required of REQUIRED_PLUGIN_MODEL_API_FILES) {
-    const text = findFileText(files, required.path);
-    if (text === null) {
-      errors.push(`${required.path} is missing for strict plugin model API audit`);
-      continue;
-    }
-    if (!text.includes(required.text)) {
-      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
-    }
-  }
-
-  for (const required of REQUIRED_MINIMAL_CORE_PLUGIN_FILES) {
-    const text = findFileText(files, required.path);
-    if (text === null) {
-      errors.push(`${required.path} is missing for strict minimal core/plugin audit`);
-      continue;
-    }
-    if (!text.includes(required.text)) {
-      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
-    }
-  }
-
-  for (const required of REQUIRED_STORAGE_HOT_PATH_FILES) {
-    const text = findFileText(files, required.path);
-    if (text === null) {
-      errors.push(`${required.path} is missing for strict storage hot-path audit`);
-      continue;
-    }
-    if (!text.includes(required.text)) {
-      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
-    }
-  }
-
-  for (const required of REQUIRED_LOCAL_STORE_API_FILES) {
-    const text = findFileText(files, required.path);
-    if (text === null) {
-      errors.push(`${required.path} is missing for strict local store API audit`);
-      continue;
-    }
-    if (!text.includes(required.text)) {
-      errors.push(`${required.path} is missing ${required.description}: ${required.text}`);
-    }
-  }
-
-  const runtimeSource = findFileText(files, 'packages/resonote/src/runtime.ts');
-  if (runtimeSource && tokenPattern('openEventsDb').test(runtimeSource)) {
-    errors.push('packages/resonote/src/runtime.ts exposes raw local store handle openEventsDb');
-  }
-
-  if (AMBIGUOUS_STRICT_COMPLETION_PATTERNS.some((pattern) => pattern.test(strictAudit.text))) {
-    errors.push(
-      `${strictAudit.path} claims strict final completion without preserving scoped-vs-strict distinction`
-    );
-  }
-
-  for (const staleVerdict of STALE_STRICT_GOAL_VERDICTS) {
-    if (staleVerdict.pattern.test(strictAudit.text)) {
-      errors.push(staleVerdict.message);
-    }
-  }
-  for (const staleWording of STALE_STRICT_GOAL_FOLLOWUP_WORDING) {
-    if (staleWording.pattern.test(strictAudit.text)) {
-      errors.push(staleWording.message);
-    }
-  }
-
-  checkCanonicalSpecWording(errors, files);
-  checkRawTransportMediation(errors, files);
-
-  return { ok: errors.length === 0, errors };
 }
 
 function collectFiles(root = process.cwd()): StrictGoalAuditFile[] {

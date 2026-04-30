@@ -1,7 +1,7 @@
 export const ownershipClassifications = [
   'protocol/domain helper',
   'adapter-specific',
-  'compatibility shim',
+  'interop shim',
   'app-owned'
 ];
 
