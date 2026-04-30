@@ -30,7 +30,7 @@ vi.mock('$shared/nostr/client.js', () => ({
   castSigned: vi.fn(),
   fetchLatestEvent: vi.fn(),
   getRelayConnectionState: vi.fn(),
-  getRxNostr: vi.fn(),
+  getRelaySession: vi.fn(),
   observePublishAcks: vi.fn(),
   observeRelayConnectionStates: vi.fn(),
   setDefaultRelays: vi.fn()

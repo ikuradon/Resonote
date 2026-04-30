@@ -19,7 +19,7 @@ const { dbGetByIdMock, dbGetByPubkeyAndKindMock, subscribeMock } = vi.hoisted(()
 vi.mock('@auftakt/core', async (importOriginal) => {
   const actual = await importOriginal();
   return Object.assign({}, actual, {
-    createRxBackwardReq: () => ({
+    createBackwardReq: () => ({
       emit: vi.fn(),
       over: vi.fn()
     })
@@ -35,7 +35,7 @@ vi.mock('$shared/nostr/event-db.js', () => ({
 }));
 
 vi.mock('$shared/nostr/client.js', () => ({
-  getRxNostr: async () => ({
+  getRelaySession: async () => ({
     use: () => ({
       subscribe: subscribeMock
     })
@@ -66,7 +66,7 @@ function createCachedReadRuntime(): CachedReadRuntime {
       listNegentropyEventRefs: vi.fn(async () => []),
       put: vi.fn(async () => true)
     }),
-    getRxNostr: async () => ({
+    getRelaySession: async () => ({
       requestNegentropySync: vi.fn(async () => ({
         capability: 'unsupported' as const,
         reason: 'missing-negentropy'
@@ -75,7 +75,7 @@ function createCachedReadRuntime(): CachedReadRuntime {
         subscribe: subscribeMock
       })
     }),
-    createRxBackwardReq: () => ({
+    createBackwardReq: () => ({
       emit: vi.fn(),
       over: vi.fn()
     })

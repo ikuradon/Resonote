@@ -51,7 +51,7 @@ export interface CachedReadRuntime {
       emissions: ReconcileEmission[];
     }>;
   }>;
-  getRxNostr(): Promise<{
+  getRelaySession(): Promise<{
     requestNegentropySync(options: {
       relayUrl: string;
       filter: Record<string, unknown>;
@@ -69,7 +69,7 @@ export interface CachedReadRuntime {
       }): { unsubscribe(): void };
     };
   }>;
-  createRxBackwardReq(options?: unknown): {
+  createBackwardReq(options?: unknown): {
     emit(input: unknown): void;
     over(): void;
   };

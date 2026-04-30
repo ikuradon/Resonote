@@ -9,7 +9,7 @@
 | Area       | Purpose                          |
 | ---------- | -------------------------------- |
 | `browser/` | stateful browser/runtime bridges |
-| `nostr/`   | Nostr compatibility + helpers    |
+| `nostr/`   | Nostr interop + helpers          |
 | `content/` | provider parsing/resolution      |
 | `auftakt/` | app-facing Auftakt façade        |
 | `i18n/`    | translation runtime public API   |
