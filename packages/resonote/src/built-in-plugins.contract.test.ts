@@ -7,7 +7,19 @@ import {
 import { createRelayMetricsPlugin, registerRuntimePlugin } from '@auftakt/runtime';
 import { describe, expect, it, vi } from 'vitest';
 
-import { COMMENTS_FLOW, CONTENT_RESOLUTION_FLOW } from './plugins/resonote-flows.js';
+import {
+  createEmojiCatalogPlugin,
+  createNotificationsFlowPlugin,
+  EMOJI_CATALOG_READ_MODEL,
+  NOTIFICATIONS_FLOW
+} from './plugins/built-in-plugins.js';
+import {
+  COMMENTS_FLOW,
+  CONTENT_RESOLUTION_FLOW,
+  createResonoteCommentsFlowPlugin,
+  createResonoteContentResolutionFlowPlugin
+} from './plugins/resonote-flows.js';
+import { createTimelinePlugin, resonoteTimelineProjection } from './plugins/timeline-plugin.js';
 import { createResonoteCoordinator } from './runtime.js';
 
 const RELAY_SECRET_KEY = new Uint8Array(32).fill(7);
@@ -171,6 +183,89 @@ describe('@auftakt/resonote built-in plugins', () => {
   it('keeps Resonote-only flow constants outside generic built-ins', () => {
     expect(COMMENTS_FLOW).toBe('resonoteCommentsFlow');
     expect(CONTENT_RESOLUTION_FLOW).toBe('resonoteContentResolution');
+  });
+
+  it('uses stable built-in plugin registration names and targets', () => {
+    const timelinePlugin = createTimelinePlugin();
+    const emojiPlugin = createEmojiCatalogPlugin({
+      fetchCustomEmojiSources: async () => ({ listEvent: null, setEvents: [] }),
+      fetchCustomEmojiCategories: async () => []
+    });
+    const notificationsPlugin = createNotificationsFlowPlugin({
+      subscribeNotificationStreams: async () => []
+    });
+    const commentsPlugin = createResonoteCommentsFlowPlugin({
+      loadCommentSubscriptionDeps: async () => ({ runtime: null as never, session: null as never }),
+      buildCommentContentFilters: () => [],
+      startCommentSubscription: () => [],
+      startMergedCommentSubscription: () => ({ unsubscribe() {} }),
+      startCommentDeletionReconcile: () => ({
+        sub: { unsubscribe() {} },
+        timeout: setTimeout(() => {}, 0)
+      })
+    });
+    const contentPlugin = createResonoteContentResolutionFlowPlugin({
+      searchBookmarkDTagEvent: async () => null,
+      searchEpisodeBookmarkByGuid: async () => null
+    });
+    const registeredFlows: string[] = [];
+    const registeredModels: string[] = [];
+    const registeredProjections: string[] = [];
+
+    timelinePlugin.setup({
+      apiVersion: 'v1',
+      models: {} as never,
+      registerFlow: vi.fn(),
+      registerReadModel: vi.fn(),
+      registerProjection(projection) {
+        registeredProjections.push(projection.name);
+      }
+    });
+    emojiPlugin.setup({
+      apiVersion: 'v1',
+      models: {} as never,
+      registerProjection: vi.fn(),
+      registerFlow: vi.fn(),
+      registerReadModel(name) {
+        registeredModels.push(name);
+      }
+    });
+    notificationsPlugin.setup({
+      apiVersion: 'v1',
+      models: {} as never,
+      registerProjection: vi.fn(),
+      registerReadModel: vi.fn(),
+      registerFlow(name) {
+        registeredFlows.push(name);
+      }
+    });
+    commentsPlugin.setup({
+      apiVersion: 'v1',
+      models: {} as never,
+      registerProjection: vi.fn(),
+      registerReadModel: vi.fn(),
+      registerFlow(name) {
+        registeredFlows.push(name);
+      }
+    });
+    contentPlugin.setup({
+      apiVersion: 'v1',
+      models: {} as never,
+      registerProjection: vi.fn(),
+      registerReadModel: vi.fn(),
+      registerFlow(name) {
+        registeredFlows.push(name);
+      }
+    });
+
+    expect(timelinePlugin.name).toBe('timelinePlugin');
+    expect(emojiPlugin.name).toBe('emojiCatalogPlugin');
+    expect(notificationsPlugin.name).toBe('notificationsFlowPlugin');
+    expect(commentsPlugin.name).toBe('resonoteCommentsFlowPlugin');
+    expect(contentPlugin.name).toBe('resonoteContentResolutionFlowPlugin');
+    expect(registeredProjections).toEqual([resonoteTimelineProjection.name]);
+    expect(registeredModels).toEqual([EMOJI_CATALOG_READ_MODEL]);
+    expect(registeredFlows).toEqual([NOTIFICATIONS_FLOW, COMMENTS_FLOW, CONTENT_RESOLUTION_FLOW]);
   });
 
   it('registers relay metrics as a read-only model', () => {

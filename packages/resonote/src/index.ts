@@ -3,7 +3,8 @@ export type {
   EmojiCategory,
   NotificationsFlow,
   NotificationStreamHandlers,
-  NotificationStreamOptions} from './plugins/built-in-plugins.js';
+  NotificationStreamOptions
+} from './plugins/built-in-plugins.js';
 export {
   createEmojiCatalogPlugin,
   createNotificationsFlowPlugin,

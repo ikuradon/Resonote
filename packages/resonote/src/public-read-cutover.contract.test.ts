@@ -375,4 +375,15 @@ describe('@auftakt/resonote public read cutover', () => {
       [{ ids: [localEvent.id] }]
     ]);
   });
+
+  it('exposes comment subscription helpers through coordinator-owned runtime surface', async () => {
+    const { coordinator } = createCoordinatorFixture();
+    const mod = await import('@auftakt/resonote');
+
+    expect(typeof coordinator.loadCommentSubscriptionDeps).toBe('function');
+    expect(typeof mod.buildCommentContentFilters).toBe('function');
+    expect(typeof mod.startCommentSubscription).toBe('function');
+    expect(typeof mod.startMergedCommentSubscription).toBe('function');
+    expect(typeof mod.startCommentDeletionReconcile).toBe('function');
+  });
 });

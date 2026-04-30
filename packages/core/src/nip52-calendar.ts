@@ -573,7 +573,7 @@ function assertCalendarEventPointer(
   label: string
 ): Nip52AddressPointerInput {
   if (!isNip52CalendarEventKind(pointer.kind)) {
-    throw new Error(`NIP-52 ${  label  } must reference kind:31922 or kind:31923`);
+    throw new Error(`NIP-52 ${label} must reference kind:31922 or kind:31923`);
   }
   return pointer;
 }

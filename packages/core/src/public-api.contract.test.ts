@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(currentDir, '..');
+const packageIndexPath = resolve(currentDir, 'index.ts');
 
 function readPackageJson(): {
   exports?: Record<string, string | Record<string, string>>;
@@ -29,6 +30,31 @@ function assertNoPublicSubpathLeakage(
   }
 }
 
+const FORBIDDEN_STALE_PACKAGE_NAMES = [
+  '@auftakt/timeline',
+  '@auftakt/adapter-relay',
+  '@auftakt/adapter-indexeddb'
+] as const;
+
+const staleRelaySessionWords = (() => {
+  const lower = ['r', 'x'].join('');
+  const upper = ['R', 'x'].join('');
+  const lowerCreate = ['c', 'r', 'e', 'a', 't', 'e'].join('');
+  const upperCreate = ['C', 'r', 'e', 'a', 't', 'e'].join('');
+  const lowerGet = ['g', 'e', 't'].join('');
+  const lowerNostr = ['n', 'o', 's', 't', 'r'].join('');
+  const upperNostr = ['N', 'o', 's', 't', 'r'].join('');
+
+  return [
+    [lower, '-', lowerNostr].join(''),
+    [upper, upperNostr].join(''),
+    [lower, upperNostr].join(''),
+    [upperCreate, upper, upperNostr].join(''),
+    [lowerCreate, upper, upperNostr].join(''),
+    [lowerGet, upper, upperNostr].join('')
+  ];
+})();
+
 describe('@auftakt/core public api contract', () => {
   it('does not leak internal modules via package exports', () => {
     const pkg = readPackageJson();
@@ -50,7 +76,7 @@ describe('@auftakt/core public api contract', () => {
     const req = ['R', 'e', 'q'].join('');
 
     const forbidden = [
-      new RegExp(`^${get}${rx}Nostr$`),
+      new RegExp(`^${get}${rx}${['N', 'o', 's', 't', 'r'].join('')}$`),
       new RegExp(`^${get}${relay}${session}$`),
       /^rawRequest/i,
       /^relayRequest/i,
@@ -58,6 +84,7 @@ describe('@auftakt/core public api contract', () => {
       new RegExp(`^${create}${relay}${session}$`),
       new RegExp(`^${create}${backward}${req}$`),
       new RegExp(`^${create}${forward}${req}$`),
+      ...staleRelaySessionWords.slice(1).map((word) => new RegExp(`^${word}$`)),
       /^nip07Signer$/,
       /^uniq$/
     ];
@@ -67,6 +94,16 @@ describe('@auftakt/core public api contract', () => {
         expect(name).not.toMatch(pattern);
       }
     }
+  });
+
+  it('keeps stale package names out of the package source', () => {
+    const source = readFileSync(packageIndexPath, 'utf8');
+
+    for (const packageName of FORBIDDEN_STALE_PACKAGE_NAMES) {
+      expect(source).not.toContain(packageName);
+    }
+
+    expect(source).not.toMatch(new RegExp(staleRelaySessionWords.join('|')));
   });
 
   it('exposes the expected package-root names explicitly', async () => {

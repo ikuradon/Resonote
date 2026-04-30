@@ -7,6 +7,33 @@ const currentDir = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(currentDir, '..');
 const packageIndexPath = resolve(currentDir, 'index.ts');
 
+const FORBIDDEN_STALE_PACKAGE_NAMES = [
+  ['@auftakt', 'resonote'].join('/'),
+  ['@auftakt', 'timeline'].join('/'),
+  ['@auftakt', 'adapter-dexie'].join('/'),
+  ['@auftakt', 'adapter-relay'].join('/'),
+  ['@auftakt', 'adapter-indexeddb'].join('/')
+] as const;
+
+const staleRelaySessionWords = (() => {
+  const lower = ['r', 'x'].join('');
+  const upper = ['R', 'x'].join('');
+  const lowerCreate = ['c', 'r', 'e', 'a', 't', 'e'].join('');
+  const upperCreate = ['C', 'r', 'e', 'a', 't', 'e'].join('');
+  const lowerGet = ['g', 'e', 't'].join('');
+  const lowerNostr = ['n', 'o', 's', 't', 'r'].join('');
+  const upperNostr = ['N', 'o', 's', 't', 'r'].join('');
+
+  return [
+    [lower, '-', lowerNostr].join(''),
+    [upper, upperNostr].join(''),
+    [lower, upperNostr].join(''),
+    [upperCreate, upper, upperNostr].join(''),
+    [lowerCreate, upper, upperNostr].join(''),
+    [lowerGet, upper, upperNostr].join('')
+  ];
+})();
+
 function readPackageJson(): { exports?: Record<string, string | Record<string, string>> } {
   const raw = readFileSync(resolve(packageRoot, 'package.json'), 'utf8');
   return JSON.parse(raw) as { exports?: Record<string, string | Record<string, string>> };
@@ -90,6 +117,16 @@ describe('@auftakt/runtime public api contract', () => {
     );
   });
 
+  it('keeps stale package names and legacy aliases out of the package source', () => {
+    const source = readFileSync(packageIndexPath, 'utf8');
+
+    for (const packageName of FORBIDDEN_STALE_PACKAGE_NAMES) {
+      expect(source).not.toContain(packageName);
+    }
+
+    expect(source).not.toMatch(new RegExp(staleRelaySessionWords.join('|')));
+  });
+
   it('does not expose resonote-specific or negentropy names from the package root', async () => {
     const mod = await import('@auftakt/runtime');
     const exportNames = Object.keys(mod);
@@ -100,6 +137,9 @@ describe('@auftakt/runtime public api contract', () => {
       expect(name).not.toMatch(/CONTENT_RESOLUTION_FLOW/);
       expect(name).not.toMatch(/RESONOTE_PLAY_POSITION_SORT/);
       expect(name).not.toMatch(/^NEG-/);
+      for (const word of staleRelaySessionWords.slice(1)) {
+        expect(name).not.toBe(word);
+      }
     }
   });
 });

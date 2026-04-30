@@ -100,7 +100,11 @@ export class DexieEventStore {
   }
 
   async putEvent(event: NostrEvent): Promise<void> {
-    if (this.isExpiredRecord(event)) {
+    if (
+      (await this.isVanished(event)) ||
+      this.isExpiredRecord(event) ||
+      (event.kind !== DELETION_KIND && (await this.isDeleted(event.id, event.pubkey)))
+    ) {
       await this.deleteByIds([event.id]);
       return;
     }

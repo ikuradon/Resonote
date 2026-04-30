@@ -8,7 +8,8 @@ import {
   AUFTAKT_RUNTIME_PLUGIN_API_VERSION,
   type AuftaktRuntimePluginModels,
   createAuftaktRuntimeCoordinator,
-  registerRuntimePlugin} from '@auftakt/runtime';
+  registerRuntimePlugin
+} from '@auftakt/runtime';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -175,6 +176,34 @@ describe('@auftakt/runtime plugin api contract', () => {
       sourceEvent: event,
       state: 'local'
     });
+  });
+
+  it('rejects duplicate plugin names before any model registration is committed', async () => {
+    const coordinator = createTestCoordinator();
+
+    const first = await registerRuntimePlugin(coordinator, {
+      name: 'unique-plugin-name',
+      apiVersion: 'v1',
+      setup(api) {
+        api.registerReadModel('unique.read-model', { id: 'first' });
+      }
+    });
+
+    const duplicate = await registerRuntimePlugin(coordinator, {
+      name: 'unique-plugin-name',
+      apiVersion: 'v1',
+      setup(api) {
+        api.registerReadModel('duplicate.read-model', { id: 'duplicate' });
+      }
+    });
+
+    expect(first.enabled).toBe(true);
+    expect(duplicate.enabled).toBe(false);
+    expect(duplicate.error?.message).toContain('Plugin already registered: unique-plugin-name');
+    expect(() => coordinator.getReadModel('duplicate.read-model')).toThrow(
+      'Read model is not registered: duplicate.read-model'
+    );
+    expect(coordinator.getReadModel('unique.read-model')).toEqual({ id: 'first' });
   });
 
   it('keeps plugin registration versioned and runtime-owned', async () => {

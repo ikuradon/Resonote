@@ -1,4 +1,4 @@
-import { type RelayEventValidationFailureReason,validateRelayEvent } from '@auftakt/core';
+import { type RelayEventValidationFailureReason, validateRelayEvent } from '@auftakt/core';
 import type { Event as NostrEvent } from 'nostr-typedef';
 
 export interface QuarantineRecord {

@@ -3,7 +3,11 @@ import type {
   NamedRegistrationRegistry,
   ProjectionDefinition
 } from '@auftakt/core';
-import { createNamedRegistrationRegistry, createProjectionRegistry } from '@auftakt/core';
+import {
+  createNamedRegistrationRegistry,
+  createProjectionRegistry,
+  defineProjection
+} from '@auftakt/core';
 
 import type { EntityHandleFactories } from './entity-handles.js';
 
@@ -61,6 +65,7 @@ export function createAuftaktRuntimePluginRegistry(
   const projectionRegistry = createProjectionRegistry();
   const readModelRegistry = createNamedRegistrationRegistry('Read model');
   const flowRegistry = createNamedRegistrationRegistry('Flow');
+  const pluginNames = createPluginNameRegistry();
 
   const registerPlugin = async (
     plugin: AuftaktRuntimePlugin
@@ -69,11 +74,15 @@ export function createAuftaktRuntimePluginRegistry(
 
     try {
       assertSupportedPluginVersion(plugin);
+      pluginNames.reserve(plugin.name);
       await plugin.setup(createPluginRegistrationApi(pending, models));
+      validatePluginRegistrations(projectionRegistry, readModelRegistry, flowRegistry, pending);
       commitPluginRegistrations(projectionRegistry, readModelRegistry, flowRegistry, pending);
+      pluginNames.commit(plugin.name);
 
       return successfulPluginRegistration(plugin.name);
     } catch (error) {
+      pluginNames.rollback(plugin.name);
       return failedPluginRegistration(plugin.name, error);
     }
   };
@@ -85,14 +94,18 @@ export function createAuftaktRuntimePluginRegistry(
 
     try {
       assertSupportedPluginVersion(plugin);
+      pluginNames.reserve(plugin.name);
       const setupResult = plugin.setup(createPluginRegistrationApi(pending, models));
       if (isPromiseLike(setupResult)) {
         throw new Error(`Built-in plugin setup must be synchronous: ${plugin.name}`);
       }
+      validatePluginRegistrations(projectionRegistry, readModelRegistry, flowRegistry, pending);
       commitPluginRegistrations(projectionRegistry, readModelRegistry, flowRegistry, pending);
+      pluginNames.commit(plugin.name);
 
       return successfulPluginRegistration(plugin.name);
     } catch (error) {
+      pluginNames.rollback(plugin.name);
       return failedPluginRegistration(plugin.name, error);
     }
   };
@@ -114,6 +127,31 @@ export function createAuftaktRuntimePluginRegistry(
         throw new Error(`Flow is not registered: ${name}`);
       }
       return registration.value as TFlow;
+    }
+  };
+}
+
+function createPluginNameRegistry(): {
+  reserve(pluginName: string): void;
+  commit(pluginName: string): void;
+  rollback(pluginName: string): void;
+} {
+  const registered = new Set<string>();
+  const pending = new Set<string>();
+
+  return {
+    reserve(pluginName) {
+      if (registered.has(pluginName) || pending.has(pluginName)) {
+        throw new Error(`Plugin already registered: ${pluginName}`);
+      }
+      pending.add(pluginName);
+    },
+    commit(pluginName) {
+      pending.delete(pluginName);
+      registered.add(pluginName);
+    },
+    rollback(pluginName) {
+      pending.delete(pluginName);
     }
   };
 }
@@ -149,6 +187,44 @@ function createPluginRegistrationApi(
       pending.flows.push({ name, value: flow });
     }
   };
+}
+
+function validatePluginRegistrations(
+  projectionRegistry: ReturnType<typeof createProjectionRegistry>,
+  readModelRegistry: NamedRegistrationRegistry,
+  flowRegistry: NamedRegistrationRegistry,
+  pending: PendingPluginRegistrations
+): void {
+  const pendingProjectionNames = new Set<string>();
+  for (const definition of pending.projections) {
+    const normalized = defineProjection(definition);
+    if (projectionRegistry.get(normalized.name) || pendingProjectionNames.has(normalized.name)) {
+      throw new Error(`Projection already registered: ${normalized.name}`);
+    }
+    pendingProjectionNames.add(normalized.name);
+  }
+
+  validateNamedPendingRegistrations('Read model', readModelRegistry, pending.readModels);
+  validateNamedPendingRegistrations('Flow', flowRegistry, pending.flows);
+}
+
+function validateNamedPendingRegistrations(
+  label: string,
+  registry: NamedRegistrationRegistry,
+  registrations: readonly NamedRegistration[]
+): void {
+  const pendingNames = new Set<string>();
+
+  for (const registration of registrations) {
+    const name = registration.name.trim();
+    if (!name) {
+      throw new Error(`${label} name is required`);
+    }
+    if (registry.get(name) || pendingNames.has(name)) {
+      throw new Error(`${label} already registered: ${name}`);
+    }
+    pendingNames.add(name);
+  }
 }
 
 function commitPluginRegistrations(

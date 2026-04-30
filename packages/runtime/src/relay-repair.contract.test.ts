@@ -66,6 +66,9 @@ async function createRuntimeFixture(options: {
   fallbackEvents?: FixtureEvent[];
   rawFallbackEvents?: unknown[];
   relayEventsById?: Record<string, unknown>;
+  putWithReconcileOverride?: (
+    event: StoredEvent
+  ) => Promise<{ stored: boolean; emissions: unknown[] }>;
 }) {
   const createdRequests: FakeBackwardRequest[] = [];
   const materialized: StoredEvent[] = [];
@@ -153,6 +156,9 @@ async function createRuntimeFixture(options: {
           return eventsDB.put(event as FixtureEvent);
         },
         async putWithReconcile(event: StoredEvent) {
+          if (options.putWithReconcileOverride) {
+            return options.putWithReconcileOverride(event);
+          }
           materialized.push(event);
           return eventsDB.putWithReconcile(event as FixtureEvent);
         },
@@ -199,6 +205,43 @@ async function createRuntimeFixture(options: {
 }
 
 describe('@auftakt/runtime relay repair contract', () => {
+  it('falls back when relay session does not expose negentropy transport', async () => {
+    const missingEvent = makeEvent(hexId('0'), { created_at: 150 });
+    const fixture = await createRuntimeFixture({
+      initialEvents: [makeEvent(hexId('a'))],
+      fallbackEvents: [missingEvent]
+    });
+
+    await expect(
+      repairEventsFromRelay(fixture.runtime, {
+        filters: [{ authors: ['pubkey-a'], kinds: [1] }],
+        relayUrl: repairRelayUrl,
+        timeoutMs: 10
+      })
+    ).resolves.toEqual({
+      strategy: 'fallback',
+      capability: 'unsupported',
+      repairedIds: [missingEvent.id],
+      materializationEmissions: [
+        {
+          subjectId: missingEvent.id,
+          reason: 'accepted-new',
+          state: 'confirmed'
+        }
+      ],
+      repairEmissions: [
+        {
+          subjectId: missingEvent.id,
+          reason: 'repaired-replay',
+          state: 'repairing'
+        }
+      ]
+    });
+
+    expect(fixture.getNegentropyCallCount()).toBe(0);
+    expect(fixture.createdRequests).toHaveLength(1);
+  });
+
   it('falls back to canonical backward repair when negentropy is unsupported', async () => {
     const missingEvent = makeEvent(hexId('b'), { created_at: 200 });
     const filter = { authors: ['pubkey-a'], kinds: [1] };
@@ -273,6 +316,29 @@ describe('@auftakt/runtime relay repair contract', () => {
     expect(result.repairedIds).toEqual([]);
     expect(putWithReconcile).not.toHaveBeenCalled();
     expect(putQuarantine).toHaveBeenCalledWith(expect.objectContaining({ reason: 'malformed' }));
+  });
+
+  it('never bypasses reconcile materialization with direct put during repair', async () => {
+    const missingEvent = makeEvent(hexId('ab'), { created_at: 210 });
+    const fixture = await createRuntimeFixture({
+      negentropyResult: {
+        capability: 'unsupported',
+        reason: 'unsupported: relay disabled negentropy'
+      },
+      fallbackEvents: [missingEvent]
+    });
+    const put = vi.spyOn(fixture.eventsDB, 'put');
+    const putWithReconcile = vi.spyOn(fixture.eventsDB, 'putWithReconcile');
+
+    const result = await repairEventsFromRelay(fixture.runtime, {
+      filters: [{ authors: ['pubkey-a'], kinds: [1] }],
+      relayUrl: repairRelayUrl,
+      timeoutMs: 10
+    });
+
+    expect(result.repairedIds).toEqual([missingEvent.id]);
+    expect(putWithReconcile).toHaveBeenCalledTimes(1);
+    expect(put).not.toHaveBeenCalled();
   });
 
   it('falls back to canonical backward repair when negentropy payload decode fails', async () => {
@@ -635,6 +701,32 @@ describe('@auftakt/runtime relay repair contract', () => {
     await expect(fixture.eventsDB.db.sync_cursors.toArray()).resolves.toEqual([]);
   });
 
+  it('does not advance fallback cursor when materialization rejects storage', async () => {
+    const candidate = makeEvent(hexId('ac'), { created_at: 620 });
+    const fixture = await createRuntimeFixture({
+      negentropyResult: {
+        capability: 'unsupported',
+        reason: 'unsupported: relay disabled negentropy'
+      },
+      fallbackEvents: [candidate],
+      putWithReconcileOverride: async () => ({
+        stored: false,
+        emissions: []
+      })
+    });
+    const putSyncCursor = vi.spyOn(fixture.eventsDB, 'putSyncCursor');
+
+    const result = await repairEventsFromRelay(fixture.runtime, {
+      filters: [{ authors: ['pubkey-a'], kinds: [1] }],
+      relayUrl: repairRelayUrl,
+      timeoutMs: 10
+    });
+
+    expect(result.repairedIds).toEqual([]);
+    expect(putSyncCursor).not.toHaveBeenCalled();
+    await expect(fixture.eventsDB.db.sync_cursors.toArray()).resolves.toEqual([]);
+  });
+
   it('repairs late kind:5 after cursor restart and tombstones the target', async () => {
     const targetEvent = makeEvent(hexId('5'), { created_at: 500, kind: 1111, tags: [] });
     const deletionEvent = makeEvent(hexId('6'), {
@@ -747,5 +839,61 @@ describe('@auftakt/runtime relay repair contract', () => {
     });
     expect(result.repairedIds).toEqual([missingEvent.id]);
     expect(restarted.materialized).toEqual([missingEvent]);
+  });
+
+  it('isolates app request identity from repair fallback and negentropy fetch identities', async () => {
+    const local = makeEvent(hexId('ad'), { created_at: 720 });
+    const missing = makeEvent(hexId('ae'), { created_at: 730 });
+    const filter = { authors: ['pubkey-a'], kinds: [1] };
+    const fixture = await createRuntimeFixture({
+      initialEvents: [local],
+      negentropyResult: {
+        capability: 'supported',
+        messageHex: encodeNegentropyIdList([local.id, missing.id])
+      },
+      relayEventsById: {
+        [missing.id]: missing
+      }
+    });
+
+    await repairEventsFromRelay(fixture.runtime, {
+      filters: [filter],
+      relayUrl: repairRelayUrl,
+      timeoutMs: 10
+    });
+
+    const appRequestKey = createRuntimeRequestKey({
+      mode: 'backward',
+      filters: [filter],
+      overlay: {
+        relays: [repairRelayUrl],
+        includeDefaultReadRelays: false
+      }
+    });
+    const fallbackRepairRequestKey = createNegentropyRepairRequestKey({
+      filters: [filter],
+      relayUrl: repairRelayUrl,
+      scope: 'timeline:repair:fallback'
+    });
+    const repairFetchFilters =
+      fixture.createdRequests[0]?.emitted.map((entry) => entry as Record<string, unknown>) ?? [];
+    const negentropyFetchRequestKey = createNegentropyRepairRequestKey({
+      filters: repairFetchFilters,
+      relayUrl: repairRelayUrl,
+      scope: 'timeline:repair:negentropy:fetch'
+    });
+
+    expect(fixture.createdRequests).toHaveLength(1);
+    expect(fixture.createdRequests[0]?.requestKey).toBe(negentropyFetchRequestKey);
+    expect(fixture.createdRequests[0]?.requestKey).not.toBe(appRequestKey);
+    expect(fixture.createdRequests[0]?.requestKey).not.toBe(fallbackRepairRequestKey);
+  });
+
+  it('keeps raw NEG protocol tokens internal-only from runtime package surface', async () => {
+    const runtimePublic = await import('./index.js');
+    const exportNames = Object.keys(runtimePublic);
+
+    expect(exportNames).not.toContain('NegentropyRequestOptions');
+    expect(exportNames.some((name) => name.includes('NEG-'))).toBe(false);
   });
 });

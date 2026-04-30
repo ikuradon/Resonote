@@ -141,7 +141,7 @@ describe('NIP-85 trusted assertions', () => {
     ]);
     const event = buildNip85TrustedProviderList({
       providers: [provider],
-      content: `nip44:${  privateProvidersJson}`,
+      content: `nip44:${privateProvidersJson}`,
       tags: [
         ['30382:rank', 'ignored', 'wss://ignored'],
         ['client', 'resonote']
@@ -150,7 +150,7 @@ describe('NIP-85 trusted assertions', () => {
 
     expect(event).toEqual({
       kind: NIP85_TRUSTED_PROVIDER_LIST_KIND,
-      content: `nip44:${  privateProvidersJson}`,
+      content: `nip44:${privateProvidersJson}`,
       tags: [
         ['30382:rank', 'service-pubkey', 'wss://nip85.example'],
         ['client', 'resonote']
@@ -166,7 +166,7 @@ describe('NIP-85 trusted assertions', () => {
           relayHint: 'wss://nip85.example'
         }
       ],
-      content: `nip44:${  privateProvidersJson}`,
+      content: `nip44:${privateProvidersJson}`,
       pubkey: 'alice',
       createdAt: 789,
       customTags: [['client', 'resonote']]

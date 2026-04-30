@@ -445,3 +445,163 @@ describe('Dexie replaceable materialization', () => {
     });
   });
 });
+
+describe('Dexie mixed materialization visibility', () => {
+  it('materializes a mixed batch in input order while exposing only surviving visible events', async () => {
+    let now = 100;
+    const store = await createDexieEventStore({
+      dbName: `auftakt-dexie-mixed-batch-${Date.now()}-${Math.random()}`,
+      now: () => now
+    });
+
+    const results = await store.putManyWithReconcile([
+      event('deleted-target', { pubkey: 'alice', created_at: 10, tags: [['t', 'topic']] }),
+      event('replace-old', { pubkey: 'alice', kind: 0, created_at: 11 }),
+      event('vanish-covered', { pubkey: 'bob', created_at: 12, tags: [['t', 'topic']] }),
+      event('expiring', {
+        pubkey: 'carol',
+        created_at: 13,
+        tags: [
+          ['expiration', '120'],
+          ['t', 'topic']
+        ]
+      }),
+      event('replace-new', { pubkey: 'alice', kind: 0, created_at: 14 }),
+      event('delete', {
+        pubkey: 'alice',
+        kind: 5,
+        created_at: 15,
+        tags: [['e', 'deleted-target']]
+      }),
+      event('vanish', { pubkey: 'bob', kind: 62, created_at: 16, tags: [['relay', 'ALL_RELAYS']] }),
+      event('survivor', { pubkey: 'dave', created_at: 17, tags: [['t', 'topic']] })
+    ]);
+
+    expect(results.map((result) => result.stored)).toEqual([
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]);
+    await expect(store.getById('deleted-target')).resolves.toBeNull();
+    await expect(store.getById('replace-old')).resolves.toBeNull();
+    await expect(store.getById('vanish-covered')).resolves.toBeNull();
+    await expect(store.getById('replace-new')).resolves.toMatchObject({ id: 'replace-new' });
+    await expect(store.getById('delete')).resolves.toMatchObject({ id: 'delete', kind: 5 });
+    await expect(store.getById('vanish')).resolves.toMatchObject({ id: 'vanish', kind: 62 });
+
+    now = 120;
+
+    await expect(store.getById('expiring')).resolves.toBeNull();
+    await expect(store.getByTagValue('t:topic')).resolves.toEqual([
+      expect.objectContaining({ id: 'survivor' })
+    ]);
+    await expect(store.getByPubkeyAndKind('alice', 0)).resolves.toMatchObject({
+      id: 'replace-new'
+    });
+  });
+
+  it('keeps ordered traversal and negentropy refs visibility-consistent for mixed storage state', async () => {
+    let now = 100;
+    const store = await createDexieEventStore({
+      dbName: `auftakt-dexie-mixed-visibility-${Date.now()}-${Math.random()}`,
+      now: () => now
+    });
+
+    await store.putManyWithReconcile([
+      event('live-a', { pubkey: 'alice', created_at: 10 }),
+      event('deleted-target', { pubkey: 'alice', created_at: 11 }),
+      event('delete', {
+        pubkey: 'alice',
+        kind: 5,
+        created_at: 12,
+        tags: [['e', 'deleted-target']]
+      }),
+      event('vanished-target', { pubkey: 'bob', created_at: 13 }),
+      event('vanish', { pubkey: 'bob', kind: 62, created_at: 14, tags: [['relay', 'ALL_RELAYS']] }),
+      event('expiring', { pubkey: 'carol', created_at: 15, tags: [['expiration', '120']] }),
+      event('live-b', { pubkey: 'dave', created_at: 16 })
+    ]);
+    now = 120;
+
+    const orderedIds = (await store.listOrderedEvents({ direction: 'asc' })).map(({ id }) => id);
+    const negentropyIds = (await store.listNegentropyEventRefs()).map(({ id }) => id);
+
+    expect(orderedIds).toEqual(['live-a', 'delete', 'vanish', 'live-b']);
+    expect(negentropyIds).toEqual(orderedIds);
+    await expect(store.listOrderedEvents({ direction: 'desc', limit: 2 })).resolves.toEqual([
+      expect.objectContaining({ id: 'live-b' }),
+      expect.objectContaining({ id: 'vanish' })
+    ]);
+  });
+
+  it('excludes deleted, expired, and vanished source events during projection traversal', async () => {
+    let now = 100;
+    const store = await createDexieEventStore({
+      dbName: `auftakt-dexie-projection-visible-${Date.now()}-${Math.random()}`,
+      now: () => now
+    });
+    const projection = {
+      name: 'comments',
+      sourceKinds: [1, 1111],
+      sorts: [{ key: 'created_at', pushdownSupported: false }]
+    };
+
+    await store.putManyWithReconcile([
+      event('live-comment', { pubkey: 'alice', created_at: 10, kind: 1111 }),
+      event('deleted-comment', { pubkey: 'alice', created_at: 11, kind: 1111 }),
+      event('delete-comment', {
+        pubkey: 'alice',
+        created_at: 12,
+        kind: 5,
+        tags: [['e', 'deleted-comment']]
+      }),
+      event('vanished-comment', { pubkey: 'bob', created_at: 13, kind: 1111 }),
+      event('vanish-bob', {
+        pubkey: 'bob',
+        kind: 62,
+        created_at: 14,
+        tags: [['relay', 'ALL_RELAYS']]
+      }),
+      event('expired-comment', {
+        pubkey: 'carol',
+        kind: 1111,
+        created_at: 15,
+        tags: [['expiration', '120']]
+      }),
+      event('live-note', { pubkey: 'dave', created_at: 16, kind: 1 })
+    ]);
+    now = 120;
+
+    await expect(
+      store.listProjectionSourceEvents(projection, { direction: 'asc' })
+    ).resolves.toEqual([
+      expect.objectContaining({ id: 'live-comment' }),
+      expect.objectContaining({ id: 'live-note' })
+    ]);
+  });
+
+  it('suppresses late resurrection even when callers use the raw putEvent compatibility path', async () => {
+    const store = await createDexieEventStore({
+      dbName: `auftakt-dexie-late-resurrection-${Date.now()}-${Math.random()}`
+    });
+
+    await store.putWithReconcile(event('target', { pubkey: 'alice', created_at: 10 }));
+    await store.putWithReconcile(
+      event('delete', { pubkey: 'alice', kind: 5, created_at: 11, tags: [['e', 'target']] })
+    );
+    await store.putEvent(event('target', { pubkey: 'alice', created_at: 10 }));
+
+    await expect(store.getById('target')).resolves.toBeNull();
+    await expect(store.listOrderedEvents({ direction: 'asc' })).resolves.toEqual([
+      expect.objectContaining({ id: 'delete' })
+    ]);
+    await expect(store.listNegentropyEventRefs()).resolves.toEqual([
+      expect.objectContaining({ id: 'delete' })
+    ]);
+  });
+});

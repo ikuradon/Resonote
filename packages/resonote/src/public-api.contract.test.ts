@@ -42,6 +42,25 @@ const RESONOTE_TYPE_EXPORT_ALLOWLIST = [
   'ResonoteTimelineEvent'
 ] as const;
 
+const staleRelaySessionWords = (() => {
+  const lower = ['r', 'x'].join('');
+  const upper = ['R', 'x'].join('');
+  const lowerCreate = ['c', 'r', 'e', 'a', 't', 'e'].join('');
+  const upperCreate = ['C', 'r', 'e', 'a', 't', 'e'].join('');
+  const lowerGet = ['g', 'e', 't'].join('');
+  const lowerNostr = ['n', 'o', 's', 't', 'r'].join('');
+  const upperNostr = ['N', 'o', 's', 't', 'r'].join('');
+
+  return [
+    [lower, '-', lowerNostr].join(''),
+    [upper, upperNostr].join(''),
+    [lower, upperNostr].join(''),
+    [upperCreate, upper, upperNostr].join(''),
+    [lowerCreate, upper, upperNostr].join(''),
+    [lowerGet, upper, upperNostr].join('')
+  ];
+})();
+
 const FORBIDDEN_ROOT_EXPORTS = [
   'AddressableHandle',
   'AddressableHandleInput',
@@ -66,7 +85,9 @@ const FORBIDDEN_ROOT_EXPORTS = [
   'UserHandleInput',
   'buildRelaySetSnapshot',
   'cachedFetchById',
+  staleRelaySessionWords[3],
   'createEntityHandleFactories',
+  staleRelaySessionWords[4],
   'createRelayListFlowPlugin',
   'createRelayMetricsPlugin',
   'fetchBackwardEvents',
@@ -87,6 +108,7 @@ const FORBIDDEN_ROOT_EXPORTS = [
   'getEvent',
   'getRelayHints',
   'getRelaySet',
+  staleRelaySessionWords[5],
   'getUser',
   'invalidateFetchByIdCache',
   'loadCommentSubscriptionDeps',
@@ -104,7 +126,18 @@ const FORBIDDEN_ROOT_EXPORTS = [
   'snapshotRelayMetrics',
   'snapshotRelayStatuses',
   'subscribeNotificationStreams',
-  'useCachedLatest'
+  'useCachedLatest',
+  staleRelaySessionWords[1],
+  staleRelaySessionWords[2]
+] as const;
+
+const FORBIDDEN_STALE_PACKAGE_NAMES = [
+  '@auftakt/runtime',
+  '@auftakt/core',
+  '@auftakt/adapter-dexie',
+  '@auftakt/adapter-relay',
+  '@auftakt/adapter-indexeddb',
+  '@auftakt/timeline'
 ] as const;
 
 function readPackageJson(): { exports?: Record<string, string | Record<string, string>> } {
@@ -138,6 +171,16 @@ describe('@auftakt/resonote public api contract', () => {
     expect(Object.keys(mod).sort()).toEqual([...RESONOTE_VALUE_EXPORT_ALLOWLIST].sort());
   });
 
+  it('keeps coordinator surface focused on high-level Resonote flows', async () => {
+    const mod = await import('@auftakt/resonote');
+
+    expect(typeof mod.createResonoteCoordinator).toBe('function');
+    expect(typeof mod.startCommentSubscription).toBe('function');
+    expect(typeof mod.startMergedCommentSubscription).toBe('function');
+    expect(typeof mod.startCommentDeletionReconcile).toBe('function');
+    expect(typeof mod.buildCommentContentFilters).toBe('function');
+  });
+
   it('keeps type-only exports on the documented Resonote allowlist', () => {
     const source = readFileSync(packageIndexPath, 'utf8');
 
@@ -148,6 +191,16 @@ describe('@auftakt/resonote public api contract', () => {
     for (const name of FORBIDDEN_ROOT_EXPORTS) {
       expect(source).not.toMatch(new RegExp(`\\b${name}\\b`));
     }
+  });
+
+  it('keeps stale package names and legacy aliases out of the package source', () => {
+    const source = readFileSync(packageIndexPath, 'utf8');
+
+    for (const packageName of FORBIDDEN_STALE_PACKAGE_NAMES) {
+      expect(source).not.toContain(packageName);
+    }
+
+    expect(source).not.toMatch(new RegExp(staleRelaySessionWords.join('|')));
   });
 
   it('does not expose generic runtime or raw protocol names', async () => {
@@ -173,6 +226,9 @@ describe('@auftakt/resonote public api contract', () => {
         /^(cached|fetch|publish|retry|observe|snapshot|setDefault|getEvent|getUser)/
       );
       expect(name).not.toMatch(/Coordinator|Handle|Runtime/);
+      for (const word of staleRelaySessionWords.slice(1)) {
+        expect(name).not.toBe(word);
+      }
     }
 
     expect(source).not.toMatch(/\bNEG-[A-Z]+\b/);
@@ -189,5 +245,23 @@ describe('@auftakt/resonote public api contract', () => {
       { key: 'created_at', pushdownSupported: true },
       { key: mod.RESONOTE_PLAY_POSITION_SORT, pushdownSupported: false }
     ]);
+  });
+
+  it('does not export generic runtime/read/publish/cache/relay-metrics root names', async () => {
+    const mod = await import('@auftakt/resonote');
+    const names = Object.keys(mod);
+
+    expect(names).not.toEqual(expect.arrayContaining(['cachedFetchById', 'useCachedLatest']));
+    expect(names).not.toEqual(
+      expect.arrayContaining(['fetchLatestEvent', 'fetchNostrEventById', 'publishSignedEvents'])
+    );
+    expect(names).not.toEqual(
+      expect.arrayContaining([
+        'retryPendingPublishes',
+        'setDefaultRelays',
+        'RELAY_METRICS_READ_MODEL',
+        'createRelayMetricsPlugin'
+      ])
+    );
   });
 });

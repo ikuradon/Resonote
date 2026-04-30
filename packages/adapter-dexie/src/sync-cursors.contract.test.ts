@@ -63,4 +63,47 @@ describe('Dexie sync cursor contract', () => {
     await expect(store.getSyncCursor(cursorKey)).resolves.toBeNull();
     store.db.close();
   });
+
+  it('keeps cursor reads compatible when rows are rewritten by newer materializers', async () => {
+    const dbName = `auftakt-sync-cursor-rewrite-${Date.now()}-${Math.random()}`;
+    const store = await createDexieEventStore({ dbName });
+
+    await store.putSyncCursor({
+      key: cursorKey,
+      relay: relayUrl,
+      requestKey,
+      cursor: {
+        created_at: 123,
+        id: cursorId
+      },
+      updatedAt: 456
+    });
+    await store.putSyncCursor({
+      key: cursorKey,
+      relay: relayUrl,
+      requestKey,
+      cursor: {
+        created_at: 124,
+        id: 'c'.repeat(64)
+      },
+      updatedAt: 789
+    });
+
+    await expect(store.getSyncCursor(cursorKey)).resolves.toEqual({
+      created_at: 124,
+      id: 'c'.repeat(64)
+    });
+    await expect(
+      store.db.sync_cursors.where('[relay+request_key]').equals([relayUrl, requestKey]).count()
+    ).resolves.toBe(1);
+
+    store.db.close();
+
+    const reopened = await createDexieEventStore({ dbName });
+    await expect(reopened.getSyncCursor(cursorKey)).resolves.toEqual({
+      created_at: 124,
+      id: 'c'.repeat(64)
+    });
+    reopened.db.close();
+  });
 });
