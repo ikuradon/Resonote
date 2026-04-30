@@ -7,7 +7,8 @@ import {
   type LatestReadDriver,
   type ResonoteRuntime,
   startCommentSubscription,
-  useCachedLatest} from './runtime.js';
+  useCachedLatest
+} from './runtime.js';
 
 const RELAY_SECRET_KEY = new Uint8Array(32).fill(9);
 

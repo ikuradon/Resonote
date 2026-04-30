@@ -1,11 +1,15 @@
-import { clearStoredEvents, countStoredEventsByKinds } from '$shared/auftakt/resonote.js';
+import {
+  clearStoredEvents,
+  countStoredEventsByKinds,
+  DEFAULT_EVENTS_DB_NAME
+} from '$shared/auftakt/resonote.js';
 export interface DbStats {
   total: number;
   byKind: { kind: number; count: number }[];
 }
 
 const TRACKED_KINDS = [0, 3, 5, 7, 1111, 10000, 10002, 10003, 10030, 30030];
-const EVENTS_DB_NAME = 'resonote-events';
+const EVENTS_DB_NAME = DEFAULT_EVENTS_DB_NAME;
 
 export async function loadDbStats(): Promise<DbStats> {
   try {

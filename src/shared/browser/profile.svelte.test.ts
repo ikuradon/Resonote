@@ -69,6 +69,7 @@ function setupFetchResult(args: {
 describe('profile.svelte', () => {
   beforeEach(() => {
     clearProfiles();
+    fetchProfileMetadataSourcesMock.mockReset();
     vi.clearAllMocks();
   });
 
@@ -204,6 +205,23 @@ describe('profile.svelte', () => {
 
     expect(logWarnMock).toHaveBeenCalledWith('Malformed profile JSON', expect.any(Object));
     expect(getProfile(PUBKEY_A)).toBeUndefined();
+  });
+
+  it('releases every started pending pubkey when malformed fetched metadata is mixed with unresolved keys', async () => {
+    fetchProfileMetadataSourcesMock.mockResolvedValueOnce({
+      cachedEvents: [],
+      fetchedEvents: [makeKind0Event(PUBKEY_A, 'NOT_JSON')],
+      fallbackEvents: [],
+      unresolvedPubkeys: [PUBKEY_B]
+    });
+
+    await fetchProfiles([PUBKEY_A, PUBKEY_B]);
+    setupFetchResult({ fetchedEvents: [makeKind0Event(PUBKEY_A, { name: 'Recovered Name' })] });
+    await fetchProfile(PUBKEY_A);
+
+    expect(fetchProfileMetadataSourcesMock).toHaveBeenCalledTimes(2);
+    expect(getProfile(PUBKEY_A)).toEqual(expect.objectContaining({ name: 'Recovered Name' }));
+    expect(getProfile(PUBKEY_B)).toEqual({});
   });
 
   it('logs and preserves undefined profile state when metadata fetch rejects', async () => {

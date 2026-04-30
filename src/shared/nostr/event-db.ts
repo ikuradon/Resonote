@@ -5,9 +5,9 @@ import {
 } from '@auftakt/adapter-dexie';
 import type { Event as NostrEvent } from 'nostr-typedef';
 
-const DEFAULT_DB_NAME = 'resonote-dexie-events';
+export const DEFAULT_EVENTS_DB_NAME = 'resonote-dexie-events';
 
-let currentDbName = DEFAULT_DB_NAME;
+let currentDbName = DEFAULT_EVENTS_DB_NAME;
 let instancePromise: Promise<DexieEventStore> | undefined;
 
 export { type NostrEvent, type DexieEventRecord as StoredEvent };
@@ -19,6 +19,6 @@ export async function getEventsDB(): Promise<DexieEventStore> {
 }
 
 export function resetEventsDB(dbName?: string): void {
-  currentDbName = dbName ?? DEFAULT_DB_NAME;
+  currentDbName = dbName ?? DEFAULT_EVENTS_DB_NAME;
   instancePromise = undefined;
 }

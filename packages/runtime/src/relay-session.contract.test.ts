@@ -317,6 +317,60 @@ describe('relay replay request identity contract', () => {
     session.dispose();
   });
 
+  it('drops a queued EVENT when its initial relay connection fails', async () => {
+    const session = createRelaySession({
+      defaultRelays: [RELAY_URL],
+      eoseTimeout: 100
+    });
+    const failedEvent = {
+      id: 'event-connect-failed',
+      pubkey: 'pubkey-a',
+      sig: 'sig-a',
+      kind: 1,
+      content: 'failed publish',
+      created_at: 1,
+      tags: []
+    };
+    const retriedEvent = {
+      id: 'event-after-reconnect',
+      pubkey: 'pubkey-a',
+      sig: 'sig-b',
+      kind: 1,
+      content: 'fresh publish',
+      created_at: 2,
+      tags: []
+    };
+    const failedPackets: Array<{ ok: boolean; done: boolean }> = [];
+    let failedCompleted = false;
+
+    const failedSub = session.send(failedEvent).subscribe({
+      next: (packet) => failedPackets.push(packet),
+      complete: () => {
+        failedCompleted = true;
+      }
+    });
+
+    await waitUntil(() => FakeWebSocket.instances.length > 0);
+    const failedSocket = latestSocket();
+    failedSocket.error(new Error('connect failed'));
+
+    await waitUntil(() => failedPackets.length === 1 && failedCompleted);
+    expect(failedPackets[0]).toMatchObject({ ok: false, done: true });
+
+    const freshSub = session.send(retriedEvent).subscribe({});
+
+    await waitUntil(() => FakeWebSocket.instances.length >= 2);
+    const freshSocket = latestSocket();
+    freshSocket.open();
+    await waitUntil(() => freshSocket.sent.length > 0);
+
+    expect(freshSocket.sent).toEqual([['EVENT', retriedEvent]]);
+
+    failedSub.unsubscribe();
+    freshSub.unsubscribe();
+    session.dispose();
+  });
+
   it('answers NIP-42 AUTH challenges and retries auth-required EVENT writes', async () => {
     const signer = createContractSigner('pubkey-auth');
     const session = createRelaySession({

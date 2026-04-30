@@ -50,6 +50,13 @@ function queueRetryIfNeeded(pubkey: string): void {
   });
 }
 
+function releasePending(pubkeys: Iterable<string>): void {
+  for (const pk of pubkeys) {
+    pending.delete(pk);
+    queueRetryIfNeeded(pk);
+  }
+}
+
 export function getProfile(pubkey: string): Profile | undefined {
   return profiles.get(pubkey);
 }
@@ -85,7 +92,8 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
   });
   if (toFetch.length === 0) return;
 
-  for (const pk of toFetch) pending.add(pk);
+  const startedPubkeys = toFetch;
+  for (const pk of startedPubkeys) pending.add(pk);
 
   try {
     const { cachedEvents, fetchedEvents, fallbackEvents, unresolvedPubkeys } =
@@ -136,10 +144,7 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
     toFetch = unresolvedPubkeys;
     if (toFetch.length === 0) {
       profiles = new Map(profiles);
-      for (const pk of pubkeys) {
-        pending.delete(pk);
-        queueRetryIfNeeded(pk);
-      }
+      releasePending(startedPubkeys);
       return;
     }
 
@@ -147,9 +152,8 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
       if (!profiles.has(pk)) {
         profiles.set(pk, {});
       }
-      pending.delete(pk);
-      queueRetryIfNeeded(pk);
     }
+    releasePending(startedPubkeys);
 
     if (profiles.size > MAX_PROFILES) {
       const keys = [...profiles.keys()];
@@ -160,10 +164,7 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
     profiles = new Map(profiles);
   } catch (err) {
     log.warn('Profile fetch subscription error', { error: err });
-    for (const pk of toFetch) {
-      pending.delete(pk);
-      queueRetryIfNeeded(pk);
-    }
+    releasePending(startedPubkeys);
   }
 }
 

@@ -155,6 +155,78 @@ describe('EventCoordinator read policy', () => {
     expect(storeGetAllByKind).toHaveBeenCalledWith(1111);
   });
 
+  it('applies Nostr time bounds and limit to ordered local kind matches', async () => {
+    const event = (id: string, created_at: number) => ({
+      id,
+      pubkey: 'alice',
+      created_at,
+      kind: 1111,
+      tags: [],
+      content: ''
+    });
+    const coordinator = createEventCoordinator({
+      store: {
+        getById: vi.fn(async () => null),
+        getAllByKind: vi.fn(async () => [
+          event('at-since', 10),
+          event('too-new', 30),
+          event('middle', 15),
+          event('too-old', 9),
+          event('at-until', 20)
+        ]),
+        putWithReconcile: vi.fn()
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+
+    const result = await coordinator.read(
+      { kinds: [1111], since: 10, until: 20, limit: 2 },
+      { policy: 'cacheOnly' }
+    );
+
+    expect(result.events.map((entry) => entry.id)).toEqual(['at-until', 'middle']);
+  });
+
+  it('continues relay-capable reads when local storage is unavailable', async () => {
+    const remote = {
+      id: 'remote-after-local-failure',
+      pubkey: 'alice',
+      created_at: 5,
+      kind: 1,
+      tags: [],
+      content: 'relay'
+    };
+    const relayGateway = {
+      verify: vi.fn(async () => ({
+        strategy: 'fallback-req' as const,
+        candidates: [{ relayUrl: 'wss://relay.example', event: { raw: true } }]
+      }))
+    };
+    const coordinator = createEventCoordinator({
+      relayGateway,
+      ingestRelayCandidate: vi.fn(async () => ({ ok: true as const, event: remote })),
+      store: {
+        getById: vi.fn(async () => {
+          throw new Error('db unavailable');
+        }),
+        putWithReconcile: vi.fn(async () => ({ stored: true }))
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+
+    const result = await coordinator.read(
+      { ids: ['remote-after-local-failure'] },
+      {
+        policy: 'localFirst'
+      }
+    );
+
+    expect(relayGateway.verify).toHaveBeenCalledWith([{ ids: ['remote-after-local-failure'] }], {
+      reason: 'localFirst'
+    });
+    expect(result.events).toEqual([remote]);
+  });
+
   it('records relay hint when a relay event materializes', async () => {
     const recordRelayHint = vi.fn(async () => {});
     const coordinator = createEventCoordinator({

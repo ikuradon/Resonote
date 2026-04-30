@@ -7,7 +7,8 @@ const { countStoredEventsByKindsMock, clearStoredEventsMock } = vi.hoisted(() =>
 
 vi.mock('$shared/auftakt/resonote.js', () => ({
   countStoredEventsByKinds: countStoredEventsByKindsMock,
-  clearStoredEvents: clearStoredEventsMock
+  clearStoredEvents: clearStoredEventsMock,
+  DEFAULT_EVENTS_DB_NAME: 'resonote-dexie-events'
 }));
 
 import {
@@ -138,7 +139,7 @@ describe('dev-tools.svelte', () => {
       clearAllData();
 
       expect(clearMock).toHaveBeenCalledOnce();
-      expect(deleteDbMock).toHaveBeenCalledWith('resonote-events');
+      expect(deleteDbMock).toHaveBeenCalledWith('resonote-dexie-events');
       expect(reloadMock).toHaveBeenCalledOnce();
     });
 
@@ -151,7 +152,7 @@ describe('dev-tools.svelte', () => {
 
       clearAllData();
 
-      expect(deleteDbMock).toHaveBeenCalledWith('resonote-events');
+      expect(deleteDbMock).toHaveBeenCalledWith('resonote-dexie-events');
       expect(reloadMock).toHaveBeenCalledOnce();
     });
   });

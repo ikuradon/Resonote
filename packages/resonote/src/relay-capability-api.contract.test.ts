@@ -1,18 +1,22 @@
 import type { RelayCapabilityRecord, RelayExecutionCapability } from '@auftakt/core';
 import type { RelayCapabilityPacket } from '@auftakt/runtime';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createResonoteCoordinator, type ResonoteRuntime } from './runtime.js';
 
-function createCapabilityRuntime() {
+function createCapabilityRuntime(options: { readonly failEventsDb?: boolean } = {}) {
   const capabilities: Record<string, RelayExecutionCapability | undefined> = {};
   const capabilityObservers: Array<(packet: RelayCapabilityPacket) => void> = [];
   const records = new Map<string, RelayCapabilityRecord>();
+  const setDefaultRelaysMock = vi.fn(async () => {});
   const runtime: ResonoteRuntime = {
     async fetchLatestEvent() {
       return null;
     },
     async getEventsDB() {
+      if (options.failEventsDb) {
+        throw new Error('indexeddb blocked');
+      }
       return {
         async getByPubkeyAndKind() {
           return null;
@@ -129,7 +133,7 @@ function createCapabilityRuntime() {
     },
     relayStatusRuntime: {
       fetchLatestEvent: async () => null,
-      setDefaultRelays: async () => {}
+      setDefaultRelays: setDefaultRelaysMock
     },
     relayCapabilityRuntime: {
       fetchRelayInformation: async () => ({
@@ -140,7 +144,7 @@ function createCapabilityRuntime() {
     }
   });
 
-  return { coordinator, capabilities, capabilityObservers };
+  return { coordinator, capabilities, capabilityObservers, setDefaultRelaysMock };
 }
 
 describe('@auftakt/resonote relay capability API', () => {
@@ -180,5 +184,13 @@ describe('@auftakt/resonote relay capability API', () => {
     ]);
 
     sub.unsubscribe();
+  });
+
+  it('applies default relays even when the capability store cannot open', async () => {
+    const { coordinator, setDefaultRelaysMock } = createCapabilityRuntime({ failEventsDb: true });
+
+    await expect(coordinator.setDefaultRelays(['wss://relay.example'])).resolves.toBeUndefined();
+
+    expect(setDefaultRelaysMock).toHaveBeenCalledWith(['wss://relay.example']);
   });
 });

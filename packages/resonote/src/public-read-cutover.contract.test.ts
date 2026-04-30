@@ -14,6 +14,7 @@ interface NegentropyRequestRecord {
   readonly relayUrl: string;
   readonly filter: Record<string, unknown>;
   readonly initialMessageHex: string;
+  readonly timeoutMs?: number;
 }
 
 interface NegentropyFixtureResult {
@@ -230,7 +231,8 @@ describe('@auftakt/resonote public read cutover', () => {
       {
         relayUrl: 'wss://default.example/',
         filter: { kinds: [0], authors: [relayEvent.pubkey], limit: 1 },
-        initialMessageHex: '[]'
+        initialMessageHex: '[]',
+        timeoutMs: 250
       }
     ]);
     expect(createdRequests[0]?.emitted).toEqual([{ ids: [relayEvent.id] }]);
@@ -263,6 +265,42 @@ describe('@auftakt/resonote public read cutover', () => {
       tags: []
     });
     expect(negentropyRequests).toHaveLength(1);
+    expect(createdRequests[0]?.emitted).toEqual([
+      { kinds: [0], authors: [relayEvent.pubkey], limit: 1 }
+    ]);
+  });
+
+  it('uses a short ordinary negentropy probe timeout before latest REQ fallback', async () => {
+    const relayEvent = finalizeEvent(
+      {
+        kind: 0,
+        content: 'relay metadata after short probe',
+        tags: [],
+        created_at: 126
+      },
+      RELAY_SECRET_KEY
+    );
+    const probeTimeouts: Array<number | undefined> = [];
+    const { coordinator, createdRequests } = createCoordinatorFixture({
+      relayEvents: [relayEvent],
+      negentropyResult: async (request) => {
+        probeTimeouts.push(request.timeoutMs);
+        return {
+          capability: 'failed',
+          reason: 'timeout'
+        };
+      }
+    });
+
+    const result = await coordinator.fetchLatestEvent(relayEvent.pubkey, 0);
+
+    expect(result).toMatchObject({
+      content: 'relay metadata after short probe',
+      created_at: 126,
+      tags: []
+    });
+    expect(probeTimeouts).toEqual([expect.any(Number)]);
+    expect(probeTimeouts[0]).toBeLessThanOrEqual(500);
     expect(createdRequests[0]?.emitted).toEqual([
       { kinds: [0], authors: [relayEvent.pubkey], limit: 1 }
     ]);
@@ -329,11 +367,42 @@ describe('@auftakt/resonote public read cutover', () => {
       {
         relayUrl: 'wss://default.example/',
         filter: { kinds: [1], limit: 20 },
-        initialMessageHex: '[]'
+        initialMessageHex: '[]',
+        timeoutMs: 250
       }
     ]);
     expect(createdRequests[0]?.emitted).toEqual([{ ids: [relayEvent.id] }]);
     expect(materialized).toEqual([relayEvent]);
+  });
+
+  it('returns the newest event from fetchBackwardFirst when local reads are already descending', async () => {
+    const olderEvent = finalizeEvent(
+      {
+        kind: 1,
+        content: 'older local event',
+        tags: [],
+        created_at: 100
+      },
+      RELAY_SECRET_KEY
+    );
+    const newestEvent = finalizeEvent(
+      {
+        kind: 1,
+        content: 'newest local event',
+        tags: [],
+        created_at: 200
+      },
+      RELAY_SECRET_KEY
+    );
+    const { coordinator } = createCoordinatorFixture({
+      getAllByKind: async () => [olderEvent, newestEvent]
+    });
+
+    const event = await coordinator.fetchBackwardFirst<typeof newestEvent>([{ kinds: [1] }], {
+      overlay: { relays: [], includeDefaultReadRelays: false }
+    });
+
+    expect(event).toEqual(newestEvent);
   });
 
   it('still verifies cached public by-id reads with temporary relay hints', async () => {

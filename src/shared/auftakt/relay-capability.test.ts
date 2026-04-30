@@ -37,6 +37,7 @@ vi.mock('$shared/nostr/client.js', () => ({
 }));
 
 vi.mock('$shared/nostr/event-db.js', () => ({
+  DEFAULT_EVENTS_DB_NAME: 'resonote-dexie-events',
   getEventsDB: vi.fn()
 }));
 

@@ -130,6 +130,9 @@ export type { RelayCapabilityPacket, RelayCapabilitySnapshot } from '@auftakt/ru
 
 type RuntimeFilter = Record<string, unknown>;
 
+const ORDINARY_READ_NEGENTROPY_PROBE_TIMEOUT_MS = 250;
+const NIP77_NEGENTROPY_SYNC_NIP = 77;
+
 export interface RelayReadOverlayOptions {
   readonly relays: readonly string[];
   readonly includeDefaultReadRelays?: boolean;
@@ -233,6 +236,7 @@ interface LatestReadState<TEvent extends StoredEvent = StoredEvent> {
 const NULL_CACHE_TTL_MS = 30_000;
 
 const cachedFetchStates = new WeakMap<CoordinatorReadRuntime, CachedFetchState>();
+const unsupportedOrdinaryReadNegentropyRelays = new WeakMap<object, Set<string>>();
 
 const capabilitySubscribedSessions = new WeakSet<object>();
 function createMaterializedSubscriptionRuntime(
@@ -358,6 +362,103 @@ function getCachedFetchState(runtime: CoordinatorReadRuntime): CachedFetchState 
   };
   cachedFetchStates.set(runtime, state);
   return state;
+}
+
+function getUnsupportedOrdinaryReadNegentropyRelayCache(runtime: object): Set<string> {
+  const existing = unsupportedOrdinaryReadNegentropyRelays.get(runtime);
+  if (existing) return existing;
+  const relays = new Set<string>();
+  unsupportedOrdinaryReadNegentropyRelays.set(runtime, relays);
+  return relays;
+}
+
+function cacheUnsupportedOrdinaryReadNegentropyRelay(runtime: object, relayUrl: string): void {
+  getUnsupportedOrdinaryReadNegentropyRelayCache(runtime).add(relayUrl);
+}
+
+function isOrdinaryReadNegentropyRelayUnsupported(runtime: object, relayUrl: string): boolean {
+  return getUnsupportedOrdinaryReadNegentropyRelayCache(runtime).has(relayUrl);
+}
+
+function isFreshRelayCapabilityRecord(record: RelayCapabilityRecord): boolean {
+  return (
+    record.nip11Status === 'ok' &&
+    typeof record.nip11ExpiresAt === 'number' &&
+    record.nip11ExpiresAt > Math.floor(Date.now() / 1000)
+  );
+}
+
+function isFreshFailedRelayCapabilityRecord(record: RelayCapabilityRecord): boolean {
+  return (
+    record.nip11Status === 'failed' &&
+    typeof record.nip11ExpiresAt === 'number' &&
+    record.nip11ExpiresAt > Math.floor(Date.now() / 1000)
+  );
+}
+
+async function shouldAttemptOrdinaryReadNegentropy(
+  runtime: CoordinatorReadRuntime,
+  relayUrl: string
+): Promise<boolean> {
+  if (isOrdinaryReadNegentropyRelayUnsupported(runtime, relayUrl)) return false;
+
+  try {
+    const db = await runtime.getEventsDB();
+    const record = await db.getRelayCapability?.(relayUrl);
+    if (!record) return true;
+    if (isFreshRelayCapabilityRecord(record)) {
+      return record.supportedNips.includes(NIP77_NEGENTROPY_SYNC_NIP);
+    }
+    if (isFreshFailedRelayCapabilityRecord(record)) return false;
+  } catch {
+    return true;
+  }
+
+  return true;
+}
+
+async function requestOrdinaryReadNegentropySync(
+  runtime: CoordinatorReadRuntime,
+  input: {
+    readonly relayUrl: string;
+    readonly filter: RuntimeFilter;
+    readonly initialMessageHex: string;
+  }
+): Promise<NegentropyTransportResult> {
+  const session = (await runtime.getRelaySession()) as Partial<NegentropySessionRuntime>;
+  if (typeof session.requestNegentropySync !== 'function') {
+    cacheUnsupportedOrdinaryReadNegentropyRelay(runtime, input.relayUrl);
+    return {
+      capability: 'unsupported',
+      reason: 'missing-negentropy'
+    };
+  }
+
+  if (!(await shouldAttemptOrdinaryReadNegentropy(runtime, input.relayUrl))) {
+    return {
+      capability: 'unsupported',
+      reason: 'cached-unsupported'
+    };
+  }
+
+  try {
+    const result = await session.requestNegentropySync({
+      relayUrl: input.relayUrl,
+      filter: input.filter,
+      initialMessageHex: input.initialMessageHex,
+      timeoutMs: ORDINARY_READ_NEGENTROPY_PROBE_TIMEOUT_MS
+    });
+    if (result.capability !== 'supported') {
+      cacheUnsupportedOrdinaryReadNegentropyRelay(runtime, input.relayUrl);
+    }
+    return result;
+  } catch (error) {
+    cacheUnsupportedOrdinaryReadNegentropyRelay(runtime, input.relayUrl);
+    return {
+      capability: 'failed',
+      reason: error instanceof Error ? error.message : 'negentropy-error'
+    };
+  }
 }
 
 function isCoordinatorReadRuntime(value: unknown): value is CoordinatorReadRuntime {
@@ -530,28 +631,7 @@ function createOrdinaryReadRelayGateway(
   options?: FetchBackwardOptions
 ) {
   return createRelayGateway({
-    requestNegentropySync: async ({ relayUrl, filter, initialMessageHex }) => {
-      const session = (await runtime.getRelaySession()) as Partial<NegentropySessionRuntime>;
-      if (typeof session.requestNegentropySync !== 'function') {
-        return {
-          capability: 'unsupported' as const,
-          reason: 'missing-negentropy'
-        };
-      }
-
-      try {
-        return await session.requestNegentropySync({
-          relayUrl,
-          filter,
-          initialMessageHex
-        });
-      } catch (error) {
-        return {
-          capability: 'failed' as const,
-          reason: error instanceof Error ? error.message : 'negentropy-error'
-        };
-      }
-    },
+    requestNegentropySync: (input) => requestOrdinaryReadNegentropySync(runtime, input),
     fetchByReq: async (filters, requestOptions) =>
       fetchRelayCandidateEventsFromRelay(
         runtime as ResonoteRuntime,
@@ -860,20 +940,7 @@ async function coordinatorFetchById(
     };
   }
   const gateway = createRelayGateway({
-    requestNegentropySync: async ({ relayUrl, filter, initialMessageHex }) => {
-      const session = (await runtime.getRelaySession()) as Partial<NegentropySessionRuntime>;
-      if (typeof session.requestNegentropySync !== 'function') {
-        return {
-          capability: 'unsupported' as const,
-          reason: 'missing-negentropy'
-        };
-      }
-      return session.requestNegentropySync({
-        relayUrl,
-        filter,
-        initialMessageHex
-      });
-    },
+    requestNegentropySync: (input) => requestOrdinaryReadNegentropySync(runtime, input),
     fetchByReq: async (filters, options) =>
       fetchRelayCandidateEventsFromRelay(
         runtime as ResonoteRuntime,
@@ -1619,7 +1686,7 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
         cloneFetchBackwardOptions(options),
         relaySelectionPolicy
       );
-      return events.at(-1) ?? null;
+      return events[0] ?? null;
     },
     fetchLatestEvent: (pubkey, kind) =>
       fetchLatestEventFromReadRuntime(coordinatorReadRuntime, pubkey, kind, relaySelectionPolicy),
@@ -1934,7 +2001,7 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
         cloneFetchBackwardOptions(options),
         relaySelectionPolicy
       );
-      return events.at(-1) ?? null;
+      return events[0] ?? null;
     },
     cachedFetchById: (eventId) =>
       cachedFetchByIdRuntime.cachedFetchById(coordinatorReadRuntime, eventId),
@@ -1954,9 +2021,13 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
     fetchLatestEvent: (pubkey, kind) =>
       fetchLatestEventFromReadRuntime(coordinatorReadRuntime, pubkey, kind, relaySelectionPolicy),
     setDefaultRelays: async (urls) => {
-      await relayCapabilityRegistry.prefetchDefaultRelays(urls);
-      await applyRelayCapabilitiesToRuntime(runtime, relayCapabilityRegistry, urls);
       await relayStatusRuntime.setDefaultRelays(urls);
+      try {
+        await relayCapabilityRegistry.prefetchDefaultRelays(urls);
+        await applyRelayCapabilitiesToRuntime(runtime, relayCapabilityRegistry, urls);
+      } catch {
+        // NIP-11 capability は補助情報なので、保存域の失敗で relay list 適用を止めない。
+      }
     },
     getRelayConnectionState: async (url) => {
       const [snapshot] = await snapshotRelayStatusesImpl(relayObservationRuntime, [url]);
@@ -2211,7 +2282,7 @@ export async function fetchBackwardFirst<TEvent>(
       filters,
       cloneFetchBackwardOptions(options)
     );
-    return events.at(-1) ?? null;
+    return events[0] ?? null;
   }
   return runtime.fetchBackwardFirst<TEvent>(filters, cloneFetchBackwardOptions(options));
 }

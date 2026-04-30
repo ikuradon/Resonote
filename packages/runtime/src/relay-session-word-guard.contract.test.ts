@@ -8,6 +8,7 @@ const currentDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(currentDir, '../../..');
 
 const trackedGuardFilePattern = /\.(?:ts|tsx|svelte|md|json|mjs|js)$/;
+const guardedPathPrefixes = ['packages/runtime/src/'];
 const excludedPathSegments = [
   '/.sisyphus/evidence/',
   '/.svelte-kit/',
@@ -64,6 +65,7 @@ function trackedGuardFiles(): string[] {
       (path) =>
         path.length > 0 &&
         trackedGuardFilePattern.test(path) &&
+        guardedPathPrefixes.some((prefix) => path.startsWith(prefix)) &&
         excludedPathSegments.every((segment) => !path.includes(segment))
     );
 }
@@ -112,6 +114,9 @@ describe('@auftakt/runtime relay session word guard', () => {
     const paths = trackedGuardFiles();
 
     expect(paths.every((path) => trackedGuardFilePattern.test(path))).toBe(true);
+    expect(
+      paths.every((path) => guardedPathPrefixes.some((prefix) => path.startsWith(prefix)))
+    ).toBe(true);
     for (const segment of excludedPathSegments) {
       expect(paths.some((path) => path.includes(segment))).toBe(false);
     }

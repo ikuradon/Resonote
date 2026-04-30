@@ -228,8 +228,13 @@ async function performCachedFetchById(
       };
     }
 
-    const db = await runtime.getEventsDB();
-    const local = await db.getById(eventId).catch(() => null);
+    let local: StoredEvent | null;
+    try {
+      const db = await runtime.getEventsDB();
+      local = await db.getById(eventId).catch(() => null);
+    } catch {
+      local = null;
+    }
     const invalidated = state.invalidatedDuringFetch.delete(eventId);
     if (invalidated) {
       return {

@@ -49,7 +49,7 @@ import {
   observeRelayConnectionStates as observeRelayConnectionStatesImpl,
   setDefaultRelays as setDefaultRelaysImpl
 } from '$shared/nostr/client.js';
-import { getEventsDB } from '$shared/nostr/event-db.js';
+import { DEFAULT_EVENTS_DB_NAME, getEventsDB } from '$shared/nostr/event-db.js';
 import { addPendingPublish, drainPendingPublishes } from '$shared/nostr/pending-publishes.js';
 
 type ResonoteRuntime = Parameters<
@@ -132,7 +132,7 @@ export type {
   UseCachedLatestResult
 };
 
-export { AUFTAKT_RUNTIME_PLUGIN_API_VERSION };
+export { AUFTAKT_RUNTIME_PLUGIN_API_VERSION, DEFAULT_EVENTS_DB_NAME };
 export type {
   AuftaktRuntimePlugin,
   AuftaktRuntimePluginApi,

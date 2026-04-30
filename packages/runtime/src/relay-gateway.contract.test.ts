@@ -72,6 +72,41 @@ describe('RelayGateway verification planner', () => {
     ]);
   });
 
+  it('falls back to REQ for multiple filters so later filters are not skipped', async () => {
+    const secondFilterEvent = {
+      id: 'second-filter-event',
+      pubkey: 'p1',
+      created_at: 2,
+      kind: 1,
+      tags: [['d', 'second']],
+      content: '',
+      sig: 'sig'
+    };
+    const requestNegentropySync = vi.fn(async () => ({
+      capability: 'supported' as const,
+      messageHex: JSON.stringify({ remoteOnlyIds: [] })
+    }));
+    const fetchByReq = vi.fn(async () => [secondFilterEvent]);
+    const gateway = createRelayGateway({
+      requestNegentropySync,
+      fetchByReq,
+      listLocalRefs: vi.fn(async () => [])
+    });
+    const filters = [
+      { kinds: [1], '#d': ['first'] },
+      { kinds: [1], '#d': ['second'] }
+    ];
+
+    const result = await gateway.verify(filters, { relayUrl: 'wss://relay.example' });
+
+    expect(requestNegentropySync).not.toHaveBeenCalled();
+    expect(fetchByReq).toHaveBeenCalledWith(filters, { relayUrl: 'wss://relay.example' });
+    expect(result).toEqual({
+      strategy: 'fallback-req',
+      candidates: [{ event: secondFilterEvent, relayUrl: 'wss://relay.example' }]
+    });
+  });
+
   it('falls back to REQ when local negentropy refs cannot be listed', async () => {
     const event = { id: 'event-from-req', created_at: 123 };
     const requestNegentropySync = vi.fn(async () => ({

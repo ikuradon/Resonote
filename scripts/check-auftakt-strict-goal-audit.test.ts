@@ -85,14 +85,18 @@ const validRequiredProofFiles = [
   ),
   file(
     'packages/resonote/src/runtime.ts',
-    'const cursor = await loadRepairSyncCursor(eventsDB, cursorState);\ncreateOrdinaryReadRelayGateway\nverifyOrdinaryReadRelayCandidates\nreadCommentEventsByTag(tagQuery: string): Promise<StoredEvent[]>;\nclearStoredEvents(): Promise<void>;'
+    'createOrdinaryReadRelayGateway\nverifyOrdinaryReadRelayCandidates\nreadCommentEventsByTag(tagQuery: string): Promise<StoredEvent[]>;\nclearStoredEvents(): Promise<void>;'
+  ),
+  file(
+    'packages/runtime/src/relay-repair.ts',
+    'const cursor = await loadRepairSyncCursor(eventsDB, cursorState);'
   ),
   file(
     'packages/runtime/src/plugin-api.ts',
     'AuftaktRuntimePluginModels\nreadonly models: AuftaktRuntimePluginModels\ncreatePluginRegistrationApi(pending, models)'
   ),
   file(
-    'packages/resonote/src/relay-repair.contract.test.ts',
+    'packages/runtime/src/relay-repair.contract.test.ts',
     'resumes fallback repair from a persisted cursor after runtime recreation'
   ),
   file(
@@ -100,12 +104,12 @@ const validRequiredProofFiles = [
     'attempts negentropy before ordinary latest REQ verification\nuses capability-aware gateway for backward event reads'
   ),
   file(
-    'packages/resonote/src/relay-selection-runtime.ts',
+    'packages/runtime/src/relay-selection-runtime.ts',
     'addressableTargetCandidates\ngetByReplaceKey\ncollectAddressableTagReferences'
   ),
   file(
-    'packages/resonote/src/relay-selection-runtime.contract.test.ts',
-    'builds publish options from addressable explicit relay hints\nbuilds publish options from durable hints for local addressable targets\ndefault-only policy suppresses broader outbox publish candidates\nignores malformed addressable tags and invalid addressable relay hints'
+    'packages/runtime/src/relay-selection-runtime.contract.test.ts',
+    'builds publish options from author write relays and audience hints\nbuilds publish options from durable hints for local addressable targets\ndefault-only policy suppresses broader outbox publish candidates'
   ),
   file(
     'packages/resonote/src/relay-routing-publish.contract.test.ts',
@@ -113,11 +117,11 @@ const validRequiredProofFiles = [
   ),
   file(
     'packages/runtime/src/plugin-api.contract.test.ts',
-    'lets plugins register read models backed by coordinator model handles\nAuftaktRuntimePluginModels'
+    'lets plugins register read models backed by runtime model handles\nAuftaktRuntimePluginModels'
   ),
   file(
     'packages/resonote/src/public-api.contract.test.ts',
-    'does not expose raw request-style runtime API names'
+    'does not export generic runtime/read/publish/cache/relay-metrics root names'
   ),
   file(
     'packages/runtime/src/plugin-isolation.contract.test.ts',

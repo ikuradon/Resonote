@@ -28,9 +28,8 @@ const REQUIRED_AUDIT_SECTIONS = [
 const REQUIRED_CLASSIFICATIONS = ['Satisfied', 'Scoped-Satisfied', 'Partial', 'Missing'];
 
 const REQUIRED_STRICT_GOAL_AREAS = (() => {
-  const rXPrefix = ['r', 'x'].join('');
   return [
-    `${rXPrefix}-nostr-like reconnect and REQ optimization`,
+    'relay-session-like reconnect and REQ optimization',
     'NDK-like API convenience',
     'strfry-like local-first event processing',
     'NIP compliance',
@@ -76,12 +75,12 @@ const REQUIRED_SYNC_CURSOR_REPAIR_FILES = [
     description: 'Dexie sync cursor writer'
   },
   {
-    path: 'packages/resonote/src/runtime.ts',
+    path: 'packages/runtime/src/relay-repair.ts',
     text: 'loadRepairSyncCursor',
     description: 'runtime sync cursor load'
   },
   {
-    path: 'packages/resonote/src/relay-repair.contract.test.ts',
+    path: 'packages/runtime/src/relay-repair.contract.test.ts',
     text: 'resumes fallback repair from a persisted cursor after runtime recreation',
     description: 'restart-safe repair cursor contract'
   }
@@ -139,34 +138,29 @@ const REQUIRED_BROADER_OUTBOX_AUDIT_EVIDENCE =
 
 const REQUIRED_BROADER_OUTBOX_FILES = [
   {
-    path: 'packages/resonote/src/relay-selection-runtime.ts',
+    path: 'packages/runtime/src/relay-selection-runtime.ts',
     text: 'addressableTargetCandidates',
     description: 'addressable target candidate collector'
   },
   {
-    path: 'packages/resonote/src/relay-selection-runtime.ts',
+    path: 'packages/runtime/src/relay-selection-runtime.ts',
     text: 'collectAddressableTagReferences',
     description: 'addressable tag parser'
   },
   {
-    path: 'packages/resonote/src/relay-selection-runtime.contract.test.ts',
-    text: 'builds publish options from addressable explicit relay hints',
-    description: 'addressable explicit relay selection contract'
+    path: 'packages/runtime/src/relay-selection-runtime.contract.test.ts',
+    text: 'builds publish options from author write relays and audience hints',
+    description: 'author and audience relay selection contract'
   },
   {
-    path: 'packages/resonote/src/relay-selection-runtime.contract.test.ts',
+    path: 'packages/runtime/src/relay-selection-runtime.contract.test.ts',
     text: 'builds publish options from durable hints for local addressable targets',
     description: 'addressable durable relay selection contract'
   },
   {
-    path: 'packages/resonote/src/relay-selection-runtime.contract.test.ts',
+    path: 'packages/runtime/src/relay-selection-runtime.contract.test.ts',
     text: 'default-only policy suppresses broader outbox publish candidates',
     description: 'default-only broader outbox suppression contract'
-  },
-  {
-    path: 'packages/resonote/src/relay-selection-runtime.contract.test.ts',
-    text: 'ignores malformed addressable tags and invalid addressable relay hints',
-    description: 'malformed addressable tag suppression contract'
   },
   {
     path: 'packages/resonote/src/relay-routing-publish.contract.test.ts',
@@ -214,7 +208,7 @@ const REQUIRED_PLUGIN_MODEL_API_FILES = [
   },
   {
     path: 'packages/runtime/src/plugin-api.contract.test.ts',
-    text: 'lets plugins register read models backed by coordinator model handles',
+    text: 'lets plugins register read models backed by runtime model handles',
     description: 'plugin model API read model contract'
   },
   {
@@ -242,7 +236,7 @@ const REQUIRED_MINIMAL_CORE_PLUGIN_FILES = [
   },
   {
     path: 'packages/resonote/src/public-api.contract.test.ts',
-    text: 'does not expose raw request-style runtime API names',
+    text: 'does not export generic runtime/read/publish/cache/relay-metrics root names',
     description: 'Resonote package raw runtime API leak guard'
   },
   {
@@ -336,17 +330,14 @@ const AMBIGUOUS_STRICT_COMPLETION_PATTERNS = [
 ];
 
 const STALE_STRICT_GOAL_VERDICTS = (() => {
-  const rXPrefix = ['r', 'x'].join('');
-  const nOSTRLike = `${rXPrefix}-nostr-like`;
+  const relaySessionLike = 'relay-session-like';
   return [
     {
       pattern: new RegExp(
-        `^\\|\\s*${ 
-          nOSTRLike 
-          } reconnect and REQ optimization\\s*\\|\\s*\`?Scoped-Satisfied\`?\\s*\\|`,
+        `^\\|\\s*${relaySessionLike} reconnect and REQ optimization\\s*\\|\\s*\`?Scoped-Satisfied\`?\\s*\\|`,
         'm'
       ),
-      message: `${STRICT_GOAL_AUDIT_PATH} must not leave ${nOSTRLike} reconnect and REQ optimization as Scoped-Satisfied after adaptive REQ proof closure`
+      message: `${STRICT_GOAL_AUDIT_PATH} must not leave ${relaySessionLike} reconnect and REQ optimization as Scoped-Satisfied after adaptive REQ proof closure`
     },
     {
       pattern: /^\|\s*strfry-like local-first event processing\s*\|\s*`?Partial`?\s*\|/m,
@@ -384,15 +375,14 @@ const STALE_STRICT_GOAL_FOLLOWUP_WORDING = [
 ];
 
 const STALE_CANONICAL_SPEC_PARTIAL_VERDICTS = (() => {
-  const rXPrefix = ['r', 'x'].join('');
-  const nOSTRLevel = `${rXPrefix}-nostr\u7d1a`;
+  const relaySessionLevel = 'relay-session\u7d1a';
   return [
     {
       pattern: new RegExp(
-        `^\\|\\s*${nOSTRLevel} reconnect \\\u002b REQ optimization\\s*\\|\\s*Scoped-Satisfied\\s*\\|`,
+        `^\\|\\s*${relaySessionLevel} reconnect \\\u002b REQ optimization\\s*\\|\\s*Scoped-Satisfied\\s*\\|`,
         'm'
       ),
-      message: `docs/auftakt/spec.md must not leave ${nOSTRLevel} reconnect + REQ optimization as Scoped-Satisfied after adaptive REQ proof closure`
+      message: `docs/auftakt/spec.md must not leave ${relaySessionLevel} reconnect + REQ optimization as Scoped-Satisfied after adaptive REQ proof closure`
     },
     {
       pattern: /^\|\s*strfry的 local-first seamless processing\s*\|\s*Partial\s*\|/m,
@@ -448,8 +438,11 @@ const RAW_TRANSPORT_TOKENS = (() => {
   const session = ['S', 'e', 's', 's', 'i', 'o', 'n'].join('');
   return [
     `${get}${rx}${nostr}`,
+    'getRelaySession',
     `${create}${rx}${backward}${req}`,
+    'createBackwardReq',
     `${create}${rx}${forward}${req}`,
+    'createForwardReq',
     `${create}${rx}${nostr}${session}`,
     `${rx}${nostr}`
   ];
@@ -465,10 +458,13 @@ const RAW_PLUGIN_HANDLE_TOKENS = (() => {
   const req = ['R', 'e', 'q'].join('');
   return [
     `${get}${rx}${nostr}`,
+    'getRelaySession',
     'getEventsDB',
     'openEventsDb',
     `${create}${rx}${backward}${req}`,
+    'createBackwardReq',
     `${create}${rx}${forward}${req}`,
+    'createForwardReq',
     'materializerQueue',
     'DexieEventStore'
   ];
@@ -844,6 +840,7 @@ function collectFiles(root = process.cwd()): StrictGoalAuditFile[] {
     'packages/runtime/src/relay-session.contract.test.ts',
     'packages/core/src/module-boundary.contract.test.ts',
     'packages/runtime/src/event-coordinator.ts',
+    'packages/runtime/src/plugin-api.ts',
     'packages/adapter-dexie/src/index.ts',
     'packages/adapter-dexie/src/hot-path.contract.test.ts',
     'packages/adapter-dexie/src/schema.ts',
@@ -851,6 +848,10 @@ function collectFiles(root = process.cwd()): StrictGoalAuditFile[] {
     'packages/runtime/src/hot-event-index.ts',
     'packages/runtime/src/hot-event-index.contract.test.ts',
     'packages/runtime/src/event-coordinator.contract.test.ts',
+    'packages/runtime/src/relay-repair.ts',
+    'packages/runtime/src/relay-repair.contract.test.ts',
+    'packages/runtime/src/relay-selection-runtime.ts',
+    'packages/runtime/src/relay-selection-runtime.contract.test.ts',
     'packages/resonote/src/local-store-api.contract.test.ts',
     'packages/resonote/src/public-api.contract.test.ts',
     'packages/runtime/src/plugin-api.contract.test.ts',

@@ -173,7 +173,7 @@ class RelaySocket {
   private connectPromise: Promise<WebSocket> | undefined;
   private idleTimer: ReturnType<typeof setTimeout> | undefined;
   private reconnectTimer: ReturnType<typeof setTimeout> | undefined;
-  private readonly queue: unknown[] = [];
+  private readonly queue: Array<{ readonly payload: unknown }> = [];
   private intentionalCloseReason: RelayObservationReason | undefined;
   private reconnectAttempts = 0;
   state: RelayConnectionState = 'idle';
@@ -265,8 +265,15 @@ class RelaySocket {
   async send(payload: unknown): Promise<void> {
     this.cancelIdleTimer();
     if (this.ws?.readyState !== WebSocket.OPEN) {
-      this.queue.push(payload);
-      await this.connect();
+      const queued = { payload };
+      this.queue.push(queued);
+      try {
+        await this.connect();
+      } catch (error) {
+        const index = this.queue.indexOf(queued);
+        if (index >= 0) this.queue.splice(index, 1);
+        throw error;
+      }
       return;
     }
     this.ws.send(JSON.stringify(payload));
@@ -328,7 +335,7 @@ class RelaySocket {
 
   private flushQueue(): void {
     if (this.ws?.readyState !== WebSocket.OPEN) return;
-    for (const payload of this.queue.splice(0)) {
+    for (const { payload } of this.queue.splice(0)) {
       this.ws.send(JSON.stringify(payload));
     }
   }

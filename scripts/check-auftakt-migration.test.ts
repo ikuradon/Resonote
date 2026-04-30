@@ -37,6 +37,12 @@ describe('check-auftakt-migration semantic guard', () => {
     );
   });
 
+  it('excludes historical superpowers docs from tracked semantic guards', () => {
+    const source = readFileSync('scripts/check-auftakt-migration.mjs', 'utf8');
+
+    expect(source).toContain("'docs/superpowers/'");
+  });
+
   it('tracks the residual user-relays alias through its relative contract test', () => {
     const source = readFileSync('scripts/check-auftakt-migration.mjs', 'utf8');
 

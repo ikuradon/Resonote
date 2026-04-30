@@ -238,7 +238,13 @@ export function createEventCoordinator(deps: {
     options: EventCoordinatorReadOptions
   ): Promise<EventCoordinatorReadResult> {
     const filters = Array.isArray(filterOrFilters) ? [...filterOrFilters] : [filterOrFilters];
-    const local = await readLocalVisibleEvents(filters, hotIndex, deps.store);
+    let local: StoredEvent[];
+    try {
+      local = await readLocalVisibleEvents(filters, hotIndex, deps.store);
+    } catch (error) {
+      if (options.policy === 'cacheOnly') throw error;
+      local = [];
+    }
     const relayEvents: StoredEvent[] = [];
     let relaySettled = options.policy === 'cacheOnly';
 
@@ -409,8 +415,11 @@ async function readLocalVisibleEvents(
   const events = new Map<string, StoredEvent>();
 
   for (const filter of filters) {
-    for (const event of await readLocalVisibleFilter(filter, hotIndex, store)) {
-      if (eventMatchesFilter(event, filter)) events.set(event.id, event);
+    const matches = (await readLocalVisibleFilter(filter, hotIndex, store)).filter((event) =>
+      eventMatchesFilter(event, filter)
+    );
+    for (const event of orderAndLimitLocalMatches(matches, filter)) {
+      events.set(event.id, event);
     }
   }
 
@@ -490,6 +499,12 @@ function eventMatchesFilter(event: StoredEvent, filter: Record<string, unknown>)
   const kinds = readNumberArray(filter.kinds);
   if (kinds.length > 0 && !kinds.includes(event.kind)) return false;
 
+  const since = readNumber(filter.since);
+  if (since !== null && event.created_at < since) return false;
+
+  const until = readNumber(filter.until);
+  if (until !== null && event.created_at > until) return false;
+
   for (const [key, value] of Object.entries(filter)) {
     if (!key.startsWith('#')) continue;
     const expected = readStringArray(value);
@@ -504,6 +519,18 @@ function eventMatchesFilter(event: StoredEvent, filter: Record<string, unknown>)
   return true;
 }
 
+function orderAndLimitLocalMatches(
+  events: readonly StoredEvent[],
+  filter: Record<string, unknown>
+): StoredEvent[] {
+  const ordered = [...events].sort((left, right) => {
+    if (right.created_at !== left.created_at) return right.created_at - left.created_at;
+    return right.id.localeCompare(left.id);
+  });
+  const limit = readPositiveInteger(filter.limit);
+  return limit === null ? ordered : ordered.slice(0, limit);
+}
+
 function readStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((entry): entry is string => typeof entry === 'string')
@@ -514,6 +541,14 @@ function readNumberArray(value: unknown): number[] {
   return Array.isArray(value)
     ? value.filter((entry): entry is number => typeof entry === 'number')
     : [];
+}
+
+function readNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function readPositiveInteger(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : null;
 }
 
 function mergeEventsById(

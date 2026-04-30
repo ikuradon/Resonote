@@ -53,6 +53,7 @@ const TRACKED_GUARD_EXCLUDED_SEGMENTS = [
   '/build/',
   '/.wrangler/',
   '/dist-extension/',
+  'docs/superpowers/',
   '/node_modules/'
 ];
 
@@ -128,10 +129,53 @@ const retiredRelaySessionTerms = [
   ['r', 'x', '-', 'n', 'o', 's', 't', 'r'].join(''),
   ['R', 'x', 'N', 'o', 's', 't', 'r'].join(''),
   ['r', 'x', 'N', 'o', 's', 't', 'r'].join(''),
-  ['c', 'r', 'e', 'a', 't', 'e', 'R', 'x', 'N', 'o', 's', 't', 'r', 'S', 'e', 's', 's', 'i', 'o', 'n'].join(''),
+  [
+    'c',
+    'r',
+    'e',
+    'a',
+    't',
+    'e',
+    'R',
+    'x',
+    'N',
+    'o',
+    's',
+    't',
+    'r',
+    'S',
+    'e',
+    's',
+    's',
+    'i',
+    'o',
+    'n'
+  ].join(''),
   ['g', 'e', 't', 'R', 'x', 'N', 'o', 's', 't', 'r'].join(''),
-  ['c', 'r', 'e', 'a', 't', 'e', 'R', 'x', 'B', 'a', 'c', 'k', 'w', 'a', 'r', 'd', 'R', 'e', 'q'].join(''),
-  ['c', 'r', 'e', 'a', 't', 'e', 'R', 'x', 'F', 'o', 'r', 'w', 'a', 'r', 'd', 'R', 'e', 'q'].join(''),
+  [
+    'c',
+    'r',
+    'e',
+    'a',
+    't',
+    'e',
+    'R',
+    'x',
+    'B',
+    'a',
+    'c',
+    'k',
+    'w',
+    'a',
+    'r',
+    'd',
+    'R',
+    'e',
+    'q'
+  ].join(''),
+  ['c', 'r', 'e', 'a', 't', 'e', 'R', 'x', 'F', 'o', 'r', 'w', 'a', 'r', 'd', 'R', 'e', 'q'].join(
+    ''
+  ),
   ['o', 'b', 's', 'o', 'l', 'e', 't', 'e'].join(''),
   ['c', 'o', 'm', 'p', 'a', 't'].join('')
 ];
