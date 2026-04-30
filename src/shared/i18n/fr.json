@@ -163,7 +163,7 @@
   "mute.word_placeholder": "Mot à masquer",
   "mute.empty_users": "Aucun utilisateur masqué",
   "mute.empty_words": "Aucun mot masqué",
-  "mute.nip44_required": "Un portefeuille compatible NIP-44 est requis pour masquer",
+  "mute.nip44_required": "Un portefeuille interoperable NIP-44 est requis pour masquer",
   "notification.filter.title": "Filtre de notifications",
   "notification.filter.description": "Filtrer les notifications par relation",
   "dev.title": "Outils de développement",

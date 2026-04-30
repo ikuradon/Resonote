@@ -163,7 +163,7 @@
   "mute.word_placeholder": "Palavra para silenciar",
   "mute.empty_users": "Nenhum usuário silenciado",
   "mute.empty_words": "Nenhuma palavra silenciada",
-  "mute.nip44_required": "Carteira compatível com NIP-44 necessária para silenciar",
+  "mute.nip44_required": "Carteira interopível com NIP-44 necessária para silenciar",
   "notification.filter.title": "Filtro de notificações",
   "notification.filter.description": "Filtrar notificações por relacionamento",
   "dev.title": "Ferramentas de desenvolvedor",

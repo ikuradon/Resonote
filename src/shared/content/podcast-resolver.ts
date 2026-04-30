@@ -83,14 +83,14 @@ export function parseDTagEvent(event: {
 
 export async function resolveByDTag(
   url: string,
-  rxNostrQuery: (
+  relaySessionQuery: (
     filter: Record<string, unknown>
   ) => Promise<{ tags: string[][]; content?: string } | null>
 ): Promise<DTagResult | null> {
   const pubkey = await getSystemPubkey();
   if (!pubkey) return null;
   const normalized = normalizeUrl(url);
-  const event = await rxNostrQuery({
+  const event = await relaySessionQuery({
     kinds: [39701],
     authors: [pubkey],
     '#d': [normalized]

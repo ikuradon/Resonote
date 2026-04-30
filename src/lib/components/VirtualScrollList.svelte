@@ -56,7 +56,7 @@
 
   // Partial update: recompute offsets from index k onward.
   // Bumps offsetVersion to trigger offsets re-derivation.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for API compatibility
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for API interop
   function updateOffsetsFrom(_k: number) {
     offsetVersion++;
   }
