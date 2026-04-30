@@ -63,7 +63,7 @@
 
 次段階の完全リファクタリング方針は、次の一文に要約できる。
 
-> これ以降は `consumer の import 整理` より `公開 API の実装反転` を優先する。`shared` を stable API、`lib` を internal implementation / compat に再定義し、重複している page/component ロジックを feature/shared の view model へ集約する。
+> これ以降は `consumer の import 整理` より `公開 API の実装反転` を優先する。`shared` を stable API、`lib` を internal implementation / interop に再定義し、重複している page/component ロジックを feature/shared の view model へ集約する。
 
 この順序にする理由は3つある。
 
@@ -77,7 +77,7 @@
 
 - `shared/browser/*` と `shared/nostr/*` は、単なる import alias ではなく、公開 API として扱う。
 - consumer が見る型、関数、イベント、購読ライフサイクルは `shared` 側で固定する。
-- `lib/stores/*` と `lib/nostr/*` は、最終的に internal implementation か compat wrapper に限定する。
+- `lib/stores/*` と `lib/nostr/*` は、最終的に internal implementation か interop wrapper に限定する。
 
 ### 4.2 pure helper と stateful implementation を分ける
 
@@ -133,7 +133,7 @@
 作業:
 
 - `shared/browser/*` と `shared/nostr/*` を公開 API として扱う方針を docs と lint コメントに反映する。
-- `lib/stores/*` / `lib/nostr/*` を `internal` と `compat` の2種類に分けて整理方針を決める。
+- `lib/stores/*` / `lib/nostr/*` を `internal` と `interop` の2種類に分けて整理方針を決める。
 - pure helper と stateful implementation を分類する。
 
 完了条件:
@@ -179,7 +179,7 @@ notifications page と bell の重複ロジックをまとめる。
 
 作業:
 
-- `shared/browser/profile.ts` の背後にある profile state 実装を整理し、`lib/stores/profile.svelte.ts` を compat に寄せる。
+- `shared/browser/profile.ts` の背後にある profile state 実装を整理し、`lib/stores/profile.svelte.ts` を interop に寄せる。
 - `shared/browser/relays.ts` と `shared/nostr/relays-config.ts` の背後実装を整理し、relay status / relay fetch / default relay source を一貫させる。
 - `shared/browser/player.ts` と `shared/browser/extension.ts` の API を固定し、transport 実装を shared 側へ寄せる。
 - `lib/stores/extension.svelte.ts` に残る raw `message` / `postMessage` を縮退させる。
@@ -212,7 +212,7 @@ notifications page と bell の重複ロジックをまとめる。
 
 - `shared` を経由しない stateful relative import を禁止する。
 - outdated doc 参照や placeholder comment を整理する。
-- 使われなくなった compat wrapper を削除する。
+- 使われなくなった interop wrapper を削除する。
 - lint を warning から error へ引き上げる。
 
 完了条件:
@@ -252,6 +252,6 @@ notifications page と bell の重複ロジックをまとめる。
 2. `CommentList` と profile page の orchestration を view model 化する。
 3. その後で `profile` / `relays` / `extension` / `player` の ownership を `shared` 側へ反転させる。
 4. pure helper / config の公開位置を決める。
-5. 最後に lint を締め、compat wrapper を削る。
+5. 最後に lint を締め、interop wrapper を削る。
 
 この順序なら、先に UI 側の重複を潰し、その後で内部実装を安全に差し替えられる。

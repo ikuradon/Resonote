@@ -64,8 +64,8 @@
 ### 4.4 legacy `$lib` の扱い
 
 - `src/lib/stores/**` と `src/lib/nostr/**` は、新規実装の置き場として使わない。
-- 既存 module を残す場合も、役割は compatibility wrapper のみとする。
-- compatibility wrapper に実体ロジックを戻す変更は禁止する。
+- 既存 module を残す場合も、役割は interop wrapper のみとする。
+- interop wrapper に実体ロジックを戻す変更は禁止する。
 
 ## 5. 完了条件
 

@@ -90,7 +90,7 @@ bookmarks は wrapper 化が進みましたが、read-side 全体では次がま
 - `src/lib/stores/profile.svelte.ts`
 - `src/lib/stores/emoji-sets.svelte.ts`
 
-共通点は、state と query と rx-nostr / IndexedDB がまだ 1 ファイルに混ざっていることです。
+共通点は、state と query と relay-session / IndexedDB がまだ 1 ファイルに混ざっていることです。
 
 ### 3.4 bootstrap は依然として `$lib` facade 集約のまま
 
@@ -225,7 +225,7 @@ feature が `$lib` infra に直接ぶら下がる構造を止める。
 - `src/shared/nostr/` に gateway を作る
   - publish gateway
   - latest-event query gateway
-  - rx-nostr gateway
+  - relay-session gateway
   - events DB gateway
 - `src/shared/content/` に resolution 用 gateway / helper を寄せる
 - `src/shared/browser/` を追加する
@@ -305,8 +305,8 @@ feature が `$lib` infra に直接ぶら下がる構造を止める。
 
 ### 完了条件
 
-- `src/lib/stores/follows.svelte.ts` から rx-nostr / event-db 依存が抜ける
-- `src/lib/stores/relays.svelte.ts` から rx-nostr 依存が抜ける
+- `src/lib/stores/follows.svelte.ts` から relay-session / event-db 依存が抜ける
+- `src/lib/stores/relays.svelte.ts` から relay-session 依存が抜ける
 
 ## Phase F: playback / extension-bridge の整理
 
