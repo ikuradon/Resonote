@@ -32,8 +32,8 @@ const {
   const mockSub = { unsubscribe: vi.fn() };
   return {
     loadSubscriptionDepsMock: vi.fn().mockResolvedValue({
-      rxNostr: {},
-      rxNostrMod: {},
+      relaySession: {},
+      relaySessionMod: {},
       rxjsMerge: vi.fn()
     }),
     cacheCommentEventMock: vi.fn().mockReturnValue(undefined),
@@ -257,8 +257,8 @@ describe('createCommentViewModel', () => {
     // Re-apply default return values after clearAllMocks
     const mockSub = { unsubscribe: vi.fn() };
     loadSubscriptionDepsMock.mockResolvedValue({
-      rxNostr: {},
-      rxNostrMod: {},
+      relaySession: {},
+      relaySessionMod: {},
       rxjsMerge: vi.fn()
     });
     cacheCommentEventMock.mockReturnValue(undefined);

@@ -76,7 +76,7 @@ describe('publishRelayList', () => {
     );
   });
 
-  it('calls rxNostr.setDefaultRelays with extracted URLs', async () => {
+  it('calls relaySession.setDefaultRelays with extracted URLs', async () => {
     const entries: RelayEntry[] = [
       { url: 'wss://relay1.example.com', read: true, write: true },
       { url: 'wss://relay2.example.com', read: true, write: false }

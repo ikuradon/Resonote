@@ -1,6 +1,6 @@
 /**
  * Domain types for the comments feature.
- * No dependencies on infra (rx-nostr, IndexedDB, fetch, window).
+ * No dependencies on infra (relay-session, IndexedDB, fetch, window).
  */
 
 export interface Comment {

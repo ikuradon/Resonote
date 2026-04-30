@@ -1,6 +1,6 @@
 /**
  * Relay actions — publish relay list.
- * Encapsulates infra (castSigned, getRxNostr).
+ * Encapsulates signing and publish coordination behind the Auftakt façade.
  */
 
 import { buildNip51ListEvent } from '@auftakt/core';

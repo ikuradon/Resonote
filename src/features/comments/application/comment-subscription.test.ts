@@ -67,7 +67,7 @@ describe('comment-subscription wrappers', () => {
   });
 
   it('loadSubscriptionDeps forwards resonote deps unchanged', async () => {
-    const deps = { rxNostr: {}, rxNostrMod: {}, rxjsMerge: vi.fn() };
+    const deps = { relaySession: {}, relaySessionMod: {}, rxjsMerge: vi.fn() };
     loadCommentSubscriptionDepsMock.mockResolvedValue(deps);
 
     await expect(loadSubscriptionDeps()).resolves.toBe(deps);
