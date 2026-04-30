@@ -64,7 +64,7 @@ describe('Dexie sync cursor contract', () => {
     store.db.close();
   });
 
-  it('keeps cursor reads compatible when rows are rewritten by newer materializers', async () => {
+  it('keeps cursor reads interoperable when rows are rewritten by newer materializers', async () => {
     const dbName = `auftakt-sync-cursor-rewrite-${Date.now()}-${Math.random()}`;
     const store = await createDexieEventStore({ dbName });
 

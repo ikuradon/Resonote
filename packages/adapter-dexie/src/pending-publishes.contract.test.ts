@@ -77,4 +77,32 @@ describe('Dexie pending publishes', () => {
       expect.objectContaining({ id: 'failed' })
     ]);
   });
+
+  it('does not duplicate app-visible confirmation on retry drain', async () => {
+    const store = await createDexieEventStore({
+      dbName: `dexie-pending-no-duplicate-${Date.now()}`
+    });
+    await store.putPendingPublish({
+      id: pendingEvent.id,
+      status: 'retrying',
+      created_at: 10,
+      event: pendingEvent
+    });
+
+    const deliver = vi.fn(async () => 'confirmed' as const);
+    const firstResult = await store.drainPendingPublishes(deliver);
+
+    expect(firstResult.settledCount).toBe(1);
+    expect(firstResult.emissions).toHaveLength(1);
+    expect(firstResult.emissions[0]).toMatchObject({
+      subjectId: pendingEvent.id,
+      state: 'confirmed'
+    });
+    await expect(store.getPendingPublishes()).resolves.toEqual([]);
+
+    const secondResult = await store.drainPendingPublishes(deliver);
+    expect(secondResult.settledCount).toBe(0);
+    expect(secondResult.emissions).toHaveLength(0);
+    expect(deliver).toHaveBeenCalledTimes(1);
+  });
 });

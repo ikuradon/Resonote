@@ -76,6 +76,106 @@ describe('Dexie deletion materialization', () => {
     expect(result.stored).toBe(false);
     await expect(store.getById('target')).resolves.toBeNull();
   });
+
+  it('does not tombstone target when kind:5 author differs from target author', async () => {
+    const store = await createDexieEventStore({
+      dbName: 'auftakt-dexie-delete-wrong-author'
+    });
+    await store.putWithReconcile({
+      id: 'target',
+      pubkey: 'alice',
+      created_at: 1,
+      kind: 1,
+      tags: [],
+      content: 'x',
+      sig: 'sig'
+    });
+    await store.putWithReconcile({
+      id: 'delete-by-bob',
+      pubkey: 'bob',
+      created_at: 2,
+      kind: 5,
+      tags: [['e', 'target']],
+      content: '',
+      sig: 'sig'
+    });
+
+    await expect(store.getById('target')).resolves.toMatchObject({
+      id: 'target',
+      pubkey: 'alice'
+    });
+    await expect(store.getById('delete-by-bob')).resolves.toMatchObject({
+      id: 'delete-by-bob',
+      kind: 5
+    });
+    await expect(store.isDeleted('target', 'alice')).resolves.toBe(false);
+  });
+
+  it('suppresses late target arrival after valid same-author kind:5', async () => {
+    const store = await createDexieEventStore({
+      dbName: 'auftakt-dexie-late-resurrection-suppressed'
+    });
+    await store.putWithReconcile({
+      id: 'delete',
+      pubkey: 'alice',
+      created_at: 10,
+      kind: 5,
+      tags: [['e', 'target']],
+      content: 'deleting my post',
+      sig: 'sig'
+    });
+
+    const result = await store.putWithReconcile({
+      id: 'target',
+      pubkey: 'alice',
+      created_at: 5,
+      kind: 1,
+      tags: [],
+      content: 'x',
+      sig: 'sig'
+    });
+
+    expect(result.stored).toBe(false);
+    expect(result.emissions).toContainEqual({
+      subjectId: 'target',
+      state: 'deleted',
+      reason: 'tombstoned'
+    });
+    await expect(store.getById('target')).resolves.toBeNull();
+    await expect(store.isDeleted('target', 'alice')).resolves.toBe(true);
+  });
+
+  it('allows late target when kind:5 author differs', async () => {
+    const store = await createDexieEventStore({
+      dbName: 'auftakt-dexie-wrong-author-no-suppression'
+    });
+    await store.putWithReconcile({
+      id: 'delete-by-bob',
+      pubkey: 'bob',
+      created_at: 10,
+      kind: 5,
+      tags: [['e', 'target']],
+      content: 'trying to delete',
+      sig: 'sig'
+    });
+
+    const result = await store.putWithReconcile({
+      id: 'target',
+      pubkey: 'alice',
+      created_at: 5,
+      kind: 1,
+      tags: [],
+      content: 'x',
+      sig: 'sig'
+    });
+
+    expect(result.stored).toBe(true);
+    await expect(store.getById('target')).resolves.toMatchObject({
+      id: 'target',
+      pubkey: 'alice'
+    });
+    await expect(store.isDeleted('target', 'alice')).resolves.toBe(false);
+  });
 });
 
 describe('Dexie NIP-40 expiration materialization', () => {
@@ -585,7 +685,7 @@ describe('Dexie mixed materialization visibility', () => {
     ]);
   });
 
-  it('suppresses late resurrection even when callers use the raw putEvent compatibility path', async () => {
+  it('suppresses late resurrection even when callers use the raw putEvent interop path', async () => {
     const store = await createDexieEventStore({
       dbName: `auftakt-dexie-late-resurrection-${Date.now()}-${Math.random()}`
     });
