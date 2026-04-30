@@ -1,7 +1,8 @@
 import {
   createDexieEventStore,
   type DexieEventRecord,
-  DexieEventStore} from '@auftakt/adapter-dexie';
+  DexieEventStore
+} from '@auftakt/adapter-dexie';
 import type { Event as NostrEvent } from 'nostr-typedef';
 
 const DEFAULT_DB_NAME = 'resonote-dexie-events';

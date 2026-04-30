@@ -2,7 +2,7 @@
  * Profile domain types and pure display functions.
  */
 
-import { type Nip24Birthday,npubEncode } from '@auftakt/core';
+import { type Nip24Birthday, npubEncode } from '@auftakt/core';
 
 export const MAX_NAME_LENGTH = 32;
 

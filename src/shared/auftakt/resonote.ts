@@ -9,7 +9,8 @@ import {
   type EmojiCategory,
   startCommentDeletionReconcile as startCommentDeletionReconcileImpl,
   startCommentSubscription as startCommentSubscriptionImpl,
-  startMergedCommentSubscription as startMergedCommentSubscriptionImpl} from '@auftakt/resonote';
+  startMergedCommentSubscription as startMergedCommentSubscriptionImpl
+} from '@auftakt/resonote';
 import {
   AUFTAKT_RUNTIME_PLUGIN_API_VERSION,
   type AuftaktRuntimePlugin,
@@ -26,7 +27,8 @@ import {
   type RelayMetricSnapshot,
   type SubscriptionHandle,
   uniq,
-  useCachedLatest as useCachedLatestHelper} from '@auftakt/runtime';
+  useCachedLatest as useCachedLatestHelper
+} from '@auftakt/runtime';
 import type { EventParameters } from 'nostr-typedef';
 import { merge } from 'rxjs';
 

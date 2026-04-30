@@ -3,7 +3,7 @@ import 'fake-indexeddb/auto';
 import { createDexieEventStore } from '@auftakt/adapter-dexie';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import type { EventsDB} from './event-db.js';
+import type { EventsDB } from './event-db.js';
 import type { NostrEvent } from './event-db.js';
 
 function makeEvent(overrides: Partial<NostrEvent> = {}): NostrEvent {
