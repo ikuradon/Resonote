@@ -17,6 +17,7 @@ import {
   preloadEvents,
   setupFullLogin,
   setupMockPool,
+  setupReadOnlyLogin,
   simulateLogin,
   TEST_I_TAG,
   TEST_K_TAG,
@@ -372,15 +373,11 @@ test.describe('Settings page — NIP-44 warning', () => {
   test('should display NIP-44 warning for read-only login', async ({ page }) => {
     // Set up MockPool WITHOUT full login (no nip44 support)
     await setupMockPool(page);
-    // Set up read-only login (no signEvent, no nip44)
-    await page.addInitScript((pk: string) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).nostr = { getPublicKey: async () => pk };
-    }, user.pubkey);
+    await setupReadOnlyLogin(page, user.pubkey);
 
     await page.goto('/settings');
     await page.waitForLoadState('networkidle');
-    await simulateLogin(page);
+    await simulateLogin(page, { method: 'readOnly' });
 
     await expect(page.locator('text=NIP-44')).toBeVisible({ timeout: 10_000 });
   });

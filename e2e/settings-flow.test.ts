@@ -27,7 +27,6 @@ test.describe('Settings page', () => {
   test('should show relay loading state', async ({ page }) => {
     await page.goto('/settings');
     await page.waitForLoadState('networkidle');
-    await simulateLogin(page);
 
     const loadingText = page.getByText(/Loading relay list|リレーリストを読み込み中/).first();
     await expect(loadingText).toBeVisible({ timeout: 10_000 });
