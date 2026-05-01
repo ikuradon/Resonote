@@ -544,6 +544,58 @@ describe('Dexie replaceable materialization', () => {
       id: 'new'
     });
   });
+
+  it('rechecks replaceable heads inside the write transaction', async () => {
+    const store = await createDexieEventStore({
+      dbName: `auftakt-dexie-replaceable-race-${Date.now()}-${Math.random()}`
+    });
+    await store.putWithReconcile(event('original', { kind: 0, created_at: 1 }));
+
+    const originalTransaction = store.db.transaction.bind(store.db);
+    let transactionCalls = 0;
+    let releaseFirstTransaction: (() => void) | null = null;
+    const firstTransactionBlocked = new Promise<void>((resolve) => {
+      const db = store.db as unknown as {
+        transaction: (...args: unknown[]) => Promise<unknown>;
+      };
+      db.transaction = (...args: unknown[]) => {
+        transactionCalls += 1;
+        if (transactionCalls === 1) {
+          return new Promise<unknown>((transactionResolve, transactionReject) => {
+            releaseFirstTransaction = () => {
+              void originalTransaction(...(args as Parameters<typeof originalTransaction>)).then(
+                transactionResolve,
+                transactionReject
+              );
+            };
+            resolve();
+          });
+        }
+        return originalTransaction(...(args as Parameters<typeof originalTransaction>));
+      };
+    });
+
+    try {
+      const olderWrite = store.putWithReconcile(event('older', { kind: 0, created_at: 2 }));
+      await firstTransactionBlocked;
+      await expect(
+        store.putWithReconcile(event('newer', { kind: 0, created_at: 3 }))
+      ).resolves.toMatchObject({ stored: true });
+
+      releaseFirstTransaction?.();
+      await expect(olderWrite).resolves.toMatchObject({ stored: false });
+
+      await expect(store.getReplaceableHead('alice', 0, '')).resolves.toMatchObject({
+        id: 'newer'
+      });
+      await expect(store.getById('older')).resolves.toBeNull();
+    } finally {
+      const db = store.db as unknown as {
+        transaction: (...args: unknown[]) => Promise<unknown>;
+      };
+      db.transaction = originalTransaction as unknown as (...args: unknown[]) => Promise<unknown>;
+    }
+  });
 });
 
 describe('Dexie mixed materialization visibility', () => {

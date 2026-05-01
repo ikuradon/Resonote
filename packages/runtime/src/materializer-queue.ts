@@ -14,7 +14,14 @@ const rank: Record<MaterializerPriority, number> = {
 
 export function createMaterializerQueue() {
   const tasks: MaterializerTask[] = [];
-  let draining = false;
+  let drainPromise: Promise<void> | null = null;
+
+  async function runDrain(): Promise<void> {
+    while (tasks.length > 0) {
+      const task = tasks.shift();
+      if (task) await task.run();
+    }
+  }
 
   return {
     enqueue(task: MaterializerTask): void {
@@ -22,16 +29,10 @@ export function createMaterializerQueue() {
       tasks.sort((left, right) => rank[left.priority] - rank[right.priority]);
     },
     async drain(): Promise<void> {
-      if (draining) return;
-      draining = true;
-      try {
-        while (tasks.length > 0) {
-          const task = tasks.shift();
-          if (task) await task.run();
-        }
-      } finally {
-        draining = false;
-      }
+      drainPromise ??= runDrain().finally(() => {
+        drainPromise = null;
+      });
+      return drainPromise;
     },
     size(): number {
       return tasks.length;

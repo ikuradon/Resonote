@@ -4,7 +4,11 @@
  * UI components call these instead of directly importing castSigned/buildComment.
  */
 
-import { fetchNostrEventById, publishSignedEvent } from '$shared/auftakt/resonote.js';
+import {
+  fetchNostrEventById,
+  getDefaultRelayUrls,
+  publishSignedEvent
+} from '$shared/auftakt/resonote.js';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import {
   buildComment,
@@ -99,16 +103,20 @@ export interface SendRepostParams {
 /** Send a NIP-18 repost for a comment using the coordinator-local event body. */
 export async function sendRepost(params: SendRepostParams): Promise<void> {
   const relayHint = params.relayHint ?? params.comment.relayHint;
-  if (!relayHint) {
-    throw new Error('Cannot repost without a relay hint for the target event');
-  }
-
-  const targetEvent = await fetchNostrEventById<RepostTargetEvent>(params.comment.id, [relayHint]);
+  const targetEvent = await fetchNostrEventById<RepostTargetEvent>(
+    params.comment.id,
+    relayHint ? [relayHint] : []
+  );
   if (!targetEvent) {
     throw new Error('Cannot repost an event that is not available locally or from relay repair');
   }
 
-  const eventParams = buildRepost(targetEvent, relayHint);
+  const repostRelayHint = relayHint ?? (await getDefaultRelayUrls())[0];
+  if (!repostRelayHint) {
+    throw new Error('Cannot repost without a relay hint for the target event');
+  }
+
+  const eventParams = buildRepost(targetEvent, repostRelayHint);
   await publishSignedEvent(eventParams);
   log.info('Repost sent', {
     targetId: shortHex(params.comment.id),

@@ -704,15 +704,43 @@ export class DexieEventStore {
   private async applyReplaceable(event: NostrEvent): Promise<DexieMaterializationResult> {
     const dTag = isParameterizedReplaceable(event.kind) ? getDTag(event.tags) : '';
     const key = `${event.pubkey}:${event.kind}:${dTag}`;
-    let current = await this.db.replaceable_heads.get(key);
-    if (current) {
-      const currentEvent = await this.db.events.get(current.event_id);
-      if (!currentEvent || this.isExpiredRecord(currentEvent)) {
-        await this.deleteByIds([current.event_id]);
-        current = undefined;
+    let replacedExisting = false;
+    const stored = await this.db.transaction(
+      'rw',
+      this.db.events,
+      this.db.event_tags,
+      this.db.replaceable_heads,
+      this.db.event_relay_hints,
+      async () => {
+        let current = await this.db.replaceable_heads.get(key);
+        if (current) {
+          const currentEvent = await this.db.events.get(current.event_id);
+          if (!currentEvent || this.isExpiredRecord(currentEvent)) {
+            await deleteEventRows(this.db, [current.event_id]);
+            current = undefined;
+          }
+        }
+
+        if (current) {
+          if (current.created_at >= event.created_at) {
+            return false;
+          }
+          await deleteEventRows(this.db, [current.event_id]);
+          replacedExisting = true;
+        }
+        await writeEventRecord(this.db, event);
+        await this.db.replaceable_heads.put({
+          key,
+          event_id: event.id,
+          pubkey: event.pubkey,
+          kind: event.kind,
+          d_tag: dTag,
+          created_at: event.created_at
+        });
+        return true;
       }
-    }
-    if (current && current.created_at >= event.created_at) {
+    );
+    if (!stored) {
       return {
         stored: false,
         emissions: [
@@ -724,35 +752,13 @@ export class DexieEventStore {
         ]
       };
     }
-
-    await this.db.transaction(
-      'rw',
-      this.db.events,
-      this.db.event_tags,
-      this.db.replaceable_heads,
-      async () => {
-        if (current) {
-          await this.db.events.delete(current.event_id);
-          await this.db.event_tags.where('event_id').equals(current.event_id).delete();
-        }
-        await writeEventRecord(this.db, event);
-        await this.db.replaceable_heads.put({
-          key,
-          event_id: event.id,
-          pubkey: event.pubkey,
-          kind: event.kind,
-          d_tag: dTag,
-          created_at: event.created_at
-        });
-      }
-    );
     return {
       stored: true,
       emissions: [
         {
           subjectId: event.id,
           state: 'confirmed',
-          reason: current ? 'replaced-winner' : 'accepted-new'
+          reason: replacedExisting ? 'replaced-winner' : 'accepted-new'
         }
       ]
     };
@@ -777,7 +783,9 @@ export class DexieEventStore {
   private async findVanishRequestForEvent(
     event: Pick<NostrEvent, 'pubkey' | 'created_at' | 'kind' | 'tags'>
   ): Promise<DexieVanishIndexRecord | null> {
-    const records = await this.db.vanish_index.toArray();
+    const pubkeys = getVanishCandidatePubkeys(event);
+    if (pubkeys.length === 0) return null;
+    const records = await this.db.vanish_index.where('pubkey').anyOf(pubkeys).toArray();
     return (
       sortVanishRecordsDesc(records).find((record) => isEventCoveredByVanish(event, record)) ?? null
     );
@@ -956,6 +964,18 @@ function isEventCoveredByVanish(
     isAuthorEventCoveredByVanish(event, record.pubkey, record.created_at) ||
     isGiftWrapCoveredByVanish(event, record.pubkey, record.created_at)
   );
+}
+
+function getVanishCandidatePubkeys(event: Pick<NostrEvent, 'pubkey' | 'kind' | 'tags'>): string[] {
+  const pubkeys = new Set<string>([event.pubkey]);
+  if (event.kind === NIP59_GIFT_WRAP_KIND) {
+    for (const tag of event.tags) {
+      if (tag[0] === 'p' && tag[1]) {
+        pubkeys.add(tag[1]);
+      }
+    }
+  }
+  return [...pubkeys];
 }
 
 function isAuthorEventCoveredByVanish(

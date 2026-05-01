@@ -10,6 +10,7 @@
 | `invalidateFetchByIdCache`       | `documented`               | Yes     | -                                           | -           |
 | `useCachedLatest`                | `documented`               | Yes     | -                                           | -           |
 | `setPreferredRelays`             | `documented`               | Yes     | -                                           | -           |
+| `getDefaultRelayUrls`            | `undocumented-but-allowed` | No      | `comment repost relay hint fallback`        | `allowlist` |
 | `retryQueuedPublishes`           | `documented`               | Yes     | -                                           | -           |
 | `publishSignedEvents`            | `documented`               | Yes     | -                                           | -           |
 | `verifySignedEvent`              | `documented`               | Yes     | -                                           | -           |
@@ -81,6 +82,7 @@
   - `storeCommentEvent` (Value)
   - `readStoredFollowGraph` (Value)
   - `registerPlugin` (Value)
+  - `getDefaultRelayUrls` (Value)
   - `parseCommentContent` (Value)
   - `addEmojiTag` (Value)
   - `extractShortcode` (Value)

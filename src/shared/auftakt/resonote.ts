@@ -42,7 +42,7 @@ import {
 import {
   castSigned as castSignedImpl,
   fetchLatestEvent as fetchLatestEventImpl,
-  getDefaultRelayUrls,
+  getDefaultRelayUrls as getDefaultRelayUrlsImpl,
   getRelayConnectionState as getRelayConnectionStateImpl,
   getRelaySession,
   observePublishAcks as observePublishAcksImpl,
@@ -71,7 +71,7 @@ const runtime: ResonoteRuntime = {
   fetchLatestEvent: (pubkey, kind) => fetchLatestEventImpl(pubkey, kind),
   getEventsDB: () => getEventsDB(),
   getRelaySession: () => getRelaySession(),
-  getDefaultRelays: () => getDefaultRelayUrls(),
+  getDefaultRelays: () => getDefaultRelayUrlsImpl(),
   createBackwardReq: (options) => createBackwardReq(options),
   createForwardReq: (options) => createForwardReq(options),
   uniq: () => uniq(),
@@ -210,6 +210,10 @@ export async function clearStoredEvents(): Promise<void> {
 
 export async function setPreferredRelays(urls: string[]): Promise<void> {
   return coordinator.setDefaultRelays(urls);
+}
+
+export async function getDefaultRelayUrls(): Promise<string[]> {
+  return getDefaultRelayUrlsImpl();
 }
 
 export async function retryQueuedPublishes(): Promise<void> {

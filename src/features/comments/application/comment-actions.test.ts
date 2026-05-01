@@ -11,6 +11,7 @@ const {
   buildDeletionMock,
   buildContentReactionMock,
   fetchNostrEventByIdMock,
+  getDefaultRelayUrlsMock,
   castSignedMock,
   logInfoMock
 } = vi.hoisted(() => ({
@@ -20,6 +21,7 @@ const {
   buildDeletionMock: vi.fn(() => ({ kind: 5, content: '', tags: [] })),
   buildContentReactionMock: vi.fn(() => ({ kind: 17, content: '+', tags: [] })),
   fetchNostrEventByIdMock: vi.fn(),
+  getDefaultRelayUrlsMock: vi.fn(async () => ['wss://default.example.com']),
   castSignedMock: vi.fn(async () => {}),
   logInfoMock: vi.fn()
 }));
@@ -36,6 +38,7 @@ vi.mock('$shared/nostr/events.js', () => ({
 
 vi.mock('$shared/auftakt/resonote.js', () => ({
   fetchNostrEventById: fetchNostrEventByIdMock,
+  getDefaultRelayUrls: getDefaultRelayUrlsMock,
   publishSignedEvent: castSignedMock
 }));
 
@@ -300,6 +303,7 @@ describe('sendRepost', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fetchNostrEventByIdMock.mockResolvedValue(targetEvent);
+    getDefaultRelayUrlsMock.mockResolvedValue(['wss://default.example.com']);
     buildRepostMock.mockReturnValue(repostEvent);
   });
 
@@ -328,11 +332,22 @@ describe('sendRepost', () => {
     expect(castSignedMock).not.toHaveBeenCalled();
   });
 
-  it('requires a relay hint before fetching', async () => {
+  it('falls back to a default relay hint after fetching a target without relay hints', async () => {
+    await sendRepost({ comment: { ...comment, relayHint: undefined } });
+
+    expect(fetchNostrEventByIdMock).toHaveBeenCalledWith('comment-id', []);
+    expect(buildRepostMock).toHaveBeenCalledWith(targetEvent, 'wss://default.example.com');
+    expect(castSignedMock).toHaveBeenCalledWith(repostEvent);
+  });
+
+  it('does not publish when no target relay hint can be resolved', async () => {
+    getDefaultRelayUrlsMock.mockResolvedValueOnce([]);
+
     await expect(sendRepost({ comment: { ...comment, relayHint: undefined } })).rejects.toThrow(
       'relay hint'
     );
-    expect(fetchNostrEventByIdMock).not.toHaveBeenCalled();
+    expect(fetchNostrEventByIdMock).toHaveBeenCalledWith('comment-id', []);
+    expect(buildRepostMock).not.toHaveBeenCalled();
     expect(castSignedMock).not.toHaveBeenCalled();
   });
 
