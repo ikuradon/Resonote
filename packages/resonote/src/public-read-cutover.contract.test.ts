@@ -405,6 +405,38 @@ describe('@auftakt/resonote public read cutover', () => {
     expect(event).toEqual(newestEvent);
   });
 
+  it('does not fall back to default relays when an empty read overlay excludes them', async () => {
+    const localEvent = finalizeEvent(
+      {
+        kind: 1,
+        content: 'local cache event',
+        tags: [],
+        created_at: 100
+      },
+      RELAY_SECRET_KEY
+    );
+    const relayEvent = finalizeEvent(
+      {
+        kind: 1,
+        content: 'relay event should be ignored',
+        tags: [],
+        created_at: 200
+      },
+      RELAY_SECRET_KEY
+    );
+    const { coordinator, createdRequests } = createCoordinatorFixture({
+      getAllByKind: async () => [localEvent],
+      relayEvents: [relayEvent]
+    });
+
+    const event = await coordinator.fetchBackwardFirst<typeof localEvent>([{ kinds: [1] }], {
+      overlay: { relays: [], includeDefaultReadRelays: false }
+    });
+
+    expect(event).toEqual(localEvent);
+    expect(createdRequests).toEqual([]);
+  });
+
   it('returns the newest relay event from fetchBackwardFirst when local-first reads include stale cache', async () => {
     const localEvent = finalizeEvent(
       {

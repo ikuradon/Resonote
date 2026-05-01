@@ -656,6 +656,7 @@ async function verifyOrdinaryReadRelayCandidates(
 
   const relayUrls = await selectOrdinaryReadVerificationRelays(runtime, options);
   if (relayUrls.length === 0) {
+    if (options?.overlay && options.overlay.includeDefaultReadRelays !== true) return [];
     return fetchRelayCandidateEventsFromDefaultReadRelays(runtime, filters, options);
   }
 
