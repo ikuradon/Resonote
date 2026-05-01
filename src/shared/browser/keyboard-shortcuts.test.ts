@@ -45,7 +45,10 @@ describe('createKeyboardShortcuts', () => {
 
   function fireKey(
     key: string,
-    opts: Partial<KeyboardEventInit> & { target?: EventTarget | null } = {}
+    opts: Partial<KeyboardEventInit> & {
+      target?: EventTarget | null;
+      composedPath?: () => EventTarget[];
+    } = {}
   ): boolean {
     const event = {
       key,
@@ -143,6 +146,15 @@ describe('createKeyboardShortcuts', () => {
   it('ignores shortcuts from textarea keydown targets even when focus state is stale', () => {
     const handled = fireKey('f', {
       target: { tagName: 'TEXTAREA' } as unknown as EventTarget
+    });
+
+    expect(handled).toBe(false);
+    expect(actions.switchToFlow).not.toHaveBeenCalled();
+  });
+
+  it('ignores shortcuts from textarea via composedPath even when focus state is stale', () => {
+    const handled = fireKey('f', {
+      composedPath: () => [{ tagName: 'TEXTAREA' } as unknown as EventTarget]
     });
 
     expect(handled).toBe(false);
