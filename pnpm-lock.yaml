@@ -184,6 +184,9 @@ importers:
       '@auftakt/core':
         specifier: workspace:*
         version: link:../core
+      '@auftakt/runtime':
+        specifier: workspace:*
+        version: link:../runtime
 
   packages/runtime:
     dependencies:
