@@ -9,9 +9,10 @@ verification と relay repair の両方が使う内部 ID-list message encode/de
 このファイルが所有するようになった。
 
 ローカルの `pnpm run test:coverage` では project coverage は設定された project target
-を超えている。一方で `packages/runtime/src/negentropy-message.ts` は部分的にしか
-cover されていない。`codecov.yml` は patch coverage 80% を要求しているため、この新規
-helper が coverage 低下の主因と考えられる。
+を超えている。一方で coverage report では `packages/runtime/src/negentropy-message.ts`
+が statements 77.27%、branches 50%、lines 77.04% に留まっており、uncovered lines /
+branches が目立つ。`codecov.yml` は patch coverage 80% を要求しているため、この新規
+helper が PR #235 の patch coverage を押し下げている主要因と見る。
 
 ## Goal
 
@@ -24,6 +25,8 @@ test は bug fix の再発防止を証明し、runtime safety に関係する co
 - PR #235 で導入した Negentropy message wire format は変更しない。
 - Codecov threshold の緩和や helper の coverage exclude はしない。
 - unrelated な relay gateway、relay repair、session behavior は refactor しない。
+- 新しい `.contract.test.ts` file は test-only に留め、package build output や public exports
+  に影響させない。
 
 ## Approach
 
@@ -34,24 +37,38 @@ test は bug fix の再発防止を証明し、runtime safety に関係する co
 contract tests は次を cover する。
 
 - empty local set を `6100000200` に encode すること
-- encode 前に event refs を `created_at` と `id` で sort すること
+- `6100000200` の byte-level 意味を test fixture 近くの comment に残すこと:
+  `61` = protocol version、`00` = infinity upper timestamp、`00` = empty ID prefix、
+  `02` = ID-list mode、`00` = empty list length
+- encode 前に event refs を `created_at` と `id` で sort すること。test は同じ
+  `created_at` の複数 event を逆順で渡し、`id` tie-breaker まで固定する
 - ID-list message を event IDs に decode できること
 - odd-length hex payload を reject すること
 - JSON 風の `[]` のような non-hex payload を reject すること
 - unsupported protocol version を reject すること
-- encode 時に invalid event ID を reject すること
+- encode 時に invalid event ID を reject すること。invalid length と 64 chars だが
+  non-hex を含む case を分ける
+- uppercase hex input は accept し、decode 結果を lowercase hex IDs に normalize すること
+- duplicate IDs は codec layer では preserve すること。dedupe は上位 layer の責務とし、
+  codec は wire data の ID-list を忠実に返す
+- decode 側でも empty ID-list message は空配列として扱うこと
 - decode 時に unsupported mode と truncated ID list を reject すること
-- skip range は ID を生成せずに扱うこと
+- skip range frame だけの message を decode しても synthetic event ID は生成しないこと
+- skip range の後ろに ID-list frame がある message では、ID-list frame の IDs だけを返すこと
+- extra trailing bytes は valid range として decode できない限り reject すること
 
 ## Error Handling
 
 helper は malformed local input と malformed relay message に対して具体的な `Error` message
-を投げる。test では代表的な message を assert し、将来の変更で JSON payload の再導入や
-invalid wire data の受け入れが静かに起きないようにする。
+を投げる。test では全文一致ではなく意味のある token を regex で assert し、wording 改善の
+余地を残しながら、JSON payload の再導入や invalid wire data の受け入れが静かに起きない
+ようにする。
 
 ## Testing
 
-まず focused package tests を実行する。
+まず focused package tests を実行する。codec contract test に加えて、既存の ordinary read /
+relay repair の contract tests も同時に実行し、internal helper の直接 import や追加 test file
+による regression がないことを確認する。
 
 ```bash
 pnpm exec vitest run packages/runtime/src/negentropy-message.contract.test.ts packages/runtime/src/relay-gateway.contract.test.ts packages/runtime/src/relay-repair.contract.test.ts
@@ -67,3 +84,6 @@ pnpm run test:coverage
 
 `pnpm run test:coverage` は、既存の package boundary tests が `git ls-files` を spawn するため、
 ローカルでは sandbox escalation が必要になる場合がある。
+
+package boundary checks と public API contract tests により、新しい `.contract.test.ts` が
+public source entry や package export として扱われないことも確認する。
