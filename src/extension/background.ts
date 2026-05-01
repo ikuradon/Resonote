@@ -1,7 +1,7 @@
 import type { ContentId } from '$shared/content/types.js';
 
-import { openSidePanel } from './shared/compat.js';
 import { SIDEPANEL_PORT_NAME } from './shared/constants.js';
+import { openSidePanel } from './shared/interop.js';
 import { type ExtensionMessage, isSafeUrl, isValidContentId } from './shared/messages.js';
 
 interface TabState {

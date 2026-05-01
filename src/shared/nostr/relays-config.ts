@@ -1,6 +1,5 @@
 import { parseRelayTags } from '$features/relays/domain/relay-model.js';
 import { RELAY_LIST_KIND } from '$shared/nostr/events.js';
-import { getRxNostr } from '$shared/nostr/gateway.js';
 import { DEFAULT_RELAYS } from '$shared/nostr/relays.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 
@@ -10,49 +9,49 @@ export { DEFAULT_RELAYS };
 
 export async function applyUserRelays(pubkey: string): Promise<string[]> {
   log.info('Fetching user relay list (kind:10002)', { pubkey: shortHex(pubkey) });
-  const [{ createRxBackwardReq }] = await Promise.all([import('rx-nostr')]);
-  const rxNostr = await getRxNostr();
+  const { readLatestEvent, setPreferredRelays } = await import('$shared/auftakt/resonote.js');
 
-  return new Promise<string[]>((resolve) => {
-    const req = createRxBackwardReq();
-    let relayTags: string[][] = [];
-    let latestCreatedAt = 0;
+  async function applyFallbackDefaults(reason: string, error?: unknown): Promise<string[]> {
+    try {
+      await setPreferredRelays(DEFAULT_RELAYS);
+    } catch (fallbackError) {
+      log.warn(`Failed to apply default relays after ${reason}`, fallbackError);
+    }
 
-    const sub = rxNostr.use(req).subscribe({
-      next: (packet) => {
-        if (packet.event.created_at > latestCreatedAt) {
-          latestCreatedAt = packet.event.created_at;
-          relayTags = packet.event.tags;
-        }
-      },
-      complete: () => {
-        sub.unsubscribe();
+    if (error) {
+      log.warn(reason, error);
+    } else {
+      log.info(reason);
+    }
 
-        const entries = parseRelayTags(relayTags);
-        if (entries.length > 0) {
-          const urls = entries.map((entry) => entry.url);
-          log.info('Applied user relays', { count: urls.length, relays: urls });
-          rxNostr.setDefaultRelays(urls);
-          resolve(urls);
-        } else {
-          log.info('No user relays found, using defaults');
-          resolve(DEFAULT_RELAYS);
-        }
-      },
-      error: (err) => {
-        log.warn('Failed to fetch user relays, using defaults', err);
-        sub.unsubscribe();
-        resolve(DEFAULT_RELAYS);
-      }
-    });
+    return DEFAULT_RELAYS;
+  }
 
-    req.emit({ kinds: [RELAY_LIST_KIND], authors: [pubkey], limit: 1 });
-    req.over();
-  });
+  let relayTags: string[][];
+  try {
+    const latest = await readLatestEvent(pubkey, RELAY_LIST_KIND);
+    relayTags = latest?.tags ?? [];
+  } catch (err) {
+    return applyFallbackDefaults('Failed to fetch user relays, using defaults', err);
+  }
+
+  const entries = parseRelayTags(relayTags);
+  if (entries.length === 0) {
+    return applyFallbackDefaults('No user relays found, using defaults');
+  }
+
+  const urls = entries.map((entry) => entry.url);
+  try {
+    await setPreferredRelays(urls);
+    log.info('Applied user relays', { count: urls.length, relays: urls });
+    return urls;
+  } catch (err) {
+    return applyFallbackDefaults('Failed to apply fetched user relays, using defaults', err);
+  }
 }
 
 export async function resetToDefaultRelays(): Promise<void> {
   log.info('Resetting to default relays');
-  const rxNostr = await getRxNostr();
-  rxNostr.setDefaultRelays(DEFAULT_RELAYS);
+  const { setPreferredRelays } = await import('$shared/auftakt/resonote.js');
+  await setPreferredRelays(DEFAULT_RELAYS);
 }

@@ -1,33 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getRxNostrMock, createRxBackwardReqMock, reqEmitMock, reqOverMock, publishRelayListMock } =
-  vi.hoisted(() => {
-    const reqEmitMock = vi.fn();
-    const reqOverMock = vi.fn();
-    return {
-      getRxNostrMock: vi.fn(),
-      createRxBackwardReqMock: vi.fn(),
-      reqEmitMock,
-      reqOverMock,
-      publishRelayListMock: vi.fn(async () => ['wss://relay.example.com'])
-    };
-  });
+const { fetchRelayListSourcesMock, snapshotRelayStatusesMock, publishRelayListMock } = vi.hoisted(
+  () => ({
+    fetchRelayListSourcesMock: vi.fn(),
+    snapshotRelayStatusesMock: vi.fn(),
+    publishRelayListMock: vi.fn(async () => ['wss://relay.example.com'])
+  })
+);
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getRxNostr: getRxNostrMock
-}));
-
-vi.mock('rx-nostr', () => ({
-  createRxBackwardReq: createRxBackwardReqMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  fetchRelayListSources: fetchRelayListSourcesMock,
+  observeRelayStatuses: vi.fn(),
+  snapshotRelayStatuses: snapshotRelayStatusesMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
-  createLogger: () => ({
-    info: vi.fn(),
-    debug: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn()
-  })
+  createLogger: () => ({ info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() })
 }));
 
 vi.mock('$shared/nostr/relays.js', () => ({
@@ -40,11 +28,8 @@ vi.mock('$shared/nostr/events.js', () => ({
 }));
 
 vi.mock('$features/relays/domain/relay-model.js', () => ({
-  parseRelayTags: (tags: string[][]): { url: string; read: boolean; write: boolean }[] => {
-    return tags
-      .filter((t) => t[0] === 'r' && t[1])
-      .map((t) => ({ url: t[1], read: true, write: true }));
-  }
+  parseRelayTags: (tags: string[][]): { url: string; read: boolean; write: boolean }[] =>
+    tags.filter((t) => t[0] === 'r' && t[1]).map((t) => ({ url: t[1], read: true, write: true }))
 }));
 
 vi.mock('$features/relays/application/relay-actions.js', () => ({
@@ -58,176 +43,92 @@ import {
   publishRelayList
 } from './relays.svelte.js';
 
-interface Observer {
-  next: (p: unknown) => void;
-  complete: () => void;
-  error: (e: unknown) => void;
-}
-
-function makeBackwardReqMock(
-  packets: Array<{ event: { tags: string[][]; created_at?: number; content?: string } }>,
-  errorToThrow?: unknown
-) {
-  const subscriptionMock = { unsubscribe: vi.fn() };
-  const req = { emit: reqEmitMock, over: reqOverMock };
-
-  const rxNostr = {
-    getRelayStatus: vi.fn(() => null),
-    createConnectionStateObservable: vi.fn(() => ({
-      subscribe: vi.fn(() => ({ unsubscribe: vi.fn() }))
-    })),
-    use: vi.fn(() => ({
-      subscribe: vi.fn((obs: Observer) => {
-        void Promise.resolve().then(() => {
-          if (errorToThrow) {
-            obs.error(errorToThrow);
-          } else {
-            for (const p of packets) obs.next(p);
-            obs.complete();
-          }
-        });
-        return subscriptionMock;
-      })
-    }))
-  };
-
-  createRxBackwardReqMock.mockReturnValue(req);
-  return rxNostr;
-}
-
 const PUBKEY = 'aabbccdd'.repeat(8);
 
 describe('fetchRelayList', () => {
   beforeEach(() => {
     destroyRelayStatus();
     vi.clearAllMocks();
+    snapshotRelayStatusesMock.mockImplementation(async (urls: string[]) =>
+      urls.map((url) => ({
+        url,
+        relay: { url, connection: 'idle', replaying: false, degraded: false, reason: 'opened' },
+        aggregate: { state: 'booting', reason: 'relay-opened', relays: [] }
+      }))
+    );
   });
 
-  it('returns kind10002 entries when kind:10002 has relay tags', async () => {
-    const rxNostr = makeBackwardReqMock([
-      { event: { created_at: 1000, tags: [['r', 'wss://relay.example.com']] } }
-    ]);
-    getRxNostrMock.mockResolvedValue(rxNostr);
+  it('returns kind10002 entries when relay list events contain relay tags', async () => {
+    fetchRelayListSourcesMock.mockResolvedValueOnce({
+      relayListEvents: [{ created_at: 1000, tags: [['r', 'wss://relay.example.com']] }],
+      followListEvents: []
+    });
 
     const result = await fetchRelayList(PUBKEY);
 
-    expect(result.source).toBe('kind10002');
-    expect(result.entries).toHaveLength(1);
-    expect(result.entries[0].url).toBe('wss://relay.example.com');
+    expect(result).toEqual({
+      source: 'kind10002',
+      entries: [{ url: 'wss://relay.example.com', read: true, write: true }]
+    });
   });
 
-  it('falls back to kind3 when kind:10002 returns no relay tags', async () => {
-    const subscriptionMock = { unsubscribe: vi.fn() };
-    const req = { emit: reqEmitMock, over: reqOverMock };
+  it('uses the newest kind10002 relay-list event by created_at on the read path', async () => {
+    fetchRelayListSourcesMock.mockResolvedValueOnce({
+      relayListEvents: [
+        { created_at: 1000, tags: [['r', 'wss://older.relay.com']] },
+        { created_at: 2000, tags: [['r', 'wss://newer.relay.com']] }
+      ],
+      followListEvents: []
+    });
 
-    let callCount = 0;
-    const rxNostr = {
-      getRelayStatus: vi.fn(() => null),
-      createConnectionStateObservable: vi.fn(() => ({
-        subscribe: vi.fn(() => ({ unsubscribe: vi.fn() }))
-      })),
-      use: vi.fn(() => ({
-        subscribe: vi.fn((obs: Observer) => {
-          callCount += 1;
-          const currentCall = callCount;
-          void Promise.resolve().then(() => {
-            if (currentCall === 1) {
-              // kind:10002 - no relay tags
-              obs.next({ event: { created_at: 1000, tags: [] } });
-              obs.complete();
-            } else {
-              // kind:3 - has relay in content
-              obs.next({
-                event: {
-                  created_at: 1000,
-                  tags: [],
-                  content: JSON.stringify({
-                    'wss://fallback.relay.com': { read: true, write: true }
-                  })
-                }
-              });
-              obs.complete();
-            }
-          });
-          return subscriptionMock;
-        })
-      }))
-    };
+    const result = await fetchRelayList(PUBKEY);
 
-    createRxBackwardReqMock.mockReturnValue(req);
-    getRxNostrMock.mockResolvedValue(rxNostr);
+    expect(result).toEqual({
+      source: 'kind10002',
+      entries: [{ url: 'wss://newer.relay.com', read: true, write: true }]
+    });
+  });
+
+  it('keeps kind10002 as the consumed read source when kind3 also exists', async () => {
+    fetchRelayListSourcesMock.mockResolvedValueOnce({
+      relayListEvents: [{ created_at: 1000, tags: [['r', 'wss://primary.relay.com']] }],
+      followListEvents: [
+        {
+          created_at: 2000,
+          content: JSON.stringify({ 'wss://fallback.relay.com': { read: true, write: true } })
+        }
+      ]
+    });
+
+    const result = await fetchRelayList(PUBKEY);
+
+    expect(result).toEqual({
+      source: 'kind10002',
+      entries: [{ url: 'wss://primary.relay.com', read: true, write: true }]
+    });
+  });
+
+  it('falls back to kind3 entries when kind10002 is empty', async () => {
+    fetchRelayListSourcesMock.mockResolvedValueOnce({
+      relayListEvents: [{ created_at: 1000, tags: [] }],
+      followListEvents: [
+        {
+          created_at: 1000,
+          content: JSON.stringify({ 'wss://fallback.relay.com': { read: true, write: true } })
+        }
+      ]
+    });
 
     const result = await fetchRelayList(PUBKEY);
 
     expect(result.source).toBe('kind3');
-    expect(result.entries).toHaveLength(1);
-    expect(result.entries[0].url).toBe('wss://fallback.relay.com');
+    expect(result.entries).toEqual([{ url: 'wss://fallback.relay.com', read: true, write: true }]);
   });
 
-  it('returns source=none when both kind:10002 and kind:3 have no entries', async () => {
-    const subscriptionMock = { unsubscribe: vi.fn() };
-    const req = { emit: reqEmitMock, over: reqOverMock };
+  it('returns none when both event groups are empty', async () => {
+    fetchRelayListSourcesMock.mockResolvedValueOnce({ relayListEvents: [], followListEvents: [] });
 
-    const rxNostr = {
-      getRelayStatus: vi.fn(() => null),
-      createConnectionStateObservable: vi.fn(() => ({
-        subscribe: vi.fn(() => ({ unsubscribe: vi.fn() }))
-      })),
-      use: vi.fn(() => ({
-        subscribe: vi.fn((obs: Observer) => {
-          void Promise.resolve().then(() => {
-            obs.complete();
-          });
-          return subscriptionMock;
-        })
-      }))
-    };
-
-    createRxBackwardReqMock.mockReturnValue(req);
-    getRxNostrMock.mockResolvedValue(rxNostr);
-
-    const result = await fetchRelayList(PUBKEY);
-
-    expect(result.source).toBe('none');
-    expect(result.entries).toEqual([]);
-  });
-
-  it('returns null on kind:10002 error and falls through to kind3', async () => {
-    const subscriptionMock = { unsubscribe: vi.fn() };
-    const req = { emit: reqEmitMock, over: reqOverMock };
-
-    let callCount = 0;
-    const rxNostr = {
-      getRelayStatus: vi.fn(() => null),
-      createConnectionStateObservable: vi.fn(() => ({
-        subscribe: vi.fn(() => ({ unsubscribe: vi.fn() }))
-      })),
-      use: vi.fn(() => ({
-        subscribe: vi.fn((obs: Observer) => {
-          callCount += 1;
-          const currentCall = callCount;
-          void Promise.resolve().then(() => {
-            if (currentCall === 1) {
-              obs.error(new Error('timeout'));
-            } else {
-              obs.complete();
-            }
-          });
-          return subscriptionMock;
-        })
-      }))
-    };
-
-    createRxBackwardReqMock.mockReturnValue(req);
-    getRxNostrMock.mockResolvedValue(rxNostr);
-
-    const result = await fetchRelayList(PUBKEY);
-
-    expect(result.source).toBe('none');
-    // Verify kind:10002 failed and kind:3 fallback was attempted (2 subscriptions)
-    expect(rxNostr.use).toHaveBeenCalledTimes(2);
-    // Verify emit was called with kind:10002 filter first, then kind:3
-    expect(reqEmitMock).toHaveBeenCalledTimes(2);
+    await expect(fetchRelayList(PUBKEY)).resolves.toEqual({ entries: [], source: 'none' });
   });
 });
 
@@ -237,22 +138,26 @@ describe('publishRelayList', () => {
     vi.clearAllMocks();
   });
 
-  it('calls publishRelayList action and refreshes relay list', async () => {
+  it('publishes via action and refreshes relay state from snapshot', async () => {
     publishRelayListMock.mockResolvedValue(['wss://published.relay.com']);
-    const rxNostr = {
-      getRelayStatus: vi.fn(() => null),
-      createConnectionStateObservable: vi.fn(() => ({
-        subscribe: vi.fn(() => ({ unsubscribe: vi.fn() }))
-      }))
-    };
-    getRxNostrMock.mockResolvedValue(rxNostr);
+    snapshotRelayStatusesMock.mockResolvedValue([
+      {
+        url: 'wss://published.relay.com',
+        relay: {
+          url: 'wss://published.relay.com',
+          connection: 'open',
+          replaying: false,
+          degraded: false,
+          reason: 'opened'
+        },
+        aggregate: { state: 'live', reason: 'relay-opened', relays: [] }
+      }
+    ]);
 
     const entries = [{ url: 'wss://published.relay.com', read: true, write: true }];
     await publishRelayList(entries);
 
     expect(publishRelayListMock).toHaveBeenCalledWith(entries);
-    const relays = getRelays();
-    expect(relays).toHaveLength(1);
-    expect(relays[0].url).toBe('wss://published.relay.com');
+    expect(getRelays()).toEqual([{ url: 'wss://published.relay.com', state: 'connected' }]);
   });
 });

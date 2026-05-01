@@ -1,6 +1,6 @@
+import { npubEncode } from '@auftakt/core';
+import { finalizeEvent, generateSecretKey, getPublicKey } from '@auftakt/core';
 import { expect, test } from '@playwright/test';
-import { npubEncode } from 'nostr-tools/nip19';
-import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 
 import { setupFullLogin, setupMockPool, simulateLogin } from './helpers/e2e-setup.js';
 

@@ -3,8 +3,8 @@
  * Encapsulates infra access for profile page.
  */
 
+import { fetchFollowListSnapshot } from '$shared/auftakt/resonote.js';
 import { FOLLOW_KIND } from '$shared/nostr/events.js';
-import { fetchLatestEvent } from '$shared/nostr/gateway.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('profile-actions');
@@ -16,7 +16,7 @@ export interface FollowsCountResult {
 
 export async function fetchFollowsCount(pubkey: string): Promise<FollowsCountResult> {
   try {
-    const latestEvent = await fetchLatestEvent(pubkey, FOLLOW_KIND);
+    const latestEvent = await fetchFollowListSnapshot(pubkey, FOLLOW_KIND);
     if (latestEvent) {
       const pks = latestEvent.tags.filter((tag) => tag[0] === 'p' && tag[1]).map((tag) => tag[1]);
       return { count: pks.length, pubkeys: pks };

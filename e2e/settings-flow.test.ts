@@ -1,5 +1,5 @@
+import { finalizeEvent, generateSecretKey, getPublicKey } from '@auftakt/core';
 import { expect, test } from '@playwright/test';
-import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 
 import { setupFullLogin, setupMockPool, simulateLogin } from './helpers/e2e-setup.js';
 
@@ -27,7 +27,6 @@ test.describe('Settings page', () => {
   test('should show relay loading state', async ({ page }) => {
     await page.goto('/settings');
     await page.waitForLoadState('networkidle');
-    await simulateLogin(page);
 
     const loadingText = page.getByText(/Loading relay list|リレーリストを読み込み中/).first();
     await expect(loadingText).toBeVisible({ timeout: 10_000 });

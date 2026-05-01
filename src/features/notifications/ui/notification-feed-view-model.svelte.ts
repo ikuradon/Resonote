@@ -1,7 +1,7 @@
 import { untrack } from 'svelte';
 
+import { fetchNotificationTargetPreview } from '$shared/auftakt/resonote.js';
 import { fetchProfiles } from '$shared/browser/profile.js';
-import { cachedFetchById } from '$shared/nostr/cached-query.js';
 import { truncateString } from '$shared/utils/format.js';
 import { createLogger } from '$shared/utils/logger.js';
 
@@ -24,6 +24,45 @@ export interface NotificationFeedOptions {
   contentPreviewLength?: number;
   targetPreviewLength?: number;
   active?: () => boolean;
+}
+
+interface NotificationTargetPreviewLoaderParams {
+  readonly targetIds: readonly string[];
+  readonly currentTargetTexts: ReadonlyMap<string, string>;
+  readonly targetPreviewLength: number;
+  readonly fetchPreview?: (eventId: string) => Promise<string | null>;
+  readonly onFetchError?: (error: unknown) => void;
+}
+
+export async function loadNotificationTargetPreviews({
+  targetIds,
+  currentTargetTexts,
+  targetPreviewLength,
+  fetchPreview = fetchNotificationTargetPreview,
+  onFetchError
+}: NotificationTargetPreviewLoaderParams): Promise<Map<string, string>> {
+  if (targetIds.length === 0) return new Map(currentTargetTexts);
+
+  const next = new Map(currentTargetTexts);
+  const results = await Promise.allSettled(targetIds.map((id) => fetchPreview(id)));
+
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      onFetchError?.(result.reason);
+      return;
+    }
+
+    const preview = result.value;
+    const targetId = targetIds[index];
+
+    if (!preview) {
+      return;
+    }
+
+    next.set(targetId, truncateString(preview, targetPreviewLength));
+  });
+
+  return next;
 }
 
 export function createNotificationFeedViewModel(
@@ -73,18 +112,15 @@ export function createNotificationFeedViewModel(
 
       if (targetIds.length === 0) return;
 
-      void Promise.all(
-        targetIds.map(async (id) => {
-          const event = await cachedFetchById(id);
-          return { id, event };
-        })
-      )
-        .then((results) => {
-          const next = new Map(targetTexts);
-          for (const { id, event } of results) {
-            if (!event) continue;
-            next.set(id, truncateString(event.content, targetPreviewLength));
-          }
+      void loadNotificationTargetPreviews({
+        targetIds,
+        currentTargetTexts: targetTexts,
+        targetPreviewLength,
+        onFetchError: (err) => {
+          log.error('Failed to fetch notification target events', err);
+        }
+      })
+        .then((next) => {
           targetTexts = next;
         })
         .catch((err) => {

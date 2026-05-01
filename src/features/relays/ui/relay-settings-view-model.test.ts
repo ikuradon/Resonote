@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { useCachedLatestMock, cachedLatestResult, saveRelayListMock } = vi.hoisted(() => {
-  const cachedLatestResult = { event: null, settled: true, destroy: vi.fn() };
+  const cachedLatestResult = {
+    event: null,
+    settlement: { phase: 'settled', provenance: 'none', reason: 'settled-miss' },
+    destroy: vi.fn()
+  };
   return {
     useCachedLatestMock: vi.fn(() => cachedLatestResult),
     cachedLatestResult,
@@ -9,7 +13,7 @@ const { useCachedLatestMock, cachedLatestResult, saveRelayListMock } = vi.hoiste
   };
 });
 
-vi.mock('$shared/nostr/cached-query.js', () => ({
+vi.mock('$shared/auftakt/resonote.js', () => ({
   useCachedLatest: useCachedLatestMock
 }));
 
@@ -26,9 +30,12 @@ vi.mock('$shared/i18n/t.js', () => ({
 }));
 
 import type { RelayState } from '../domain/relay-model.js';
-import { createRelaySettingsViewModel } from './relay-settings-view-model.svelte.js';
+import {
+  createRelaySettingsViewModel,
+  resolveRelayListLoadState
+} from './relay-settings-view-model.svelte.js';
 
-const liveRelays: RelayState[] = [
+const liveRelays: readonly RelayState[] = [
   { url: 'wss://relay.damus.io', state: 'connected' },
   { url: 'wss://relay.nostr.band', state: 'connecting' }
 ];
@@ -44,7 +51,11 @@ function makeVm(pubkey: string | null = 'pubkey1') {
 describe('createRelaySettingsViewModel', () => {
   beforeEach(() => {
     cachedLatestResult.event = null;
-    cachedLatestResult.settled = true;
+    cachedLatestResult.settlement = {
+      phase: 'settled',
+      provenance: 'none',
+      reason: 'settled-miss'
+    };
     cachedLatestResult.destroy.mockClear();
     useCachedLatestMock.mockReturnValue(cachedLatestResult);
     saveRelayListMock.mockReset();
@@ -265,6 +276,63 @@ describe('createRelaySettingsViewModel', () => {
       const vm = makeVm();
       await vm.save();
       expect(saveRelayListMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resolveRelayListLoadState', () => {
+    it('returns loaded when settled result has relay list event', () => {
+      expect(
+        resolveRelayListLoadState(
+          {
+            event: {
+              id: 'relay-list-event',
+              pubkey: 'pubkey-a',
+              created_at: 1,
+              kind: 10002,
+              tags: [['r', 'wss://relay1.test']],
+              content: ''
+            },
+            settlement: { phase: 'settled', provenance: 'store', reason: 'cache-hit' }
+          },
+          0
+        )
+      ).toBe('loaded');
+    });
+
+    it('returns no-list for settled miss with no event and empty entries', () => {
+      expect(
+        resolveRelayListLoadState(
+          {
+            event: null,
+            settlement: { phase: 'settled', provenance: 'none', reason: 'settled-miss' }
+          },
+          0
+        )
+      ).toBe('no-list');
+    });
+
+    it('returns loading before settlement completes', () => {
+      expect(
+        resolveRelayListLoadState(
+          {
+            event: null,
+            settlement: { phase: 'partial', provenance: 'none', reason: 'cache-miss' }
+          },
+          0
+        )
+      ).toBe('loading');
+    });
+
+    it('returns loaded when user already has entries even on settled miss', () => {
+      expect(
+        resolveRelayListLoadState(
+          {
+            event: null,
+            settlement: { phase: 'settled', provenance: 'none', reason: 'settled-miss' }
+          },
+          1
+        )
+      ).toBe('loaded');
     });
   });
 });

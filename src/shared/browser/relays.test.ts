@@ -1,14 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// --- hoisted mocks ---
-const { getRxNostrMock, logInfoMock, logDebugMock } = vi.hoisted(() => ({
-  getRxNostrMock: vi.fn(),
+const {
+  fetchRelayListEventsMock,
+  observeRelayStatusesMock,
+  snapshotRelayStatusesMock,
+  logInfoMock,
+  logDebugMock
+} = vi.hoisted(() => ({
+  fetchRelayListEventsMock: vi.fn(),
+  observeRelayStatusesMock: vi.fn(),
+  snapshotRelayStatusesMock: vi.fn(),
   logInfoMock: vi.fn(),
   logDebugMock: vi.fn()
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getRxNostr: getRxNostrMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  fetchRelayListEvents: fetchRelayListEventsMock,
+  observeRelayStatuses: observeRelayStatusesMock,
+  snapshotRelayStatuses: snapshotRelayStatusesMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -30,8 +39,8 @@ vi.mock('$shared/nostr/events.js', () => ({
 }));
 
 vi.mock('$features/relays/domain/relay-model.js', () => ({
-  parseRelayTags: (tags: string[][]): { url: string; read: boolean; write: boolean }[] => {
-    return tags
+  parseRelayTags: (tags: string[][]): { url: string; read: boolean; write: boolean }[] =>
+    tags
       .filter((t) => t[0] === 'r' && t[1])
       .map((t) => {
         const url = t[1];
@@ -39,31 +48,100 @@ vi.mock('$features/relays/domain/relay-model.js', () => ({
         if (marker === 'read') return { url, read: true, write: false };
         if (marker === 'write') return { url, read: false, write: true };
         return { url, read: true, write: true };
-      });
-  }
+      })
 }));
 
 import {
   destroyRelayStatus,
+  getAggregateRelaySessionState,
   getRelays,
   initRelayStatus,
   refreshRelayList
 } from './relays.svelte.js';
 
-// ---- helpers ----
-function makeRxNostrMock(connectionStates: Record<string, string> = {}) {
-  return {
-    getRelayStatus: vi.fn((url: string) => {
+function setupRelayGatewayMocks(connectionStates: Partial<Record<string, string>> = {}) {
+  snapshotRelayStatusesMock.mockImplementation(async (urls: string[]) =>
+    urls.map((url) => {
       const state = connectionStates[url];
-      return state ? { connection: state } : null;
-    }),
-    createConnectionStateObservable: vi.fn(() => ({
-      subscribe: vi.fn(() => ({ unsubscribe: vi.fn() }))
-    }))
+      const connection = state ?? 'idle';
+      return {
+        url,
+        relay: {
+          url,
+          connection,
+          replaying: connection === 'replaying',
+          degraded:
+            connection === 'degraded' || connection === 'backoff' || connection === 'closed',
+          reason: 'opened'
+        },
+        aggregate: {
+          state: connection === 'open' ? 'live' : 'connecting',
+          reason: connection === 'open' ? 'relay-opened' : 'relay-disconnected',
+          relays: []
+        }
+      };
+    })
+  );
+
+  let callback:
+    | ((packet: {
+        from: string;
+        state: string;
+        reason: string;
+        relay: {
+          url: string;
+          connection: string;
+          replaying: boolean;
+          degraded: boolean;
+          reason: string;
+        };
+        aggregate: {
+          state: string;
+          reason: string;
+          relays: unknown[];
+        };
+      }) => void)
+    | undefined;
+  const unsubscribe = vi.fn();
+  observeRelayStatusesMock.mockImplementation(async (cb) => {
+    callback = cb;
+    return { unsubscribe };
+  });
+
+  return {
+    emit(packet: {
+      from: string;
+      state: string;
+      relayConnection?: string;
+      reason?: string;
+      aggregateState?: string;
+    }) {
+      const reason = packet.reason ?? 'opened';
+      const relayConnection = packet.relayConnection ?? packet.state;
+      callback?.({
+        from: packet.from,
+        state: packet.state,
+        reason,
+        relay: {
+          url: packet.from,
+          connection: relayConnection,
+          replaying: relayConnection === 'replaying',
+          degraded:
+            relayConnection === 'degraded' ||
+            relayConnection === 'backoff' ||
+            relayConnection === 'closed',
+          reason
+        },
+        aggregate: {
+          state: packet.aggregateState ?? (packet.state === 'replaying' ? 'replaying' : 'live'),
+          reason: packet.aggregateState === 'degraded' ? 'relay-degraded' : 'relay-opened',
+          relays: []
+        }
+      });
+    },
+    unsubscribe
   };
 }
-
-// ---- tests ----
 
 describe('getRelays', () => {
   beforeEach(() => {
@@ -93,11 +171,10 @@ describe('initRelayStatus', () => {
   });
 
   it('DEFAULT_RELAYSをもとにrelaysを初期化する', async () => {
-    const rxNostr = makeRxNostrMock({
-      'wss://relay.damus.io': 'connected',
+    setupRelayGatewayMocks({
+      'wss://relay.damus.io': 'open',
       'wss://yabu.me': 'connecting'
     });
-    getRxNostrMock.mockResolvedValue(rxNostr);
 
     await initRelayStatus();
 
@@ -107,9 +184,8 @@ describe('initRelayStatus', () => {
     expect(relays[1]).toEqual({ url: 'wss://yabu.me', state: 'connecting' });
   });
 
-  it('getRelayStatusがnullの場合はinitializedをデフォルトにする', async () => {
-    const rxNostr = makeRxNostrMock();
-    getRxNostrMock.mockResolvedValue(rxNostr);
+  it('getRelayConnectionStateがnullの場合はinitializedをデフォルトにする', async () => {
+    setupRelayGatewayMocks();
 
     await initRelayStatus();
 
@@ -118,45 +194,33 @@ describe('initRelayStatus', () => {
     expect(relays[1].state).toBe('initialized');
   });
 
-  it('2回目の呼び出しはrxNostrを再取得しない', async () => {
-    const rxNostr = makeRxNostrMock();
-    getRxNostrMock.mockResolvedValue(rxNostr);
+  it('adapter state names are normalized to UI relay states', async () => {
+    setupRelayGatewayMocks({
+      'wss://relay.damus.io': 'open',
+      'wss://yabu.me': 'backoff'
+    });
 
     await initRelayStatus();
-    await initRelayStatus();
 
-    expect(getRxNostrMock).toHaveBeenCalledOnce();
+    const relays = getRelays();
+    expect(relays[0]).toEqual({ url: 'wss://relay.damus.io', state: 'connected' });
+    expect(relays[1]).toEqual({ url: 'wss://yabu.me', state: 'waiting-for-retrying' });
   });
 
-  it('createConnectionStateObservableのsubscribeを呼び出す', async () => {
-    const subscribeMock = vi.fn(() => ({ unsubscribe: vi.fn() }));
-    const rxNostr = {
-      getRelayStatus: vi.fn(() => null),
-      createConnectionStateObservable: vi.fn(() => ({ subscribe: subscribeMock }))
-    };
-    getRxNostrMock.mockResolvedValue(rxNostr);
+  it('2回目の呼び出しは再購読しない', async () => {
+    setupRelayGatewayMocks();
 
     await initRelayStatus();
+    await initRelayStatus();
 
-    expect(rxNostr.createConnectionStateObservable).toHaveBeenCalledOnce();
-    expect(subscribeMock).toHaveBeenCalledOnce();
+    expect(observeRelayStatusesMock).toHaveBeenCalledOnce();
   });
 
   it('接続状態コールバックで既存リレーの状態を更新する', async () => {
-    let subscribedCallback: ((packet: { from: string; state: string }) => void) | undefined;
-    const subscribeMock = vi.fn((cb: (packet: { from: string; state: string }) => void) => {
-      subscribedCallback = cb;
-      return { unsubscribe: vi.fn() };
-    });
-    const rxNostr = {
-      getRelayStatus: vi.fn(() => null),
-      createConnectionStateObservable: vi.fn(() => ({ subscribe: subscribeMock }))
-    };
-    getRxNostrMock.mockResolvedValue(rxNostr);
+    const gateway = setupRelayGatewayMocks();
 
     await initRelayStatus();
-
-    subscribedCallback!({ from: 'wss://relay.damus.io', state: 'connected' });
+    gateway.emit({ from: 'wss://relay.damus.io', state: 'open', aggregateState: 'live' });
 
     const relays = getRelays();
     const damusRelay = relays.find((r) => r.url === 'wss://relay.damus.io');
@@ -164,20 +228,14 @@ describe('initRelayStatus', () => {
   });
 
   it('接続状態コールバックで未知リレーを追加する', async () => {
-    let subscribedCallback: ((packet: { from: string; state: string }) => void) | undefined;
-    const subscribeMock = vi.fn((cb: (packet: { from: string; state: string }) => void) => {
-      subscribedCallback = cb;
-      return { unsubscribe: vi.fn() };
-    });
-    const rxNostr = {
-      getRelayStatus: vi.fn(() => null),
-      createConnectionStateObservable: vi.fn(() => ({ subscribe: subscribeMock }))
-    };
-    getRxNostrMock.mockResolvedValue(rxNostr);
+    const gateway = setupRelayGatewayMocks();
 
     await initRelayStatus();
-
-    subscribedCallback!({ from: 'wss://new-relay.example.com', state: 'connected' });
+    gateway.emit({
+      from: 'wss://new-relay.example.com',
+      state: 'open',
+      aggregateState: 'live'
+    });
 
     const relays = getRelays();
     const newRelay = relays.find((r) => r.url === 'wss://new-relay.example.com');
@@ -185,9 +243,35 @@ describe('initRelayStatus', () => {
     expect(newRelay?.state).toBe('connected');
   });
 
+  it('接続状態コールバックでも adapter state を正規化する', async () => {
+    const gateway = setupRelayGatewayMocks();
+
+    await initRelayStatus();
+    gateway.emit({ from: 'wss://new-relay.example.com', state: 'open', aggregateState: 'live' });
+
+    const relays = getRelays();
+    const newRelay = relays.find((r) => r.url === 'wss://new-relay.example.com');
+    expect(newRelay?.state).toBe('connected');
+  });
+
+  it('packet の canonical relay.connection を UI state の正規化元にする', async () => {
+    const gateway = setupRelayGatewayMocks();
+
+    await initRelayStatus();
+    gateway.emit({
+      from: 'wss://new-relay.example.com',
+      state: 'closed',
+      relayConnection: 'open',
+      aggregateState: 'live'
+    });
+
+    const relays = getRelays();
+    const newRelay = relays.find((r) => r.url === 'wss://new-relay.example.com');
+    expect(newRelay?.state).toBe('connected');
+  });
+
   it('destroy 後に再度 initRelayStatus できる', async () => {
-    const rxNostr = makeRxNostrMock();
-    getRxNostrMock.mockResolvedValue(rxNostr);
+    setupRelayGatewayMocks();
 
     await initRelayStatus();
     destroyRelayStatus();
@@ -198,18 +282,33 @@ describe('initRelayStatus', () => {
   });
 
   it('destroyRelayStatus は subscription を解除する', async () => {
-    const unsubscribeMock = vi.fn();
-    const subscribeMock = vi.fn(() => ({ unsubscribe: unsubscribeMock }));
-    const rxNostr = {
-      getRelayStatus: vi.fn(() => null),
-      createConnectionStateObservable: vi.fn(() => ({ subscribe: subscribeMock }))
-    };
-    getRxNostrMock.mockResolvedValue(rxNostr);
+    const gateway = setupRelayGatewayMocks();
 
     await initRelayStatus();
     destroyRelayStatus();
 
-    expect(unsubscribeMock).toHaveBeenCalledOnce();
+    expect(gateway.unsubscribe).toHaveBeenCalledOnce();
+  });
+
+  it('runtime aggregate state を参照できる', async () => {
+    const gateway = setupRelayGatewayMocks();
+
+    await initRelayStatus();
+    gateway.emit({
+      from: 'wss://relay.damus.io',
+      state: 'replaying',
+      reason: 'replay-started',
+      aggregateState: 'replaying'
+    });
+    expect(getAggregateRelaySessionState()).toBe('replaying');
+
+    gateway.emit({
+      from: 'wss://relay.damus.io',
+      state: 'degraded',
+      reason: 'replay-failed',
+      aggregateState: 'degraded'
+    });
+    expect(getAggregateRelaySessionState()).toBe('degraded');
   });
 });
 
@@ -220,13 +319,11 @@ describe('refreshRelayList', () => {
   });
 
   it('渡したURLからrelaysを更新する', async () => {
-    const urls = ['wss://relay.example.com', 'wss://other.relay.com'];
-    const rxNostr = makeRxNostrMock({
-      'wss://relay.example.com': 'connected'
+    setupRelayGatewayMocks({
+      'wss://relay.example.com': 'open'
     });
-    getRxNostrMock.mockResolvedValue(rxNostr);
 
-    await refreshRelayList(urls);
+    await refreshRelayList(['wss://relay.example.com', 'wss://other.relay.com']);
 
     const relays = getRelays();
     expect(relays).toHaveLength(2);
@@ -235,8 +332,7 @@ describe('refreshRelayList', () => {
   });
 
   it('空のURLリストを渡すとrelaysは空になる', async () => {
-    const rxNostr = makeRxNostrMock();
-    getRxNostrMock.mockResolvedValue(rxNostr);
+    setupRelayGatewayMocks();
 
     await refreshRelayList([]);
 

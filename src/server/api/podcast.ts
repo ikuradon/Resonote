@@ -1,7 +1,7 @@
+import { finalizeEvent } from '@auftakt/core';
+import { hexToBytes } from '@auftakt/core';
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
-import { finalizeEvent } from 'nostr-tools/pure';
-import { hexToBytes } from 'nostr-tools/utils';
 import { z } from 'zod';
 
 import { fetchAudioMetadata } from '$server/lib/audio-metadata.js';

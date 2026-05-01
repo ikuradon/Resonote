@@ -4,6 +4,7 @@ const {
   authState,
   followsState,
   relaysState,
+  profileDisplayMap,
   mockAfterNavigate,
   mockGetLocale,
   mockSetLocale,
@@ -27,6 +28,11 @@ const {
     authState,
     followsState,
     relaysState,
+    profileDisplayMap: {
+      abc123: { displayName: 'Alice', picture: 'https://example.com/alice.png' },
+      def456: { displayName: 'Bob', picture: undefined },
+      ghi789: { displayName: 'Carol', picture: undefined }
+    } as Record<string, { displayName: string; picture?: string | null }>,
     mockAfterNavigate: vi.fn(),
     mockGetLocale: vi.fn().mockReturnValue('en'),
     mockSetLocale: vi.fn(),
@@ -39,7 +45,9 @@ const {
     mockManageNotifications: vi.fn().mockReturnValue(undefined),
     mockLoginNostr: vi.fn().mockResolvedValue(undefined),
     mockLogoutNostr: vi.fn().mockResolvedValue(undefined),
-    mockGetProfileDisplay: vi.fn().mockReturnValue({ displayName: 'Test', picture: null }),
+    mockGetProfileDisplay: vi.fn((pubkey: string) => {
+      return profileDisplayMap[pubkey] ?? { displayName: 'unknown', picture: undefined };
+    }),
     mockGetProfileHref: vi.fn().mockReturnValue('/profile/test')
   };
 });
@@ -75,8 +83,8 @@ vi.mock('$shared/browser/relays.js', () => ({
 }));
 
 vi.mock('$shared/browser/profile.js', () => ({
-  getProfileDisplay: (...args: unknown[]) => mockGetProfileDisplay(...(args as [])),
-  getProfileHref: (...args: unknown[]) => mockGetProfileHref(...(args as []))
+  getProfileDisplay: (pubkey: string) => mockGetProfileDisplay(pubkey),
+  getProfileHref: (pubkey: string) => mockGetProfileHref(pubkey)
 }));
 
 vi.mock('$shared/utils/deploy-env.js', () => ({
@@ -102,6 +110,9 @@ describe('createAppShellViewModel', () => {
     authState.loggedIn = false;
     followsState.follows = new Set();
     relaysState.length = 0;
+    profileDisplayMap.abc123 = { displayName: 'Alice', picture: 'https://example.com/alice.png' };
+    profileDisplayMap.def456 = { displayName: 'Bob', picture: undefined };
+    profileDisplayMap.ghi789 = { displayName: 'Carol', picture: undefined };
     mockGetLocale.mockReturnValue('en');
     mockIsExtensionMode.mockReturnValue(false);
     mockGetRelays.mockReturnValue(relaysState);
@@ -244,8 +255,45 @@ describe('createAppShellViewModel', () => {
     it('returns profile display when pubkey is set', () => {
       authState.pubkey = 'abc123';
       const vm = createAppShellViewModel();
-      expect(vm.profileDisplay).toEqual({ displayName: 'Test', picture: null });
+      expect(vm.profileDisplay).toEqual({
+        displayName: 'Alice',
+        picture: 'https://example.com/alice.png'
+      });
       expect(mockGetProfileDisplay).toHaveBeenCalledWith('abc123');
+    });
+
+    it('picture が未設定な場合は navbar fallback 用に undefined を返す', () => {
+      authState.pubkey = 'def456';
+      const vm = createAppShellViewModel();
+
+      expect(vm.profileDisplay).toEqual({ displayName: 'Bob', picture: undefined });
+      expect(vm.profileDisplay?.picture).toBeUndefined();
+    });
+
+    it('invalid picture が sanitize 済みで落ちたケースでも undefined を維持する', () => {
+      authState.pubkey = 'ghi789';
+      profileDisplayMap.ghi789 = { displayName: 'Carol', picture: undefined };
+      const vm = createAppShellViewModel();
+
+      expect(vm.profileDisplay).toEqual({ displayName: 'Carol', picture: undefined });
+      expect(vm.profileDisplay?.picture).toBeUndefined();
+    });
+
+    it('account-switch と logout で stale avatar を残さない', () => {
+      authState.pubkey = 'abc123';
+      const vm = createAppShellViewModel();
+      expect(vm.profileDisplay).toEqual({
+        displayName: 'Alice',
+        picture: 'https://example.com/alice.png'
+      });
+
+      authState.pubkey = 'def456';
+      expect(vm.profileDisplay).toEqual({ displayName: 'Bob', picture: undefined });
+      expect(vm.profileDisplay?.picture).toBeUndefined();
+      expect(mockGetProfileDisplay).toHaveBeenCalledWith('def456');
+
+      authState.pubkey = null;
+      expect(vm.profileDisplay).toBeNull();
     });
 
     it('returns null when pubkey is null', () => {

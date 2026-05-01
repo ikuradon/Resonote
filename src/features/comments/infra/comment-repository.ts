@@ -3,45 +3,52 @@
  * Encapsulates all IndexedDB operations related to comments.
  */
 
+import type { ReconcileEmission } from '@auftakt/core';
+
+import {
+  type CommentCacheEvent,
+  deleteCommentEventsByIds,
+  readCommentEventsByTag,
+  storeCommentEvent
+} from '$shared/auftakt/resonote.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('comment-repo');
 
-export interface EventsDB {
-  getByTagValue(tagQuery: string): Promise<CachedEvent[]>;
-  put(event: CachedEvent): void;
-  deleteByIds(ids: string[]): Promise<void>;
+export type CachedEvent = CommentCacheEvent;
+
+export function cacheCommentEvent(event: CachedEvent): Promise<unknown> {
+  return storeCommentEvent(event);
 }
 
-export interface CachedEvent {
-  id: string;
-  pubkey: string;
-  content: string;
-  created_at: number;
-  tags: string[][];
-  kind: number;
-}
-
-export async function getCommentRepository(): Promise<EventsDB> {
-  const { getEventsDB } = await import('$shared/nostr/gateway.js');
-  return getEventsDB();
-}
-
-export async function restoreFromCache(db: EventsDB, tagQuery: string): Promise<CachedEvent[]> {
+export async function restoreFromCache(tagQuery: string): Promise<CachedEvent[]> {
   try {
-    return await db.getByTagValue(tagQuery);
+    return await readCommentEventsByTag(tagQuery);
   } catch (err) {
     log.error('Failed to restore from cache', err);
     return [];
   }
 }
 
-export async function purgeDeletedFromCache(db: EventsDB, ids: string[]): Promise<void> {
+export async function purgeDeletedFromCache(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
   try {
-    await db.deleteByIds(ids);
+    await deleteCommentEventsByIds(ids);
     log.info('Purged deleted events from DB', { count: ids.length });
   } catch (err) {
     log.error('Failed to purge deletion targets', err);
   }
+}
+
+export function materializeDeletedIds(
+  current: ReadonlySet<string>,
+  emissions: readonly ReconcileEmission[]
+): Set<string> {
+  const next = new Set(current);
+  for (const emission of emissions) {
+    if (emission.state === 'deleted') {
+      next.add(emission.subjectId);
+    }
+  }
+  return next;
 }

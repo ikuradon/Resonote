@@ -2,10 +2,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { toBase64url } from '$shared/content/url-utils.js';
 
-// Mock podcast-resolver exports
-const mockGetSystemPubkey = vi.fn<() => Promise<string>>();
-const mockResolveByApi = vi.fn();
-const mockParseDTagEvent = vi.fn();
+const {
+  searchEpisodeBookmarkByGuidMock,
+  mockGetSystemPubkey,
+  mockResolveByApi,
+  mockParseDTagEvent
+} = vi.hoisted(() => ({
+  searchEpisodeBookmarkByGuidMock: vi.fn(),
+  mockGetSystemPubkey: vi.fn<() => Promise<string>>(),
+  mockResolveByApi: vi.fn(),
+  mockParseDTagEvent: vi.fn()
+}));
+
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  searchEpisodeBookmarkByGuid: searchEpisodeBookmarkByGuidMock
+}));
 
 vi.mock('$shared/content/podcast-resolver.js', () => ({
   getSystemPubkey: (...args: unknown[]) => mockGetSystemPubkey(...(args as [])),
@@ -13,745 +24,78 @@ vi.mock('$shared/content/podcast-resolver.js', () => ({
   parseDTagEvent: (...args: unknown[]) => mockParseDTagEvent(...(args as []))
 }));
 
-// Mock dynamic imports via the shared Nostr gateway
-const mockGetEventsDB = vi.fn();
-const mockGetRxNostr = vi.fn();
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getEventsDB: (...args: unknown[]) => mockGetEventsDB(...(args as [])),
-  getRxNostr: (...args: unknown[]) => mockGetRxNostr(...(args as []))
-}));
-
-const mockCreateRxBackwardReq = vi.fn();
-const mockUniq = vi.fn();
-vi.mock('rx-nostr', () => ({
-  createRxBackwardReq: (...args: unknown[]) => mockCreateRxBackwardReq(...(args as [])),
-  uniq: (...args: unknown[]) => mockUniq(...(args as []))
-}));
-
 import { resolveEpisode } from '$shared/content/episode-resolver.js';
-
-/** Set up rx-nostr mock that emits a single event asynchronously, or completes immediately. */
-function setupRelayMock(event: { tags: string[][]; content: string } | null) {
-  const mockReq = { emit: vi.fn(), over: vi.fn() };
-  mockCreateRxBackwardReq.mockReturnValue(mockReq);
-  mockUniq.mockReturnValue((source: unknown) => source);
-
-  const mockSubscribe = vi.fn().mockImplementation(({ next, complete }) => {
-    if (event) {
-      void Promise.resolve().then(() => next({ event }));
-    } else {
-      complete();
-    }
-    return { unsubscribe: vi.fn() };
-  });
-  const mockPipe = vi.fn().mockReturnValue({ subscribe: mockSubscribe });
-  const mockUse = vi.fn().mockReturnValue({ pipe: mockPipe });
-  mockGetRxNostr.mockResolvedValue({ use: mockUse });
-}
 
 const FEED_URL = 'https://example.com/feed.xml';
 const GUID = 'episode-guid-123';
 const FEED_BASE64 = toBase64url(FEED_URL);
 const GUID_BASE64 = toBase64url(GUID);
 
-function makeApiResponse(overrides = {}) {
-  return {
-    type: 'feed' as const,
-    feed: {
-      guid: 'feed-guid',
-      title: 'My Podcast',
-      feedUrl: FEED_URL,
-      imageUrl: 'https://example.com/img.jpg'
-    },
-    episodes: [
-      {
-        guid: GUID,
-        title: 'Episode 1',
-        enclosureUrl: 'https://example.com/ep1.mp3',
-        duration: 3600,
-        publishedAt: 1700000000,
-        description: 'API description'
-      }
-    ],
-    ...overrides
-  };
-}
-
-function makeNostrResult(overrides = {}) {
-  return {
-    guid: GUID,
-    feedUrl: FEED_URL,
-    enclosureUrl: 'https://example.com/ep1-nostr.mp3',
-    description: 'Nostr description',
-    ...overrides
-  };
-}
-
 describe('episode-resolver', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: Nostr path returns null (no pubkey)
-    mockGetSystemPubkey.mockResolvedValue('');
-    // Default: API returns empty response
+    mockGetSystemPubkey.mockResolvedValue('abc123');
     mockResolveByApi.mockResolvedValue({ type: 'episode' });
-    // Default: DB not available
-    mockGetEventsDB.mockRejectedValue(new Error('DB not available'));
+    searchEpisodeBookmarkByGuidMock.mockResolvedValue(null);
+    mockParseDTagEvent.mockReturnValue(null);
   });
 
-  describe('resolveEpisode', () => {
-    it('should return full result when both Nostr and API succeed', async () => {
-      // Nostr: return cached result via IndexedDB
-      const pubkey = 'abc123pubkey';
-      mockGetSystemPubkey.mockResolvedValue(pubkey);
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([
-          {
-            pubkey,
-            tags: [
-              ['i', `podcast:item:guid:${GUID}`, 'https://example.com/ep1-nostr.mp3'],
-              ['i', 'podcast:guid:feed-guid', FEED_URL]
-            ],
-            content: 'Nostr description'
-          }
-        ])
-      });
-      mockParseDTagEvent.mockReturnValue(makeNostrResult());
+  it('returns null when base64 identifiers are invalid', async () => {
+    await expect(resolveEpisode('@@invalid@@', GUID_BASE64)).resolves.toBeNull();
+    await expect(resolveEpisode(FEED_BASE64, '@@invalid@@')).resolves.toBeNull();
+  });
 
-      // API: return episodes array with matching guid
-      mockResolveByApi.mockResolvedValue(makeApiResponse());
-
-      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      expect(result).not.toBeNull();
-      expect(result!.enclosureUrl).toBe('https://example.com/ep1.mp3');
-      expect(result!.title).toBe('Episode 1');
-      expect(result!.feedTitle).toBe('My Podcast');
-      expect(result!.image).toBe('https://example.com/img.jpg');
-      // Nostr description preferred via ??
-      expect(result!.description).toBe('Nostr description');
+  it('prefers API enclosure/title while keeping Nostr description fallback', async () => {
+    searchEpisodeBookmarkByGuidMock.mockResolvedValue({ tags: [], content: 'nostr' });
+    mockParseDTagEvent.mockReturnValue({
+      guid: GUID,
+      feedUrl: FEED_URL,
+      enclosureUrl: 'https://example.com/ep1-nostr.mp3',
+      description: 'Nostr description'
     });
-
-    it('should return Nostr-only result when API returns no match', async () => {
-      const pubkey = 'abc123pubkey';
-      mockGetSystemPubkey.mockResolvedValue(pubkey);
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([
-          {
-            pubkey,
-            tags: [
-              ['i', `podcast:item:guid:${GUID}`, 'https://example.com/ep1-nostr.mp3'],
-              ['i', 'podcast:guid:feed-guid', FEED_URL]
-            ],
-            content: 'Nostr description'
-          }
-        ])
-      });
-      mockParseDTagEvent.mockReturnValue(makeNostrResult());
-
-      // API returns no episodes and no matching episode
-      mockResolveByApi.mockResolvedValue({ type: 'episode' });
-
-      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      expect(result).not.toBeNull();
-      expect(result!.enclosureUrl).toBe('https://example.com/ep1-nostr.mp3');
-      expect(result!.description).toBe('Nostr description');
-      expect(result!.title).toBeUndefined();
-      expect(result!.feedTitle).toBeUndefined();
-    });
-
-    it('should return API-only result when Nostr returns null', async () => {
-      // Nostr: no pubkey → returns null
-      mockGetSystemPubkey.mockResolvedValue('');
-
-      // API: return episodes with matching guid
-      mockResolveByApi.mockResolvedValue(makeApiResponse());
-
-      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      expect(result).not.toBeNull();
-      expect(result!.enclosureUrl).toBe('https://example.com/ep1.mp3');
-      expect(result!.title).toBe('Episode 1');
-      expect(result!.feedTitle).toBe('My Podcast');
-      expect(result!.image).toBe('https://example.com/img.jpg');
-      // Falls back to API description since nostrResult is null
-      expect(result!.description).toBe('API description');
-    });
-
-    it('should return null when both return no match', async () => {
-      mockGetSystemPubkey.mockResolvedValue('');
-      mockResolveByApi.mockResolvedValue({ type: 'episode' });
-
-      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      expect(result).toBeNull();
-    });
-
-    it('should prefer Nostr description over API description via ?? operator', async () => {
-      const pubkey = 'abc123pubkey';
-      mockGetSystemPubkey.mockResolvedValue(pubkey);
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([
-          {
-            pubkey,
-            tags: [
-              ['i', `podcast:item:guid:${GUID}`, 'https://example.com/ep1-nostr.mp3'],
-              ['i', 'podcast:guid:feed-guid', FEED_URL]
-            ],
-            content: 'Nostr desc'
-          }
-        ])
-      });
-      mockParseDTagEvent.mockReturnValue(makeNostrResult({ description: 'Nostr desc' }));
-
-      mockResolveByApi.mockResolvedValue(
-        makeApiResponse({
-          episodes: [
-            {
-              guid: GUID,
-              title: 'Episode 1',
-              enclosureUrl: 'https://example.com/ep1.mp3',
-              duration: 3600,
-              publishedAt: 1700000000,
-              description: 'API desc'
-            }
-          ]
-        })
-      );
-
-      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      expect(result!.description).toBe('Nostr desc');
-    });
-
-    it('should fall back to API description when Nostr description is undefined', async () => {
-      const pubkey = 'abc123pubkey';
-      mockGetSystemPubkey.mockResolvedValue(pubkey);
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([
-          {
-            pubkey,
-            tags: [
-              ['i', `podcast:item:guid:${GUID}`, 'https://example.com/ep1-nostr.mp3'],
-              ['i', 'podcast:guid:feed-guid', FEED_URL]
-            ],
-            content: ''
-          }
-        ])
-      });
-      mockParseDTagEvent.mockReturnValue(makeNostrResult({ description: undefined }));
-
-      mockResolveByApi.mockResolvedValue(makeApiResponse());
-
-      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      expect(result!.description).toBe('API description');
-    });
-
-    it('should match episode from API episodes array by guid', async () => {
-      mockGetSystemPubkey.mockResolvedValue('');
-
-      const apiResponse = makeApiResponse({
-        episodes: [
-          {
-            guid: 'other-guid',
-            title: 'Other Ep',
-            enclosureUrl: 'https://example.com/other.mp3',
-            duration: 100,
-            publishedAt: 1700000000
-          },
-          {
-            guid: GUID,
-            title: 'Target Ep',
-            enclosureUrl: 'https://example.com/target.mp3',
-            duration: 200,
-            publishedAt: 1700000001,
-            description: 'Target desc'
-          }
-        ]
-      });
-      mockResolveByApi.mockResolvedValue(apiResponse);
-
-      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      expect(result).not.toBeNull();
-      expect(result!.title).toBe('Target Ep');
-      expect(result!.enclosureUrl).toBe('https://example.com/target.mp3');
-      expect(result!.description).toBe('Target desc');
-    });
-
-    it('should match API single episode when episodes array has no match', async () => {
-      mockGetSystemPubkey.mockResolvedValue('');
-
-      mockResolveByApi.mockResolvedValue({
-        type: 'episode',
-        feed: {
-          guid: 'feed-guid',
-          title: 'My Podcast',
-          feedUrl: FEED_URL,
-          imageUrl: 'https://example.com/img.jpg'
-        },
-        episode: {
+    mockResolveByApi.mockResolvedValue({
+      type: 'feed',
+      feed: { title: 'My Podcast', imageUrl: 'https://example.com/img.jpg' },
+      episodes: [
+        {
           guid: GUID,
-          title: 'Single Episode',
-          enclosureUrl: 'https://example.com/single.mp3',
-          duration: 500,
+          title: 'Episode 1',
+          enclosureUrl: 'https://example.com/ep1.mp3',
+          duration: 3600,
           publishedAt: 1700000000,
-          description: 'Single desc'
+          description: 'API description'
         }
-      });
-
-      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      expect(result).not.toBeNull();
-      expect(result!.title).toBe('Single Episode');
-      expect(result!.enclosureUrl).toBe('https://example.com/single.mp3');
-      expect(result!.feedTitle).toBe('My Podcast');
-      expect(result!.description).toBe('Single desc');
+      ]
     });
 
-    it('should not match API single episode when guid differs', async () => {
-      mockGetSystemPubkey.mockResolvedValue('');
-
-      mockResolveByApi.mockResolvedValue({
-        type: 'episode',
-        feed: {
-          guid: 'feed-guid',
-          title: 'My Podcast',
-          feedUrl: FEED_URL,
-          imageUrl: 'https://example.com/img.jpg'
-        },
-        episode: {
-          guid: 'wrong-guid',
-          title: 'Wrong Episode',
-          enclosureUrl: 'https://example.com/wrong.mp3',
-          duration: 500,
-          publishedAt: 1700000000
-        }
-      });
-
-      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      expect(result).toBeNull();
-    });
-
-    it('should execute Nostr and API queries in parallel', async () => {
-      const callOrder: string[] = [];
-      let resolveNostr: (v: string) => void;
-      let resolveApi: (v: unknown) => void;
-
-      mockGetSystemPubkey.mockImplementation(() => {
-        callOrder.push('nostr-start');
-        return new Promise<string>((r) => {
-          resolveNostr = r;
-        });
-      });
-
-      mockResolveByApi.mockImplementation(() => {
-        callOrder.push('api-start');
-        return new Promise((r) => {
-          resolveApi = r;
-        });
-      });
-
-      const promise = resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      // Both should have started before either resolves
-      // Wait a tick for promises to schedule
-      await new Promise((r) => setTimeout(r, 0));
-      expect(callOrder).toContain('nostr-start');
-      expect(callOrder).toContain('api-start');
-
-      // Resolve both
-      resolveNostr!('');
-      resolveApi!({ type: 'episode' });
-
-      const result = await promise;
-      expect(result).toBeNull();
-    });
-
-    it('should correctly decode base64url encoded feedUrl and guid', async () => {
-      const specialGuid = 'guid/with+special=chars';
-      const specialFeed = 'https://example.com/feed?a=1&b=2';
-      const feedB64 = toBase64url(specialFeed);
-      const guidB64 = toBase64url(specialGuid);
-
-      mockGetSystemPubkey.mockResolvedValue('');
-      mockResolveByApi.mockResolvedValue({
-        type: 'episode',
-        feed: { guid: 'fg', title: 'T', feedUrl: specialFeed, imageUrl: '' },
-        episode: {
-          guid: specialGuid,
-          title: 'Ep',
-          enclosureUrl: 'https://example.com/ep.mp3',
-          duration: 60,
-          publishedAt: 1700000000
-        }
-      });
-
-      const result = await resolveEpisode(feedB64, guidB64);
-
-      expect(result).not.toBeNull();
-      expect(result!.title).toBe('Ep');
-      // Verify resolveByApi was called with decoded feed URL
-      expect(mockResolveByApi).toHaveBeenCalledWith(specialFeed);
-    });
-
-    it('should handle empty guid gracefully', async () => {
-      const emptyGuidB64 = toBase64url('');
-
-      const result = await resolveEpisode(FEED_BASE64, emptyGuidB64);
-
-      expect(result).toBeNull();
-    });
-
-    it('should handle empty feedUrl gracefully', async () => {
-      const emptyFeedB64 = toBase64url('');
-
-      const result = await resolveEpisode(emptyFeedB64, GUID_BASE64);
-
-      expect(result).toBeNull();
-      expect(mockResolveByApi).not.toHaveBeenCalled();
-    });
-
-    it('should return feedTitle and image from API feed even with Nostr-only episode match', async () => {
-      // When API has feed info but episodes do not match, and Nostr has the episode,
-      // the Nostr-only path does NOT include feedTitle/image
-      const pubkey = 'abc123pubkey';
-      mockGetSystemPubkey.mockResolvedValue(pubkey);
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([
-          {
-            pubkey,
-            tags: [
-              ['i', `podcast:item:guid:${GUID}`, 'https://example.com/ep1-nostr.mp3'],
-              ['i', 'podcast:guid:feed-guid', FEED_URL]
-            ],
-            content: 'Nostr desc'
-          }
-        ])
-      });
-      mockParseDTagEvent.mockReturnValue(makeNostrResult({ description: 'Nostr desc' }));
-
-      // API has feed info but no matching episode
-      mockResolveByApi.mockResolvedValue({
-        type: 'feed',
-        feed: {
-          guid: 'feed-guid',
-          title: 'My Podcast',
-          feedUrl: FEED_URL,
-          imageUrl: 'https://example.com/img.jpg'
-        },
-        episodes: [
-          {
-            guid: 'different-guid',
-            title: 'Other',
-            enclosureUrl: 'https://example.com/other.mp3',
-            duration: 100,
-            publishedAt: 1700000000
-          }
-        ]
-      });
-
-      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      // Falls through to Nostr-only path since API episodes don't match
-      expect(result).not.toBeNull();
-      expect(result!.enclosureUrl).toBe('https://example.com/ep1-nostr.mp3');
-      expect(result!.description).toBe('Nostr desc');
-      // Nostr-only path does not include feedTitle/image
-      expect(result!.feedTitle).toBeUndefined();
-    });
-
-    it('should return Nostr result when API throws', async () => {
-      const pubkey = 'abc123pubkey';
-      mockGetSystemPubkey.mockResolvedValue(pubkey);
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([
-          {
-            pubkey,
-            tags: [
-              ['i', `podcast:item:guid:${GUID}`, 'https://example.com/ep1-nostr.mp3'],
-              ['i', 'podcast:guid:feed-guid', FEED_URL]
-            ],
-            content: 'Nostr description'
-          }
-        ])
-      });
-      mockParseDTagEvent.mockReturnValue(makeNostrResult());
-
-      // API throws error
-      mockResolveByApi.mockRejectedValue(new Error('503 Service Unavailable'));
-
-      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      expect(result).not.toBeNull();
-      expect(result!.enclosureUrl).toBe('https://example.com/ep1-nostr.mp3');
-      expect(result!.description).toBe('Nostr description');
-    });
-
-    it('should return API result when Nostr throws', async () => {
-      // Nostr: getSystemPubkey throws
-      mockGetSystemPubkey.mockRejectedValue(new Error('network error'));
-
-      // API: return episodes with matching guid
-      mockResolveByApi.mockResolvedValue(makeApiResponse());
-
-      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      expect(result).not.toBeNull();
-      expect(result!.enclosureUrl).toBe('https://example.com/ep1.mp3');
-      expect(result!.title).toBe('Episode 1');
-    });
-
-    it('should return null when both throw', async () => {
-      mockGetSystemPubkey.mockRejectedValue(new Error('network error'));
-      mockResolveByApi.mockRejectedValue(new Error('503 Service Unavailable'));
-
-      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      expect(result).toBeNull();
-    });
-
-    it('should return null for invalid base64url guid', async () => {
-      // fromBase64url returns null for empty string
-      const result = await resolveEpisode(FEED_BASE64, '');
-
-      expect(result).toBeNull();
-      expect(mockResolveByApi).not.toHaveBeenCalled();
-    });
-
-    it('should return null for invalid base64url feedUrl', async () => {
-      const result = await resolveEpisode('', GUID_BASE64);
-
-      expect(result).toBeNull();
-      expect(mockResolveByApi).not.toHaveBeenCalled();
-    });
-
-    it('should fall back to Nostr when API episodes array has no guid match', async () => {
-      const pubkey = 'abc123pubkey';
-      mockGetSystemPubkey.mockResolvedValue(pubkey);
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([
-          {
-            pubkey,
-            tags: [
-              ['i', `podcast:item:guid:${GUID}`, 'https://example.com/ep1-nostr.mp3'],
-              ['i', 'podcast:guid:feed-guid', FEED_URL]
-            ],
-            content: 'Nostr desc'
-          }
-        ])
-      });
-      mockParseDTagEvent.mockReturnValue(makeNostrResult({ description: 'Nostr desc' }));
-
-      // API has episodes but none match
-      mockResolveByApi.mockResolvedValue({
-        type: 'feed',
-        feed: { guid: 'fg', title: 'T', feedUrl: FEED_URL, imageUrl: '' },
-        episodes: [
-          {
-            guid: 'no-match-guid',
-            title: 'Other',
-            enclosureUrl: 'https://example.com/other.mp3',
-            duration: 100,
-            publishedAt: 1700000000
-          }
-        ]
-      });
-
-      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      expect(result).not.toBeNull();
-      expect(result!.enclosureUrl).toBe('https://example.com/ep1-nostr.mp3');
-      expect(result!.description).toBe('Nostr desc');
-    });
-
-    it('should use API episode.guid match when episodes array is absent', async () => {
-      mockGetSystemPubkey.mockResolvedValue('');
-      mockResolveByApi.mockResolvedValue({
-        type: 'episode',
-        feed: {
-          guid: 'fg',
-          title: 'Podcast',
-          feedUrl: FEED_URL,
-          imageUrl: 'https://example.com/img.jpg'
-        },
-        episode: {
-          guid: GUID,
-          title: 'Direct Episode',
-          enclosureUrl: 'https://example.com/direct.mp3',
-          duration: 600,
-          publishedAt: 1700000000,
-          description: 'Direct desc'
-        }
-      });
-
-      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      expect(result).not.toBeNull();
-      expect(result!.title).toBe('Direct Episode');
-      expect(result!.enclosureUrl).toBe('https://example.com/direct.mp3');
-      expect(result!.feedTitle).toBe('Podcast');
-      expect(result!.image).toBe('https://example.com/img.jpg');
+    await expect(resolveEpisode(FEED_BASE64, GUID_BASE64)).resolves.toEqual({
+      enclosureUrl: 'https://example.com/ep1.mp3',
+      title: 'Episode 1',
+      feedTitle: 'My Podcast',
+      image: 'https://example.com/img.jpg',
+      description: 'Nostr description'
     });
   });
 
-  describe('queryNostrForEpisode (via resolveEpisode)', () => {
-    beforeEach(() => {
-      vi.clearAllMocks();
-      mockGetSystemPubkey.mockResolvedValue('');
-      mockResolveByApi.mockResolvedValue({ type: 'episode' });
-      mockGetEventsDB.mockRejectedValue(new Error('DB not available'));
+  it('falls back to Nostr-only result when API has no match', async () => {
+    searchEpisodeBookmarkByGuidMock.mockResolvedValue({ tags: [], content: 'nostr' });
+    mockParseDTagEvent.mockReturnValue({
+      guid: GUID,
+      feedUrl: FEED_URL,
+      enclosureUrl: 'https://example.com/ep1-nostr.mp3',
+      description: 'Nostr description'
     });
 
-    it('should query relay when DB cache is empty and return result', async () => {
-      const pubkey = 'relay-pubkey';
-      mockGetSystemPubkey.mockResolvedValue(pubkey);
-
-      // DB returns empty array (no cached events)
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([]),
-        put: vi.fn()
-      });
-
-      const relayEvent = {
-        tags: [
-          ['i', `podcast:item:guid:${GUID}`, 'https://example.com/relay-ep.mp3'],
-          ['i', 'podcast:guid:feed-guid', FEED_URL]
-        ],
-        content: 'Relay description'
-      };
-
-      setupRelayMock(relayEvent);
-
-      mockParseDTagEvent.mockReturnValue({
-        guid: GUID,
-        feedUrl: FEED_URL,
-        enclosureUrl: 'https://example.com/relay-ep.mp3',
-        description: 'Relay description'
-      });
-
-      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      expect(result).not.toBeNull();
-      expect(result!.enclosureUrl).toBe('https://example.com/relay-ep.mp3');
-      expect(result!.description).toBe('Relay description');
+    await expect(resolveEpisode(FEED_BASE64, GUID_BASE64)).resolves.toEqual({
+      enclosureUrl: 'https://example.com/ep1-nostr.mp3',
+      description: 'Nostr description'
     });
+  });
 
-    it('should return null when relay subscription completes with no events', async () => {
-      const pubkey = 'relay-pubkey';
-      mockGetSystemPubkey.mockResolvedValue(pubkey);
+  it('queries resonote bookmark search with system pubkey and guid', async () => {
+    await resolveEpisode(FEED_BASE64, GUID_BASE64);
 
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([])
-      });
-
-      setupRelayMock(null);
-
-      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      expect(result).toBeNull();
-    });
-
-    it('should skip DB events from non-system pubkeys', async () => {
-      const pubkey = 'sys-pubkey';
-      mockGetSystemPubkey.mockResolvedValue(pubkey);
-
-      // DB returns event with different pubkey
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([
-          {
-            pubkey: 'other-pubkey',
-            tags: [
-              ['i', `podcast:item:guid:${GUID}`, 'https://example.com/other.mp3'],
-              ['i', 'podcast:guid:feed-guid', FEED_URL]
-            ],
-            content: 'Other desc'
-          }
-        ])
-      });
-
-      setupRelayMock(null);
-
-      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      expect(result).toBeNull();
-    });
-
-    it('should cache relay result in DB after successful Nostr fetch', async () => {
-      const pubkey = 'sys-pubkey';
-      mockGetSystemPubkey.mockResolvedValue(pubkey);
-
-      const putMock = vi.fn();
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([]),
-        put: putMock
-      });
-
-      const relayEvent = {
-        tags: [
-          ['i', `podcast:item:guid:${GUID}`, 'https://example.com/relay-ep.mp3'],
-          ['i', 'podcast:guid:feed-guid', FEED_URL]
-        ],
-        content: 'desc'
-      };
-
-      setupRelayMock(relayEvent);
-
-      mockParseDTagEvent.mockReturnValue({
-        guid: GUID,
-        feedUrl: FEED_URL,
-        enclosureUrl: 'https://example.com/relay-ep.mp3',
-        description: 'desc'
-      });
-
-      await resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      expect(putMock).toHaveBeenCalledWith(relayEvent);
-    });
-
-    it('should merge API + Nostr: prefer API enclosureUrl and Nostr description', async () => {
-      const pubkey = 'sys-pubkey';
-      mockGetSystemPubkey.mockResolvedValue(pubkey);
-
-      mockGetEventsDB.mockResolvedValue({
-        getByTagValue: vi.fn().mockResolvedValue([
-          {
-            pubkey,
-            tags: [
-              ['i', `podcast:item:guid:${GUID}`, 'https://example.com/nostr.mp3'],
-              ['i', 'podcast:guid:feed-guid', FEED_URL]
-            ],
-            content: 'Detailed Nostr description'
-          }
-        ])
-      });
-      mockParseDTagEvent.mockReturnValue(
-        makeNostrResult({ description: 'Detailed Nostr description' })
-      );
-
-      mockResolveByApi.mockResolvedValue(
-        makeApiResponse({
-          episodes: [
-            {
-              guid: GUID,
-              title: 'Episode Title',
-              enclosureUrl: 'https://example.com/api.mp3',
-              duration: 3600,
-              publishedAt: 1700000000,
-              description: 'Short API desc'
-            }
-          ]
-        })
-      );
-
-      const result = await resolveEpisode(FEED_BASE64, GUID_BASE64);
-
-      expect(result).not.toBeNull();
-      expect(result!.enclosureUrl).toBe('https://example.com/api.mp3');
-      expect(result!.title).toBe('Episode Title');
-      expect(result!.description).toBe('Detailed Nostr description');
-    });
+    expect(searchEpisodeBookmarkByGuidMock).toHaveBeenCalledWith('abc123', GUID);
+    expect(mockResolveByApi).toHaveBeenCalledWith(FEED_URL);
   });
 });

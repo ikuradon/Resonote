@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
-// Mock nostr-tools before importing app
-vi.mock('nostr-tools/pure', () => ({
+// Mock Auftakt crypto helpers before importing app
+vi.mock('@auftakt/core', async (importOriginal) => ({
+  ...(await importOriginal()),
   getPublicKey: vi.fn(() => 'a'.repeat(64)),
   finalizeEvent: vi.fn((template: Record<string, unknown>) => ({
     ...template,
@@ -9,10 +10,6 @@ vi.mock('nostr-tools/pure', () => ({
     sig: 'mock',
     pubkey: 'a'.repeat(64)
   }))
-}));
-
-vi.mock('nostr-tools/utils', () => ({
-  hexToBytes: vi.fn((hex: string) => new Uint8Array(hex.length / 2))
 }));
 
 const mockCache = { match: vi.fn().mockResolvedValue(undefined), put: vi.fn() };

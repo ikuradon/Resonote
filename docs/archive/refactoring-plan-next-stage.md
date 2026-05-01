@@ -86,7 +86,7 @@
 
 ここに残っているもの:
 
-- rx-nostr 購読開始
+- relay-session 購読開始
 - follow-comment 制限
 - mute / word mute 適用
 - unread 状態
@@ -240,7 +240,7 @@ seek は整理され始めましたが、まだ次が残っています。
 - `shared/nostr/gateway.ts` を責務別に整理する
   - publish
   - latest event query
-  - rx-nostr access
+  - relay-session access
   - event DB access
 - `shared/browser/*` を責務別に整理する
   - auth bridge

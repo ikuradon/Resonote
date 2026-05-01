@@ -1,6 +1,6 @@
+import { getPublicKey } from '@auftakt/core';
+import { hexToBytes } from '@auftakt/core';
 import { Hono } from 'hono';
-import { getPublicKey } from 'nostr-tools/pure';
-import { hexToBytes } from 'nostr-tools/utils';
 import { describe, expect, it } from 'vitest';
 
 import { systemRoute } from './system.js';

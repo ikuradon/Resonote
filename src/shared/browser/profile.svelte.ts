@@ -1,3 +1,5 @@
+import { parseNip24ProfileMetadataJson } from '@auftakt/core';
+
 import {
   describeProfileDisplay,
   formatDisplayName,
@@ -5,6 +7,7 @@ import {
   type ProfileDisplay,
   truncateProfileName
 } from '$features/profiles/domain/profile-model.js';
+import { fetchProfileMetadataSources } from '$shared/auftakt/resonote.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 import { sanitizeUrl } from '$shared/utils/url.js';
 
@@ -14,18 +17,44 @@ const PROFILE_BATCH_SIZE = 50;
 const MAX_PROFILES = 2000;
 
 const pending = new Set<string>();
+const retryQueued = new Set<string>();
 let profiles = $state<Map<string, Profile>>(new Map());
 
+function isUnresolvedPlaceholderProfile(profile: Profile | undefined): boolean {
+  return profile !== undefined && Object.keys(profile).length === 0;
+}
+
 function parseProfileContent(content: string): Profile {
-  const meta = JSON.parse(content) as Record<string, unknown>;
+  const meta = parseNip24ProfileMetadataJson(content);
+  if (!meta) {
+    throw new Error('Malformed NIP-24 profile metadata JSON');
+  }
   return {
-    name: typeof meta.name === 'string' ? truncateProfileName(meta.name) : undefined,
-    displayName:
-      typeof meta.display_name === 'string' ? truncateProfileName(meta.display_name) : undefined,
-    picture: typeof meta.picture === 'string' ? sanitizeUrl(meta.picture) : undefined,
-    about: typeof meta.about === 'string' ? meta.about : undefined,
-    nip05: typeof meta.nip05 === 'string' ? meta.nip05 : undefined
+    name: meta.name ? truncateProfileName(meta.name) : undefined,
+    displayName: meta.displayName ? truncateProfileName(meta.displayName) : undefined,
+    picture: meta.picture ? sanitizeUrl(meta.picture) : undefined,
+    about: meta.about,
+    nip05: meta.nip05,
+    website: meta.website ? sanitizeUrl(meta.website) : undefined,
+    banner: meta.banner ? sanitizeUrl(meta.banner) : undefined,
+    bot: meta.bot,
+    birthday: meta.birthday
   };
+}
+
+function queueRetryIfNeeded(pubkey: string): void {
+  if (!retryQueued.has(pubkey)) return;
+  retryQueued.delete(pubkey);
+  queueMicrotask(() => {
+    void fetchProfiles([pubkey]);
+  });
+}
+
+function releasePending(pubkeys: Iterable<string>): void {
+  for (const pk of pubkeys) {
+    pending.delete(pk);
+    queueRetryIfNeeded(pk);
+  }
 }
 
 export function getProfile(pubkey: string): Profile | undefined {
@@ -50,17 +79,27 @@ export async function fetchProfile(pubkey: string): Promise<void> {
  * Falls back to DB cache before making relay requests.
  */
 export async function fetchProfiles(pubkeys: string[]): Promise<void> {
-  let toFetch = pubkeys.filter((pk) => !profiles.has(pk) && !pending.has(pk));
+  for (const pk of pubkeys) {
+    if (pending.has(pk)) {
+      retryQueued.add(pk);
+    }
+  }
+
+  let toFetch = pubkeys.filter((pk) => {
+    if (pending.has(pk)) return false;
+    const existing = profiles.get(pk);
+    return existing === undefined || isUnresolvedPlaceholderProfile(existing);
+  });
   if (toFetch.length === 0) return;
 
-  for (const pk of toFetch) pending.add(pk);
+  const startedPubkeys = toFetch;
+  for (const pk of startedPubkeys) pending.add(pk);
 
   try {
-    const { getEventsDB } = await import('$shared/nostr/gateway.js');
-    const eventsDB = await getEventsDB();
-    const cached = await eventsDB.getManyByPubkeysAndKind(toFetch, 0);
+    const { cachedEvents, fetchedEvents, fallbackEvents, unresolvedPubkeys } =
+      await fetchProfileMetadataSources(toFetch, PROFILE_BATCH_SIZE);
 
-    for (const event of cached) {
+    for (const event of cachedEvents) {
       try {
         const profile = parseProfileContent(event.content);
         profiles.set(event.pubkey, profile);
@@ -69,78 +108,63 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
       }
     }
 
-    toFetch = toFetch.filter((pk) => !profiles.has(pk));
+    for (const event of fetchedEvents) {
+      try {
+        const profile = parseProfileContent(event.content);
+        profiles.set(event.pubkey, profile);
+        const nip05 = profile.nip05;
+        if (nip05) {
+          void import('$shared/nostr/nip05.js').then(({ verifyNip05 }) =>
+            verifyNip05(nip05, event.pubkey).then((result) => {
+              const existing = profiles.get(event.pubkey);
+              if (existing && existing.nip05 === profile.nip05) {
+                const updated = { ...existing, nip05valid: result.valid };
+                profiles.set(event.pubkey, updated);
+                profiles = new Map(profiles);
+              }
+            })
+          );
+        }
+      } catch {
+        log.warn('Malformed profile JSON', { pubkey: shortHex(event.pubkey) });
+      }
+    }
+
+    for (const event of fallbackEvents) {
+      try {
+        const profile = parseProfileContent(event.content);
+        profiles.set(event.pubkey, profile);
+      } catch {
+        log.warn('Malformed profile JSON from latest-event fallback', {
+          pubkey: shortHex(event.pubkey)
+        });
+      }
+    }
+
+    toFetch = unresolvedPubkeys;
     if (toFetch.length === 0) {
       profiles = new Map(profiles);
-      for (const pk of pubkeys) pending.delete(pk);
+      releasePending(startedPubkeys);
       return;
     }
 
-    const [{ createRxBackwardReq }, { getRxNostr }] = await Promise.all([
-      import('rx-nostr'),
-      import('$shared/nostr/gateway.js')
-    ]);
-    const rxNostr = await getRxNostr();
-
-    for (let i = 0; i < toFetch.length; i += PROFILE_BATCH_SIZE) {
-      const chunk = toFetch.slice(i, i + PROFILE_BATCH_SIZE);
-      const req = createRxBackwardReq();
-
-      const sub = rxNostr.use(req).subscribe({
-        next: (packet) => {
-          try {
-            const profile = parseProfileContent(packet.event.content);
-            profiles.set(packet.event.pubkey, profile);
-            eventsDB
-              .put(packet.event)
-              .catch((e) => log.error('Failed to persist profile event', e));
-            const nip05 = profile.nip05;
-            if (nip05) {
-              void import('$shared/nostr/nip05.js').then(({ verifyNip05 }) =>
-                verifyNip05(nip05, packet.event.pubkey).then((result) => {
-                  const existing = profiles.get(packet.event.pubkey);
-                  if (existing && existing.nip05 === profile.nip05) {
-                    const updated = { ...existing, nip05valid: result.valid };
-                    profiles.set(packet.event.pubkey, updated);
-                    profiles = new Map(profiles);
-                  }
-                })
-              );
-            }
-          } catch {
-            log.warn('Malformed profile JSON', { pubkey: shortHex(packet.event.pubkey) });
-          }
-        },
-        complete: () => {
-          for (const pk of chunk) {
-            if (!profiles.has(pk)) {
-              profiles.set(pk, {});
-            }
-            pending.delete(pk);
-          }
-
-          if (profiles.size > MAX_PROFILES) {
-            const keys = [...profiles.keys()];
-            const toRemove = keys.slice(0, profiles.size - MAX_PROFILES);
-            for (const key of toRemove) profiles.delete(key);
-          }
-
-          profiles = new Map(profiles);
-          sub.unsubscribe();
-        },
-        error: (err) => {
-          log.warn('Profile fetch subscription error', { error: err });
-          for (const pk of chunk) pending.delete(pk);
-          sub.unsubscribe();
-        }
-      });
-
-      req.emit({ kinds: [0], authors: chunk });
-      req.over();
+    for (const pk of toFetch) {
+      if (!profiles.has(pk)) {
+        profiles.set(pk, {});
+      }
     }
+    releasePending(startedPubkeys);
+
+    if (profiles.size > MAX_PROFILES) {
+      const keys = [...profiles.keys()];
+      const toRemove = keys.slice(0, profiles.size - MAX_PROFILES);
+      for (const key of toRemove) profiles.delete(key);
+    }
+
+    profiles = new Map(profiles);
   } catch (err) {
-    log.error('Profile fetch failed', { error: err });
-    for (const pk of toFetch) pending.delete(pk);
+    log.warn('Profile fetch subscription error', { error: err });
+    releasePending(startedPubkeys);
   }
 }
 
@@ -148,4 +172,5 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
 export function clearProfiles(): void {
   profiles = new Map();
   pending.clear();
+  retryQueued.clear();
 }

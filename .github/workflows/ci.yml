@@ -42,11 +42,23 @@ jobs:
       - name: Structure check
         run: pnpm check:structure
 
+      - name: Auftakt retirement proof (authoritative gate)
+        run: |
+          mkdir -p artifacts
+          pnpm run check:auftakt-migration -- --fail-on-unauthorized --fail-on-unclassified --proof | tee artifacts/auftakt-migration-proof.txt
+
       - name: Generate import graph artifacts
         run: |
           mkdir -p artifacts
           pnpm graph:imports:summary > artifacts/import-graph-summary.txt
           pnpm graph:imports > artifacts/import-graph.dot
+
+      - name: Upload Auftakt retirement proof artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: auftakt-migration-proof
+          path: artifacts/auftakt-migration-proof.txt
+          retention-days: 7
 
       - name: Upload import graph artifacts
         uses: actions/upload-artifact@v7
@@ -87,6 +99,9 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Package contract tests
+        run: pnpm test:packages
 
       - name: Unit tests with coverage
         run: pnpm test:coverage

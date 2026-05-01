@@ -1,5 +1,8 @@
+import { extractNip27References } from '@auftakt/core';
+
 import { getProvider } from '$shared/content/registry.js';
 import type { ContentId } from '$shared/content/types.js';
+import { isEmojiTag } from '$shared/utils/emoji.js';
 import { sanitizeUrl } from '$shared/utils/url.js';
 
 import { decodeContentLink, type DecodedNip19, decodeNip19 } from './helpers.js';
@@ -9,10 +12,21 @@ export type { DecodedNip19 };
 export type ContentSegment =
   | { type: 'text'; value: string }
   | { type: 'emoji'; shortcode: string; url: string }
-  | { type: 'nostr-link'; uri: string; decoded: NonNullable<DecodedNip19>; href: string }
-  | { type: 'content-link'; uri: string; contentId: ContentId; href: string; displayLabel: string }
+  | { type: 'nostr-link'; uri: string; decoded: LinkableNip19; href: string }
+  | {
+      type: 'content-link';
+      uri: string;
+      contentId: ContentId;
+      href: string;
+      displayLabel: string;
+    }
   | { type: 'url'; href: string }
   | { type: 'hashtag'; tag: string };
+
+type LinkableNip19 = Extract<
+  NonNullable<DecodedNip19>,
+  { type: 'npub' | 'nprofile' | 'note' | 'nevent' }
+>;
 
 const NSEC_RE = /nsec1[a-z0-9]{58}/i;
 
@@ -46,7 +60,7 @@ function isDigitsOnly(s: string): boolean {
 // 4. Hashtags
 // Created fresh per call to avoid shared lastIndex state
 function createCombinedRe(): RegExp {
-  return /nostr:(npub1|nprofile1|nevent1|note1|ncontent1)[a-z0-9]+|https?:\/\/[^\s<>"]+|:([^:\s]+):|(?:^|(?<=\s))#([a-zA-Z0-9_\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]+)/g;
+  return /nostr:(npub1|nprofile1|nevent1|note1|ncontent1)[a-z0-9]+|https?:\/\/[^\s<>"]+|:([A-Za-z0-9_]+):|(?:^|(?<=\s))#([a-zA-Z0-9_\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]+)/g;
 }
 
 /** Trim trailing punctuation from a URL, preserving balanced parentheses. */
@@ -64,7 +78,7 @@ function trimUrlTrailing(url: string): string {
   return url.slice(0, end);
 }
 
-function nostrLinkHref(uri: string, decoded: NonNullable<DecodedNip19>): string {
+function nostrLinkHref(uri: string, decoded: LinkableNip19): string {
   switch (decoded.type) {
     case 'npub':
     case 'nprofile':
@@ -75,8 +89,14 @@ function nostrLinkHref(uri: string, decoded: NonNullable<DecodedNip19>): string 
   }
 }
 
+function isLinkableNip19(decoded: NonNullable<DecodedNip19>): decoded is LinkableNip19 {
+  return ['npub', 'nprofile', 'note', 'nevent'].includes(decoded.type);
+}
+
 function contentLinkHref(contentId: ContentId): string {
-  return `/${encodeURIComponent(contentId.platform)}/${encodeURIComponent(contentId.type)}/${encodeURIComponent(contentId.id)}`;
+  return `/${encodeURIComponent(contentId.platform)}/${encodeURIComponent(
+    contentId.type
+  )}/${encodeURIComponent(contentId.id)}`;
 }
 
 /**
@@ -89,7 +109,7 @@ export function parseCommentContent(content: string, emojiTags: string[][]): Con
   // Build emoji map
   const emojiMap = new Map<string, string>();
   for (const tag of emojiTags) {
-    if (tag.length >= 3) {
+    if (isEmojiTag(tag)) {
       const safeUrl = sanitizeUrl(tag[2]);
       if (safeUrl) emojiMap.set(tag[1], safeUrl);
     }
@@ -106,7 +126,10 @@ export function parseCommentContent(content: string, emojiTags: string[][]): Con
 
     // Push text before this match
     if (matchStart > lastIndex) {
-      segments.push({ type: 'text', value: content.slice(lastIndex, matchStart) });
+      segments.push({
+        type: 'text',
+        value: content.slice(lastIndex, matchStart)
+      });
     }
 
     if (matchText.startsWith('nostr:')) {
@@ -132,7 +155,7 @@ export function parseCommentContent(content: string, emojiTags: string[][]): Con
       } else {
         // Other nostr: prefixes -> nostr-link
         const decoded = decodeNip19(uri);
-        if (decoded) {
+        if (decoded && isLinkableNip19(decoded)) {
           segments.push({
             type: 'nostr-link',
             uri,
@@ -202,14 +225,8 @@ export function extractContentTags(content: string): {
   const qMap = new Map<string, QTagEntry>();
   const tSet = new Set<string>();
 
-  // Match nostr: URIs
-  const nostrRe = /nostr:(npub1|nprofile1|nevent1|note1)[a-z0-9]+/g;
-  let match: RegExpExecArray | null;
-
-  while ((match = nostrRe.exec(content)) !== null) {
-    const uri = match[0].slice('nostr:'.length);
-    const decoded = decodeNip19(uri);
-    if (!decoded) continue;
+  for (const reference of extractNip27References(content)) {
+    const decoded = reference.decoded;
     switch (decoded.type) {
       case 'npub':
         pSet.add(decoded.pubkey);
@@ -230,11 +247,15 @@ export function extractContentTags(content: string): {
           qMap.set(decoded.eventId, { eventId: decoded.eventId });
         }
         break;
+      case 'naddr':
+      case 'nrelay':
+        break;
     }
   }
 
   // Match hashtags
   const hashRe = /(?:^|(?<=\s))#([a-zA-Z0-9_\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]+)/g;
+  let match: RegExpExecArray | null;
   while ((match = hashRe.exec(content)) !== null) {
     const tag = match[1];
     if (!isHexString(tag) && !isDigitsOnly(tag)) {

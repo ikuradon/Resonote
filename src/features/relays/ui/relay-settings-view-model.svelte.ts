@@ -1,7 +1,7 @@
 import { untrack } from 'svelte';
 
+import { useCachedLatest, type UseCachedLatestResult } from '$shared/auftakt/resonote.js';
 import { t } from '$shared/i18n/t.js';
-import { useCachedLatest, type UseCachedLatestResult } from '$shared/nostr/cached-query.js';
 import { RELAY_LIST_KIND } from '$shared/nostr/events.js';
 import { DEFAULT_RELAYS } from '$shared/nostr/relays.js';
 
@@ -12,10 +12,31 @@ import {
   type RelayState
 } from '../domain/relay-model.js';
 
+type LiveRelayState = Readonly<Pick<RelayState, 'url' | 'state'>>;
+
+interface RelayReadResult {
+  event: UseCachedLatestResult['event'];
+  settlement: UseCachedLatestResult['settlement'];
+}
+
 interface RelaySettingsViewModelOptions {
   getPubkey: () => string | null;
-  getLiveRelays: () => RelayState[];
+  getLiveRelays: () => readonly LiveRelayState[];
   saveRelayList: (entries: RelayEntry[]) => Promise<void>;
+}
+
+type RelayListLoadState = 'loading' | 'no-list' | 'loaded';
+
+export function resolveRelayListLoadState(
+  relayReadResult: RelayReadResult | undefined,
+  entriesLength: number
+): RelayListLoadState {
+  if (!relayReadResult) return 'loading';
+  if (relayReadResult.settlement.phase !== 'settled') return 'loading';
+  if (relayReadResult.event) return 'loaded';
+  if (entriesLength > 0) return 'loaded';
+  if (relayReadResult.settlement.reason === 'settled-miss') return 'no-list';
+  return 'loaded';
 }
 
 function defaultRelayEntries(): RelayEntry[] {
@@ -47,6 +68,7 @@ export function createRelaySettingsViewModel(options: RelaySettingsViewModelOpti
     if (!pubkey) return;
 
     relayQuery = useCachedLatest(pubkey, RELAY_LIST_KIND);
+
     return () => {
       relayQuery?.destroy();
       relayQuery = undefined;
@@ -60,8 +82,11 @@ export function createRelaySettingsViewModel(options: RelaySettingsViewModelOpti
   });
 
   let serverEntries = $derived.by(() => {
-    if (!relayQuery?.event) return [];
-    return parseRelayTags(relayQuery.event.tags);
+    const relayReadResult = relayQuery;
+    if (!relayReadResult) return [];
+    if (relayReadResult.settlement.phase !== 'settled') return [];
+    if (!relayReadResult.event) return [];
+    return parseRelayTags(relayReadResult.event.tags);
   });
 
   $effect(() => {
@@ -70,10 +95,9 @@ export function createRelaySettingsViewModel(options: RelaySettingsViewModelOpti
     }
   });
 
-  let relayLoading = $derived(!relayQuery?.settled);
-  let noRelayList = $derived(
-    relayQuery?.settled === true && !relayQuery.event && entries.length === 0
-  );
+  let relayListLoadState = $derived(resolveRelayListLoadState(relayQuery, entries.length));
+  let relayLoading = $derived(relayListLoadState === 'loading');
+  let noRelayList = $derived(relayListLoadState === 'no-list');
   let liveRelays = $derived(options.getLiveRelays());
 
   function connectionStateFor(url: string): ConnectionState | null {

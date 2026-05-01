@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { verifyDeletionTargets } from './deletion-rules.js';
+import { reconcileDeletionTargets, verifyDeletionTargets } from './deletion-rules.js';
 
 describe('verifyDeletionTargets', () => {
   it('should accept deletion when author matches', () => {
@@ -65,5 +65,47 @@ describe('verifyDeletionTargets', () => {
     const event = { pubkey: 'pk1', tags: [] };
     // No e-tags → nothing to delete
     expect(verifyDeletionTargets(event, pubkeys)).toEqual([]);
+  });
+});
+
+describe('reconcileDeletionTargets', () => {
+  it('returns canonical tombstone emissions for verified targets', () => {
+    const pubkeys = new Map([
+      ['ev1', 'pk1'],
+      ['ev2', 'pk1']
+    ]);
+    const event = {
+      pubkey: 'pk1',
+      tags: [
+        ['e', 'ev1'],
+        ['e', 'ev2']
+      ]
+    };
+
+    const result = reconcileDeletionTargets(event, pubkeys);
+
+    expect(result.verifiedTargetIds).toEqual(['ev1', 'ev2']);
+    expect(result.emissions).toEqual([
+      {
+        subjectId: 'ev1',
+        reason: 'tombstoned',
+        state: 'deleted'
+      },
+      {
+        subjectId: 'ev2',
+        reason: 'tombstoned',
+        state: 'deleted'
+      }
+    ]);
+  });
+
+  it('returns no emissions when no verified target exists', () => {
+    const pubkeys = new Map([['ev1', 'pk1']]);
+    const event = { pubkey: 'pk2', tags: [['e', 'ev1']] };
+
+    const result = reconcileDeletionTargets(event, pubkeys);
+
+    expect(result.verifiedTargetIds).toEqual([]);
+    expect(result.emissions).toEqual([]);
   });
 });

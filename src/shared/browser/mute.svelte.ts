@@ -1,3 +1,10 @@
+import {
+  detectNip51PrivateContentEncryption,
+  parseNip51PrivateTagsJson,
+  stringifyNip51PrivateTags
+} from '@auftakt/core';
+
+import { readLatestEvent } from '$shared/auftakt/resonote.js';
 import { MUTE_KIND } from '$shared/nostr/events.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 
@@ -8,21 +15,27 @@ const log = createLogger('mute');
 async function encryptTags(pubkey: string, tags: string[][]): Promise<string> {
   const nip44 = window.nostr?.nip44;
   if (!nip44) throw new Error('NIP-44 encryption not available');
-  return await nip44.encrypt(pubkey, JSON.stringify(tags));
+  return await nip44.encrypt(pubkey, stringifyNip51PrivateTags(tags));
 }
 
 async function decryptTags(pubkey: string, ciphertext: string): Promise<string[][]> {
   const nip44 = window.nostr?.nip44;
   if (!nip44) throw new Error('NIP-44 decryption not available');
   const plaintext = await nip44.decrypt(pubkey, ciphertext);
-  return JSON.parse(plaintext);
+  return parseDecryptedTags(plaintext);
 }
 
 async function decryptTagsNip04(pubkey: string, ciphertext: string): Promise<string[][]> {
   const nip04 = window.nostr?.nip04;
   if (!nip04) throw new Error('NIP-04 decryption not available');
   const plaintext = await nip04.decrypt(pubkey, ciphertext);
-  return JSON.parse(plaintext);
+  return parseDecryptedTags(plaintext);
+}
+
+function parseDecryptedTags(plaintext: string): string[][] {
+  const tags = parseNip51PrivateTagsJson(plaintext);
+  if (!tags) throw new Error('Invalid NIP-51 private tags payload');
+  return tags;
 }
 
 export type EncryptionScheme = 'nip44' | 'nip04' | 'new' | 'undecryptable';
@@ -80,8 +93,7 @@ export async function loadMuteList(pubkey: string): Promise<void> {
   log.info('Loading mute list', { pubkey: shortHex(pubkey) });
 
   try {
-    const { fetchLatestEvent } = await import('$shared/nostr/gateway.js');
-    const latest = await fetchLatestEvent(pubkey, MUTE_KIND);
+    const latest = await readLatestEvent(pubkey, MUTE_KIND);
     if (gen !== generation) return;
 
     const newPubkeys = new Set<string>();
@@ -95,26 +107,30 @@ export async function loadMuteList(pubkey: string): Promise<void> {
 
       if (latest.content) {
         let decryptedTags: string[][] | null = null;
+        const preferredScheme = detectNip51PrivateContentEncryption(latest.content);
+        const decryptOrder: Array<'nip44' | 'nip04'> =
+          preferredScheme === 'nip04' ? ['nip04', 'nip44'] : ['nip44', 'nip04'];
 
-        // Try NIP-44 first
-        if (hasNip44Support()) {
-          try {
-            decryptedTags = await decryptTags(pubkey, latest.content);
-            if (gen !== generation) return;
-            encryptionScheme = 'nip44';
-          } catch {
-            log.debug('NIP-44 decrypt failed, trying NIP-04 fallback');
+        for (const scheme of decryptOrder) {
+          if (scheme === 'nip44' && hasNip44Support()) {
+            try {
+              decryptedTags = await decryptTags(pubkey, latest.content);
+              if (gen !== generation) return;
+              encryptionScheme = 'nip44';
+              break;
+            } catch {
+              log.debug('NIP-44 decrypt failed');
+            }
           }
-        }
-
-        // Fallback to NIP-04
-        if (decryptedTags === null && hasNip04Support()) {
-          try {
-            decryptedTags = await decryptTagsNip04(pubkey, latest.content);
-            if (gen !== generation) return;
-            encryptionScheme = 'nip04';
-          } catch {
-            log.warn('Both NIP-44 and NIP-04 decrypt failed');
+          if (scheme === 'nip04' && hasNip04Support()) {
+            try {
+              decryptedTags = await decryptTagsNip04(pubkey, latest.content);
+              if (gen !== generation) return;
+              encryptionScheme = 'nip04';
+              break;
+            } catch {
+              log.debug('NIP-04 decrypt failed');
+            }
           }
         }
 
@@ -167,7 +183,7 @@ async function publishMuteList(useScheme?: EncryptionScheme): Promise<void> {
   if (resolvedScheme === 'nip04') {
     const nip04 = window.nostr?.nip04;
     if (!nip04) throw new Error('NIP-04 not available');
-    encrypted = await nip04.encrypt(myPubkey, JSON.stringify(allTags));
+    encrypted = await nip04.encrypt(myPubkey, stringifyNip51PrivateTags(allTags));
   } else {
     if (!hasNip44Support()) throw new Error('NIP-44 not available');
     encrypted = await encryptTags(myPubkey, allTags);

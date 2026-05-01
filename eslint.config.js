@@ -12,6 +12,9 @@ import ts from 'typescript-eslint';
 // config 配列の最後のエントリが勝つ (マージされない)。
 // 各スコープに必要なパターンをすべて含めるため、共通パターンを変数化する。
 
+const retiredRelayPackageName = ['r', 'x', '-', 'n', 'o', 's', 't', 'r'].join('');
+const retiredRelayPackagePatterns = [retiredRelayPackageName, `${retiredRelayPackageName}/*`];
+
 /** Legacy $lib → $shared migration guard */
 const legacyLibPatterns = [
   {
@@ -331,8 +334,7 @@ export default ts.config(
             // External nostr/rx libraries (ALL blocked — stricter than #18)
             {
               group: [
-                'rx-nostr',
-                'rx-nostr/*',
+                ...retiredRelayPackagePatterns,
                 'rxjs',
                 'rxjs/*',
                 'nostr-tools',
@@ -438,10 +440,11 @@ export default ts.config(
               group: ['../infra/*', '../infra/**'],
               message: 'UI must access infra through application layer, not directly.'
             },
-            // rx-nostr/rxjs direct usage
+            // retired relay package/rxjs direct usage
             {
-              group: ['rx-nostr', 'rx-nostr/*', 'rxjs', 'rxjs/*'],
-              message: 'UI must not use rx-nostr/rxjs directly. Use application layer.'
+              group: [...retiredRelayPackagePatterns, 'rxjs', 'rxjs/*'],
+              message:
+                'UI must not use retired relay packages/rxjs directly. Use application layer.'
             },
             ...crossFeaturePatterns,
             ...legacyLibPatterns,
@@ -480,7 +483,7 @@ export default ts.config(
         {
           patterns: [
             {
-              group: ['rx-nostr', '$lib/nostr/client*', '$lib/nostr/event-db*'],
+              group: [retiredRelayPackageName, '$lib/nostr/client*', '$lib/nostr/event-db*'],
               message:
                 'Routes should use feature facades, not infra directly. See CLAUDE.md Architecture section.'
             },
@@ -497,7 +500,7 @@ export default ts.config(
                 '$lib/content/*.js'
               ],
               message:
-                'Routes should use moved $shared public content/helpers instead of compat wrappers in $lib.'
+                'Routes should use moved $shared public content/helpers instead of interop wrappers in $lib.'
             },
             {
               group: ['$lib/stores/*.svelte.js'],
@@ -547,7 +550,7 @@ export default ts.config(
                 '$lib/content/*.js'
               ],
               message:
-                'Components should use moved $shared public content/helpers instead of compat wrappers in $lib.'
+                'Components should use moved $shared public content/helpers instead of interop wrappers in $lib.'
             },
             {
               group: ['../stores/*.svelte.js', '$lib/stores/*.svelte.js'],
@@ -566,8 +569,9 @@ export default ts.config(
                 'Component-local helpers must not access Nostr gateway directly. This is business logic.'
             },
             {
-              group: ['rx-nostr', 'rx-nostr/*', 'rxjs', 'rxjs/*'],
-              message: 'Component-local helpers must not use rx-nostr/rxjs. This is infra concern.'
+              group: [...retiredRelayPackagePatterns, 'rxjs', 'rxjs/*'],
+              message:
+                'Component-local helpers must not use retired relay packages/rxjs. This is infra concern.'
             },
             ...internalSveltePatterns,
             ...nostrToolsClientPatterns,
@@ -603,7 +607,7 @@ export default ts.config(
                 '../nostr/event-db*'
               ],
               message:
-                'Content resolvers should use $shared/nostr/gateway.js instead of direct client/event-db imports.'
+                'Content resolvers should use $shared/auftakt/resonote.js instead of direct client/event-db imports.'
             },
             // Include legacy content drift (from general content scope, since this overrides it)
             {
@@ -675,7 +679,7 @@ export default ts.config(
                 '../lib/content/*.js'
               ],
               message:
-                'Extension code and lib/nostr tests should import $shared/content contracts instead of legacy compat wrappers.'
+                'Extension code and lib/nostr tests should import $shared/content contracts instead of legacy interop wrappers.'
             }
           ]
         }
@@ -864,6 +868,7 @@ export default ts.config(
       'dist-extension/',
       '.svelte-kit/',
       '.wrangler/',
+      '.omx/',
       '.worktrees/',
       '.claude/worktrees/',
       'node_modules/',

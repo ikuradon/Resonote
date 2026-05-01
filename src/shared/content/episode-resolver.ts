@@ -1,8 +1,8 @@
 // @public — Stable API for route/component/feature consumers
+import { searchEpisodeBookmarkByGuid } from '$shared/auftakt/resonote.js';
 import type { DTagResult } from '$shared/content/podcast-resolver.js';
 import { getSystemPubkey, parseDTagEvent, resolveByApi } from '$shared/content/podcast-resolver.js';
 import { fromBase64url } from '$shared/content/url-utils.js';
-import { getEventsDB, getRxNostr } from '$shared/nostr/gateway.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('episode-resolver');
@@ -75,71 +75,8 @@ async function queryNostrForEpisode(guid: string): Promise<DTagResult | null> {
   try {
     const pubkey = await getSystemPubkey();
     if (!pubkey) return null;
-
-    try {
-      const db = await getEventsDB();
-      const cached = await db.getByTagValue(`i:podcast:item:guid:${guid}`, 39701);
-      for (const ev of cached) {
-        if (ev.pubkey === pubkey) {
-          const result = parseDTagEvent({ kind: 39701, tags: ev.tags, content: ev.content });
-          if (result) return result;
-        }
-      }
-    } catch {
-      // DB not available
-    }
-
-    const { createRxBackwardReq, uniq } = await import('rx-nostr');
-
-    const rxNostr = await getRxNostr();
-    const req = createRxBackwardReq();
-    const filter = {
-      kinds: [39701],
-      authors: [pubkey],
-      '#i': [`podcast:item:guid:${guid}`],
-      limit: 1
-    };
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const packet = await new Promise<any>((resolve) => {
-      const timer = setTimeout(() => {
-        sub.unsubscribe();
-        resolve(null);
-      }, 5000);
-
-      const sub = rxNostr
-        .use(req)
-        .pipe(uniq())
-        .subscribe({
-          next: (p) => {
-            clearTimeout(timer);
-            sub.unsubscribe();
-            resolve(p);
-          },
-          complete: () => {
-            clearTimeout(timer);
-            resolve(null);
-          }
-        });
-
-      req.emit(filter);
-      req.over();
-    });
-
-    if (!packet) return null;
-
-    try {
-      const db = await getEventsDB();
-      await db.put(packet.event);
-    } catch {
-      // DB not available
-    }
-
-    return parseDTagEvent({
-      kind: 39701,
-      tags: packet.event.tags,
-      content: packet.event.content
-    });
+    const event = await searchEpisodeBookmarkByGuid(pubkey, guid);
+    return event ? parseDTagEvent({ kind: 39701, tags: event.tags, content: event.content }) : null;
   } catch {
     return null;
   }

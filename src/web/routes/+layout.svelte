@@ -107,11 +107,13 @@
                 href={vm.profileHref}
                 class="flex h-8 w-8 items-center justify-center rounded-full overflow-hidden transition-opacity hover:opacity-80"
                 aria-label="Profile"
+                data-testid="navbar-profile-link"
               >
                 <UserAvatar
                   pubkey={vm.auth.pubkey}
                   picture={vm.profileDisplay?.picture}
                   size="sm"
+                  data-testid="navbar-avatar"
                 />
               </a>
             {/if}
@@ -186,11 +188,13 @@
                 href={vm.profileHref}
                 class="flex h-8 w-8 items-center justify-center rounded-full overflow-hidden"
                 aria-label="Profile"
+                data-testid="navbar-profile-link-mobile"
               >
                 <UserAvatar
                   pubkey={vm.auth.pubkey}
                   picture={vm.profileDisplay?.picture}
                   size="xs"
+                  data-testid="navbar-avatar-mobile"
                 />
               </a>
             {/if}

@@ -7,6 +7,7 @@ const {
   loadBookmarksMock,
   loadMuteListMock,
   loadCustomEmojisMock,
+  fetchProfileMock,
   refreshRelayListMock,
   resetToDefaultRelaysMock,
   clearFollowsMock,
@@ -14,8 +15,7 @@ const {
   clearProfilesMock,
   clearBookmarksMock,
   clearMuteListMock,
-  getEventsDBMock,
-  clearAllMock,
+  clearStoredEventsMock,
   logInfoMock,
   logErrorMock
 } = vi.hoisted(() => ({
@@ -24,6 +24,7 @@ const {
   loadBookmarksMock: vi.fn(),
   loadMuteListMock: vi.fn(),
   loadCustomEmojisMock: vi.fn(),
+  fetchProfileMock: vi.fn(),
   refreshRelayListMock: vi.fn(),
   resetToDefaultRelaysMock: vi.fn(),
   clearFollowsMock: vi.fn(),
@@ -31,13 +32,12 @@ const {
   clearProfilesMock: vi.fn(),
   clearBookmarksMock: vi.fn(),
   clearMuteListMock: vi.fn(),
-  getEventsDBMock: vi.fn(),
-  clearAllMock: vi.fn(),
+  clearStoredEventsMock: vi.fn(),
   logInfoMock: vi.fn(),
   logErrorMock: vi.fn()
 }));
 
-vi.mock('$shared/nostr/user-relays.js', () => ({
+vi.mock('$shared/nostr/relays-config.js', () => ({
   applyUserRelays: applyUserRelaysMock,
   resetToDefaultRelays: resetToDefaultRelaysMock
 }));
@@ -55,12 +55,16 @@ vi.mock('$shared/browser/stores.js', () => ({
   clearMuteList: clearMuteListMock
 }));
 
+vi.mock('$shared/browser/profile.js', () => ({
+  fetchProfile: fetchProfileMock
+}));
+
 vi.mock('$shared/nostr/relays.js', () => ({
   DEFAULT_RELAYS: ['wss://relay.example.com']
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getEventsDB: getEventsDBMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  clearStoredEvents: clearStoredEventsMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -77,6 +81,7 @@ import { destroySession, initSession } from './init-session.js';
 
 // --- helpers ---
 const PUBKEY = 'aabbccdd'.repeat(8);
+const PUBKEY_2 = '11223344'.repeat(8);
 const RELAY_URLS = ['wss://user-relay.example.com'];
 
 // --- tests ---
@@ -89,6 +94,7 @@ describe('initSession', () => {
     loadBookmarksMock.mockResolvedValue(undefined);
     loadMuteListMock.mockResolvedValue(undefined);
     loadCustomEmojisMock.mockResolvedValue(undefined);
+    fetchProfileMock.mockResolvedValue(undefined);
   });
 
   it('applyUserRelays を pubkey で呼び出す', async () => {
@@ -127,6 +133,20 @@ describe('initSession', () => {
     expect(loadMuteListMock).toHaveBeenCalledWith(PUBKEY);
   });
 
+  it('fetchProfile を pubkey で呼び出す', async () => {
+    await initSession(PUBKEY);
+
+    expect(fetchProfileMock).toHaveBeenCalledWith(PUBKEY);
+  });
+
+  it('ログイン切替時は都度その pubkey で profile hydrate を実行する', async () => {
+    await initSession(PUBKEY);
+    await initSession(PUBKEY_2);
+
+    expect(fetchProfileMock).toHaveBeenNthCalledWith(1, PUBKEY);
+    expect(fetchProfileMock).toHaveBeenNthCalledWith(2, PUBKEY_2);
+  });
+
   it('loadFollows が失敗しても全体は正常終了する', async () => {
     loadFollowsMock.mockRejectedValue(new Error('network error'));
 
@@ -155,6 +175,16 @@ describe('initSession', () => {
     expect(logErrorMock).toHaveBeenCalledWith('Failed to load mute list', expect.any(Error));
   });
 
+  it('fetchProfile が失敗しても全体は正常終了する', async () => {
+    fetchProfileMock.mockRejectedValue(new Error('profile fetch failed'));
+
+    await expect(initSession(PUBKEY)).resolves.toBeUndefined();
+    expect(logErrorMock).toHaveBeenCalledWith(
+      'Failed to hydrate current user profile',
+      expect.any(Error)
+    );
+  });
+
   it('セッション初期化ログが出力される', async () => {
     await initSession(PUBKEY);
 
@@ -166,8 +196,7 @@ describe('destroySession', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetToDefaultRelaysMock.mockResolvedValue(undefined);
-    clearAllMock.mockResolvedValue(undefined);
-    getEventsDBMock.mockResolvedValue({ clearAll: clearAllMock });
+    clearStoredEventsMock.mockResolvedValue(undefined);
   });
 
   it('resetToDefaultRelays を呼び出す', async () => {
@@ -212,10 +241,10 @@ describe('destroySession', () => {
     expect(refreshRelayListMock).toHaveBeenCalledWith(['wss://relay.example.com']);
   });
 
-  it('getEventsDB の clearAll を呼び出す', async () => {
+  it('clearStoredEvents を呼び出す', async () => {
     await destroySession();
 
-    expect(clearAllMock).toHaveBeenCalledOnce();
+    expect(clearStoredEventsMock).toHaveBeenCalledOnce();
   });
 
   it('セッション破棄ログが出力される', async () => {

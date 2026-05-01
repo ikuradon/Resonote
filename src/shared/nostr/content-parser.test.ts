@@ -1,4 +1,4 @@
-import { neventEncode, noteEncode, nprofileEncode, npubEncode } from 'nostr-tools/nip19';
+import { neventEncode, noteEncode, nprofileEncode, npubEncode } from '@auftakt/core';
 import { describe, expect, it } from 'vitest';
 
 import { containsPrivateKey, extractContentTags, parseCommentContent } from './content-parser.js';
@@ -92,6 +92,14 @@ describe('parseCommentContent — emoji', () => {
   it('leaves shortcode as text when no emoji tags', () => {
     const result = parseCommentContent(':sushi:', []);
     expect(result).toEqual([{ type: 'text', value: ':sushi:' }]);
+  });
+
+  it('ignores non-standard emoji tag names', () => {
+    const result = parseCommentContent(':fire-hot:', [
+      ['emoji', 'fire-hot', 'https://example.com/fire.png']
+    ]);
+
+    expect(result).toEqual([{ type: 'text', value: ':fire-hot:' }]);
   });
 });
 

@@ -12,6 +12,18 @@ importers:
 
   .:
     dependencies:
+      '@auftakt/adapter-dexie':
+        specifier: workspace:*
+        version: link:packages/adapter-dexie
+      '@auftakt/core':
+        specifier: workspace:*
+        version: link:packages/core
+      '@auftakt/resonote':
+        specifier: workspace:*
+        version: link:packages/resonote
+      '@auftakt/runtime':
+        specifier: workspace:*
+        version: link:packages/runtime
       '@hono/zod-validator':
         specifier: ^0.7.6
         version: 0.7.6(hono@4.12.9)(zod@4.3.6)
@@ -24,9 +36,6 @@ importers:
       '@konemono/nostr-login':
         specifier: ^1.15.2
         version: 1.15.2(typescript@5.9.3)
-      '@rx-nostr/crypto':
-        specifier: ^0.0.0
-        version: 0.0.0(rx-nostr@3.6.2)
       '@scure/base':
         specifier: ^2.0.0
         version: 2.0.0
@@ -36,12 +45,6 @@ importers:
       idb:
         specifier: ^8.0.3
         version: 8.0.3
-      nostr-tools:
-        specifier: ^2.23.3
-        version: 2.23.3(typescript@5.9.3)
-      rx-nostr:
-        specifier: ^3.6.2
-        version: 3.6.2
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
@@ -148,6 +151,54 @@ importers:
       wrangler:
         specifier: ^4.78.0
         version: 4.78.0(@cloudflare/workers-types@4.20260317.1)
+
+  packages/adapter-dexie:
+    dependencies:
+      '@auftakt/core':
+        specifier: workspace:*
+        version: link:../core
+      dexie:
+        specifier: ^4.2.1
+        version: 4.4.2
+      nostr-typedef:
+        specifier: ^0.13.0
+        version: 0.13.0
+
+  packages/core:
+    dependencies:
+      '@noble/curves':
+        specifier: ^1.9.7
+        version: 1.9.7
+      '@noble/hashes':
+        specifier: ^1.8.0
+        version: 1.8.0
+      '@scure/base':
+        specifier: ^2.0.0
+        version: 2.0.0
+      nostr-typedef:
+        specifier: ^0.13.0
+        version: 0.13.0
+
+  packages/resonote:
+    dependencies:
+      '@auftakt/core':
+        specifier: workspace:*
+        version: link:../core
+      '@auftakt/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+
+  packages/runtime:
+    dependencies:
+      '@auftakt/core':
+        specifier: workspace:*
+        version: link:../core
+      nostr-typedef:
+        specifier: ^0.13.0
+        version: 0.13.0
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
 
 packages:
 
@@ -1410,6 +1461,9 @@ packages:
 
   devalue@5.6.4:
     resolution: {integrity: sha512-Gp6rDldRsFh/7XuouDbxMH3Mx8GMCcgzIb1pDTvNyn8pZGQ22u+Wa+lGV9dQCltFQ7uVw0MhRyb8XDskNFOReA==}
+
+  dexie@4.4.2:
+    resolution: {integrity: sha512-zMtV8q79EFE5U8FKZvt0Y/77PCU/Hr/RDxv1EDeo228L+m/HTbeN2AjoQm674rhQCX8n3ljK87lajt7UQuZfvw==}
 
   enhanced-resolve@5.20.1:
     resolution: {integrity: sha512-Qohcme7V1inbAfvjItgw0EaxVX5q2rdVEZHRBrEQdRZTssLDGsL8Lwrznl8oQ/6kuTJONLaDcGjkNP247XEhcA==}
@@ -3253,6 +3307,8 @@ snapshots:
   detect-libc@2.1.2: {}
 
   devalue@5.6.4: {}
+
+  dexie@4.4.2: {}
 
   enhanced-resolve@5.20.1:
     dependencies:

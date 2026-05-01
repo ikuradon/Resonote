@@ -13,6 +13,7 @@
  * 3. Clear events DB
  */
 
+import { clearStoredEvents } from '$shared/auftakt/resonote.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 const log = createLogger('session');
@@ -22,10 +23,12 @@ export async function initSession(pubkey: string): Promise<void> {
 
   const [
     { applyUserRelays },
-    { loadFollows, loadBookmarks, loadMuteList, loadCustomEmojis, refreshRelayList }
+    { loadFollows, loadBookmarks, loadMuteList, loadCustomEmojis, refreshRelayList },
+    { fetchProfile }
   ] = await Promise.all([
-    import('$shared/nostr/user-relays.js'),
-    import('$shared/browser/stores.js')
+    import('$shared/nostr/relays-config.js'),
+    import('$shared/browser/stores.js'),
+    import('$shared/browser/profile.js')
   ]);
 
   const relayUrls = await applyUserRelays(pubkey);
@@ -36,6 +39,9 @@ export async function initSession(pubkey: string): Promise<void> {
   void loadCustomEmojis(pubkey).catch((err) => log.error('Failed to load custom emojis', err));
   void loadBookmarks(pubkey).catch((err) => log.error('Failed to load bookmarks', err));
   void loadMuteList(pubkey).catch((err) => log.error('Failed to load mute list', err));
+  void fetchProfile(pubkey).catch((err) =>
+    log.error('Failed to hydrate current user profile', err)
+  );
 }
 
 export async function destroySession(): Promise<void> {
@@ -51,13 +57,11 @@ export async function destroySession(): Promise<void> {
       clearBookmarks,
       clearMuteList,
       refreshRelayList
-    },
-    { getEventsDB }
+    }
   ] = await Promise.all([
-    import('$shared/nostr/user-relays.js'),
+    import('$shared/nostr/relays-config.js'),
     import('$shared/nostr/relays.js'),
-    import('$shared/browser/stores.js'),
-    import('$shared/nostr/gateway.js')
+    import('$shared/browser/stores.js')
   ]);
 
   await resetToDefaultRelays();
@@ -68,6 +72,5 @@ export async function destroySession(): Promise<void> {
   clearMuteList();
   void refreshRelayList(DEFAULT_RELAYS);
 
-  const db = await getEventsDB();
-  await db.clearAll();
+  await clearStoredEvents();
 }

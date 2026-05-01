@@ -2,21 +2,24 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Notification } from '../domain/notification-model.js';
 
-const { fetchProfilesMock, cachedFetchByIdMock, getLastReadMock, markAllAsReadMock } = vi.hoisted(
-  () => ({
-    fetchProfilesMock: vi.fn(),
-    cachedFetchByIdMock: vi.fn(async () => null),
-    getLastReadMock: vi.fn(() => 0),
-    markAllAsReadMock: vi.fn()
-  })
-);
+const {
+  fetchProfilesMock,
+  fetchNotificationTargetPreviewMock,
+  getLastReadMock,
+  markAllAsReadMock
+} = vi.hoisted(() => ({
+  fetchProfilesMock: vi.fn(),
+  fetchNotificationTargetPreviewMock: vi.fn(async () => null),
+  getLastReadMock: vi.fn(() => 0),
+  markAllAsReadMock: vi.fn()
+}));
 
 vi.mock('$shared/browser/profile.js', () => ({
   fetchProfiles: fetchProfilesMock
 }));
 
-vi.mock('$shared/nostr/cached-query.js', () => ({
-  cachedFetchById: cachedFetchByIdMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  fetchNotificationTargetPreview: fetchNotificationTargetPreviewMock
 }));
 
 vi.mock('./notifications-view-model.svelte.js', () => ({
@@ -24,7 +27,10 @@ vi.mock('./notifications-view-model.svelte.js', () => ({
   markAllAsRead: markAllAsReadMock
 }));
 
-import { createNotificationFeedViewModel } from './notification-feed-view-model.svelte.js';
+import {
+  createNotificationFeedViewModel,
+  loadNotificationTargetPreviews
+} from './notification-feed-view-model.svelte.js';
 
 function makeNotif(partial: Partial<Notification> & Pick<Notification, 'id'>): Notification {
   return {
@@ -41,7 +47,7 @@ function makeNotif(partial: Partial<Notification> & Pick<Notification, 'id'>): N
 describe('createNotificationFeedViewModel', () => {
   beforeEach(() => {
     fetchProfilesMock.mockClear();
-    cachedFetchByIdMock.mockClear();
+    fetchNotificationTargetPreviewMock.mockClear();
     getLastReadMock.mockReturnValue(0);
     markAllAsReadMock.mockClear();
   });
@@ -188,6 +194,51 @@ describe('createNotificationFeedViewModel', () => {
       const vm = createNotificationFeedViewModel(source);
       expect(vm.targetTexts).toBeInstanceOf(Map);
       expect(vm.targetTexts.size).toBe(0);
+    });
+  });
+
+  describe('loadNotificationTargetPreviews', () => {
+    it('stores truncated preview when fetch returns an event', async () => {
+      const next = await loadNotificationTargetPreviews({
+        targetIds: ['target-1'],
+        currentTargetTexts: new Map(),
+        targetPreviewLength: 10,
+        fetchPreview: async () => '0123456789abcdef'
+      });
+
+      expect(next.get('target-1')).toBe('012345678…');
+    });
+
+    it('treats missing event as non-fatal no-preview', async () => {
+      const onFetchError = vi.fn();
+      const next = await loadNotificationTargetPreviews({
+        targetIds: ['target-1'],
+        currentTargetTexts: new Map(),
+        targetPreviewLength: 40,
+        fetchPreview: async () => null,
+        onFetchError
+      });
+
+      expect(next.size).toBe(0);
+      expect(onFetchError).not.toHaveBeenCalled();
+    });
+
+    it('reports true fetch failure when fetch promise rejects', async () => {
+      const onFetchError = vi.fn();
+      const fetchError = new Error('network down');
+
+      const next = await loadNotificationTargetPreviews({
+        targetIds: ['target-1'],
+        currentTargetTexts: new Map(),
+        targetPreviewLength: 40,
+        fetchPreview: async () => {
+          throw fetchError;
+        },
+        onFetchError
+      });
+
+      expect(next.size).toBe(0);
+      expect(onFetchError).toHaveBeenCalledWith(fetchError);
     });
   });
 });

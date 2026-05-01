@@ -1,4 +1,4 @@
-import { nip19 } from 'nostr-tools';
+import { noteEncode } from '@auftakt/core';
 import { describe, expect, it } from 'vitest';
 
 import { SpotifyProvider } from '$shared/content/spotify.js';
@@ -9,11 +9,12 @@ import {
   buildContentReaction,
   buildDeletion,
   buildReaction,
+  buildRepost,
   buildShare,
   COMMENT_KIND,
   extractDeletionTargets,
-  extractHashtags,
   formatPosition,
+  GENERIC_REPOST_KIND,
   parsePosition
 } from './events.js';
 
@@ -124,7 +125,7 @@ describe('buildComment', () => {
     const event = buildComment('sensitive', trackId, provider, {
       contentWarning: ''
     });
-    expect(event.tags).toContainEqual(['content-warning', '']);
+    expect(event.tags).toContainEqual(['content-warning']);
   });
 
   it('should not include content-warning tag when not specified', () => {
@@ -176,32 +177,6 @@ describe('parsePosition', () => {
     expect(parsePosition('')).toBeNull();
     expect(parsePosition('1:5')).toBeNull();
     expect(parsePosition('1:005')).toBeNull();
-  });
-});
-
-describe('extractHashtags', () => {
-  it('should extract a single hashtag', () => {
-    expect(extractHashtags('hello #world')).toEqual(['world']);
-  });
-
-  it('should extract multiple hashtags and deduplicate', () => {
-    expect(extractHashtags('#foo #bar #Foo')).toEqual(['foo', 'bar']);
-  });
-
-  it('should extract Japanese hashtags', () => {
-    expect(extractHashtags('#音楽 #ロック')).toEqual(['音楽', 'ロック']);
-  });
-
-  it('should ignore # in the middle of a word', () => {
-    expect(extractHashtags('c#sharp')).toEqual([]);
-  });
-
-  it('should return empty array for no hashtags', () => {
-    expect(extractHashtags('no hashtags here')).toEqual([]);
-  });
-
-  it('should handle hashtag at start of string', () => {
-    expect(extractHashtags('#first word')).toEqual(['first']);
   });
 });
 
@@ -306,6 +281,61 @@ describe('buildShare', () => {
   it('should include t tags for hashtags', () => {
     const event = buildShare('#Music check this out', trackId, provider);
     expect(event.tags).toContainEqual(['t', 'music']);
+  });
+});
+
+describe('buildRepost', () => {
+  const target = {
+    id: 'event123abc',
+    pubkey: 'pubkey456def',
+    created_at: 1_700_000_000,
+    kind: 1,
+    tags: [['t', 'music']],
+    content: 'hello',
+    sig: 'sig123'
+  };
+
+  it('builds a NIP-18 kind:6 text-note repost with relay and pubkey hints', () => {
+    const event = buildRepost(target, 'wss://relay.example.com');
+    expect(event.kind).toBe(6);
+    expect(event.tags).toEqual([
+      ['e', 'event123abc', 'wss://relay.example.com'],
+      ['p', 'pubkey456def']
+    ]);
+    expect(JSON.parse(event.content)).toEqual(target);
+  });
+
+  it('builds a NIP-18 kind:16 generic repost with a k tag for non-kind:1 targets', () => {
+    const event = buildRepost({ ...target, kind: COMMENT_KIND }, 'wss://relay.example.com');
+    expect(event.kind).toBe(GENERIC_REPOST_KIND);
+    expect(event.tags).toEqual([
+      ['e', 'event123abc', 'wss://relay.example.com'],
+      ['p', 'pubkey456def'],
+      ['k', String(COMMENT_KIND)]
+    ]);
+    expect(JSON.parse(event.content)).toEqual({ ...target, kind: COMMENT_KIND });
+  });
+
+  it('adds an a tag when generic-reposting a replaceable event', () => {
+    const event = buildRepost(
+      { ...target, kind: 30030, tags: [['d', 'emoji-set']] },
+      'wss://relay.example.com'
+    );
+    expect(event.tags).toContainEqual([
+      'a',
+      '30030:pubkey456def:emoji-set',
+      'wss://relay.example.com'
+    ]);
+  });
+
+  it('keeps protected event content empty for NIP-70 targets', () => {
+    const event = buildRepost({ ...target, tags: [['-']] }, 'wss://relay.example.com');
+    expect(event.kind).toBe(6);
+    expect(event.content).toBe('');
+  });
+
+  it('requires a relay hint for the repost target e-tag', () => {
+    expect(() => buildRepost(target, '')).toThrow('relay hint');
   });
 });
 
@@ -572,28 +602,6 @@ describe('parsePosition', () => {
   });
 });
 
-describe('extractHashtags', () => {
-  it('should extract hashtags from content', () => {
-    expect(extractHashtags('hello #world #music')).toEqual(['world', 'music']);
-  });
-
-  it('should deduplicate hashtags (case-insensitive)', () => {
-    expect(extractHashtags('#Music #music #MUSIC')).toEqual(['music']);
-  });
-
-  it('should support Japanese characters', () => {
-    expect(extractHashtags('#音楽 #テスト')).toEqual(['音楽', 'テスト']);
-  });
-
-  it('should return empty array when no hashtags', () => {
-    expect(extractHashtags('no hashtags here')).toEqual([]);
-  });
-
-  it('should ignore # in URLs', () => {
-    expect(extractHashtags('visit https://example.com#section')).toEqual([]);
-  });
-});
-
 describe('parsePosition edge cases', () => {
   it('returns null for negative value', () => {
     expect(parsePosition('-1')).toBeNull();
@@ -676,7 +684,8 @@ describe('buildContentReaction', () => {
     expect(event.tags).toEqual([
       ['i', 'spotify:track:abc123', 'https://open.spotify.com/track/abc123'],
       ['k', 'spotify:track'],
-      ['r', 'https://open.spotify.com/track/abc123']
+      ['r', 'https://open.spotify.com/track/abc123'],
+      ['alt', 'Resonote content reaction for spotify:track:abc123']
     ]);
   });
 
@@ -698,12 +707,16 @@ describe('buildContentReaction', () => {
     ]);
     expect(event.tags).toContainEqual(['k', 'spotify:episode']);
     expect(event.tags).toContainEqual(['r', 'https://open.spotify.com/episode/ep456']);
+    expect(event.tags).toContainEqual([
+      'alt',
+      'Resonote content reaction for spotify:episode:ep456'
+    ]);
   });
 });
 
 describe('buildComment with content quotes (q-tag)', () => {
   const EVENT_HEX = 'aaaa'.repeat(16);
-  const VALID_NOTE = nip19.noteEncode(EVENT_HEX);
+  const VALID_NOTE = noteEncode(EVENT_HEX);
 
   it('adds q-tag (not e-tag) for nostr:note1 references in content', () => {
     const content = `see nostr:${VALID_NOTE}`;

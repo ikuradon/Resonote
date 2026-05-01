@@ -405,50 +405,50 @@
 ### 12A. リレーリスト表示
 
 - [x] ログイン後 → kind:10002 取得 → URL 一覧表示 — `relay-settings-data.test.ts` "should display relay URLs from kind:10002 event"
-- [x] 接続状態ドット: 緑 — N/A (relay connection state, rx-nostr internal) (CONNECTED)
-- [x] 接続状態ドット: 黄 — N/A (relay connection state, rx-nostr internal) (CONNECTING)
-- [x] 接続状態ドット: 赤 — N/A (relay connection state, rx-nostr internal) (DISCONNECTED)
-- [x] リレー URL の truncation — N/A (relay connection state, rx-nostr internal) + ツールチップ
+- [x] 接続状態ドット: 緑 — N/A (relay connection state, relay-session internal) (CONNECTED)
+- [x] 接続状態ドット: 黄 — N/A (relay connection state, relay-session internal) (CONNECTING)
+- [x] 接続状態ドット: 赤 — N/A (relay connection state, relay-session internal) (DISCONNECTED)
+- [x] リレー URL の truncation — N/A (relay connection state, relay-session internal) + ツールチップ
 
 ### 12B. リレー追加
 
 - [x] URL 入力 → Enter → リスト追加 — `relay-settings-data.test.ts` "should add relay via input field"
 - [x] 不正 URL (`http://`) → バリデーションエラー (`invalid_url`) — `relay-settings-data.test.ts` "should reject invalid relay URL"
-- [x] 重複 URL → バリデーション — N/A (relay connection state, rx-nostr internal)エラー
-- [x] 空 URL → バリデーション — N/A (relay connection state, rx-nostr internal)拒否
-- [x] 追加後 → フォームクリア — N/A (relay connection state, rx-nostr internal)
+- [x] 重複 URL → バリデーション — N/A (relay connection state, relay-session internal)エラー
+- [x] 空 URL → バリデーション — N/A (relay connection state, relay-session internal)拒否
+- [x] 追加後 → フォームクリア — N/A (relay connection state, relay-session internal)
 
 ### 12C. リレー操作
 
 - [x] Read トグル on/off — `relay-settings-data.test.ts` "should display Read/Write buttons for each relay" (ボタン表示を検証)
 - [x] Write トグル on/off — `relay-settings-data.test.ts` "should display Read/Write buttons for each relay"
 - [x] 削除ボタン → リストから除去 — `relay-settings-data.test.ts` "should remove relay from list"
-- [x] 変更 → dirty → 保存ボタン — N/A (relay connection state, rx-nostr internal)有効化
+- [x] 変更 → dirty → 保存ボタン — N/A (relay connection state, relay-session internal)有効化
 
 ### 12D. 保存
 
 - [x] 保存 → kind:10002 publish → relay にイベント到達 — `relay-settings-data.test.ts` "should publish kind:10002 on save"
-- [x] 保存成功 → ✓ 表示 — N/A (relay connection state, rx-nostr internal) (3 秒)
-- [x] 保存中 → ボタン disabled — N/A (relay connection state, rx-nostr internal)
+- [x] 保存成功 → ✓ 表示 — N/A (relay connection state, relay-session internal) (3 秒)
+- [x] 保存中 → ボタン disabled — N/A (relay connection state, relay-session internal)
 - [x] "Setup defaults" ボタン (リスト未設定時) — `relay-settings-data.test.ts`
 - [x] "Not found" エラー → "Setup defaults" 表示 — `relay-settings-data.test.ts` "should show 'Not found' or relay list after settled"
 
 ### 12E. リアルタイム同期
 
-- [x] relay から kind:10002 受信 — N/A (relay connection state, rx-nostr internal) → UI 更新
-- [x] 編集中.*dirty.*relay 更新 — N/A (relay connection state, rx-nostr internal) → 上書きなし
-- [x] 保存 → 自己受信 — N/A (relay connection state, rx-nostr internal) → dirty リセット
+- [x] relay から kind:10002 受信 — N/A (relay connection state, relay-session internal) → UI 更新
+- [x] 編集中.*dirty.*relay 更新 — N/A (relay connection state, relay-session internal) → 上書きなし
+- [x] 保存 → 自己受信 — N/A (relay connection state, relay-session internal) → dirty リセット
 
 ### 12F. リレー × 他機能
 
-- [x] リレー追加 → 接続 — N/A (relay connection state, rx-nostr internal) → そのリレーからコメント受信
-- [x] リレー削除 → 切断 — N/A (relay connection state, rx-nostr internal) → イベント停止
-- [x] Read 無効 → read 停止 — N/A (relay connection state, rx-nostr internal)
-- [x] Write 無効 → write 停止 — N/A (relay connection state, rx-nostr internal)
-- [x] 全リレー Write 無効 — N/A (relay connection state, rx-nostr internal) → コメント送信失敗
-- [x] リレー接続状態変化 → ヘッダー — N/A (relay connection state, rx-nostr internal)のリレーステータス更新
-- [x] 全リレー切断 → 琥珀色バナー — N/A (relay connection state, rx-nostr internal)表示
-- [x] 全リレー復帰 → バナー消失 — N/A (relay connection state, rx-nostr internal)
+- [x] リレー追加 → 接続 — N/A (relay connection state, relay-session internal) → そのリレーからコメント受信
+- [x] リレー削除 → 切断 — N/A (relay connection state, relay-session internal) → イベント停止
+- [x] Read 無効 → read 停止 — N/A (relay connection state, relay-session internal)
+- [x] Write 無効 → write 停止 — N/A (relay connection state, relay-session internal)
+- [x] 全リレー Write 無効 — N/A (relay connection state, relay-session internal) → コメント送信失敗
+- [x] リレー接続状態変化 → ヘッダー — N/A (relay connection state, relay-session internal)のリレーステータス更新
+- [x] 全リレー切断 → 琥珀色バナー — N/A (relay connection state, relay-session internal)表示
+- [x] 全リレー復帰 → バナー消失 — N/A (relay connection state, relay-session internal)
 - [x] "Setup defaults" → 4 リレー → 接続開始 → 全ドット緑 — N/A (relay connection state)
 
 ---
@@ -535,24 +535,24 @@
 - [x] 他者のリアクション受信 → カウント更新 (`addReaction`) — `reaction-delete-reply.test.ts` "should display reaction from another user in real-time"
 - [x] 他者のリプライ受信 → スレッドに追加 (`replyMap`) — `reply-thread.test.ts` "should receive reply from another user in real-time"
 - [x] 他者の削除 (kind:5) 受信 → コメント消失 (`deletedIds`) — `reaction-delete-reply.test.ts` "should remove comment when kind:5 received"
-- [x] 他者の kind:10002 受信 — N/A (internal state / rx-nostr mechanism) → 設定ページ更新 (`useCachedLatest`)
-- [x] 他者の kind:0.*プロフィール.*更新 — N/A (internal state / rx-nostr mechanism)
+- [x] 他者の kind:10002 受信 — N/A (internal state / relay-session mechanism) → 設定ページ更新 (`useCachedLatest`)
+- [x] 他者の kind:0.*プロフィール.*更新 — N/A (internal state / relay-session mechanism)
 - [x] 同一イベント複数リレー → 重複排除 (`commentIds` Set) — `realtime-ordering.test.ts` "should deduplicate same event from multiple relays"
-- [x] 不正署名イベント → 拒否 — N/A (internal state / rx-nostr mechanism) (verifier)
+- [x] 不正署名イベント → 拒否 — N/A (internal state / relay-session mechanism) (verifier)
 - [x] 不正削除 (他者のコメントの kind:5) → 無視 (pubkey 検証) — `reply-thread.test.ts` "should ignore invalid kind:5 from non-author"
-- [x] オフライン復帰 — N/A (internal state / rx-nostr mechanism) → 取りこぼし取得 (backward refetch)
-- [x] 削除 reconcile — N/A (internal state / rx-nostr mechanism) (オフライン中の kind:5) → `startDeletionReconcile`
-- [x] relay 再接続 — N/A (internal state / rx-nostr mechanism) → サブスクリプション再開
-- [x] プロフィール遅延読み込み — N/A (internal state / rx-nostr mechanism): 未知 pubkey → `fetchProfiles`
-- [x] プロフィール一括取得 — N/A (internal state / rx-nostr mechanism) (並列 fetch)
-- [x] プロフィール取得失敗 — N/A (internal state / rx-nostr mechanism) → フォールバック維持
-- [x] イベント受信 → IndexedDB — N/A (internal state / rx-nostr mechanism) キャッシュ保存
-- [x] cache-then-relay — N/A (internal state / rx-nostr mechanism): IDB から即時表示 → relay で更新
+- [x] オフライン復帰 — N/A (internal state / relay-session mechanism) → 取りこぼし取得 (backward refetch)
+- [x] 削除 reconcile — N/A (internal state / relay-session mechanism) (オフライン中の kind:5) → `startDeletionReconcile`
+- [x] relay 再接続 — N/A (internal state / relay-session mechanism) → サブスクリプション再開
+- [x] プロフィール遅延読み込み — N/A (internal state / relay-session mechanism): 未知 pubkey → `fetchProfiles`
+- [x] プロフィール一括取得 — N/A (internal state / relay-session mechanism) (並列 fetch)
+- [x] プロフィール取得失敗 — N/A (internal state / relay-session mechanism) → フォールバック維持
+- [x] イベント受信 → IndexedDB — N/A (internal state / relay-session mechanism) キャッシュ保存
+- [x] cache-then-relay — N/A (internal state / relay-session mechanism): IDB から即時表示 → relay で更新
 - [x] 新コメント受信時 textarea 内容保持 (リセットしない) — `comment-form-details.test.ts` "should preserve textarea content when new comments arrive"
-- [x] 編集中のリレー設定 → relay 更新 — N/A (internal state / rx-nostr mechanism) → 上書きなし
+- [x] 編集中のリレー設定 → relay 更新 — N/A (internal state / relay-session mechanism) → 上書きなし
 - [x] `addSubscription()` → マージ購読 (追加タグの並行) — N/A (internal subscription mechanism)
-- [x] 未来タイムスタンプ — N/A (internal state / rx-nostr mechanism)のイベント → 正常処理
-- [x] created_at = 0 — N/A (internal state / rx-nostr mechanism) のイベント → 最古として処理
+- [x] 未来タイムスタンプ — N/A (internal state / relay-session mechanism)のイベント → 正常処理
+- [x] created_at = 0 — N/A (internal state / relay-session mechanism) のイベント → 最古として処理
 
 ---
 
@@ -661,7 +661,7 @@
 - [x] エピソード選択 → コメントページ遷移 — N/A (requires Podcast API mock)
 - [x] guid 解決後の URL 書き換え — N/A (requires Podcast API for guid resolution) (`replaceState`)
 - [x] 音声直 URL → IDB → Nostr d タグ → API フォールバック (3 段) — N/A (internal fallback logic)
-- [x] NIP-B0 ブックマーク → `rxNostr.cast()` pre-signed publish (再署名なし) — N/A (internal Nostr protocol)
+- [x] NIP-B0 ブックマーク → `relaySession.cast()` pre-signed publish (再署名なし) — N/A (internal Nostr protocol)
 - [x] 音声メタデータ表示 — N/A (requires audio file metadata) (タイトル, アーティスト)
 - [x] 音声アルバムアート表示 — N/A (requires audio file metadata)
 - [x] 音声再生/一時停止 — N/A (requires HTML5 audio)
@@ -832,9 +832,9 @@
 
 ### 27C. 不正イベント
 
-- [x] 不正署名イベント → verifier 拒否 — N/A (rx-nostr internal verifier)
+- [x] 不正署名イベント → verifier 拒否 — N/A (relay-session internal verifier)
 - [x] 他者のコメントを偽装削除 (kind:5) → 無視 — `reply-thread.test.ts` "should ignore invalid kind:5 from non-author"
-- [x] 改ざんされた content → 署名不一致 → 拒否 — N/A (rx-nostr internal verifier)
+- [x] 改ざんされた content → 署名不一致 → 拒否 — N/A (relay-session internal verifier)
 - [x] 不正な tags 構造 → graceful 処理 — `security.test.ts` "should handle event with invalid tags gracefully"
 - [x] SSRF 防御 (API 側 `safeFetch`) — N/A (server-side, integration test)
 
@@ -853,7 +853,7 @@
 - [x] ブックマーク: 追加 → /bookmarks → 確認 → 削除 → Content → ☆ — `bookmark-share.test.ts` toggle flow
 - [x] ミュート: コメントカード → ミュート → 確認 → 設定 → Unmute → 確認 — `follow-mute.test.ts` mute flow
 - [x] Read-only: ログイン → 閲覧 → 送信失敗 → 設定 → NIP-44 警告 → ログアウト — `multi-step-journeys.test.ts` "read-only login flow"
-- [x] リレー障害: 全断 → 警告バナー → 設定 → 追加 → 接続 → バナー消失 — N/A (rx-nostr connection state)
+- [x] リレー障害: 全断 → 警告バナー → 設定 → 追加 → 接続 → バナー消失 — N/A (relay-session connection state)
 - [x] 言語: ja → en → Settings → 全英語 → Home → 全英語 → ja に戻す — `locale-matrix.test.ts` locale switching
 - [x] 削除: コメント → リアクション → 削除 → ConfirmDialog → 消失 → 通知影響 — `reply-thread.test.ts` deletion flow
 - [x] CW: CW 付きコメント → 非表示 → "Show" → 表示 → "Hide" → 非表示 — `content-warning.test.ts` "should toggle CW visibility"
@@ -1087,7 +1087,7 @@
 - [x] 1 → 表示 — N/A (data volume matrix, base functionality covered)
 - [x] 4 (デフォルト) → 全接続 — `relay-settings-data.test.ts`
 - [x] 10 → 多数表示 — N/A (data volume matrix, base functionality covered)
-- [x] 接続/切断混在 → 各色ドット — N/A (rx-nostr internal connection state)
+- [x] 接続/切断混在 → 各色ドット — N/A (relay-session internal connection state)
 
 ### 32E. フォロー数
 
@@ -1135,7 +1135,7 @@
 - [x] 共有モーダル開きながらログアウト — N/A (timing/concurrent scenario, base operations covered) → モーダル閉じ
 - [x] ConfirmDialog 表示中に対象コメント削除 — N/A (timing/concurrent scenario, base operations covered) (他者) → キャンセル
 - [x] 通知ページ表示中に新通知 — N/A (timing/concurrent scenario, base operations covered) → リアルタイム追加
-- [x] 設定ページ表示中にリレー接続状態変化 → ドット更新 — N/A (rx-nostr internal state)
+- [x] 設定ページ表示中にリレー接続状態変化 → ドット更新 — N/A (relay-session internal state)
 - [x] プロフィール表示中に kind:0 更新 — N/A (timing/concurrent scenario, base operations covered) → 名前更新
 
 ### 33C. 高速連続操作
@@ -1153,13 +1153,13 @@
 ### 33D. ネットワーク状態変化
 
 - [x] コメント送信中にネットワーク切断 → エラートースト — N/A (network disconnection simulation not feasible with MockPool)
-- [x] ネットワーク切断 → 復帰 → 自動再接続 — N/A (rx-nostr internal reconnection)
+- [x] ネットワーク切断 → 復帰 → 自動再接続 — N/A (relay-session internal reconnection)
 - [x] 遅いリレー (2 秒遅延) — N/A (timing/concurrent scenario, base operations covered) → 最終的に表示
 - [x] 1 リレーダウン — N/A (relay fault) + 3 正常 → コメント表示
 - [x] 2 リレーダウン — N/A (relay fault) + 2 正常 → コメント送信成功 (50% 閾値)
 - [x] 全リレーダウン → コメント送信失敗 — N/A (timing/concurrent scenario, base operations covered)
 - [x] 全リレーダウン → IDB キャッシュからコメント表示 — `timing-concurrent.test.ts` "should show page even when all relays are down"
-- [x] 全リレー復帰 → 警告バナー消失 — N/A (rx-nostr internal reconnection)
+- [x] 全リレー復帰 → 警告バナー消失 — N/A (relay-session internal reconnection)
 
 ---
 
@@ -1215,7 +1215,7 @@
 
 - [x] リレー追加 → そのリレーからコメント — N/A (cross-feature integration, individual features tested)受信
 - [x] リレー削除 → イベント停止 — N/A (cross-feature integration, individual features tested)
-- [x] 全リレー切断 → 琥珀バナー → 復帰 → 消失 — N/A (rx-nostr internal reconnection)
+- [x] 全リレー切断 → 琥珀バナー → 復帰 → 消失 — N/A (relay-session internal reconnection)
 - [x] "Setup defaults" → 接続開始 → コメント受信 — N/A (relay connection)可能
 
 ---
@@ -1277,7 +1277,7 @@
 
 - [x] 環境バナー (staging) — N/A (staging-specific UI) → 黄色バナー表示
 - [x] 環境バナー (dev) — N/A (dev-only) → 赤バナー表示
-- [x] リレー全断 → 琥珀色警告バナー — N/A (rx-nostr connection state)
+- [x] リレー全断 → 琥珀色警告バナー — N/A (relay-session connection state)
 - [x] Playbook ページ (dev only) — N/A (dev-only, prod 404) → prod で 404
 - [x] DEV シークパネル — N/A (dev-only) (dev only) → `import.meta.env.DEV`
 - [x] 拡張モード → 最小ヘッダー — N/A (extension not implemented)
@@ -1554,7 +1554,7 @@
 - [x] ミュートフルサイクル: — `follow-mute.test.ts` coverage コメントからミュート → 消失確認 → settings → unmute → 再表示確認
 - [x] 言語フルサイクル: — `locale-matrix.test.ts` coverage ja → en → 全ページ確認 → de → 確認 → ja に戻す → 確認
 - [x] Read-only フルサイクル: — N/A (read-only login scenario) R/O ログイン → 閲覧 → 送信失敗 → 設定 → NIP-44 警告 → relay 表示 → ログアウト
-- [x] リレー障害フルサイクル: — N/A (rx-nostr connection) 全断 → バナー → IDB キャッシュ表示 → 復帰 → リアルタイム再開 → バナー消失
+- [x] リレー障害フルサイクル: — N/A (relay-session connection) 全断 → バナー → IDB キャッシュ表示 → 復帰 → リアルタイム再開 → バナー消失
 - [x] ブックマークフルサイクル: — `bookmark-share.test.ts` coverage コンテンツ追加 → /bookmarks 確認 → エントリクリック → 遷移 → 戻る → 削除 → コンテンツ → ☆
 - [x] CW フルサイクル: — `content-warning.test.ts` coverage CW コメント投稿 → 非表示確認 → Show → 表示 → Hide → 非表示 → 他者の CW コメント受信 → 同様
 - [x] 孤児リプライフルサイクル: — `reply-thread.test.ts` orphan tests リプライ表示 → 親 loading → 親 fetch → 表示 / 親 deleted → placeholder
@@ -1586,7 +1586,7 @@
 - [x] ブックマーク追加中にコンテンツページ離脱 — N/A (timing/race condition, base operations tested) → 追加は完了する
 - [x] 複数タブで同時ログイン — N/A (timing/race condition, base operations tested) → 各タブ独立状態
 - [x] 複数タブで同時ブックマーク — N/A (timing/race condition, base operations tested) → 両方 relay に到達
-- [x] relay 再接続 — N/A (internal state / rx-nostr mechanism)中にコメント送信 → 接続完了後に送信
+- [x] relay 再接続 — N/A (internal state / relay-session mechanism)中にコメント送信 → 接続完了後に送信
 - [x] IDB 書き込み中にページ遷移 — N/A (timing/race condition, base operations tested) → 書き込み完了
 - [x] プロフィール fetch 中にそのユーザーをミュート — N/A (timing/race condition, base operations tested) → fetch 完了後にコメント非表示
 - [x] リプライ先コメントが表示前に削除 — N/A (timing/race condition, base operations tested) → 孤児プレースホルダー即時表示

@@ -10,7 +10,7 @@
 
 > 次段階の主戦場は `公開 API を増やすこと` ではなく、`既存の公開 API の背後にある実装 ownership を一致させること` である。
 
-つまり、いま必要なのは import 整理の継続ではない。`$shared` が public、`$lib` が internal/compat になるように実装の所在を揃え、page/component に残っている重複 orchestration を吸収することである。
+つまり、いま必要なのは import 整理の継続ではない。`$shared` が public、`$lib` が internal/interop になるように実装の所在を揃え、page/component に残っている重複 orchestration を吸収することである。
 
 本書は、そのための「実装反転フェーズ」の計画書である。
 
@@ -108,11 +108,11 @@
 - `shared/browser/stores.ts` のような bootstrap 補助は public API ではなく internal helper として扱う。
 - public API にする module と internal helper にする moduleを明示的に分ける。
 
-### 4.2 `lib` は最終的に compat か internal のみ
+### 4.2 `lib` は最終的に interop か internal のみ
 
 - `lib/stores/*` と `lib/nostr/*` に残る stateful 実装は、最終的に `shared` / feature / app に ownership を移す。
 - 移せない場合は internal 実装として位置づけ、public import 先にはしない。
-- wrapper を残すなら compat であることを明記する。
+- wrapper を残すなら interop であることを明記する。
 
 ### 4.3 重複した UI orchestration は共通 view model に寄せる
 
@@ -158,7 +158,7 @@
 
 - public API にする `shared/browser/*` / `shared/nostr/*` を明示する。
 - bootstrap 専用 helper は internal 扱いにする。
-- compat wrapper と internal 実装を区別する命名またはコメントを入れる。
+- interop wrapper と internal 実装を区別する命名またはコメントを入れる。
 
 完了条件:
 
@@ -235,7 +235,7 @@ UI 層に残る大きな orchestration 塊を解体する。
 
 - public API を経由しない stateful relative import を禁止する。
 - outdated doc 参照を更新する。
-- 不要になった compat wrapper を削除する。
+- 不要になった interop wrapper を削除する。
 - warning を error へ引き上げる。
 
 完了条件:
@@ -273,6 +273,6 @@ UI 層に残る大きな orchestration 塊を解体する。
 2. `CommentList` と profile page の orchestration を view model 化する。
 3. その後で `profile` / `relays` / `extension` / `player` の実装 ownership を反転させる。
 4. pure helper / config の公開位置を決める。
-5. 最後に lint を締め、compat wrapper を削る。
+5. 最後に lint を締め、interop wrapper を削る。
 
 この順序なら、先に UI 側の重複を潰し、そのあとで `shared` の背後実装を安全に差し替えられる。

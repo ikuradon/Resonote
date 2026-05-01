@@ -4,9 +4,10 @@
     picture?: string;
     size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
     ring?: boolean;
+    'data-testid'?: string;
   }
 
-  let { pubkey, picture, size = 'sm', ring = true }: Props = $props();
+  let { pubkey, picture, size = 'sm', ring = true, 'data-testid': dataTestId }: Props = $props();
 
   const STELLARID_BASE = 'https://stellarid.ikuradon.deno.net';
 
@@ -33,6 +34,10 @@
   );
 
   const src = $derived(picture && !imgError ? picture : `${STELLARID_BASE}/${pubkey}`);
+  const isFallback = $derived(!picture || imgError);
+  const testId = $derived(
+    dataTestId ? (isFallback ? `${dataTestId}-fallback` : `${dataTestId}-image`) : undefined
+  );
 </script>
 
 <img
@@ -40,6 +45,7 @@
   alt=""
   class="{sizeClass} rounded-full object-cover {ringClass}"
   loading="lazy"
+  data-testid={testId}
   onerror={() => {
     imgError = true;
   }}

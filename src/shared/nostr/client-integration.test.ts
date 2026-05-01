@@ -1,8 +1,12 @@
+import 'fake-indexeddb/auto';
+
+import { finalizeEvent, generateSecretKey, getPublicKey } from '@auftakt/core';
+import { createRuntimeRequestKey } from '@auftakt/core';
 import { type EventSigner, MockPool, type MockRelay } from '@ikuradon/tsunagiya';
 import { EventBuilder, waitFor } from '@ikuradon/tsunagiya/testing';
-import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { resetEventsDB } from './event-db.js';
 import { TEST_RELAYS } from './test-relays.js';
 
 vi.mock('./relays.js', () => ({ DEFAULT_RELAYS: TEST_RELAYS }));
@@ -12,11 +16,13 @@ let relays: MockRelay[];
 let signer: EventSigner;
 let pubkey: string;
 let sk: Uint8Array;
+let dbCounter = 0;
 
 beforeEach(() => {
   pool = new MockPool();
   relays = TEST_RELAYS.map((url) => pool.relay(url));
   pool.install();
+  resetEventsDB(`resonote-client-integration-${dbCounter++}`);
 
   sk = generateSecretKey();
   pubkey = getPublicKey(sk);
@@ -44,8 +50,8 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  const { disposeRxNostr } = await import('./client.js');
-  disposeRxNostr();
+  const { disposeRelaySession } = await import('./client.js');
+  disposeRelaySession();
   try {
     await waitFor(() => pool.connections.size === 0, { timeout: 3000 });
   } finally {
@@ -61,7 +67,7 @@ function storeOnAll(event: ReturnType<EventBuilder['build']>) {
 }
 
 describe('fetchLatestEvent (integration with tsunagiya)', () => {
-  it('should return the latest event matching kind and author', async () => {
+  it('should return the latest event matching kind and author', { timeout: 15_000 }, async () => {
     const older = await EventBuilder.kind(0)
       .content(JSON.stringify({ name: 'old' }))
       .createdAt(1000)
@@ -82,14 +88,14 @@ describe('fetchLatestEvent (integration with tsunagiya)', () => {
     expect(result!.created_at).toBe(2000);
   });
 
-  it('should return null when no events match', async () => {
+  it('should return null when no events match', { timeout: 15_000 }, async () => {
     const { fetchLatestEvent } = await import('./client.js');
     const result = await fetchLatestEvent(pubkey, 0);
 
     expect(result).toBeNull();
   });
 
-  it('should return event tags', async () => {
+  it('should return event tags', { timeout: 15_000 }, async () => {
     const event = await EventBuilder.kind(3)
       .content('')
       .tag('p', 'd'.repeat(64))
@@ -140,5 +146,78 @@ describe('castSigned (integration with tsunagiya)', () => {
         tags: []
       })
     ).rejects.toThrow('All relays rejected the event');
+  });
+});
+
+describe('logical requestKey replay identity (integration)', () => {
+  it(
+    'accepts planner-generated requestKey for forward subscriptions',
+    { timeout: 15_000 },
+    async () => {
+      const [{ getRelaySession }, { createForwardReq }] = await Promise.all([
+        import('./client.js'),
+        import('@auftakt/runtime')
+      ]);
+      const relaySession = await getRelaySession();
+      const requestKey = createRuntimeRequestKey({
+        mode: 'forward',
+        scope: 'client-integration:logical-replay',
+        filters: [{ kinds: [1], authors: [pubkey] }]
+      });
+      const req = createForwardReq({ requestKey });
+      const receivedIds: string[] = [];
+
+      const sub = relaySession.use(req).subscribe({
+        next: (packet) => {
+          receivedIds.push(packet.event.id);
+        }
+      });
+
+      req.emit({ kinds: [1], authors: [pubkey] });
+      await waitFor(() => relays[0].received.some((message) => message[0] === 'REQ'), {
+        timeout: 5_000
+      });
+
+      const event = await EventBuilder.kind(1).content('forward').createdAt(3000).buildWith(signer);
+      relays[0].store(event);
+      relays[0].broadcast(event);
+      await waitFor(() => receivedIds.includes(event.id), { timeout: 5_000 });
+
+      sub.unsubscribe();
+    }
+  );
+});
+
+describe('relay observation contract (integration)', () => {
+  it('returns runtime-owned typed relay observation shape', async () => {
+    const [{ getRelaySession, getRelayConnectionState }, { createForwardReq }] = await Promise.all([
+      import('./client.js'),
+      import('@auftakt/runtime')
+    ]);
+
+    const relaySession = await getRelaySession();
+    const requestKey = createRuntimeRequestKey({
+      mode: 'forward',
+      scope: 'client-integration:relay-observation',
+      filters: [{ kinds: [1], authors: [pubkey] }]
+    });
+    const req = createForwardReq({ requestKey });
+    const sub = relaySession.use(req).subscribe({});
+
+    req.emit({ kinds: [1], authors: [pubkey] });
+
+    let status = await getRelayConnectionState(TEST_RELAYS[0]);
+    const started = Date.now();
+    while (status?.relay.connection !== 'open' && Date.now() - started < 5_000) {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      status = await getRelayConnectionState(TEST_RELAYS[0]);
+    }
+
+    expect(status).not.toBeNull();
+    expect(status!.relay.url).toBe(TEST_RELAYS[0]);
+    expect(status!.aggregate.state).toMatch(/^(live|connecting|replaying|degraded)$/);
+    expect(typeof status!.relay.reason).toBe('string');
+
+    sub.unsubscribe();
   });
 });

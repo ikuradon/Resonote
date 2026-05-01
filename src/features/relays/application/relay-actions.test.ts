@@ -2,22 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { RelayEntry } from '../domain/relay-model.js';
 
-const { castSignedMock, fetchLatestEventMock, setDefaultRelaysMock, getRxNostrMock } = vi.hoisted(
-  () => {
-    const setDefaultRelaysMock = vi.fn();
-    return {
-      castSignedMock: vi.fn(async () => {}),
-      fetchLatestEventMock: vi.fn(async (): Promise<Record<string, unknown> | null> => null),
-      setDefaultRelaysMock,
-      getRxNostrMock: vi.fn(async () => ({ setDefaultRelays: setDefaultRelaysMock }))
-    };
-  }
-);
+const { castSignedMock, setDefaultRelaysMock } = vi.hoisted(() => ({
+  castSignedMock: vi.fn(async () => {}),
+  setDefaultRelaysMock: vi.fn()
+}));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  castSigned: castSignedMock,
-  fetchLatestEvent: fetchLatestEventMock,
-  getRxNostr: getRxNostrMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  publishSignedEvent: castSignedMock,
+  setPreferredRelays: setDefaultRelaysMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -30,7 +22,6 @@ import { publishRelayList } from './relay-actions.js';
 describe('publishRelayList', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getRxNostrMock.mockResolvedValue({ setDefaultRelays: setDefaultRelaysMock });
   });
 
   it('calls castSigned with kind:10002 and empty content', async () => {
@@ -85,7 +76,7 @@ describe('publishRelayList', () => {
     );
   });
 
-  it('calls rxNostr.setDefaultRelays with extracted URLs', async () => {
+  it('calls relaySession.setDefaultRelays with extracted URLs', async () => {
     const entries: RelayEntry[] = [
       { url: 'wss://relay1.example.com', read: true, write: true },
       { url: 'wss://relay2.example.com', read: true, write: false }

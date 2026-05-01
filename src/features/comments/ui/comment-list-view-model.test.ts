@@ -15,6 +15,7 @@ const {
   toastSuccessMock,
   toastErrorMock,
   sendReactionMock,
+  sendRepostMock,
   sendReplyMock,
   deleteCommentMock,
   logErrorMock
@@ -38,6 +39,7 @@ const {
   toastSuccessMock: vi.fn(),
   toastErrorMock: vi.fn(),
   sendReactionMock: vi.fn(async () => {}),
+  sendRepostMock: vi.fn(async () => {}),
   sendReplyMock: vi.fn(async () => {}),
   deleteCommentMock: vi.fn(async () => {}),
   logErrorMock: vi.fn()
@@ -88,6 +90,7 @@ vi.mock('$shared/i18n/t.js', () => ({
 
 vi.mock('$features/comments/application/comment-actions.js', () => ({
   sendReaction: sendReactionMock,
+  sendRepost: sendRepostMock,
   sendReply: sendReplyMock,
   deleteComment: deleteCommentMock
 }));
@@ -113,7 +116,8 @@ function createComment(
     positionMs: partial.positionMs ?? null,
     emojiTags: partial.emojiTags ?? [],
     replyTo: partial.replyTo ?? null,
-    contentWarning: partial.contentWarning ?? null
+    contentWarning: partial.contentWarning ?? null,
+    relayHint: partial.relayHint
   };
 }
 
@@ -143,6 +147,7 @@ describe('createCommentListViewModel', () => {
     toastSuccessMock.mockReset();
     toastErrorMock.mockReset();
     sendReactionMock.mockReset();
+    sendRepostMock.mockReset();
     sendReplyMock.mockReset();
     deleteCommentMock.mockReset();
     logErrorMock.mockReset();
@@ -597,6 +602,92 @@ describe('createCommentListViewModel', () => {
       // Second reaction should be blocked
       await vm.sendReaction(c2);
       expect(sendReactionMock).toHaveBeenCalledTimes(1);
+
+      resolveFirst();
+      await p1;
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // sendRepost
+  // -------------------------------------------------------------------------
+  describe('sendRepost', () => {
+    it('sends repost and shows success toast', async () => {
+      const comment = createComment({
+        id: 'repost-target',
+        pubkey: 'other',
+        content: 'hello',
+        relayHint: 'wss://relay.example.com'
+      });
+      const vm = createCommentListViewModel({
+        getComments: () => [comment],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      await vm.sendRepost(comment);
+
+      expect(sendRepostMock).toHaveBeenCalledWith({
+        comment,
+        relayHint: 'wss://relay.example.com'
+      });
+      expect(toastSuccessMock).toHaveBeenCalledWith('toast.repost_sent');
+    });
+
+    it('shows error toast on repost failure', async () => {
+      sendRepostMock.mockRejectedValue(new Error('send failed'));
+      const comment = createComment({ id: 'repost-fail', pubkey: 'other', content: 'hello' });
+      const vm = createCommentListViewModel({
+        getComments: () => [comment],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      await vm.sendRepost(comment);
+
+      expect(toastErrorMock).toHaveBeenCalledWith('toast.repost_failed');
+      expect(logErrorMock).toHaveBeenCalled();
+    });
+
+    it('does nothing when not logged in', async () => {
+      authState.loggedIn = false;
+      const comment = createComment({ id: 'repost-no-auth', pubkey: 'other', content: 'hello' });
+      const vm = createCommentListViewModel({
+        getComments: () => [comment],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      await vm.sendRepost(comment);
+
+      expect(sendRepostMock).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when already acting on another comment', async () => {
+      let resolveFirst!: () => void;
+      sendRepostMock.mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirst = resolve;
+          })
+      );
+      const c1 = createComment({ id: 'repost-acting-1', pubkey: 'other', content: 'a' });
+      const c2 = createComment({ id: 'repost-acting-2', pubkey: 'other', content: 'b' });
+      const vm = createCommentListViewModel({
+        getComments: () => [c1, c2],
+        getReactionIndex: () => new Map(),
+        getContentId: () => contentId,
+        getProvider: () => provider
+      });
+
+      const p1 = vm.sendRepost(c1);
+      expect(vm.isActing('repost-acting-1')).toBe(true);
+
+      await vm.sendRepost(c2);
+      expect(sendRepostMock).toHaveBeenCalledTimes(1);
 
       resolveFirst();
       await p1;

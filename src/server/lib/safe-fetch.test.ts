@@ -56,7 +56,7 @@ describe('assertSafeUrl', () => {
     expect(() => assertSafeUrl('http://[2001::101:8000:63bf:3fff:fdd2]/')).toThrow('blocked');
   });
 
-  it('should block IPv4-compatible addresses (deprecated ::/96)', () => {
+  it('should block IPv4-interoperable addresses (deprecated ::/96)', () => {
     expect(() => assertSafeUrl('http://[::7f00:1]/')).toThrow('blocked');
     expect(() => assertSafeUrl('http://[::a00:1]/')).toThrow('blocked');
   });

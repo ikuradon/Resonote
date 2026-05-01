@@ -1,0 +1,825 @@
+{
+  "sourceUrl": "https://github.com/nostr-protocol/nips",
+  "sourceDate": "2026-04-24",
+  "entries": [
+    {
+      "nip": "01",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/runtime/src/relay-session.ts",
+      "proof": "packages/runtime/src/relay-session.contract.test.ts",
+      "priority": "P0",
+      "scopeNotes": "Runtime-owned REQ/replay, EVENT/EOSE/OK handling, and publish acknowledgements as coordinator behavior only"
+    },
+    {
+      "nip": "02",
+      "level": "public",
+      "status": "implemented",
+      "owner": "src/shared/browser/follows.svelte.ts",
+      "proof": "src/shared/browser/follows.test.ts",
+      "priority": "P0",
+      "scopeNotes": "Public follow-list behavior; WoT filtering is Resonote behavior layered over kind:3"
+    },
+    {
+      "nip": "03",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip03-open-timestamps.ts",
+      "proof": "packages/core/src/nip03-open-timestamps.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-03 OpenTimestamps helpers build and parse kind:1040 attestation events with base64 OTS content, target e/k tags, relay filters, and an external verification boundary for OTS Bitcoin attestations"
+    },
+    {
+      "nip": "04",
+      "level": "public-interop",
+      "status": "implemented",
+      "owner": "src/shared/browser/mute.svelte.ts",
+      "proof": "src/shared/browser/mute.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Interop fallback for private mute-tag decryption only; no broad DM support claim"
+    },
+    {
+      "nip": "05",
+      "level": "public",
+      "status": "implemented",
+      "owner": "src/shared/nostr/nip05.ts",
+      "proof": "src/shared/nostr/nip05.test.ts",
+      "priority": "P1",
+      "scopeNotes": "Browser profile verification fetches nostr.json with timeout, cache, redirect rejection, and private-network domain guard"
+    },
+    {
+      "nip": "06",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Seed phrase key derivation is signer-owned, not coordinator-owned"
+    },
+    {
+      "nip": "07",
+      "level": "public",
+      "status": "implemented",
+      "owner": "src/shared/nostr/client.ts",
+      "proof": "src/shared/nostr/client-integration.test.ts",
+      "priority": "P0",
+      "scopeNotes": "window.nostr signing is routed through @auftakt/core nip07Signer and proven by relay publish integration"
+    },
+    {
+      "nip": "08",
+      "level": "scoped-out",
+      "status": "deprecated",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Deprecated mentions convention; prefer NIP-27"
+    },
+    {
+      "nip": "09",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/adapter-dexie/src/index.ts",
+      "proof": "packages/adapter-dexie/src/materialization.contract.test.ts",
+      "priority": "P0",
+      "scopeNotes": "kind:5 deletion materialization and visibility suppression"
+    },
+    {
+      "nip": "10",
+      "level": "public",
+      "status": "implemented",
+      "owner": "src/features/comments/application/comment-actions.ts",
+      "proof": "src/features/comments/application/comment-actions.test.ts",
+      "priority": "P0",
+      "scopeNotes": "Reply threading and parent linkage are proven through comment action and reply-thread coverage"
+    },
+    {
+      "nip": "11",
+      "level": "internal",
+      "status": "implemented",
+      "owner": "packages/runtime/src/relay-session.ts",
+      "proof": "packages/runtime/src/relay-session.contract.test.ts",
+      "priority": "P0",
+      "scopeNotes": "Runtime-only relay request-limit policy shapes shard queueing and reconnect replay; no public relay metadata discovery claim"
+    },
+    {
+      "nip": "13",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip13-proof-of-work.ts",
+      "proof": "packages/core/src/nip13-proof-of-work.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-13 proof-of-work helpers build and parse nonce tags, count leading zero bits from event ids, calculate difficulty, and validate committed target difficulty"
+    },
+    {
+      "nip": "14",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip14-subject.ts",
+      "proof": "packages/core/src/nip14-subject.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-14 subject tag helpers build, parse, and rewrite kind:1 text event subjects, derive Re: reply subjects, and expose the 80 character recommendation"
+    },
+    {
+      "nip": "15",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Marketplace domain is outside Resonote scope"
+    },
+    {
+      "nip": "17",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip17-direct-message.ts",
+      "proof": "packages/core/src/nip17-direct-message.contract.test.ts",
+      "priority": "P2",
+      "scopeNotes": "Core NIP-17 private direct-message model builds kind:14 chat and kind:15 file rumors, wraps each participant through NIP-59 gift wrap, and builds/parses kind:10050 DM relay lists"
+    },
+    {
+      "nip": "18",
+      "level": "public",
+      "status": "implemented",
+      "owner": "src/features/comments/application/comment-actions.ts",
+      "proof": "src/features/comments/application/comment-actions.test.ts",
+      "priority": "P1",
+      "scopeNotes": "NIP-18 kind:6 text-note and kind:16 generic repost builders require target relay hints; comment ReNote uses coordinator fetch-by-id before publish."
+    },
+    {
+      "nip": "19",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/crypto.ts",
+      "proof": "src/shared/nostr/nip19-decode.test.ts",
+      "priority": "P0",
+      "scopeNotes": "Core parser and encoders cover npub, nsec, note, nprofile, nevent, naddr, and nrelay; app routes expose the profile/event subset and keep nsec non-linkable"
+    },
+    {
+      "nip": "21",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip21-uri.ts",
+      "proof": "packages/core/src/nip21-uri.contract.test.ts",
+      "priority": "P2",
+      "scopeNotes": "Core NIP-21 nostr: URI parser accepts non-secret NIP-19 identifiers, rejects nsec payloads, and the app resolver normalizes profile/event routes through existing NIP-19 navigation"
+    },
+    {
+      "nip": "22",
+      "level": "public",
+      "status": "implemented",
+      "owner": "src/features/comments/application/comment-actions.ts",
+      "proof": "src/features/comments/application/comment-actions.test.ts",
+      "priority": "P0",
+      "scopeNotes": "Comment kind:1111 event construction and publish path"
+    },
+    {
+      "nip": "23",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip23-long-form.ts",
+      "proof": "packages/core/src/nip23-long-form.contract.test.ts",
+      "priority": "P2",
+      "scopeNotes": "Core NIP-23 long-form model builds and parses kind:30023 articles and kind:30024 drafts with d tag identifiers, Markdown content, standardized title/image/summary/published_at metadata, topics, and reference tags"
+    },
+    {
+      "nip": "24",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip24-extra-metadata.ts",
+      "proof": "packages/core/src/nip24-extra-metadata.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-24 extra metadata helpers parse/build kind:0 profile metadata including display_name, website, banner, bot, and birthday, detect deprecated kind:3 relay maps for NIP-65 migration, and build/parse generic r/i/title/t tags with lowercase hashtag validation"
+    },
+    {
+      "nip": "25",
+      "level": "public",
+      "status": "implemented",
+      "owner": "src/features/comments/application/comment-actions.ts",
+      "proof": "src/features/comments/application/comment-actions.test.ts",
+      "priority": "P1",
+      "scopeNotes": "Reaction kind:7 event construction and publish path"
+    },
+    {
+      "nip": "26",
+      "level": "scoped-out",
+      "status": "unrecommended",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Delegated signing is unrecommended and signer-owned"
+    },
+    {
+      "nip": "27",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip27-references.ts",
+      "proof": "packages/core/src/nip27-references.contract.test.ts",
+      "priority": "P2",
+      "scopeNotes": "Core NIP-27 parser extracts NIP-21 profile and event references from text content, builds optional p-tag/q-tag/a-tag mention tags, and powers the app content parser"
+    },
+    {
+      "nip": "28",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip28-public-chat.ts",
+      "proof": "packages/core/src/nip28-public-chat.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-28 public chat helpers build and parse kind:40 channel create, kind:41 channel metadata, kind:42 channel messages with root/reply e tags and p tags, kind:43 hide-message and kind:44 mute-user moderation events, channel metadata JSON, categories, and relay filters"
+    },
+    {
+      "nip": "29",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Relay groups outside current scope"
+    },
+    {
+      "nip": "30",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/resonote/src/runtime.ts",
+      "proof": "packages/resonote/src/custom-emoji.contract.test.ts",
+      "priority": "P1",
+      "scopeNotes": "Custom emoji tags enforce NIP-30 shortcode names and the coordinator read model resolves kind:10030 lists plus kind:30030 emoji sets"
+    },
+    {
+      "nip": "31",
+      "level": "internal",
+      "status": "implemented",
+      "owner": "packages/core/src/nip31-alt.ts",
+      "proof": "packages/core/src/nip31-alt.contract.test.ts",
+      "priority": "P2",
+      "scopeNotes": "Core NIP-31 alt-tag fallback helpers parse and build human-readable summaries for unknown/custom events; kind:17 content reaction events now include an alt tag"
+    },
+    {
+      "nip": "32",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip32-label.ts",
+      "proof": "packages/core/src/nip32-label.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-32 labeling helpers build and parse kind:1985 label events, L tag namespaces, l tag label marks, e/p/a/r/t targets with relay hints, and self-report/self-label tags on non-label events"
+    },
+    {
+      "nip": "34",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Git collaboration domain outside Resonote"
+    },
+    {
+      "nip": "35",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Torrent domain outside Resonote"
+    },
+    {
+      "nip": "36",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip36-content-warning.ts",
+      "proof": "packages/core/src/nip36-content-warning.contract.test.ts",
+      "priority": "P2",
+      "scopeNotes": "Core NIP-36 content-warning helpers parse optional reasons; comment event builder emits content-warning tags for sensitive comments"
+    },
+    {
+      "nip": "37",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip37-draft-wrap.ts",
+      "proof": "packages/core/src/nip37-draft-wrap.contract.test.ts",
+      "priority": "P2",
+      "scopeNotes": "Core NIP-37 draft-wrap helpers build and parse kind:31234 NIP-44 encrypted draft wrappers, blank deletion markers, NIP-40 expiration tags, and kind:10013 private relay tag JSON"
+    },
+    {
+      "nip": "38",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip38-user-status.ts",
+      "proof": "packages/core/src/nip38-user-status.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-38 user status helpers build and parse kind:30315 addressable events, d tag status types including general/music, NIP-40 expiration, r/p/e/a link tags, relay filters, and empty content clear semantics"
+    },
+    {
+      "nip": "39",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip39-external-identity.ts",
+      "proof": "packages/core/src/nip39-external-identity.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-39 external identity helpers build and parse kind:10011 events with i tag platform:identity proof claims, preserve future extra parameters, derive github/twitter/mastodon/telegram proof URLs, and build exact #i relay filters"
+    },
+    {
+      "nip": "40",
+      "level": "internal",
+      "status": "implemented",
+      "owner": "packages/adapter-dexie/src/index.ts",
+      "proof": "packages/adapter-dexie/src/materialization.contract.test.ts",
+      "priority": "P2",
+      "scopeNotes": "Core NIP-40 expiration helpers back Dexie adapter visibility filtering, rejected expired writes, and explicit expired-event compaction"
+    },
+    {
+      "nip": "42",
+      "level": "internal",
+      "status": "implemented",
+      "owner": "packages/core/src/relay-session.ts",
+      "proof": "packages/core/src/relay-session.contract.test.ts",
+      "priority": "P1",
+      "scopeNotes": "Relay AUTH challenge storage, kind:22242 signing, AUTH OK handling, and auth-required EVENT/REQ retry in the core relay session"
+    },
+    {
+      "nip": "43",
+      "level": "internal",
+      "status": "implemented",
+      "owner": "packages/core/src/nip43-relay-access.ts",
+      "proof": "packages/core/src/nip43-relay-access.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-43 relay access helpers build and parse protected kind:13534 member lists, kind:8000 add-member and kind:8001 remove-member events, kind:28934 join requests, kind:28935 invite claims, kind:28936 leave requests, claim tags, restricted OK messages, and supported_nips relay capability checks"
+    },
+    {
+      "nip": "44",
+      "level": "public",
+      "status": "implemented",
+      "owner": "src/shared/browser/mute.svelte.ts",
+      "proof": "src/shared/browser/mute.test.ts",
+      "priority": "P1",
+      "scopeNotes": "Encrypted mute/private-tag path"
+    },
+    {
+      "nip": "45",
+      "level": "internal",
+      "status": "implemented",
+      "owner": "packages/core/src/relay-session.ts",
+      "proof": "packages/core/src/relay-session.contract.test.ts",
+      "priority": "P2",
+      "scopeNotes": "Core relay session sends NIP-45 COUNT requests, parses COUNT responses including approximate/HLL fields, and maps CLOSED or invalid payloads to unsupported/failed results"
+    },
+    {
+      "nip": "46",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip46-remote-signing.ts",
+      "proof": "packages/core/src/nip46-remote-signing.contract.test.ts",
+      "priority": "P2",
+      "scopeNotes": "Core NIP-46 remote signing protocol helpers build and parse bunker/nostrconnect URLs, permission strings, JSON-RPC request/response payloads, auth challenges, and kind:24133 encrypted event envelopes"
+    },
+    {
+      "nip": "47",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Wallet connect outside current scope"
+    },
+    {
+      "nip": "48",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip48-proxy-tags.ts",
+      "proof": "packages/core/src/nip48-proxy-tags.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-48 proxy tag helpers build, append, and parse proxy tags on any event kind, covering activitypub/web URL IDs, atproto AT URI IDs, rss URL-with-fragment IDs, custom protocols, and source ID format validation"
+    },
+    {
+      "nip": "49",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Private key encryption belongs signer/key management"
+    },
+    {
+      "nip": "50",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip50-search.ts",
+      "proof": "packages/core/src/nip50-search.contract.test.ts",
+      "priority": "P2",
+      "scopeNotes": "Core NIP-50 search filter helpers build and parse search field queries, preserve normal filter constraints, detect relay support from supported_nips, and parse extension tokens such as include:spam/domain/language/sentiment/nsfw"
+    },
+    {
+      "nip": "51",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip51-list.ts",
+      "proof": "packages/core/src/nip51-list.contract.test.ts",
+      "priority": "P1",
+      "scopeNotes": "Core NIP-51 list model covers standard lists, parameterized sets, deprecated list forms, metadata tags, chronological public tags, and private NIP-44/NIP-04 tag payload parsing used by relay, emoji, bookmark, and mute flows"
+    },
+    {
+      "nip": "52",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip52-calendar.ts",
+      "proof": "packages/core/src/nip52-calendar.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-52 calendar helpers build and parse kind:31922 date-based events, kind:31923 time-based events with D tag day coverage and tzid tags, kind:31924 calendars with a tag addresses, and kind:31925 RSVP status/free/busy responses"
+    },
+    {
+      "nip": "53",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip53-live-activity.ts",
+      "proof": "packages/core/src/nip53-live-activity.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-53 live activity helpers build and parse kind:30311 live streams, kind:1311 live chat messages, kind:30312 meeting space events, kind:30313 meeting room events, and kind:10312 presence/hand events with status, participant, relays, and address tags"
+    },
+    {
+      "nip": "54",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Wiki domain outside current scope"
+    },
+    {
+      "nip": "55",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip55-android-signer.ts",
+      "proof": "packages/core/src/nip55-android-signer.contract.test.ts",
+      "priority": "P2",
+      "scopeNotes": "Core NIP-55 Android signer helpers build and parse nostrsigner URLs, intent extras, content resolver URIs and selection args, permission JSON, callback results, and rejected responses"
+    },
+    {
+      "nip": "56",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip56-report.ts",
+      "proof": "packages/core/src/nip56-report.contract.test.ts",
+      "priority": "P2",
+      "scopeNotes": "Core NIP-56 kind:1984 report model builds and parses typed p/e/x report tags, related pubkeys, media server tags, and NIP-32 label tags"
+    },
+    {
+      "nip": "57",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Zaps are outside current scope"
+    },
+    {
+      "nip": "58",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip58-badges.ts",
+      "proof": "packages/core/src/nip58-badges.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-58 badge helpers build and parse kind:30009 badge definition image/thumbnail metadata, kind:8 badge award events, kind:10008 profile badges, kind:30008 badge sets including deprecated profile_badges, and ordered a/e pair display entries"
+    },
+    {
+      "nip": "59",
+      "level": "internal",
+      "status": "implemented",
+      "owner": "packages/core/src/nip59-gift-wrap.ts",
+      "proof": "packages/core/src/nip59-gift-wrap.contract.test.ts",
+      "priority": "P1",
+      "scopeNotes": "Core NIP-59 gift-wrap protocol builds unsigned rumors, kind:13 seals with empty tags, kind:1059 gift wraps with recipient p-tags, randomized past timestamps, ephemeral wrapper keys, and injected NIP-44 encryption for future private-message flows"
+    },
+    {
+      "nip": "5A",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Static websites outside current scope"
+    },
+    {
+      "nip": "60",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Cashu wallet outside current scope"
+    },
+    {
+      "nip": "61",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Nutzaps outside current scope"
+    },
+    {
+      "nip": "62",
+      "level": "internal",
+      "status": "implemented",
+      "owner": "packages/adapter-dexie/src/index.ts",
+      "proof": "packages/adapter-dexie/src/materialization.contract.test.ts",
+      "priority": "P2",
+      "scopeNotes": "Dexie materialization applies NIP-62 kind:62 request-to-vanish retention with relay/ALL_RELAYS parsing, author cutoff suppression, NIP-09 deletion marker removal, and NIP-59 gift-wrap p-tag cleanup"
+    },
+    {
+      "nip": "64",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Chess domain outside current scope"
+    },
+    {
+      "nip": "65",
+      "level": "public",
+      "status": "implemented",
+      "owner": "src/shared/browser/relays.svelte.ts",
+      "proof": "src/shared/browser/relays-fetch.test.ts",
+      "priority": "P0",
+      "scopeNotes": "kind:10002 relay list read path and write path with kind:3 fallback only when kind:10002 yields no relay entries"
+    },
+    {
+      "nip": "66",
+      "level": "internal",
+      "status": "implemented",
+      "owner": "packages/resonote/src/runtime.ts",
+      "proof": "packages/resonote/src/relay-metrics-nip66.contract.test.ts",
+      "priority": "P1",
+      "scopeNotes": "Coordinator-local relay metrics parse NIP-66 kind:30166 discovery and kind:10166 monitor announcements; absence of metrics never blocks relay operation."
+    },
+    {
+      "nip": "68",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip68-picture.ts",
+      "proof": "packages/core/src/nip68-picture.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-68 helpers build and parse kind:20 picture events with title/content, multiple imeta image tags, accepted image media types, fallback and annotate-user imeta fields, content-warning, tagged pubkeys, image hashes, hashtags, location, geohash, and language tags"
+    },
+    {
+      "nip": "69",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "P2P order events outside current scope"
+    },
+    {
+      "nip": "70",
+      "level": "internal",
+      "status": "implemented",
+      "owner": "packages/core/src/relay-session.ts",
+      "proof": "packages/core/src/relay-session.contract.test.ts",
+      "priority": "P1",
+      "scopeNotes": "Protected publish path recognizes the single-item - tag and authenticates before EVENT retry when relay policy requires NIP-42"
+    },
+    {
+      "nip": "71",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip71-video.ts",
+      "proof": "packages/core/src/nip71-video.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-71 video helpers build and parse kind:21 normal videos, kind:22 short videos, addressable kind:34235/34236 videos with d tags, imeta video variants with duration and bitrate fields, text-track, segment, origin, participant, hashtag, and reference tags"
+    },
+    {
+      "nip": "72",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip72-community.ts",
+      "proof": "packages/core/src/nip72-community.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-72 moderated community helpers build and parse kind:34550 community definitions with moderators and relay markers, NIP-22 kind:1111 top-level and reply post tags scoped to communities, and kind:4550 approval events for event IDs or addressable posts"
+    },
+    {
+      "nip": "73",
+      "level": "public",
+      "status": "implemented",
+      "owner": "src/shared/content/*.ts",
+      "proof": "src/shared/content/providers.test.ts",
+      "priority": "P1",
+      "scopeNotes": "Canonical external content IDs via provider toNostrTag()"
+    },
+    {
+      "nip": "75",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Zap goals outside current scope"
+    },
+    {
+      "nip": "77",
+      "level": "internal-only",
+      "status": "implemented",
+      "owner": "packages/runtime/src/relay-repair.ts",
+      "proof": "packages/runtime/src/relay-repair.contract.test.ts",
+      "priority": "P0",
+      "scopeNotes": "Internal-only negentropy repair capability; public/package root surfaces remain leak-free"
+    },
+    {
+      "nip": "78",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip78-application-data.ts",
+      "proof": "packages/core/src/nip78-application-data.contract.test.ts",
+      "priority": "P2",
+      "scopeNotes": "Core NIP-78 application data model builds and parses kind:30078 addressable events with required d tags while preserving opaque content and custom tags"
+    },
+    {
+      "nip": "7D",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip7d-thread.ts",
+      "proof": "packages/core/src/nip7d-thread.contract.test.ts",
+      "priority": "P2",
+      "scopeNotes": "Core NIP-7D thread model builds and parses kind:11 threads with title tags and NIP-22 kind:1111 root comment tags for thread replies"
+    },
+    {
+      "nip": "84",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip84-highlight.ts",
+      "proof": "packages/core/src/nip84-highlight.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-84 highlight helpers build and parse kind:9802 highlight events with source event/address/URL references, author/editor attribution p-tags, context tags, quote-highlight comment tags, and mention-marked p/r tags"
+    },
+    {
+      "nip": "85",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip85-trusted-assertions.ts",
+      "proof": "packages/core/src/nip85-trusted-assertions.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-85 trusted assertion helpers build and parse kind:30382/30383/30384/30385 addressable assertion events with d-tag subjects, result tags, subject relay hints, NIP-73 k tags, and kind:10040 trusted provider declarations"
+    },
+    {
+      "nip": "86",
+      "level": "internal",
+      "status": "implemented",
+      "owner": "packages/core/src/nip86-relay-management.ts",
+      "proof": "packages/core/src/nip86-relay-management.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-86 relay management JSON-RPC helpers build and parse application/nostr+json+rpc HTTP POST request/response payloads for supportedmethods, banpubkey, allowevent, allowkind, blockip, and related methods while pairing requests with required NIP-98 payload Authorization helpers"
+    },
+    {
+      "nip": "87",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Ecash mint discoverability outside current scope"
+    },
+    {
+      "nip": "88",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip88-polls.ts",
+      "proof": "packages/core/src/nip88-polls.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-88 poll helpers build and parse kind:1068 poll events with option/relay/polltype/endsAt tags, kind:1018 response vote events, singlechoice and multiplechoice normalization, response filters, latest-per-pubkey selection, and tally helpers"
+    },
+    {
+      "nip": "89",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip89-application-handlers.ts",
+      "proof": "packages/core/src/nip89-application-handlers.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-89 application handler helpers build and parse kind:31989 recommendation events with d-tag supported kinds and a-tag handler pointers, kind:31990 handler information events with k-tag supported kinds and platform URL templates, client tags, metadata, and recommendation/handler filters"
+    },
+    {
+      "nip": "90",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Data vending machines outside current scope"
+    },
+    {
+      "nip": "92",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip92-media-attachments.ts",
+      "proof": "packages/core/src/nip92-media-attachments.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-92 media attachment helpers build and parse imeta tags for inline content URLs, enforce required url plus additional NIP-94 file metadata fields including m/x/ox/size/dim, support blurhash/thumb/image/summary/alt/fallback/service fields, content-match filtering, and one-imeta-per-URL dedupe"
+    },
+    {
+      "nip": "94",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip94-file-metadata.ts",
+      "proof": "packages/core/src/nip94-file-metadata.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-94 file metadata helpers build and parse kind:1063 events with required url, m/x SHA-256 media type/hash tags, ox/size/dim/magnet/i/blurhash tags, thumb/image/summary/alt/fallback/service fields, and #x/#m relay filters"
+    },
+    {
+      "nip": "96",
+      "level": "scoped-out",
+      "status": "deprecated",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Deprecated HTTP file storage; Blossom supersedes"
+    },
+    {
+      "nip": "98",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nip98-http-auth.ts",
+      "proof": "packages/core/src/nip98-http-auth.contract.test.ts",
+      "priority": "P2",
+      "scopeNotes": "Core NIP-98 HTTP auth helpers build and parse kind:27235 events, sign Nostr Authorization headers, hash payload SHA-256 tags, and validate URL/method/time windows"
+    },
+    {
+      "nip": "99",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Classified listings outside current scope"
+    },
+    {
+      "nip": "A0",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nipA0-voice-messages.ts",
+      "proof": "packages/core/src/nipA0-voice-messages.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-A0 voice message helpers build and parse kind:1222 root voice events and kind:1244 NIP-22 reply events with audio URL content, recommended audio/mp4 duration metadata, NIP-92 imeta waveform previews, root/parent references, and relay filters"
+    },
+    {
+      "nip": "A4",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nipA4-public-messages.ts",
+      "proof": "packages/core/src/nipA4-public-messages.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-A4 public message helpers build and parse kind:24 events with p receiver tags, no e tags, NIP-40 expiration, NIP-18 q tags, NIP-92 imeta attachments, response k tags, and #p relay filters"
+    },
+    {
+      "nip": "B0",
+      "level": "public",
+      "status": "implemented",
+      "owner": "src/server/api/podcast.ts",
+      "proof": "src/server/api/podcast.test.ts",
+      "priority": "P2",
+      "scopeNotes": "Resonote bookmark mapping and podcast resolution flow"
+    },
+    {
+      "nip": "B7",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nipB7-blossom.ts",
+      "proof": "packages/core/src/nipB7-blossom.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-B7 Blossom helpers build and parse kind:10063 server lists with server tags, SHA-256 URL hash extraction, file extension fallback URLs, content hash verification, relay filters, and an upload/auth transport boundary outside core"
+    },
+    {
+      "nip": "BE",
+      "level": "scoped-out",
+      "status": "not-started",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "BLE protocol outside browser client scope"
+    },
+    {
+      "nip": "C0",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nipC0-code-snippets.ts",
+      "proof": "packages/core/src/nipC0-code-snippets.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-C0 code snippet helpers build and parse kind:1337 events while preserving code content whitespace, language l tags and #l relay filters, name/extension/description/runtime/license metadata, repeated dep dependencies, and repo tags"
+    },
+    {
+      "nip": "C7",
+      "level": "public",
+      "status": "implemented",
+      "owner": "packages/core/src/nipC7-chats.ts",
+      "proof": "packages/core/src/nipC7-chats.contract.test.ts",
+      "priority": "P3",
+      "scopeNotes": "Core NIP-C7 chat helpers build and parse kind:9 chat messages, q tag parent replies, message content, reply quote parsing, and author relay filters"
+    },
+    {
+      "nip": "EE",
+      "level": "scoped-out",
+      "status": "unrecommended",
+      "owner": "docs/auftakt/nip-matrix.json",
+      "proof": "docs/auftakt/nip-matrix.json",
+      "priority": "P3",
+      "scopeNotes": "Superseded E2EE messaging spec; not implemented"
+    }
+  ]
+}

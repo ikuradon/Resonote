@@ -8,6 +8,7 @@
  * 3. other platforms — no resolution needed
  */
 
+import { publishSignedEvents } from '$shared/auftakt/resonote.js';
 import {
   buildEpisodeContentId,
   resolveByApi,
@@ -15,7 +16,6 @@ import {
   searchBookmarkByUrl
 } from '$shared/content/resolution.js';
 import { fromBase64url, toBase64url } from '$shared/content/url-utils.js';
-import { publishSignedEvents } from '$shared/nostr/gateway.js';
 import { createLogger } from '$shared/utils/logger.js';
 
 import type { EpisodeMetadata, ResolutionResult } from '../domain/resolution-result.js';

@@ -1,207 +1,63 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// ---------------------------------------------------------------------------
-// Hoisted mocks
-// ---------------------------------------------------------------------------
-
-interface SubscriberCallbacks {
-  next: (packet: unknown) => void;
-  complete: () => void;
-  error: (err: unknown) => void;
-}
-
-const { createRxBackwardReqMock, getRxNostrMock } = vi.hoisted(() => {
-  const createRxBackwardReqMock = vi.fn();
-  const getRxNostrMock = vi.fn();
-  return { createRxBackwardReqMock, getRxNostrMock };
-});
-
-vi.mock('rx-nostr', () => ({
-  createRxBackwardReq: createRxBackwardReqMock
+const { fetchNostrEventByIdMock } = vi.hoisted(() => ({
+  fetchNostrEventByIdMock: vi.fn()
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  getRxNostr: getRxNostrMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  fetchNostrEventById: fetchNostrEventByIdMock
 }));
 
 import { fetchNostrEvent } from './fetch-event.js';
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Build a fake rxNostr instance. The `resolveCallbacks` promise resolves
- * with the subscriber callbacks once rxNostr.use().subscribe() is called,
- * which happens inside fetchNostrEvent after the async getRxNostr() resolves.
- */
-function makeFakeRxNostr() {
-  let resolveCallbacks!: (cbs: SubscriberCallbacks) => void;
-  const callbacksReady = new Promise<SubscriberCallbacks>((resolve) => {
-    resolveCallbacks = resolve;
-  });
-
-  let capturedUseOptions: unknown;
-  const subscription = { unsubscribe: vi.fn() };
-
-  const use = vi.fn((_req: unknown, opts?: unknown) => {
-    capturedUseOptions = opts;
-    return {
-      subscribe: (cbs: SubscriberCallbacks) => {
-        resolveCallbacks(cbs);
-        return subscription;
-      }
-    };
-  });
-
-  const simulate = {
-    get capturedUseOptions() {
-      return capturedUseOptions;
-    },
-    /** Wait for subscribe() to be called, then emit an event packet. */
-    async emitEvent(event: unknown) {
-      const cbs = await callbacksReady;
-      cbs.next({ event });
-    },
-    /** Wait for subscribe() to be called, then complete the observable. */
-    async complete() {
-      const cbs = await callbacksReady;
-      cbs.complete();
-    },
-    /** Wait for subscribe() to be called, then error the observable. */
-    async error(err: unknown) {
-      const cbs = await callbacksReady;
-      cbs.error(err);
-    }
-  };
-
-  return { rxNostr: { use }, simulate, subscription };
-}
-
-/**
- * Build a minimal fake backward-req with emit() and over().
- */
-function makeFakeReq() {
-  return { emit: vi.fn(), over: vi.fn() };
-}
-
-beforeEach(() => {
-  vi.clearAllMocks();
-  vi.useRealTimers();
-});
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe('fetchNostrEvent', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('returns the event provided by the relay', async () => {
-    const { rxNostr, simulate } = makeFakeRxNostr();
-    getRxNostrMock.mockResolvedValue(rxNostr);
-    createRxBackwardReqMock.mockReturnValue(makeFakeReq());
+    fetchNostrEventByIdMock.mockResolvedValue({
+      kind: 1111,
+      tags: [['I', 'spotify:track:abc']],
+      content: 'hello'
+    });
 
-    const fetchPromise = fetchNostrEvent('event-id-1', []);
-
-    // Simulate relay responding then completing
-    await simulate.emitEvent({ kind: 1111, tags: [['I', 'spotify:track:abc']], content: 'hello' });
-    await simulate.complete();
-
-    const result = await fetchPromise;
+    const result = await fetchNostrEvent('event-id-1', []);
     expect(result).toEqual({ kind: 1111, tags: [['I', 'spotify:track:abc']], content: 'hello' });
   });
 
   it('returns null when the relay provides no event before EOSE', async () => {
-    const { rxNostr, simulate } = makeFakeRxNostr();
-    getRxNostrMock.mockResolvedValue(rxNostr);
-    createRxBackwardReqMock.mockReturnValue(makeFakeReq());
-
-    const fetchPromise = fetchNostrEvent('event-id-2', []);
-
-    // EOSE without any event
-    await simulate.complete();
-
-    const result = await fetchPromise;
-    expect(result).toBeNull();
-  });
-
-  it('returns null on timeout (fake timers)', async () => {
-    vi.useFakeTimers();
-
-    const { rxNostr } = makeFakeRxNostr();
-    getRxNostrMock.mockResolvedValue(rxNostr);
-    createRxBackwardReqMock.mockReturnValue(makeFakeReq());
-
-    // Do NOT call simulate.complete() — let the timeout fire
-    const fetchPromise = fetchNostrEvent('event-id-3', []);
-
-    await vi.advanceTimersByTimeAsync(10_001);
-
-    const result = await fetchPromise;
-    expect(result).toBeNull();
+    fetchNostrEventByIdMock.mockResolvedValue(null);
+    await expect(fetchNostrEvent('event-id-2', [])).resolves.toBeNull();
   });
 
   it('passes temporary relay options when hints are provided', async () => {
-    const { rxNostr, simulate } = makeFakeRxNostr();
-    getRxNostrMock.mockResolvedValue(rxNostr);
-    createRxBackwardReqMock.mockReturnValue(makeFakeReq());
-
+    fetchNostrEventByIdMock.mockResolvedValue(null);
     const hints = ['wss://relay.example.com', 'wss://relay2.example.com'];
-    const fetchPromise = fetchNostrEvent('event-id-4', hints);
 
-    await simulate.complete();
-    await fetchPromise;
+    await fetchNostrEvent('event-id-4', hints);
 
-    // use() must have been called with the temporary relay options
-    expect(rxNostr.use).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        on: expect.objectContaining({
-          relays: hints,
-          defaultReadRelays: true
-        })
-      })
-    );
+    expect(fetchNostrEventByIdMock).toHaveBeenCalledWith('event-id-4', hints);
   });
 
-  it('passes no use options when relayHints is empty', async () => {
-    const { rxNostr, simulate } = makeFakeRxNostr();
-    getRxNostrMock.mockResolvedValue(rxNostr);
-    createRxBackwardReqMock.mockReturnValue(makeFakeReq());
-
-    const fetchPromise = fetchNostrEvent('event-id-5', []);
-    await simulate.complete();
-    await fetchPromise;
-
-    // Second argument to use() should be undefined
-    expect(rxNostr.use).toHaveBeenCalledWith(expect.anything(), undefined);
+  it('passes timeout-only options when relayHints is empty', async () => {
+    fetchNostrEventByIdMock.mockResolvedValue(null);
+    await fetchNostrEvent('event-id-5', []);
+    expect(fetchNostrEventByIdMock).toHaveBeenCalledWith('event-id-5', []);
   });
 
-  it('emits the correct filter via req.emit()', async () => {
-    const { rxNostr, simulate } = makeFakeRxNostr();
-    getRxNostrMock.mockResolvedValue(rxNostr);
-    const req = makeFakeReq();
-    createRxBackwardReqMock.mockReturnValue(req);
-
-    const fetchPromise = fetchNostrEvent('my-event-id', []);
-    await simulate.complete();
-    await fetchPromise;
-
-    expect(req.emit).toHaveBeenCalledWith({ ids: ['my-event-id'] });
-    expect(req.over).toHaveBeenCalled();
+  it('emits the correct filter via gateway bridge', async () => {
+    fetchNostrEventByIdMock.mockResolvedValue(null);
+    await fetchNostrEvent('my-event-id', []);
+    expect(fetchNostrEventByIdMock).toHaveBeenCalledWith('my-event-id', []);
   });
 
-  it('resolves with found event even when observable errors', async () => {
-    const { rxNostr, simulate } = makeFakeRxNostr();
-    getRxNostrMock.mockResolvedValue(rxNostr);
-    createRxBackwardReqMock.mockReturnValue(makeFakeReq());
-
-    const fetchPromise = fetchNostrEvent('event-id-6', []);
-
-    // Emit an event then trigger an error
-    await simulate.emitEvent({ kind: 1111, tags: [], content: 'partial' });
-    await simulate.error(new Error('relay error'));
-
-    const result = await fetchPromise;
-    expect(result).toEqual({ kind: 1111, tags: [], content: 'partial' });
+  it('returns the partial event found before an upstream error when bridge resolves it', async () => {
+    fetchNostrEventByIdMock.mockResolvedValue({ kind: 1111, tags: [], content: 'partial' });
+    await expect(fetchNostrEvent('event-id-6', [])).resolves.toEqual({
+      kind: 1111,
+      tags: [],
+      content: 'partial'
+    });
   });
 });

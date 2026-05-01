@@ -1,4 +1,5 @@
-import type { EventParameters } from 'nostr-typedef';
+import { buildNip31AltTag, buildNip36ContentWarningTag } from '@auftakt/core';
+import type { Event as NostrEvent, EventParameters } from 'nostr-typedef';
 
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import { extractShortcode, isShortcode } from '$shared/utils/emoji.js';
@@ -7,8 +8,10 @@ import { extractContentTags } from './content-parser.js';
 
 export const METADATA_KIND = 0;
 export const SHORT_TEXT_KIND = 1;
+export const REPOST_KIND = 6;
 export const COMMENT_KIND = 1111;
 export const REACTION_KIND = 7;
+export const GENERIC_REPOST_KIND = 16;
 export const DELETION_KIND = 5;
 export const FOLLOW_KIND = 3;
 export const MUTE_KIND = 10000;
@@ -16,6 +19,12 @@ export const RELAY_LIST_KIND = 10002;
 export const BOOKMARK_KIND = 10003;
 export const CONTENT_REACTION_KIND = 17;
 const COMMENT_KIND_STR = String(COMMENT_KIND);
+
+export type RepostTargetEvent = Pick<
+  NostrEvent,
+  'id' | 'pubkey' | 'created_at' | 'kind' | 'tags' | 'content'
+> &
+  Partial<Pick<NostrEvent, 'sig'>>;
 
 function resolveContentInfo(provider: ContentProvider, contentId: ContentId) {
   const [value, hint] = provider.toNostrTag(contentId);
@@ -37,22 +46,6 @@ export function parsePosition(str: string): number | null {
   if (mmssMatch) return (parseInt(mmssMatch[1], 10) * 60 + parseInt(mmssMatch[2], 10)) * 1000;
 
   return null;
-}
-
-const HASHTAG_RE = /(?:^|(?<=\s))#([a-zA-Z0-9_\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]+)/g;
-
-/**
- * @deprecated Use extractContentTags from '$shared/nostr/content-parser.js' instead.
- * Note: unlike extractContentTags, this function does not filter out hex-string or digit-only tags.
- */
-export function extractHashtags(content: string): string[] {
-  const tags = new Set<string>();
-  let match: RegExpExecArray | null;
-  HASHTAG_RE.lastIndex = 0;
-  while ((match = HASHTAG_RE.exec(content)) !== null) {
-    tags.add(match[1].toLowerCase());
-  }
-  return [...tags];
 }
 
 function appendContentTags(tags: string[][], content: string, emojiTags?: string[][]): void {
@@ -125,7 +118,7 @@ export function buildComment(
   appendContentTags(tags, content, emojiTags);
 
   if (options?.contentWarning !== undefined) {
-    tags.push(['content-warning', options.contentWarning]);
+    tags.push(buildNip36ContentWarningTag(options.contentWarning));
   }
 
   return {
@@ -179,6 +172,89 @@ export function buildShare(
   };
 }
 
+export function buildRepost(targetEvent: RepostTargetEvent, relayHint: string): EventParameters {
+  const normalizedRelayHint = relayHint.trim();
+  if (!normalizedRelayHint) {
+    throw new Error('NIP-18 repost requires a relay hint for the target event');
+  }
+
+  if (targetEvent.kind === SHORT_TEXT_KIND) {
+    return buildTextNoteRepost(targetEvent, normalizedRelayHint);
+  }
+
+  return buildGenericRepost(targetEvent, normalizedRelayHint);
+}
+
+function buildTextNoteRepost(targetEvent: RepostTargetEvent, relayHint: string): EventParameters {
+  return {
+    kind: REPOST_KIND,
+    content: isNip70Protected(targetEvent) ? '' : serializeRepostTarget(targetEvent),
+    tags: [
+      ['e', targetEvent.id, relayHint],
+      ['p', targetEvent.pubkey]
+    ]
+  };
+}
+
+function buildGenericRepost(targetEvent: RepostTargetEvent, relayHint: string): EventParameters {
+  const tags: string[][] = [
+    ['e', targetEvent.id, relayHint],
+    ['p', targetEvent.pubkey],
+    ['k', String(targetEvent.kind)]
+  ];
+  const coordinate = addressableCoordinate(targetEvent);
+  if (coordinate) {
+    tags.push(['a', coordinate, relayHint]);
+  }
+
+  return {
+    kind: GENERIC_REPOST_KIND,
+    content: isNip70Protected(targetEvent) ? '' : serializeRepostTarget(targetEvent),
+    tags
+  };
+}
+
+function serializeRepostTarget(targetEvent: RepostTargetEvent): string {
+  const eventJson: {
+    id: string;
+    pubkey: string;
+    created_at: number;
+    kind: number;
+    tags: string[][];
+    content: string;
+    sig?: string;
+  } = {
+    id: targetEvent.id,
+    pubkey: targetEvent.pubkey,
+    created_at: targetEvent.created_at,
+    kind: targetEvent.kind,
+    tags: targetEvent.tags,
+    content: targetEvent.content
+  };
+  if (targetEvent.sig !== undefined) {
+    eventJson.sig = targetEvent.sig;
+  }
+  return JSON.stringify(eventJson);
+}
+
+function isNip70Protected(targetEvent: RepostTargetEvent): boolean {
+  return targetEvent.tags.some((tag) => tag[0] === '-');
+}
+
+function addressableCoordinate(targetEvent: RepostTargetEvent): string | null {
+  if (targetEvent.kind === METADATA_KIND || targetEvent.kind === FOLLOW_KIND) {
+    return `${targetEvent.kind}:${targetEvent.pubkey}:`;
+  }
+  if (targetEvent.kind >= 10000 && targetEvent.kind < 20000) {
+    return `${targetEvent.kind}:${targetEvent.pubkey}:`;
+  }
+  if (targetEvent.kind >= 30000 && targetEvent.kind < 40000) {
+    const dTag = targetEvent.tags.find((tag) => tag[0] === 'd')?.[1];
+    return dTag === undefined ? null : `${targetEvent.kind}:${targetEvent.pubkey}:${dTag}`;
+  }
+  return null;
+}
+
 export function buildContentReaction(
   contentId: ContentId,
   provider: ContentProvider
@@ -190,7 +266,8 @@ export function buildContentReaction(
     tags: [
       ['i', value, hint],
       ['k', kind],
-      ['r', hint]
+      ['r', hint],
+      buildNip31AltTag(`Resonote content reaction for ${value}`)
     ]
   };
 }

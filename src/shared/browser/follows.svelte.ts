@@ -3,6 +3,7 @@ import {
   extractFollows,
   matchesFilter as matchesFilterPure
 } from '$features/follows/domain/follow-model.js';
+import { readStoredFollowGraph } from '$shared/auftakt/resonote.js';
 import { FOLLOW_KIND } from '$shared/nostr/events.js';
 import { createLogger, shortHex } from '$shared/utils/logger.js';
 
@@ -83,21 +84,18 @@ async function fetchWotInner(pubkey: string, gen: number): Promise<void> {
 export async function loadFollows(pubkey: string): Promise<void> {
   const gen = ++generation;
 
-  const { getEventsDB } = await import('$shared/nostr/gateway.js');
-  const eventsDB = await getEventsDB();
-
-  const kind3 = await eventsDB.getByPubkeyAndKind(pubkey, FOLLOW_KIND);
+  const { currentUserFollowList, allFollowLists } = await readStoredFollowGraph(
+    pubkey,
+    FOLLOW_KIND
+  );
   if (gen !== generation) return;
 
-  if (kind3) {
-    const follows = extractFollows(kind3);
+  if (currentUserFollowList) {
+    const follows = extractFollows(currentUserFollowList);
     state.follows = follows;
 
-    const allKind3 = await eventsDB.getAllByKind(FOLLOW_KIND);
-    if (gen !== generation) return;
-
     const allWot = new Set([...follows, pubkey]);
-    for (const event of allKind3) {
+    for (const event of allFollowLists) {
       if (!follows.has(event.pubkey)) continue;
       for (const tag of event.tags) {
         if (tag[0] === 'p' && tag[1]) allWot.add(tag[1]);

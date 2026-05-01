@@ -61,6 +61,30 @@ describe('resolveNip19Navigation', () => {
     });
   });
 
+  it('should redirect nostr:npub URIs through the same profile route', async () => {
+    decodeNip19Mock.mockReturnValue({
+      type: 'npub',
+      pubkey: 'pubkey'
+    });
+
+    await expect(resolveNip19Navigation('nostr:npub1example')).resolves.toEqual({
+      kind: 'redirect',
+      path: '/profile/npub1example'
+    });
+    expect(decodeNip19Mock).toHaveBeenCalledWith('npub1example');
+  });
+
+  it('should reject nostr: URIs with nsec payloads or whitespace', async () => {
+    await expect(resolveNip19Navigation('nostr:nsec1example')).resolves.toEqual({
+      kind: 'error',
+      errorKey: 'nip19.invalid'
+    });
+    await expect(resolveNip19Navigation('nostr:npub1example trailing')).resolves.toEqual({
+      kind: 'error',
+      errorKey: 'nip19.invalid'
+    });
+  });
+
   it('should redirect note links when the event has a content path tag', async () => {
     decodeNip19Mock.mockReturnValue({
       type: 'note',

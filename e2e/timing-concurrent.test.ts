@@ -309,12 +309,15 @@ test.describe('Cross-feature: mute hides comments immediately', () => {
     await expect(page.getByText('Other visible 2').first()).toBeVisible({ timeout: 15_000 });
 
     // Mute user via More actions menu
-    const commentEl = page.locator('article, div').filter({ hasText: 'Other visible 1' }).first();
+    // Shout tab の初期 auto-scroll が落ち着いてから、scroll で閉じる menu を開く。
+    await page.waitForTimeout(600);
+    const commentEl = page.locator(`[data-comment-id="${comment1.id}"]`);
     await commentEl
       .getByRole('button', { name: /More actions/i })
       .first()
       .click();
     const muteBtn = page.getByRole('button', { name: /Mute User|Mute user/i }).first();
+    await expect(muteBtn).toBeVisible({ timeout: 5_000 });
     await muteBtn.click();
 
     const confirmBtn = page.getByRole('button', { name: /Confirm|確認/i }).first();

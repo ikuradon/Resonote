@@ -4,23 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { PendingEvent } from './pending-publishes.js';
 
-const mockCast = vi.fn();
-const mockRxNostr = { cast: mockCast };
+const publishSignedEventMock = vi.fn<(event: unknown) => Promise<void>>(async () => undefined);
+const publishSignedEventsMock = vi.fn<(events: unknown[]) => Promise<void>>(async () => undefined);
+const retryQueuedPublishesMock = vi.fn<() => Promise<void>>(async () => undefined);
 
-vi.mock('$shared/nostr/client.js', () => ({
-  getRxNostr: vi.fn(async () => mockRxNostr)
-}));
-
-const mockAddPendingPublish = vi.fn();
-const mockGetPendingPublishes = vi.fn();
-const mockRemovePendingPublish = vi.fn();
-const mockCleanExpired = vi.fn();
-
-vi.mock('$shared/nostr/pending-publishes.js', () => ({
-  addPendingPublish: (...args: unknown[]) => mockAddPendingPublish(...args),
-  getPendingPublishes: (...args: unknown[]) => mockGetPendingPublishes(...args),
-  removePendingPublish: (...args: unknown[]) => mockRemovePendingPublish(...args),
-  cleanExpired: (...args: unknown[]) => mockCleanExpired(...args)
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  publishSignedEvent: (event: unknown) => publishSignedEventMock(event),
+  publishSignedEvents: (events: unknown[]) => publishSignedEventsMock(events),
+  retryQueuedPublishes: () => retryQueuedPublishesMock()
 }));
 
 function makeEvent(overrides: Partial<PendingEvent> = {}): PendingEvent {
@@ -37,37 +28,23 @@ function makeEvent(overrides: Partial<PendingEvent> = {}): PendingEvent {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockGetPendingPublishes.mockResolvedValue([]);
-  mockAddPendingPublish.mockResolvedValue(undefined);
-  mockRemovePendingPublish.mockResolvedValue(undefined);
-  mockCleanExpired.mockResolvedValue(undefined);
-  mockCast.mockResolvedValue(undefined);
+  publishSignedEventMock.mockResolvedValue(undefined);
+  publishSignedEventsMock.mockResolvedValue(undefined);
+  retryQueuedPublishesMock.mockResolvedValue(undefined);
 });
 
 describe('publishSignedEvent', () => {
-  it('should publish via rxNostr.cast()', async () => {
+  it('delegates to the auftakt facade', async () => {
     const { publishSignedEvent } = await import('./publish-signed.js');
     const event = makeEvent({ id: 'ev-1' });
 
     await publishSignedEvent(event);
 
-    expect(mockCast).toHaveBeenCalledOnce();
-    expect(mockCast).toHaveBeenCalledWith(event);
-    expect(mockAddPendingPublish).not.toHaveBeenCalled();
+    expect(publishSignedEventMock).toHaveBeenCalledOnce();
+    expect(publishSignedEventMock).toHaveBeenCalledWith(event);
   });
 
-  it('should fall back to pending queue when cast() throws', async () => {
-    const { publishSignedEvent } = await import('./publish-signed.js');
-    mockCast.mockRejectedValueOnce(new Error('connection failed'));
-    const event = makeEvent({ id: 'ev-fail' });
-
-    await publishSignedEvent(event);
-
-    expect(mockAddPendingPublish).toHaveBeenCalledOnce();
-    expect(mockAddPendingPublish).toHaveBeenCalledWith(event);
-  });
-
-  it('should pass event object through to cast()', async () => {
+  it('passes event object through unchanged', async () => {
     const { publishSignedEvent } = await import('./publish-signed.js');
     const event = makeEvent({
       id: 'ev-detail',
@@ -78,7 +55,8 @@ describe('publishSignedEvent', () => {
 
     await publishSignedEvent(event);
 
-    const passedArg = mockCast.mock.calls[0][0];
+    expect(publishSignedEventMock).toHaveBeenCalledTimes(1);
+    const passedArg = publishSignedEventMock.mock.calls[0][0] as PendingEvent;
     expect(passedArg.id).toBe('ev-detail');
     expect(passedArg.kind).toBe(1111);
     expect(passedArg.content).toBe('test comment');
@@ -87,25 +65,26 @@ describe('publishSignedEvent', () => {
 });
 
 describe('publishSignedEvents', () => {
-  it('should return immediately for empty array', async () => {
+  it('delegates empty array to the facade unchanged', async () => {
     const { publishSignedEvents } = await import('./publish-signed.js');
 
     await publishSignedEvents([]);
 
-    expect(mockCast).not.toHaveBeenCalled();
+    expect(publishSignedEventsMock).toHaveBeenCalledOnce();
+    expect(publishSignedEventsMock).toHaveBeenCalledWith([]);
   });
 
-  it('should publish a single event via cast()', async () => {
+  it('delegates a single event array to the facade', async () => {
     const { publishSignedEvents } = await import('./publish-signed.js');
     const event = makeEvent({ id: 'single' });
 
     await publishSignedEvents([event]);
 
-    expect(mockCast).toHaveBeenCalledOnce();
-    expect(mockCast).toHaveBeenCalledWith(event);
+    expect(publishSignedEventsMock).toHaveBeenCalledOnce();
+    expect(publishSignedEventsMock).toHaveBeenCalledWith([event]);
   });
 
-  it('should publish all events when all succeed', async () => {
+  it('delegates all events to the facade', async () => {
     const { publishSignedEvents } = await import('./publish-signed.js');
     const events = [
       makeEvent({ id: 'ev-1' }),
@@ -115,104 +94,17 @@ describe('publishSignedEvents', () => {
 
     await publishSignedEvents(events);
 
-    expect(mockCast).toHaveBeenCalledTimes(3);
-    expect(mockAddPendingPublish).not.toHaveBeenCalled();
-  });
-
-  it('should add failed events to pending queue', async () => {
-    const { publishSignedEvents } = await import('./publish-signed.js');
-    const events = [
-      makeEvent({ id: 'ev-ok-1' }),
-      makeEvent({ id: 'ev-fail' }),
-      makeEvent({ id: 'ev-ok-2' })
-    ];
-
-    mockCast
-      .mockResolvedValueOnce(undefined)
-      .mockRejectedValueOnce(new Error('relay down'))
-      .mockResolvedValueOnce(undefined);
-
-    await publishSignedEvents(events);
-
-    expect(mockCast).toHaveBeenCalledTimes(3);
-    expect(mockAddPendingPublish).toHaveBeenCalledOnce();
-    expect(mockAddPendingPublish).toHaveBeenCalledWith(events[1]);
-  });
-
-  it('should import getRxNostr only once for batch', async () => {
-    const { getRxNostr } = await import('./client.js');
-    const { publishSignedEvents } = await import('./publish-signed.js');
-    vi.mocked(getRxNostr).mockClear();
-
-    const events = [makeEvent({ id: 'ev-1' }), makeEvent({ id: 'ev-2' })];
-
-    await publishSignedEvents(events);
-
-    expect(getRxNostr).toHaveBeenCalledOnce();
+    expect(publishSignedEventsMock).toHaveBeenCalledOnce();
+    expect(publishSignedEventsMock).toHaveBeenCalledWith(events);
   });
 });
 
 describe('retryPendingPublishes', () => {
-  it('should do nothing when queue is empty', async () => {
+  it('delegates retry lifecycle to the auftakt facade', async () => {
     const { retryPendingPublishes } = await import('./publish-signed.js');
-    mockGetPendingPublishes.mockResolvedValueOnce([]);
 
     await retryPendingPublishes();
 
-    expect(mockCleanExpired).toHaveBeenCalledOnce();
-    expect(mockGetPendingPublishes).toHaveBeenCalledOnce();
-    expect(mockCast).not.toHaveBeenCalled();
-  });
-
-  it('should retry pending events and remove successful ones', async () => {
-    const { retryPendingPublishes } = await import('./publish-signed.js');
-    const pending = [makeEvent({ id: 'retry-1' }), makeEvent({ id: 'retry-2' })];
-    mockGetPendingPublishes.mockResolvedValueOnce(pending);
-
-    await retryPendingPublishes();
-
-    expect(mockCast).toHaveBeenCalledTimes(2);
-    expect(mockRemovePendingPublish).toHaveBeenCalledTimes(2);
-    expect(mockRemovePendingPublish).toHaveBeenCalledWith('retry-1');
-    expect(mockRemovePendingPublish).toHaveBeenCalledWith('retry-2');
-  });
-
-  it('should re-queue failed events via addPendingPublish', async () => {
-    const { retryPendingPublishes } = await import('./publish-signed.js');
-    const pending = [
-      makeEvent({ id: 'ok-1' }),
-      makeEvent({ id: 'fail-1' }),
-      makeEvent({ id: 'ok-2' })
-    ];
-    mockGetPendingPublishes.mockResolvedValueOnce(pending);
-    mockCast
-      .mockResolvedValueOnce(undefined)
-      .mockRejectedValueOnce(new Error('still down'))
-      .mockResolvedValueOnce(undefined);
-
-    await retryPendingPublishes();
-
-    // publishSignedEvent catches cast() errors internally and adds to pending,
-    // so removePendingPublish is called for all events (publishSignedEvent never throws)
-    expect(mockRemovePendingPublish).toHaveBeenCalledTimes(3);
-    // The failed event is re-added to the pending queue by publishSignedEvent's catch
-    expect(mockAddPendingPublish).toHaveBeenCalledOnce();
-    expect(mockAddPendingPublish).toHaveBeenCalledWith(pending[1]);
-  });
-
-  it('should call cleanExpired before processing', async () => {
-    const { retryPendingPublishes } = await import('./publish-signed.js');
-    const callOrder: string[] = [];
-    mockCleanExpired.mockImplementation(async () => {
-      callOrder.push('cleanExpired');
-    });
-    mockGetPendingPublishes.mockImplementation(async () => {
-      callOrder.push('getPendingPublishes');
-      return [];
-    });
-
-    await retryPendingPublishes();
-
-    expect(callOrder).toEqual(['cleanExpired', 'getPendingPublishes']);
+    expect(retryQueuedPublishesMock).toHaveBeenCalledOnce();
   });
 });

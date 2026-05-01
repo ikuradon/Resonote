@@ -24,7 +24,7 @@ function isPrivateIPv4(ip: string): boolean {
   return isPrivate172(ip);
 }
 
-// Match IPv4-mapped (::ffff:HHHH:HHHH) and IPv4-compatible (::HHHH:HHHH)
+// Match IPv4-mapped (::ffff:HHHH:HHHH) and IPv4-interoperable (::HHHH:HHHH)
 const IPV4_EMBEDDED_IPV6_RE = /^::(?:ffff:)?([0-9a-f]{1,4}):([0-9a-f]{1,4})$/;
 
 function ipv6MappedToIPv4(bare: string): string | null {

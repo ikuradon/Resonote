@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { npubEncode } from 'nostr-tools/nip19';
+  import { npubEncode } from '@auftakt/core';
   import type { Snippet } from 'svelte';
   import { tick } from 'svelte';
 
   import type { MentionCandidate } from '$features/comments/ui/mention-candidates.js';
+  import { addEmojiTag, extractShortcode } from '$shared/auftakt/resonote.js';
   import { getCustomEmojis } from '$shared/browser/emoji-sets.js';
   import { createMediaQuery } from '$shared/browser/media-query.js';
   import { t } from '$shared/i18n/t.js';
-  import { addEmojiTag, extractShortcode } from '$shared/utils/emoji.js';
 
   import { allocateEmojiPopoverId } from './emoji-popover-id.js';
   import EmojiPickerPopover from './EmojiPickerPopover.svelte';

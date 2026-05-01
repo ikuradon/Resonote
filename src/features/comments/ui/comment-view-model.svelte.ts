@@ -8,8 +8,10 @@
  * - Expose a clean API for route components
  */
 
+import { reconcileDeletionSubjects, reconcileReplayRepairSubjects } from '@auftakt/core';
+
+import { fetchNostrEventById, invalidateFetchByIdCache } from '$shared/auftakt/resonote.js';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
-import { cachedFetchById, invalidateFetchByIdCache } from '$shared/nostr/cached-query.js';
 import {
   COMMENT_KIND,
   CONTENT_REACTION_KIND,
@@ -21,10 +23,10 @@ import { createLogger, shortHex } from '$shared/utils/logger.js';
 
 import {
   buildContentFilters,
+  cacheCommentEvent,
   type CachedEvent,
-  type EventsDB,
-  getCommentRepository,
   loadSubscriptionDeps,
+  materializeDeletedIds,
   purgeDeletedFromCache,
   restoreFromCache,
   startDeletionReconcile,
@@ -46,7 +48,7 @@ import type {
   Reaction
 } from '../domain/comment-model.js';
 import type { ReactionStats } from '../domain/comment-model.js';
-import { verifyDeletionTargets } from '../domain/deletion-rules.js';
+import { reconcileDeletionTargets, verifyDeletionTargets } from '../domain/deletion-rules.js';
 import {
   applyReaction as applyReactionImmutable,
   buildReactionIndex,
@@ -55,6 +57,37 @@ import {
 } from '../domain/reaction-rules.js';
 
 const log = createLogger('comment-vm');
+
+interface OrphanParentEvent {
+  id: string;
+  pubkey: string;
+  content: string;
+  created_at: number;
+  tags: string[][];
+  kind: number;
+}
+
+interface OrphanParentFetchEnvelope {
+  event: OrphanParentEvent | null;
+  settlement?: {
+    reason?: string;
+  };
+}
+
+function isPromiseLike<T>(value: unknown): value is Promise<T> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'then' in value &&
+    typeof (value as { then?: unknown }).then === 'function'
+  );
+}
+
+function isOrphanParentFetchEnvelope(
+  value: OrphanParentEvent | OrphanParentFetchEnvelope | null
+): value is OrphanParentFetchEnvelope {
+  return typeof value === 'object' && value !== null && 'event' in value;
+}
 
 export function createCommentViewModel(contentId: ContentId, provider: ContentProvider) {
   // --- State ---
@@ -87,7 +120,6 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
 
   // Infra refs
   let subscriptionRefs: SubscriptionRefs | undefined;
-  let eventsDB: EventsDB | undefined;
   let subscriptions: SubscriptionHandle[] = [];
   let reconcileSub: SubscriptionHandle | undefined;
   let reconcileTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -103,14 +135,19 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     pendingDeletions.delete(eventId);
     const match = candidates.some((c) => c.pubkey === eventPubkey);
     if (match) {
-      const next = new Set(deletedIds);
-      next.add(eventId);
+      const next = materializeDeletedIds(deletedIds, [
+        {
+          subjectId: eventId,
+          reason: 'tombstoned',
+          state: 'deleted'
+        }
+      ]);
       deletedIds = next;
       if (deletedIds.size !== prevDeletedSize) {
         prevDeletedSize = deletedIds.size;
         rebuildReactionIndex();
       }
-      if (eventsDB) void purgeDeletedFromCache(eventsDB, [eventId]);
+      void purgeDeletedFromCache([eventId]);
       log.debug('Pending deletion applied', { id: shortHex(eventId) });
     }
   }
@@ -161,7 +198,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   }
 
   function handleDeletionPacket(event: { id: string; pubkey: string; tags: string[][] }) {
-    const verified = verifyDeletionTargets(event, eventPubkeys);
+    const { verifiedTargetIds, emissions } = reconcileDeletionTargets(event, eventPubkeys);
 
     // Store unverified targets as pending (original event not yet observed).
     // All candidates are kept per target so the correct author's deletion
@@ -175,26 +212,28 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
       }
     }
 
-    if (verified.length === 0) return;
-    const next = new Set(deletedIds);
-    for (const id of verified) next.add(id);
+    if (verifiedTargetIds.length === 0) return;
+    const next = materializeDeletedIds(deletedIds, emissions);
     deletedIds = next;
     if (deletedIds.size !== prevDeletedSize) {
       prevDeletedSize = deletedIds.size;
       rebuildReactionIndex();
     }
-    const toPurge = verified.filter(
+    const toPurge = verifiedTargetIds.filter(
       (id) => commentIds.has(id) || reactionIds.has(id) || contentReactionIds.has(id)
     );
-    if (toPurge.length > 0 && eventsDB) void purgeDeletedFromCache(eventsDB, toPurge);
-    log.debug('Deletion event received', { deletedIds: verified.map(shortHex) });
+    if (toPurge.length > 0) void purgeDeletedFromCache(toPurge);
+    log.debug('Deletion event received', {
+      deletedIds: verifiedTargetIds.map(shortHex),
+      reasons: emissions.map((emission) => emission.reason)
+    });
 
     // Invalidate fetch cache for deleted events so re-visits don't restore them
-    for (const id of verified) invalidateFetchByIdCache(id);
+    for (const id of verifiedTargetIds) invalidateFetchByIdCache(id);
 
     // Update orphan placeholders to 'deleted' when kind:5 arrives later
     let updatedPlaceholders: Map<string, PlaceholderComment> | null = null;
-    for (const id of verified) {
+    for (const id of verifiedTargetIds) {
       const ph = placeholders.get(id);
       if (ph && ph.status !== 'deleted') {
         updatedPlaceholders ??= new Map(placeholders);
@@ -214,21 +253,58 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   }
 
   function dispatchPacket(event: CachedEvent, relayHint?: string) {
-    eventsDB?.put(event);
-    switch (event.kind) {
-      case COMMENT_KIND:
-        handleCommentPacket(event, relayHint);
-        break;
-      case REACTION_KIND:
-        handleReactionPacket(event);
-        break;
-      case CONTENT_REACTION_KIND:
-        handleContentReactionPacket(event);
-        break;
-      case DELETION_KIND:
-        handleDeletionPacket(event);
-        break;
+    const processAcceptedEvent = () => {
+      switch (event.kind) {
+        case COMMENT_KIND:
+          handleCommentPacket(event, relayHint);
+          break;
+        case REACTION_KIND:
+          handleReactionPacket(event);
+          break;
+        case CONTENT_REACTION_KIND:
+          handleContentReactionPacket(event);
+          break;
+        case DELETION_KIND:
+          handleDeletionPacket(event);
+          break;
+      }
+    };
+
+    const handleSuppressedEvent = () => {
+      log.debug('Suppressed tombstoned event replay', { id: shortHex(event.id), kind: event.kind });
+    };
+
+    const putResult = cacheCommentEvent(event);
+
+    if (event.kind === DELETION_KIND) {
+      if (isPromiseLike(putResult)) {
+        void putResult.catch(() => undefined);
+      }
+      processAcceptedEvent();
+      return;
     }
+
+    if (isPromiseLike<unknown>(putResult)) {
+      void putResult
+        .then((accepted: unknown) => {
+          if (accepted === false) {
+            handleSuppressedEvent();
+            return;
+          }
+          processAcceptedEvent();
+        })
+        .catch(() => {
+          processAcceptedEvent();
+        });
+      return;
+    }
+
+    if ((putResult as unknown) === false) {
+      handleSuppressedEvent();
+      return;
+    }
+
+    processAcceptedEvent();
   }
 
   // --- Cache restore ---
@@ -319,9 +395,8 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   // --- Subscribe ---
   async function subscribe() {
     try {
-      const [refs, db] = await Promise.all([loadSubscriptionDeps(), getCommentRepository()]);
+      const refs = await loadSubscriptionDeps();
       subscriptionRefs = refs;
-      eventsDB = db;
 
       const [idValue] = provider.toNostrTag(contentId);
       const tagQuery = `I:${idValue}`;
@@ -329,8 +404,8 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
 
       // Restore from cache (uppercase I for kind:1111/7/5, lowercase i for kind:17)
       const [cachedUpper, cachedLower] = await Promise.all([
-        restoreFromCache(db, tagQuery),
-        restoreFromCache(db, tagQueryLower)
+        restoreFromCache(tagQuery),
+        restoreFromCache(tagQueryLower)
       ]);
       const cachedEvents = [...cachedUpper, ...cachedLower];
       const maxCreatedAt = restoreCachedEvents(cachedEvents);
@@ -340,7 +415,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
         const idsToPurge = [...deletedIds].filter(
           (id) => commentIds.has(id) || reactionIds.has(id) || contentReactionIds.has(id)
         );
-        void purgeDeletedFromCache(db, idsToPurge);
+        void purgeDeletedFromCache(idsToPurge);
       }
 
       // Offline deletion reconcile
@@ -351,7 +426,7 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
           refs,
           cachedIds,
           (event) => {
-            eventsDB?.put(event);
+            void cacheCommentEvent(event);
             for (const id of verifyDeletionTargets(event, eventPubkeys)) {
               newDeletions.add(id);
             }
@@ -360,16 +435,30 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
             reconcileSub = undefined;
             reconcileTimeout = undefined;
             if (destroyed || newDeletions.size === 0) return;
-            const next = new Set(deletedIds);
-            for (const id of newDeletions) next.add(id);
+            const repairEmissions = reconcileReplayRepairSubjects(
+              [...newDeletions],
+              'repaired-replay'
+            );
+            const deletionEmissions = reconcileReplayRepairSubjects(
+              [...newDeletions],
+              'restored-replay'
+            );
+            const next = materializeDeletedIds(deletedIds, [
+              ...repairEmissions,
+              ...deletionEmissions,
+              ...reconcileDeletionSubjects([...newDeletions])
+            ]);
             deletedIds = next;
             prevDeletedSize = deletedIds.size;
             rebuildReactionIndex();
-            log.info('Offline deletions reconciled', { newDeletions: newDeletions.size });
+            log.info('Offline deletions reconciled', {
+              newDeletions: newDeletions.size,
+              reasons: [...repairEmissions, ...deletionEmissions].map((emission) => emission.reason)
+            });
             const idsToPurge = [...newDeletions].filter(
               (id) => commentIds.has(id) || reactionIds.has(id) || contentReactionIds.has(id)
             );
-            void purgeDeletedFromCache(db, idsToPurge);
+            void purgeDeletedFromCache(idsToPurge);
           }
         );
         reconcileSub = reconcile.sub;
@@ -412,14 +501,14 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
   }
 
   async function addSubscription(idValue: string): Promise<void> {
-    if (!subscriptionRefs || !eventsDB) return;
+    if (!subscriptionRefs) return;
 
     // DB cache restore (uppercase I for kind:1111/7/5, lowercase i for kind:17)
     const tagQuery = `I:${idValue}`;
     const tagQueryLower = `i:${idValue}`;
     const [cachedUpper, cachedLower] = await Promise.all([
-      restoreFromCache(eventsDB, tagQuery),
-      restoreFromCache(eventsDB, tagQueryLower)
+      restoreFromCache(tagQuery),
+      restoreFromCache(tagQueryLower)
     ]);
     const cachedEvents = [...cachedUpper, ...cachedLower];
     if (destroyed) return;
@@ -518,11 +607,18 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     next.set(parentId, placeholderFromOrphan(parentId, estimatedPositionMs));
     placeholders = next;
 
-    const result = await cachedFetchById(parentId);
+    const fetchResult = await fetchNostrEventById<OrphanParentEvent | OrphanParentFetchEnvelope>(
+      parentId,
+      []
+    );
+    const result = isOrphanParentFetchEnvelope(fetchResult) ? fetchResult.event : fetchResult;
+    const wasInvalidatedDuringFetch =
+      isOrphanParentFetchEnvelope(fetchResult) &&
+      fetchResult.settlement?.reason === 'invalidated-during-fetch';
 
     if (destroyed) return;
 
-    if (result?.kind === COMMENT_KIND) {
+    if (!wasInvalidatedDuringFetch && result?.kind === COMMENT_KIND) {
       if (!deletedIds.has(parentId)) {
         // Success and not deleted → merge into commentsRaw, remove placeholder
         if (!commentIds.has(result.id)) {

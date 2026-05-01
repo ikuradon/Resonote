@@ -48,7 +48,7 @@
 
 - route / layout / component が依存してよい stateful 境界は、原則として `$shared/browser/*` と `$features/*` のみとする。
 - Nostr の stateful query / cache / relay access は、原則として `$shared/nostr/*` または feature/application を通す。
-- `lib/stores` / `lib/nostr` は、最終的に内部実装か compatibility wrapper に限定する。
+- `lib/stores` / `lib/nostr` は、最終的に内部実装か interop wrapper に限定する。
 
 ### 4.2 alias 層の扱い
 
@@ -75,7 +75,7 @@
 2. `notifications` page と `profile` page の主要 orchestration が page model または feature/application に移る。
 3. route / component からの stateful `$lib/nostr/*` 依存が消える。
 4. `player` / `extension` transport が `shared/browser` 側へ閉じる。
-5. `lib/stores` / `lib/nostr` に残るものが、compatibility wrapper か UI 補助であると説明できる。
+5. `lib/stores` / `lib/nostr` に残るものが、interop wrapper か UI 補助であると説明できる。
 6. lint が、この境界を継続的に守れる。
 
 ## 6. 優先順位
@@ -127,7 +127,7 @@
 完了条件:
 
 - profile / relays が `shared` の裏側で完結する。
-- legacy store は facade か compat まで縮退する。
+- legacy store は facade か interop まで縮退する。
 
 ### Phase 2: notifications / profile の page model 化
 
@@ -201,7 +201,7 @@ route からの stateful Nostr helper 直参照を止める。
 作業:
 
 - 使われなくなった `lib/stores` / `lib/nostr` の wrapper を削除する。
-- 残す wrapper は `compat` 相当であることが読める状態にする。
+- 残す wrapper は `interop` 相当であることが読める状態にする。
 - docs の最新版を一本化し、古いフェーズ名との齟齬をなくす。
 
 完了条件:

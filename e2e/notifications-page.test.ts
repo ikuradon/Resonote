@@ -5,13 +5,18 @@
 import { expect, test } from '@playwright/test';
 
 import {
+  buildComment,
   createTestIdentity,
   setupFullLogin,
   setupMockPool,
-  simulateLogin
+  simulateLogin,
+  storeEventsOnAllRelays
 } from './helpers/e2e-setup.js';
 
 const user = createTestIdentity();
+const otherUser = createTestIdentity();
+const TEST_I_TAG = 'spotify:track:notifications-preview-test';
+const TEST_K_TAG = '31137';
 
 test.describe('Notifications page', () => {
   test.beforeEach(async ({ page }) => {
@@ -93,6 +98,32 @@ test.describe('Notifications page', () => {
     });
 
     await expect(page.getByRole('button', { name: /Mark all|すべて既読/i })).toHaveCount(0);
+  });
+
+  test('should show reply target preview text in notification item', async ({ page }) => {
+    const targetComment = buildComment(user, 'TARGET_PREVIEW_E2E_TEXT', TEST_I_TAG, TEST_K_TAG, {
+      createdAt: Math.floor(Date.now() / 1000) - 120
+    });
+    const reply = buildComment(
+      otherUser,
+      'Reply that should reference target',
+      TEST_I_TAG,
+      TEST_K_TAG,
+      {
+        parentId: targetComment.id,
+        parentPubkey: user.pubkey,
+        createdAt: Math.floor(Date.now() / 1000) - 60
+      }
+    );
+
+    await page.goto('/notifications');
+    await storeEventsOnAllRelays(page, [targetComment, reply]);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    await expect(page.getByText('TARGET_PREVIEW_E2E_TEXT').first()).toBeVisible({
+      timeout: 15_000
+    });
   });
 });
 

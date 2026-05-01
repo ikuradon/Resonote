@@ -7,15 +7,21 @@ import type { Comment } from '../domain/comment-model.js';
 const {
   buildCommentMock,
   buildReactionMock,
+  buildRepostMock,
   buildDeletionMock,
   buildContentReactionMock,
+  fetchNostrEventByIdMock,
+  getDefaultRelayUrlsMock,
   castSignedMock,
   logInfoMock
 } = vi.hoisted(() => ({
   buildCommentMock: vi.fn(() => ({ kind: 1111, content: '', tags: [] })),
   buildReactionMock: vi.fn(() => ({ kind: 7, content: '+', tags: [] })),
+  buildRepostMock: vi.fn(() => ({ kind: 16, content: '{}', tags: [] as string[][] })),
   buildDeletionMock: vi.fn(() => ({ kind: 5, content: '', tags: [] })),
   buildContentReactionMock: vi.fn(() => ({ kind: 17, content: '+', tags: [] })),
+  fetchNostrEventByIdMock: vi.fn(),
+  getDefaultRelayUrlsMock: vi.fn(async () => ['wss://default.example.com']),
   castSignedMock: vi.fn(async () => {}),
   logInfoMock: vi.fn()
 }));
@@ -25,12 +31,15 @@ vi.mock('$shared/nostr/events.js', () => ({
   CONTENT_REACTION_KIND: 17,
   buildComment: buildCommentMock,
   buildReaction: buildReactionMock,
+  buildRepost: buildRepostMock,
   buildDeletion: buildDeletionMock,
   buildContentReaction: buildContentReactionMock
 }));
 
-vi.mock('$shared/nostr/gateway.js', () => ({
-  castSigned: castSignedMock
+vi.mock('$shared/auftakt/resonote.js', () => ({
+  fetchNostrEventById: fetchNostrEventByIdMock,
+  getDefaultRelayUrls: getDefaultRelayUrlsMock,
+  publishSignedEvent: castSignedMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
@@ -44,7 +53,8 @@ import {
   sendComment,
   sendContentReaction,
   sendReaction,
-  sendReply
+  sendReply,
+  sendRepost
 } from './comment-actions.js';
 
 const contentId: ContentId = { platform: 'spotify', type: 'track', id: 'track-1' };
@@ -265,6 +275,86 @@ describe('sendReaction', () => {
   it('propagates errors from castSigned', async () => {
     castSignedMock.mockRejectedValueOnce(new Error('reaction failed'));
     await expect(sendReaction({ comment, contentId, provider })).rejects.toThrow('reaction failed');
+  });
+});
+
+describe('sendRepost', () => {
+  const comment: Comment = {
+    id: 'comment-id',
+    pubkey: 'comment-pubkey',
+    content: 'original comment',
+    createdAt: 1000,
+    positionMs: null,
+    emojiTags: [],
+    replyTo: null,
+    contentWarning: null,
+    relayHint: 'wss://relay.example.com'
+  };
+  const targetEvent = {
+    id: 'comment-id',
+    pubkey: 'comment-pubkey',
+    created_at: 1000,
+    kind: 1111,
+    content: 'original comment',
+    tags: []
+  };
+  const repostEvent = { kind: 16, content: '{}', tags: [['e', 'comment-id']] };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchNostrEventByIdMock.mockResolvedValue(targetEvent);
+    getDefaultRelayUrlsMock.mockResolvedValue(['wss://default.example.com']);
+    buildRepostMock.mockReturnValue(repostEvent);
+  });
+
+  it('fetches the target through the coordinator and publishes the built repost', async () => {
+    await sendRepost({ comment });
+
+    expect(fetchNostrEventByIdMock).toHaveBeenCalledWith('comment-id', ['wss://relay.example.com']);
+    expect(buildRepostMock).toHaveBeenCalledWith(targetEvent, 'wss://relay.example.com');
+    expect(castSignedMock).toHaveBeenCalledWith(repostEvent);
+  });
+
+  it('uses an explicit relay hint when provided', async () => {
+    await sendRepost({ comment, relayHint: 'wss://explicit.example.com' });
+
+    expect(fetchNostrEventByIdMock).toHaveBeenCalledWith('comment-id', [
+      'wss://explicit.example.com'
+    ]);
+    expect(buildRepostMock).toHaveBeenCalledWith(targetEvent, 'wss://explicit.example.com');
+  });
+
+  it('does not publish when the target event cannot be fetched', async () => {
+    fetchNostrEventByIdMock.mockResolvedValueOnce(null);
+
+    await expect(sendRepost({ comment })).rejects.toThrow('Cannot repost an event');
+    expect(buildRepostMock).not.toHaveBeenCalled();
+    expect(castSignedMock).not.toHaveBeenCalled();
+  });
+
+  it('falls back to a default relay hint after fetching a target without relay hints', async () => {
+    await sendRepost({ comment: { ...comment, relayHint: undefined } });
+
+    expect(fetchNostrEventByIdMock).toHaveBeenCalledWith('comment-id', []);
+    expect(buildRepostMock).toHaveBeenCalledWith(targetEvent, 'wss://default.example.com');
+    expect(castSignedMock).toHaveBeenCalledWith(repostEvent);
+  });
+
+  it('does not publish when no target relay hint can be resolved', async () => {
+    getDefaultRelayUrlsMock.mockResolvedValueOnce([]);
+
+    await expect(sendRepost({ comment: { ...comment, relayHint: undefined } })).rejects.toThrow(
+      'relay hint'
+    );
+    expect(fetchNostrEventByIdMock).toHaveBeenCalledWith('comment-id', []);
+    expect(buildRepostMock).not.toHaveBeenCalled();
+    expect(castSignedMock).not.toHaveBeenCalled();
+  });
+
+  it('propagates publish failures', async () => {
+    castSignedMock.mockRejectedValueOnce(new Error('publish failed'));
+
+    await expect(sendRepost({ comment })).rejects.toThrow('publish failed');
   });
 });
 
