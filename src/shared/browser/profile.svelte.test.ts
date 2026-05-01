@@ -35,12 +35,16 @@ import {
 const PUBKEY_A = 'aaaa1111'.repeat(8);
 const PUBKEY_B = 'bbbb2222'.repeat(8);
 
-function makeKind0Event(pubkey: string, content: Record<string, unknown> | string) {
+function makeKind0Event(
+  pubkey: string,
+  content: Record<string, unknown> | string,
+  createdAt = 1_000_000
+) {
   return {
     id: `evt-${pubkey.slice(0, 4)}`,
     pubkey,
     kind: 0,
-    created_at: 1_000_000,
+    created_at: createdAt,
     content: typeof content === 'string' ? content : JSON.stringify(content),
     tags: [],
     sig: 'sig'
@@ -134,6 +138,25 @@ describe('profile.svelte', () => {
     await fetchProfile(PUBKEY_B);
 
     expect(getProfile(PUBKEY_B)).toEqual(expect.objectContaining({ name: 'Fallback Name' }));
+  });
+
+  it('keeps newest profile metadata when multiple sources return the same pubkey', async () => {
+    setupFetchResult({
+      cachedEvents: [makeKind0Event(PUBKEY_A, { name: 'New Cached' }, 2_000_000)],
+      fetchedEvents: [makeKind0Event(PUBKEY_A, { name: 'Old Relay' }, 1_000_000)],
+      fallbackEvents: [
+        {
+          pubkey: PUBKEY_A,
+          created_at: 1_500_000,
+          content: JSON.stringify({ name: 'Middle Fallback' }),
+          tags: []
+        }
+      ]
+    });
+
+    await fetchProfile(PUBKEY_A);
+
+    expect(getProfile(PUBKEY_A)).toEqual(expect.objectContaining({ name: 'New Cached' }));
   });
 
   it('stores empty profiles for unresolved pubkeys', async () => {

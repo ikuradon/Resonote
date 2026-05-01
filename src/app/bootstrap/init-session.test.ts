@@ -160,8 +160,11 @@ describe('initSession', () => {
     await initSession(PUBKEY);
     await initSession(PUBKEY_2);
 
-    expect(fetchProfileMock).toHaveBeenCalledWith(PUBKEY);
-    expect(fetchProfileMock).toHaveBeenCalledWith(PUBKEY_2);
+    expect(fetchProfileMock).toHaveBeenCalledTimes(4);
+    expect(fetchProfileMock).toHaveBeenNthCalledWith(1, PUBKEY);
+    expect(fetchProfileMock).toHaveBeenNthCalledWith(2, PUBKEY);
+    expect(fetchProfileMock).toHaveBeenNthCalledWith(3, PUBKEY_2);
+    expect(fetchProfileMock).toHaveBeenNthCalledWith(4, PUBKEY_2);
   });
 
   it('loadFollows が失敗しても全体は正常終了する', async () => {

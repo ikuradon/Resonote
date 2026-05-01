@@ -135,7 +135,8 @@ describe('nlAuth イベント: login', () => {
     expect(getAuth().loggedIn).toBe(true);
 
     resolveInit();
-    await vi.waitUntil(() => getAuth().pubkey === TEST_PUBKEY);
+    await initPromise;
+    expect(getAuth().pubkey).toBe(TEST_PUBKEY);
   });
 
   it('signup イベントでも pubkey が設定される', async () => {
@@ -166,7 +167,7 @@ describe('nlAuth イベント: login', () => {
     expect(getAuth().loggedIn).toBe(true);
 
     resolveInit();
-    await vi.waitUntil(() => getAuth().pubkey !== null);
+    await initPromise;
     expect(getAuth().pubkey).toBe(TEST_PUBKEY);
   });
 });
