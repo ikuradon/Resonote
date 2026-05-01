@@ -2,12 +2,18 @@ import type { NegentropyEventRef } from '@auftakt/core';
 
 type NegentropyMessageEventRef = Pick<NegentropyEventRef, 'id' | 'created_at'>;
 
+function compareHexIdAsc(left: string, right: string): number {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
 function sortNegentropyMessageRefsAsc<TEvent extends NegentropyMessageEventRef>(
   events: readonly TEvent[]
 ): TEvent[] {
   return [...events].sort((left, right) => {
     if (left.created_at !== right.created_at) return left.created_at - right.created_at;
-    return left.id.localeCompare(right.id);
+    return compareHexIdAsc(left.id, right.id);
   });
 }
 

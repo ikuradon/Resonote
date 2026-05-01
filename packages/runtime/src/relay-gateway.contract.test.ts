@@ -127,7 +127,7 @@ describe('RelayGateway verification planner', () => {
     };
     const requestNegentropySync = vi.fn(async () => ({
       capability: 'supported' as const,
-      messageHex: JSON.stringify({ remoteOnlyIds: [] })
+      messageHex: '6100000200'
     }));
     const fetchByReq = vi.fn(async () => [secondFilterEvent]);
     const gateway = createRelayGateway({
@@ -154,7 +154,7 @@ describe('RelayGateway verification planner', () => {
     const event = { id: 'event-from-req', created_at: 123 };
     const requestNegentropySync = vi.fn(async () => ({
       capability: 'supported' as const,
-      messageHex: JSON.stringify({ remoteOnlyIds: ['should-not-be-used'] })
+      messageHex: '6100000200'
     }));
     const fetchByReq = vi.fn(async () => [event]);
 
