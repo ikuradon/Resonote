@@ -18,7 +18,14 @@ const MAX_PROFILES = 2000;
 
 const pending = new Set<string>();
 const retryQueued = new Set<string>();
+const profileCreatedAt = new Map<string, number>();
 let profiles = $state<Map<string, Profile>>(new Map());
+
+interface ProfileMetadataEvent {
+  pubkey: string;
+  content: string;
+  created_at: number;
+}
 
 function isUnresolvedPlaceholderProfile(profile: Profile | undefined): boolean {
   return profile !== undefined && Object.keys(profile).length === 0;
@@ -40,6 +47,18 @@ function parseProfileContent(content: string): Profile {
     bot: meta.bot,
     birthday: meta.birthday
   };
+}
+
+function storeProfileFromEvent(event: ProfileMetadataEvent): Profile | null {
+  const currentCreatedAt = profileCreatedAt.get(event.pubkey);
+  if (currentCreatedAt !== undefined && event.created_at < currentCreatedAt) {
+    return null;
+  }
+
+  const profile = parseProfileContent(event.content);
+  profiles.set(event.pubkey, profile);
+  profileCreatedAt.set(event.pubkey, event.created_at);
+  return profile;
 }
 
 function queueRetryIfNeeded(pubkey: string): void {
@@ -101,8 +120,7 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
 
     for (const event of cachedEvents) {
       try {
-        const profile = parseProfileContent(event.content);
-        profiles.set(event.pubkey, profile);
+        storeProfileFromEvent(event);
       } catch {
         log.warn('Malformed cached profile JSON', { pubkey: shortHex(event.pubkey) });
       }
@@ -110,8 +128,8 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
 
     for (const event of fetchedEvents) {
       try {
-        const profile = parseProfileContent(event.content);
-        profiles.set(event.pubkey, profile);
+        const profile = storeProfileFromEvent(event);
+        if (!profile) continue;
         const nip05 = profile.nip05;
         if (nip05) {
           void import('$shared/nostr/nip05.js').then(({ verifyNip05 }) =>
@@ -132,8 +150,7 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
 
     for (const event of fallbackEvents) {
       try {
-        const profile = parseProfileContent(event.content);
-        profiles.set(event.pubkey, profile);
+        storeProfileFromEvent(event);
       } catch {
         log.warn('Malformed profile JSON from latest-event fallback', {
           pubkey: shortHex(event.pubkey)
@@ -171,6 +188,7 @@ export async function fetchProfiles(pubkeys: string[]): Promise<void> {
 /** Clear in-memory profile cache (called on logout). DB cleared separately. */
 export function clearProfiles(): void {
   profiles = new Map();
+  profileCreatedAt.clear();
   pending.clear();
   retryQueued.clear();
 }
