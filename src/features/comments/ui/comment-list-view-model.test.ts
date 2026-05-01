@@ -19,31 +19,40 @@ const {
   sendReplyMock,
   deleteCommentMock,
   logErrorMock
-} = vi.hoisted(() => ({
-  playerState: { position: 6_000 },
-  authState: { pubkey: 'me' as string | null, loggedIn: true, canWrite: true },
-  muteListState: { mutedPubkeys: new Set(['muted-user']) },
-  displayByPubkey: {
+} = vi.hoisted(() => {
+  const authState: { pubkey: string | null; loggedIn: boolean; canWrite: boolean } = {
+    pubkey: 'me',
+    loggedIn: true,
+    canWrite: true
+  };
+  const displayByPubkey: Record<string, { displayName: string; profileHref: string }> = {
     me: { displayName: 'Me', profileHref: '/profile/me' },
     followed: { displayName: 'Followed', profileHref: '/profile/followed' },
     other: { displayName: 'Other', profileHref: '/profile/other' },
     target: { displayName: 'Target', profileHref: '/profile/target' }
-  } as Record<string, { displayName: string; profileHref: string }>,
-  dispatchSeekMock: vi.fn(),
-  matchesFilterMock: vi.fn((pubkey: string, filter: string) =>
-    filter === 'all' ? true : pubkey === 'followed' || pubkey === 'me'
-  ),
-  isMutedMock: vi.fn((pubkey: string) => pubkey === 'muted-user'),
-  isWordMutedMock: vi.fn((content: string) => content.includes('blocked-word')),
-  muteUserMock: vi.fn(async () => {}),
-  toastSuccessMock: vi.fn(),
-  toastErrorMock: vi.fn(),
-  sendReactionMock: vi.fn(async () => {}),
-  sendRepostMock: vi.fn(async () => {}),
-  sendReplyMock: vi.fn(async () => {}),
-  deleteCommentMock: vi.fn(async () => {}),
-  logErrorMock: vi.fn()
-}));
+  };
+
+  return {
+    playerState: { position: 6_000 },
+    authState,
+    muteListState: { mutedPubkeys: new Set(['muted-user']) },
+    displayByPubkey,
+    dispatchSeekMock: vi.fn(),
+    matchesFilterMock: vi.fn((pubkey: string, filter: string) =>
+      filter === 'all' ? true : pubkey === 'followed' || pubkey === 'me'
+    ),
+    isMutedMock: vi.fn((pubkey: string) => pubkey === 'muted-user'),
+    isWordMutedMock: vi.fn((content: string) => content.includes('blocked-word')),
+    muteUserMock: vi.fn(async () => {}),
+    toastSuccessMock: vi.fn(),
+    toastErrorMock: vi.fn(),
+    sendReactionMock: vi.fn(async () => {}),
+    sendRepostMock: vi.fn(async () => {}),
+    sendReplyMock: vi.fn(async () => {}),
+    deleteCommentMock: vi.fn(async () => {}),
+    logErrorMock: vi.fn()
+  };
+});
 
 vi.mock('$shared/browser/profile.js', () => ({
   getProfileDisplay: vi.fn((pubkey: string) => displayByPubkey[pubkey] ?? displayByPubkey.other)

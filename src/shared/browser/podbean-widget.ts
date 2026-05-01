@@ -83,7 +83,8 @@ function bindPodbeanWidget(widget: PodbeanWidgetApi, lifecycle: PodbeanWidgetLif
   });
 
   widget.bind(PODBEAN_PROGRESS_EVENT, (event?: unknown) => {
-    lifecycle.onProgress((event ?? {}) as PodbeanProgressEvent);
+    const progressEvent: PodbeanProgressEvent = event && typeof event === 'object' ? event : {};
+    lifecycle.onProgress(progressEvent);
   });
 }
 

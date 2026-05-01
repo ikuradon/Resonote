@@ -154,8 +154,7 @@ async function validateResolveResponse(data: unknown): Promise<ResolveApiRespons
     const verified: EventParameters[] = [];
     for (const event of result.signedEvents) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if (await verifySignedEvent(event as any)) verified.push(event);
+        if (await verifySignedEvent(event)) verified.push(event);
       } catch {
         // Invalid event shape or failed signature — skip
       }

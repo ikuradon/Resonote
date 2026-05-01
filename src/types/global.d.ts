@@ -1,7 +1,5 @@
 /// <reference types="chrome" />
 
-declare const chrome: typeof chrome;
-
 interface Window {
   nostr?: {
     getPublicKey(): Promise<string>;

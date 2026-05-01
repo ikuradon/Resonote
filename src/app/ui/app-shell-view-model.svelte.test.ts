@@ -23,16 +23,17 @@ const {
   const authState = { pubkey: null as string | null, initialized: false, loggedIn: false };
   const followsState = { follows: new Set<string>() };
   const relaysState: { url: string; state: string }[] = [];
+  const profileDisplayMap: Record<string, { displayName: string; picture?: string | null }> = {
+    abc123: { displayName: 'Alice', picture: 'https://example.com/alice.png' },
+    def456: { displayName: 'Bob', picture: undefined },
+    ghi789: { displayName: 'Carol', picture: undefined }
+  };
 
   return {
     authState,
     followsState,
     relaysState,
-    profileDisplayMap: {
-      abc123: { displayName: 'Alice', picture: 'https://example.com/alice.png' },
-      def456: { displayName: 'Bob', picture: undefined },
-      ghi789: { displayName: 'Carol', picture: undefined }
-    } as Record<string, { displayName: string; picture?: string | null }>,
+    profileDisplayMap,
     mockAfterNavigate: vi.fn(),
     mockGetLocale: vi.fn().mockReturnValue('en'),
     mockSetLocale: vi.fn(),

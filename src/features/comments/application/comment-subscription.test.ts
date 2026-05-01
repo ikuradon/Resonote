@@ -81,13 +81,7 @@ describe('comment-subscription wrappers', () => {
     const onBackwardComplete = vi.fn();
     startCommentSubscriptionMock.mockReturnValue(handles);
 
-    const result = startSubscription(
-      refs as never,
-      filters as never,
-      1000,
-      onPacket,
-      onBackwardComplete
-    );
+    const result = startSubscription(refs as never, filters, 1000, onPacket, onBackwardComplete);
 
     expect(result).toBe(handles);
     expect(startCommentSubscriptionMock).toHaveBeenCalledWith(
@@ -112,7 +106,7 @@ describe('comment-subscription wrappers', () => {
     const onPacket = vi.fn();
     startMergedCommentSubscriptionMock.mockReturnValue(handle);
 
-    const result = startMergedSubscription(refs as never, filters as never, onPacket);
+    const result = startMergedSubscription(refs as never, filters, onPacket);
 
     expect(result).toBe(handle);
     expect(startMergedCommentSubscriptionMock).toHaveBeenCalledWith(

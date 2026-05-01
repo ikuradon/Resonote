@@ -27,7 +27,7 @@ export async function resolveYouTubeFeed(
       return { title: '', videos: [], error: 'fetch_failed' };
     }
 
-    const data = (await res.json()) as { title: string; videos: YouTubeFeedVideo[] };
+    const data: { title: string; videos: YouTubeFeedVideo[] } = await res.json();
     return { title: data.title, videos: data.videos };
   } catch (err) {
     log.warn('YouTube feed resolve error', { error: err, type, id });
