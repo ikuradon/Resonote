@@ -550,15 +550,9 @@
               keyFn={(c) => c.id}
               estimateHeight={120}
               overscan={3}
-              onRangeChange={() => {
-                if (shoutHasBeenShown && shoutVirtualList) {
-                  // Use scroll position instead of range indices (which include overscan).
-                  // "At bottom" = scrolled within 50px of the end.
-                  const el = shoutVirtualList.getContainer?.();
-                  if (el) {
-                    vm.setShoutAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 50);
-                  }
-                }
+              onScrollMetrics={({ scrollTop, scrollHeight, clientHeight }) => {
+                if (!shoutHasBeenShown || shoutVirtualList?.isAutoScrolling()) return;
+                vm.setShoutAtBottom(scrollHeight - scrollTop - clientHeight < 50);
               }}
             >
               {#snippet children({ item: comment, index: i })}

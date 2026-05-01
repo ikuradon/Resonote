@@ -8,6 +8,11 @@
     overscan?: number;
     children: Snippet<[{ item: T; index: number }]>;
     onRangeChange?: (start: number, end: number) => void;
+    onScrollMetrics?: (metrics: {
+      scrollTop: number;
+      scrollHeight: number;
+      clientHeight: number;
+    }) => void;
   }
 
   let {
@@ -16,7 +21,8 @@
     estimateHeight = 80,
     overscan = 5,
     children,
-    onRangeChange
+    onRangeChange,
+    onScrollMetrics
   }: Props = $props();
 
   let container: HTMLDivElement | undefined;
@@ -160,10 +166,27 @@
   let isProgrammaticScroll = false;
   let programmaticScrollTimer: ReturnType<typeof setTimeout> | undefined;
 
-  function handleScroll() {
+  function syncScrollState() {
     if (container) {
       scrollTop = container.scrollTop;
       containerHeight = container.clientHeight;
+    }
+  }
+
+  function scrollContainerToEnd() {
+    if (!container) return;
+    container.scrollTo({ top: container.scrollHeight, behavior: 'instant' });
+    syncScrollState();
+  }
+
+  function handleScroll() {
+    syncScrollState();
+    if (container) {
+      onScrollMetrics?.({
+        scrollTop: container.scrollTop,
+        scrollHeight: container.scrollHeight,
+        clientHeight: container.clientHeight
+      });
     }
   }
 
@@ -202,7 +225,7 @@
       // If scrollToEnd is pending, re-scroll after DOM reflects new totalHeight
       if (pendingScrollToEnd && container) {
         requestAnimationFrame(() => {
-          container?.scrollTo({ top: container.scrollHeight, behavior: 'instant' });
+          scrollContainerToEnd();
         });
       }
     }
@@ -325,7 +348,7 @@
       isProgrammaticScroll = false;
       pendingScrollToEnd = false;
     }, 500);
-    container.scrollTo({ top: container.scrollHeight, behavior: 'instant' });
+    scrollContainerToEnd();
   }
 
   export function scrollToOffset(offset: number) {
