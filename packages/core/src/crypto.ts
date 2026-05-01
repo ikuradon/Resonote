@@ -1,6 +1,6 @@
-import { schnorr, secp256k1 } from '@noble/curves/secp256k1';
-import { sha256 } from '@noble/hashes/sha2';
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
+import { schnorr, secp256k1 } from '@noble/curves/secp256k1.js';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { bech32 } from '@scure/base';
 
 import type { Nip19Decoded, SignedNostrEvent, UnsignedNostrEvent } from './vocabulary.js';
@@ -84,7 +84,7 @@ export function getEventHash(event: UnsignedNostrEvent & { pubkey: string }): st
 export function finalizeEvent(event: UnsignedNostrEvent, secretKey: Uint8Array): SignedNostrEvent {
   const pubkey = getPublicKey(secretKey);
   const id = getEventHash({ ...event, pubkey });
-  const sig = bytesToHex(schnorr.sign(id, secretKey));
+  const sig = bytesToHex(schnorr.sign(hexToBytes(id), secretKey));
   return { ...event, id, pubkey, sig };
 }
 
@@ -112,7 +112,7 @@ export async function verifier(event: Partial<SignedNostrEvent>): Promise<boolea
   if (serializedId != event.id) return false;
 
   try {
-    return schnorr.verify(event.sig, event.id, event.pubkey);
+    return schnorr.verify(hexToBytes(event.sig), hexToBytes(event.id), hexToBytes(event.pubkey));
   } catch {
     return false;
   }

@@ -1,5 +1,5 @@
-import { sha256 } from '@noble/hashes/sha2';
-import { bytesToHex } from '@noble/hashes/utils';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import type { Event as NostrEvent, EventParameters, Filter } from 'nostr-typedef';
 
 export const NIPB7_BLOSSOM_SERVER_LIST_KIND = 10063;
