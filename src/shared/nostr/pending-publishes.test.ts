@@ -14,6 +14,9 @@ import {
 
 let dbCounter = 0;
 
+const LEGACY_PENDING_DB_NAME = 'resonote-pending-publishes';
+const LEGACY_PENDING_STORE_NAME = 'events';
+
 function makeEvent(overrides: {
   id?: string;
   kind?: number;
@@ -35,7 +38,8 @@ function makeEvent(overrides: {
 }
 
 describe('pending-publishes', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await deleteIndexedDB(LEGACY_PENDING_DB_NAME);
     resetPendingDB(`resonote-pending-test-${dbCounter++}`);
   });
 
@@ -211,5 +215,64 @@ describe('pending-publishes', () => {
       ]);
       expect(await getPendingPublishes()).toHaveLength(1);
     });
+
+    it('旧 pending publish DB を Dexie に移行してから drain する', async () => {
+      await putLegacyPendingPublish(makeEvent({ id: 'legacy-retry' }));
+
+      const result = await drainPendingPublishes(async () => 'retrying');
+
+      expect(result.settledCount).toBe(0);
+      expect(result.retryingCount).toBe(1);
+      expect(result.emissions).toEqual([
+        {
+          subjectId: 'legacy-retry',
+          reason: 'repaired-replay',
+          state: 'repairing'
+        }
+      ]);
+      expect((await getPendingPublishes()).map((event) => event.id)).toEqual(['legacy-retry']);
+    });
   });
 });
+
+async function putLegacyPendingPublish(event: ReturnType<typeof makeEvent>): Promise<void> {
+  const db = await openLegacyPendingDB();
+  try {
+    const tx = db.transaction(LEGACY_PENDING_STORE_NAME, 'readwrite');
+    tx.objectStore(LEGACY_PENDING_STORE_NAME).put(event);
+    await transactionDone(tx);
+  } finally {
+    db.close();
+  }
+}
+
+function openLegacyPendingDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(LEGACY_PENDING_DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(LEGACY_PENDING_STORE_NAME)) {
+        db.createObjectStore(LEGACY_PENDING_STORE_NAME, { keyPath: 'id' });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error ?? new Error('legacy DB open failed'));
+  });
+}
+
+function transactionDone(tx: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error ?? new Error('transaction failed'));
+    tx.onabort = () => reject(tx.error ?? new Error('transaction aborted'));
+  });
+}
+
+function deleteIndexedDB(name: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(name);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error ?? new Error('delete DB failed'));
+    request.onblocked = () => resolve();
+  });
+}

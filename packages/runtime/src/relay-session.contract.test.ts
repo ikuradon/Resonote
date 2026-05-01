@@ -3,7 +3,7 @@ import { createRuntimeRequestKey } from '@auftakt/core';
 import { REPAIR_REQUEST_COALESCING_SCOPE } from '@auftakt/runtime';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createBackwardReq, createForwardReq, createRelaySession } from './index.js';
+import { createBackwardReq, createForwardReq, createRelaySession, nip07Signer } from './index.js';
 
 type Listener = (event?: unknown) => void;
 
@@ -316,6 +316,58 @@ describe('relay replay request identity contract', () => {
 
     sub.unsubscribe();
     session.dispose();
+  });
+
+  it('binds NIP-07 provider methods to window.nostr', async () => {
+    const originalWindow = (globalThis as { window?: unknown }).window;
+    const provider = {
+      pubkey: 'provider-bound-pubkey',
+      async getPublicKey(this: { pubkey: string }) {
+        return this.pubkey;
+      },
+      async signEvent(this: { pubkey: string }, event: UnsignedEvent) {
+        return {
+          ...event,
+          pubkey: this.pubkey,
+          id: 'provider-bound-event',
+          sig: 'provider-bound-sig'
+        };
+      }
+    };
+
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      writable: true,
+      value: { nostr: provider }
+    });
+
+    try {
+      const signer = nip07Signer();
+
+      await expect(signer.getPublicKey()).resolves.toBe('provider-bound-pubkey');
+      await expect(
+        signer.signEvent({
+          kind: 1,
+          content: 'hello',
+          created_at: 1,
+          tags: []
+        })
+      ).resolves.toMatchObject({
+        pubkey: 'provider-bound-pubkey',
+        id: 'provider-bound-event',
+        sig: 'provider-bound-sig'
+      });
+    } finally {
+      if (originalWindow === undefined) {
+        Reflect.deleteProperty(globalThis, 'window');
+      } else {
+        Object.defineProperty(globalThis, 'window', {
+          configurable: true,
+          writable: true,
+          value: originalWindow
+        });
+      }
+    }
   });
 
   it('drops a queued EVENT when its initial relay connection fails', async () => {

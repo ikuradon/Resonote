@@ -247,6 +247,11 @@ function captureOnPacket(): { getOnPacket: () => PacketHandler } {
   return { getOnPacket: () => captured };
 }
 
+async function flushPromises(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -1269,6 +1274,20 @@ describe('createCommentViewModel', () => {
 
       expect(vm.comments).toHaveLength(1);
       expect(vm.comments[0].id).toBe('live-c1');
+    });
+
+    it('DB 書き込みが reject しても live コメントを処理する', async () => {
+      const { getOnPacket } = captureOnPacket();
+      cacheCommentEventMock.mockRejectedValueOnce(new Error('quota exceeded'));
+
+      const vm = createCommentViewModel(contentId, provider);
+      await vm.subscribe();
+
+      getOnPacket()(makeCommentEvent('live-cache-fail'));
+      await flushPromises();
+
+      expect(vm.comments).toHaveLength(1);
+      expect(vm.comments[0].id).toBe('live-cache-fail');
     });
 
     it('deduplicates comments with same id', async () => {

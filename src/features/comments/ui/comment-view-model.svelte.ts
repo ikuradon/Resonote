@@ -285,13 +285,17 @@ export function createCommentViewModel(contentId: ContentId, provider: ContentPr
     }
 
     if (isPromiseLike<unknown>(putResult)) {
-      void putResult.then((accepted: unknown) => {
-        if (accepted === false) {
-          handleSuppressedEvent();
-          return;
-        }
-        processAcceptedEvent();
-      });
+      void putResult
+        .then((accepted: unknown) => {
+          if (accepted === false) {
+            handleSuppressedEvent();
+            return;
+          }
+          processAcceptedEvent();
+        })
+        .catch(() => {
+          processAcceptedEvent();
+        });
       return;
     }
 

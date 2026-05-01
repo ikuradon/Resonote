@@ -2015,8 +2015,8 @@ function getWindowNostr(): {
     throw new Error('window.nostr is unavailable');
   }
   return {
-    getPublicKey: nostr.getPublicKey,
-    signEvent: nostr.signEvent
+    getPublicKey: nostr.getPublicKey.bind(nostr),
+    signEvent: nostr.signEvent.bind(nostr)
   };
 }
 
