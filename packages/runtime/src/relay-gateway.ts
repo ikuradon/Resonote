@@ -64,6 +64,11 @@ export function createRelayGateway(deps: {
       }
 
       const remoteOnlyIds = parseRemoteOnlyIds(negentropy.messageHex, localRefs);
+      if (!remoteOnlyIds) {
+        const events = await deps.fetchByReq(filters, options);
+        return { strategy: 'fallback-req', candidates: toCandidates(events, options.relayUrl) };
+      }
+
       if (remoteOnlyIds.length > 0) {
         const events = await deps.fetchByReq([{ ids: remoteOnlyIds }], options);
         return { strategy: 'negentropy', candidates: toCandidates(events, options.relayUrl) };
@@ -84,12 +89,12 @@ function toCandidates(
 function parseRemoteOnlyIds(
   messageHex: string | undefined,
   localRefs: readonly { readonly id: string }[]
-): string[] {
-  if (!messageHex) return [];
+): string[] | null {
+  if (!messageHex) return null;
   try {
     const localIds = new Set(localRefs.map((event) => event.id));
     return decodeNegentropyIdListMessage(messageHex).filter((id) => !localIds.has(id));
   } catch {
-    return [];
+    return null;
   }
 }

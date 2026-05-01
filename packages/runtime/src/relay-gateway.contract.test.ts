@@ -73,6 +73,28 @@ describe('RelayGateway verification planner', () => {
     ]);
   });
 
+  it('falls back to REQ when a supported negentropy response cannot be decoded', async () => {
+    const event = { id: 'event-from-fallback', created_at: 123 };
+    const fetchByReq = vi.fn(async () => [event]);
+    const gateway = createRelayGateway({
+      requestNegentropySync: vi.fn(async () => ({
+        capability: 'supported',
+        messageHex: '6100000201'
+      })),
+      fetchByReq,
+      listLocalRefs: vi.fn(async () => [])
+    });
+
+    const filters = [{ kinds: [1] }];
+    const result = await gateway.verify(filters, { relayUrl: 'wss://relay.example' });
+
+    expect(fetchByReq).toHaveBeenCalledWith(filters, { relayUrl: 'wss://relay.example' });
+    expect(result).toEqual({
+      strategy: 'fallback-req',
+      candidates: [{ event, relayUrl: 'wss://relay.example' }]
+    });
+  });
+
   it('opens ordinary negentropy verification with a hex initial message', async () => {
     const requestNegentropySync = vi.fn(async () => ({
       capability: 'supported' as const,
