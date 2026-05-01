@@ -37,9 +37,8 @@ test は bug fix の再発防止を証明し、runtime safety に関係する co
 contract tests は次を cover する。
 
 - empty local set を `6100000200` に encode すること
-- `6100000200` の byte-level 意味を test fixture 近くの comment に残すこと:
-  `61` = protocol version、`00` = infinity upper timestamp、`00` = empty ID prefix、
-  `02` = ID-list mode、`00` = empty list length
+- `6100000200` の byte-level 意味を、helper 実装上の frame / field boundary に合わせて
+  test fixture 近くの comment に残すこと
 - encode 前に event refs を `created_at` と `id` で sort すること。test は同じ
   `created_at` の複数 event を逆順で渡し、`id` tie-breaker まで固定する
 - ID-list message を event IDs に decode できること
@@ -48,14 +47,18 @@ contract tests は次を cover する。
 - unsupported protocol version を reject すること
 - encode 時に invalid event ID を reject すること。invalid length と 64 chars だが
   non-hex を含む case を分ける
-- uppercase hex input は accept し、decode 結果を lowercase hex IDs に normalize すること
+- helper が uppercase hex input を許容する場合、その decode 結果は lowercase hex IDs に
+  normalize されることを固定する
 - duplicate IDs は codec layer では preserve すること。dedupe は上位 layer の責務とし、
-  codec は wire data の ID-list を忠実に返す
+  codec は valid wire data に対して lossless decoder として振る舞う。これにより relay
+  response の重複や異常を parsing layer で隠さない
 - decode 側でも empty ID-list message は空配列として扱うこと
 - decode 時に unsupported mode と truncated ID list を reject すること
+- skip range fixture は byte-level 意味を comment で明示すること
 - skip range frame だけの message を decode しても synthetic event ID は生成しないこと
-- skip range の後ろに ID-list frame がある message では、ID-list frame の IDs だけを返すこと
-- extra trailing bytes は valid range として decode できない限り reject すること
+- skip range の後ろに ID-list frame がある message では、skip range を無視し、
+  ID-list frame の IDs だけを返すこと
+- 後続 frame として完全に parse できない余剰 bytes は reject すること
 
 ## Error Handling
 
