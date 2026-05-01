@@ -43,7 +43,10 @@ describe('createKeyboardShortcuts', () => {
     shortcuts.destroy();
   });
 
-  function fireKey(key: string, opts: Partial<KeyboardEventInit> = {}): boolean {
+  function fireKey(
+    key: string,
+    opts: Partial<KeyboardEventInit> & { target?: EventTarget | null } = {}
+  ): boolean {
     const event = {
       key,
       shiftKey: false,
@@ -134,6 +137,15 @@ describe('createKeyboardShortcuts', () => {
   it('ignores single keys when input is focused', () => {
     shortcuts.setInputFocused(true);
     fireKey('f');
+    expect(actions.switchToFlow).not.toHaveBeenCalled();
+  });
+
+  it('ignores shortcuts from textarea keydown targets even when focus state is stale', () => {
+    const handled = fireKey('f', {
+      target: { tagName: 'TEXTAREA' } as unknown as EventTarget
+    });
+
+    expect(handled).toBe(false);
     expect(actions.switchToFlow).not.toHaveBeenCalled();
   });
 
