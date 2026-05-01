@@ -51,6 +51,7 @@ export async function initSession(pubkey: string): Promise<void> {
   void loadCustomEmojis(pubkey).catch((err) => log.error('Failed to load custom emojis', err));
   void loadBookmarks(pubkey).catch((err) => log.error('Failed to load bookmarks', err));
   void loadMuteList(pubkey).catch((err) => log.error('Failed to load mute list', err));
+  // 先行 hydrate で未解決だった場合だけ、user relay 適用後の読み取りとして効く。
   hydrateCurrentUserProfile(fetchProfile, pubkey);
 }
 
