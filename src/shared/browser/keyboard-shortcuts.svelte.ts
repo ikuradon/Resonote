@@ -16,6 +16,40 @@ export interface ShortcutActions {
   showHelp: () => void;
 }
 
+const EDITABLE_SHORTCUT_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
+const EDITABLE_SHORTCUT_SELECTOR =
+  'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]';
+
+function getKeyboardEventTarget(e: KeyboardEvent): EventTarget | null {
+  const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
+  return path[0] ?? e.target;
+}
+
+function isEditableShortcutTarget(target: EventTarget | null): boolean {
+  if (!target || typeof target !== 'object') return false;
+
+  const element = target as {
+    tagName?: string;
+    nodeName?: string;
+    isContentEditable?: boolean;
+    closest?: (selector: string) => Element | null;
+  };
+  const tagName =
+    typeof element.tagName === 'string'
+      ? element.tagName.toUpperCase()
+      : typeof element.nodeName === 'string'
+        ? element.nodeName.toUpperCase()
+        : '';
+
+  if (EDITABLE_SHORTCUT_TAGS.has(tagName)) return true;
+  if (element.isContentEditable === true) return true;
+  if (typeof element.closest === 'function') {
+    return element.closest(EDITABLE_SHORTCUT_SELECTOR) !== null;
+  }
+
+  return false;
+}
+
 export function createKeyboardShortcuts(actions: ShortcutActions) {
   let inputFocused = false;
 
@@ -31,7 +65,7 @@ export function createKeyboardShortcuts(actions: ShortcutActions) {
     }
 
     // Skip single-key shortcuts when typing in input/textarea
-    if (inputFocused) return false;
+    if (inputFocused || isEditableShortcutTarget(getKeyboardEventTarget(e))) return false;
 
     // Shift+S → openShare (must check before 's')
     if (e.key === 'S' && e.shiftKey && !e.ctrlKey && !e.metaKey) {
