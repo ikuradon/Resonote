@@ -1,3 +1,8 @@
+import {
+  decodeNegentropyIdListMessage,
+  encodeNegentropyIdListMessage
+} from './negentropy-message.js';
+
 export type RelayGatewayStrategy = 'negentropy' | 'fallback-req';
 
 export interface RelayGatewayNegentropyResult {
@@ -50,7 +55,7 @@ export function createRelayGateway(deps: {
       const negentropy = await deps.requestNegentropySync({
         relayUrl: options.relayUrl,
         filter: filters[0] ?? {},
-        initialMessageHex: JSON.stringify(localRefs)
+        initialMessageHex: encodeNegentropyIdListMessage(localRefs)
       });
 
       if (negentropy.capability !== 'supported') {
@@ -58,7 +63,7 @@ export function createRelayGateway(deps: {
         return { strategy: 'fallback-req', candidates: toCandidates(events, options.relayUrl) };
       }
 
-      const remoteOnlyIds = parseRemoteOnlyIds(negentropy.messageHex);
+      const remoteOnlyIds = parseRemoteOnlyIds(negentropy.messageHex, localRefs);
       if (remoteOnlyIds.length > 0) {
         const events = await deps.fetchByReq([{ ids: remoteOnlyIds }], options);
         return { strategy: 'negentropy', candidates: toCandidates(events, options.relayUrl) };
@@ -76,13 +81,14 @@ function toCandidates(
   return events.map((event) => ({ event, relayUrl }));
 }
 
-function parseRemoteOnlyIds(messageHex: string | undefined): string[] {
+function parseRemoteOnlyIds(
+  messageHex: string | undefined,
+  localRefs: readonly { readonly id: string }[]
+): string[] {
   if (!messageHex) return [];
   try {
-    const parsed = JSON.parse(messageHex) as { remoteOnlyIds?: unknown };
-    return Array.isArray(parsed.remoteOnlyIds)
-      ? parsed.remoteOnlyIds.filter((id): id is string => typeof id === 'string')
-      : [];
+    const localIds = new Set(localRefs.map((event) => event.id));
+    return decodeNegentropyIdListMessage(messageHex).filter((id) => !localIds.has(id));
   } catch {
     return [];
   }
