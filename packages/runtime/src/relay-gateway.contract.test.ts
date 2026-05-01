@@ -38,13 +38,14 @@ describe('RelayGateway verification planner', () => {
   });
 
   it('wraps missing ids found by negentropy as internal relay candidates', async () => {
+    const missingId = 'a'.repeat(64);
     const fetchByReq = vi.fn(async () => [
-      { id: 'missing', pubkey: 'p1', created_at: 1, kind: 1, tags: [], content: '', sig: 'sig' }
+      { id: missingId, pubkey: 'p1', created_at: 1, kind: 1, tags: [], content: '', sig: 'sig' }
     ]);
     const gateway = createRelayGateway({
       requestNegentropySync: vi.fn(async () => ({
         capability: 'supported',
-        messageHex: JSON.stringify({ remoteOnlyIds: ['missing'] })
+        messageHex: `6100000201${missingId}`
       })),
       fetchByReq,
       listLocalRefs: vi.fn(async () => [])
@@ -52,7 +53,7 @@ describe('RelayGateway verification planner', () => {
 
     const result = await gateway.verify([{ kinds: [1] }], { relayUrl: 'wss://relay.example' });
 
-    expect(fetchByReq).toHaveBeenCalledWith([{ ids: ['missing'] }], {
+    expect(fetchByReq).toHaveBeenCalledWith([{ ids: [missingId] }], {
       relayUrl: 'wss://relay.example'
     });
     expect(result).not.toHaveProperty('events');
@@ -60,7 +61,7 @@ describe('RelayGateway verification planner', () => {
       {
         relayUrl: 'wss://relay.example',
         event: {
-          id: 'missing',
+          id: missingId,
           pubkey: 'p1',
           created_at: 1,
           kind: 1,
@@ -70,6 +71,48 @@ describe('RelayGateway verification planner', () => {
         }
       }
     ]);
+  });
+
+  it('falls back to REQ when a supported negentropy response cannot be decoded', async () => {
+    const event = { id: 'event-from-fallback', created_at: 123 };
+    const fetchByReq = vi.fn(async () => [event]);
+    const gateway = createRelayGateway({
+      requestNegentropySync: vi.fn(async () => ({
+        capability: 'supported',
+        messageHex: '6100000201'
+      })),
+      fetchByReq,
+      listLocalRefs: vi.fn(async () => [])
+    });
+
+    const filters = [{ kinds: [1] }];
+    const result = await gateway.verify(filters, { relayUrl: 'wss://relay.example' });
+
+    expect(fetchByReq).toHaveBeenCalledWith(filters, { relayUrl: 'wss://relay.example' });
+    expect(result).toEqual({
+      strategy: 'fallback-req',
+      candidates: [{ event, relayUrl: 'wss://relay.example' }]
+    });
+  });
+
+  it('opens ordinary negentropy verification with a hex initial message', async () => {
+    const requestNegentropySync = vi.fn(async () => ({
+      capability: 'supported' as const,
+      messageHex: '6100000200'
+    }));
+    const gateway = createRelayGateway({
+      requestNegentropySync,
+      fetchByReq: vi.fn(async () => []),
+      listLocalRefs: vi.fn(async () => [])
+    });
+
+    await gateway.verify([{ kinds: [1] }], { relayUrl: 'wss://relay.example' });
+
+    expect(requestNegentropySync).toHaveBeenCalledWith({
+      relayUrl: 'wss://relay.example',
+      filter: { kinds: [1] },
+      initialMessageHex: '6100000200'
+    });
   });
 
   it('falls back to REQ for multiple filters so later filters are not skipped', async () => {
@@ -84,7 +127,7 @@ describe('RelayGateway verification planner', () => {
     };
     const requestNegentropySync = vi.fn(async () => ({
       capability: 'supported' as const,
-      messageHex: JSON.stringify({ remoteOnlyIds: [] })
+      messageHex: '6100000200'
     }));
     const fetchByReq = vi.fn(async () => [secondFilterEvent]);
     const gateway = createRelayGateway({
@@ -111,7 +154,7 @@ describe('RelayGateway verification planner', () => {
     const event = { id: 'event-from-req', created_at: 123 };
     const requestNegentropySync = vi.fn(async () => ({
       capability: 'supported' as const,
-      messageHex: JSON.stringify({ remoteOnlyIds: ['should-not-be-used'] })
+      messageHex: '6100000200'
     }));
     const fetchByReq = vi.fn(async () => [event]);
 

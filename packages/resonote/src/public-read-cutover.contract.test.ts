@@ -4,6 +4,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { createResonoteCoordinator } from './runtime.js';
 
 const RELAY_SECRET_KEY = new Uint8Array(32).fill(9);
+const EMPTY_NEGENTROPY_ID_LIST_MESSAGE = '6100000200';
+
+function encodeNegentropyIdList(ids: readonly string[]): string {
+  if (ids.length > 127) throw new Error('test helper only supports short id lists');
+  return `61000002${ids.length.toString(16).padStart(2, '0')}${ids.join('')}`;
+}
 
 interface RequestRecord {
   readonly options: unknown;
@@ -212,7 +218,7 @@ describe('@auftakt/resonote public read cutover', () => {
       relayEvents: [relayEvent],
       negentropyResult: {
         capability: 'supported',
-        messageHex: JSON.stringify({ remoteOnlyIds: [relayEvent.id] })
+        messageHex: encodeNegentropyIdList([relayEvent.id])
       },
       putWithReconcile: async (event) => {
         materialized.push(event);
@@ -231,7 +237,7 @@ describe('@auftakt/resonote public read cutover', () => {
       {
         relayUrl: 'wss://default.example/',
         filter: { kinds: [0], authors: [relayEvent.pubkey], limit: 1 },
-        initialMessageHex: '[]',
+        initialMessageHex: EMPTY_NEGENTROPY_ID_LIST_MESSAGE,
         timeoutMs: 250
       }
     ]);
@@ -350,7 +356,7 @@ describe('@auftakt/resonote public read cutover', () => {
       relayEvents: [relayEvent],
       negentropyResult: {
         capability: 'supported',
-        messageHex: JSON.stringify({ remoteOnlyIds: [relayEvent.id] })
+        messageHex: encodeNegentropyIdList([relayEvent.id])
       },
       putWithReconcile: async (event) => {
         materialized.push(event);
@@ -367,7 +373,7 @@ describe('@auftakt/resonote public read cutover', () => {
       {
         relayUrl: 'wss://default.example/',
         filter: { kinds: [1], limit: 20 },
-        initialMessageHex: '[]',
+        initialMessageHex: EMPTY_NEGENTROPY_ID_LIST_MESSAGE,
         timeoutMs: 250
       }
     ]);
