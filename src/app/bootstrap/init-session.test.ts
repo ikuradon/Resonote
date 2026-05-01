@@ -139,12 +139,29 @@ describe('initSession', () => {
     expect(fetchProfileMock).toHaveBeenCalledWith(PUBKEY);
   });
 
+  it('current user profile hydrate は user relay list 解決を待たずに開始する', async () => {
+    let resolveRelays!: (urls: string[]) => void;
+    applyUserRelaysMock.mockReturnValueOnce(
+      new Promise<string[]>((resolve) => {
+        resolveRelays = resolve;
+      })
+    );
+
+    const pending = initSession(PUBKEY);
+    await vi.waitUntil(() => applyUserRelaysMock.mock.calls.length > 0);
+
+    expect(fetchProfileMock).toHaveBeenCalledWith(PUBKEY);
+
+    resolveRelays(RELAY_URLS);
+    await pending;
+  });
+
   it('ログイン切替時は都度その pubkey で profile hydrate を実行する', async () => {
     await initSession(PUBKEY);
     await initSession(PUBKEY_2);
 
-    expect(fetchProfileMock).toHaveBeenNthCalledWith(1, PUBKEY);
-    expect(fetchProfileMock).toHaveBeenNthCalledWith(2, PUBKEY_2);
+    expect(fetchProfileMock).toHaveBeenCalledWith(PUBKEY);
+    expect(fetchProfileMock).toHaveBeenCalledWith(PUBKEY_2);
   });
 
   it('loadFollows が失敗しても全体は正常終了する', async () => {

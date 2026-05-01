@@ -131,7 +131,8 @@ describe('nlAuth イベント: login', () => {
     expect(launchLogin).not.toHaveBeenCalled();
     expect(initSession).toHaveBeenCalledOnce();
     expect(initSession).toHaveBeenCalledWith(TEST_PUBKEY);
-    expect(getAuth().pubkey).toBeNull();
+    expect(getAuth().pubkey).toBe(TEST_PUBKEY);
+    expect(getAuth().loggedIn).toBe(true);
 
     resolveInit();
     await vi.waitUntil(() => getAuth().pubkey === TEST_PUBKEY);
@@ -148,7 +149,7 @@ describe('nlAuth イベント: login', () => {
     expect(getAuth().loggedIn).toBe(true);
   });
 
-  it('initSession 完了前は pubkey を公開しない', async () => {
+  it('initSession 完了前でも pubkey を公開して UI をログイン済みにする', async () => {
     let resolveInit!: () => void;
     const { getAuth, initAuth } = await import('./auth.svelte.js');
     const { initSession } = await import('$appcore/bootstrap/init-session.js');
@@ -161,7 +162,8 @@ describe('nlAuth イベント: login', () => {
     dispatchNlAuth('login');
     await vi.waitUntil(() => (initSession as ReturnType<typeof vi.fn>).mock.calls.length > 0);
 
-    expect(getAuth().pubkey).toBeNull();
+    expect(getAuth().pubkey).toBe(TEST_PUBKEY);
+    expect(getAuth().loggedIn).toBe(true);
 
     resolveInit();
     await vi.waitUntil(() => getAuth().pubkey !== null);
