@@ -1,41 +1,45 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { dbState, openDBMock, pickerModule, rawData } = vi.hoisted(() => ({
-  dbState: {
-    cachedData: null as unknown | null,
-    putCalls: [] as unknown[],
+const { dbState, openDBMock, pickerModule, rawData } = vi.hoisted(() => {
+  const dbState: { cachedData: unknown | null; putCalls: unknown[]; clearCalls: number } = {
+    cachedData: null,
+    putCalls: [],
     clearCalls: 0
-  },
-  openDBMock: vi.fn(
-    async (
-      _name: string,
-      _version: number,
-      options?: { upgrade?: (db: { createObjectStore(name: string): void }) => void }
-    ) => {
-      options?.upgrade?.({
-        createObjectStore() {
-          // noop
-        }
-      });
-      return {
-        get: vi.fn(async () => dbState.cachedData),
-        clear: vi.fn(async () => {
-          dbState.clearCalls += 1;
-          dbState.cachedData = null;
-        }),
-        put: vi.fn(async (_store: string, data: unknown) => {
-          dbState.putCalls.push(data);
-          dbState.cachedData = data;
-        }),
-        close: vi.fn()
-      };
-    }
-  ),
-  pickerModule: {
-    Picker: class Picker {}
-  },
-  rawData: { categories: ['smile'] }
-}));
+  };
+
+  return {
+    dbState,
+    openDBMock: vi.fn(
+      async (
+        _name: string,
+        _version: number,
+        options?: { upgrade?: (db: { createObjectStore(name: string): void }) => void }
+      ) => {
+        options?.upgrade?.({
+          createObjectStore() {
+            // noop
+          }
+        });
+        return {
+          get: vi.fn(async () => dbState.cachedData),
+          clear: vi.fn(async () => {
+            dbState.clearCalls += 1;
+            dbState.cachedData = null;
+          }),
+          put: vi.fn(async (_store: string, data: unknown) => {
+            dbState.putCalls.push(data);
+            dbState.cachedData = data;
+          }),
+          close: vi.fn()
+        };
+      }
+    ),
+    pickerModule: {
+      Picker: class Picker {}
+    },
+    rawData: { categories: ['smile'] }
+  };
+});
 
 vi.mock('idb', () => ({
   openDB: openDBMock

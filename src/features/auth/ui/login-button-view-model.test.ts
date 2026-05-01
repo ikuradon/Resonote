@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { authState, profileDisplayMap, fetchProfileMock, loginNostrMock, logoutNostrMock } =
-  vi.hoisted(() => ({
-    authState: { pubkey: null as string | null, initialized: true, loggedIn: false },
-    profileDisplayMap: {
+  vi.hoisted(() => {
+    const profileDisplayMap: Record<
+      string,
+      { displayName: string; profileHref: string; picture?: string }
+    > = {
       'pubkey-alice': {
         displayName: 'Alice',
         profileHref: '/profile/npub1alice',
@@ -14,11 +16,16 @@ const { authState, profileDisplayMap, fetchProfileMock, loginNostrMock, logoutNo
         profileHref: '/profile/npub1bob',
         picture: undefined
       }
-    } as Record<string, { displayName: string; profileHref: string; picture?: string }>,
-    fetchProfileMock: vi.fn(),
-    loginNostrMock: vi.fn(async () => {}),
-    logoutNostrMock: vi.fn(async () => {})
-  }));
+    };
+
+    return {
+      authState: { pubkey: null as string | null, initialized: true, loggedIn: false },
+      profileDisplayMap,
+      fetchProfileMock: vi.fn(),
+      loginNostrMock: vi.fn(async () => {}),
+      logoutNostrMock: vi.fn(async () => {})
+    };
+  });
 
 vi.mock('$shared/browser/auth.js', () => ({
   getAuth: () => authState,

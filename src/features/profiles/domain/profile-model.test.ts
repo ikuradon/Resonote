@@ -117,7 +117,7 @@ describe('formatDisplayName — malformed kind:0 data', () => {
 
   it('handles profile with only unknown fields', () => {
     // Extra fields are irrelevant; no displayName/name → falls back to npub
-    const result = formatDisplayName(TEST_PUBKEY, { about: 'bio only' } as never);
+    const result = formatDisplayName(TEST_PUBKEY, { about: 'bio only' });
     expect(result).toMatch(/^npub1[a-z0-9]{7}\.\.\.([a-z0-9]{4})$/);
   });
 

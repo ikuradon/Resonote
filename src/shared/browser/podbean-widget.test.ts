@@ -42,7 +42,7 @@ describe('mountPodbeanWidget', () => {
 
     vi.stubGlobal('window', {
       PB: vi.fn(PodbeanWidget)
-    } as unknown as Window & typeof globalThis & { PB?: unknown });
+    });
 
     const iframeEl = {
       contentDocument: { readyState: 'complete' },

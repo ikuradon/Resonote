@@ -22,7 +22,7 @@ function requestFeed(
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);
   }
-  return app.request(url.toString(), undefined, env as Bindings);
+  return app.request(url.toString(), undefined, env);
 }
 
 async function parseJson(response: Response) {

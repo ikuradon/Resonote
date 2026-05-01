@@ -19,7 +19,7 @@ function requestPubkey(
   app: Hono<{ Bindings: Bindings }>,
   env: Partial<Bindings> = {}
 ): Response | Promise<Response> {
-  return app.request('/system/pubkey', undefined, env as Bindings);
+  return app.request('/system/pubkey', undefined, env);
 }
 
 async function parseJsonResponse(res: Response): Promise<Record<string, unknown>> {

@@ -1,6 +1,6 @@
-import { schnorr } from '@noble/curves/secp256k1';
-import { sha256 } from '@noble/hashes/sha2';
-import { bytesToHex } from '@noble/hashes/utils';
+import { schnorr } from '@noble/curves/secp256k1.js';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import type { Event as NostrEvent } from 'nostr-typedef';
 
 export type RelayEventValidationFailureReason = 'malformed' | 'invalid-id' | 'invalid-signature';
@@ -65,7 +65,11 @@ export async function validateRelayEvent(input: unknown): Promise<RelayEventVali
   }
 
   try {
-    const validSignature = await schnorr.verify(event.sig, event.id, event.pubkey);
+    const validSignature = schnorr.verify(
+      hexToBytes(event.sig),
+      hexToBytes(event.id),
+      hexToBytes(event.pubkey)
+    );
     if (!validSignature) return { ok: false, reason: 'invalid-signature' };
   } catch {
     return { ok: false, reason: 'invalid-signature' };

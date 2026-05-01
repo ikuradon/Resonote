@@ -1,3 +1,5 @@
+/// <reference types="chrome" />
+
 interface Window {
   nostr?: {
     getPublicKey(): Promise<string>;

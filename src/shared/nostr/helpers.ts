@@ -122,7 +122,7 @@ export function getContentPathFromTags(tags: string[][]): string | null {
 export function decodeContentLink(str: string): { contentId: ContentId; relays: string[] } | null {
   try {
     if (!str.includes('1')) return null;
-    const { prefix, bytes } = bech32.decodeToBytes(str as `${string}1${string}`);
+    const { prefix, bytes } = bech32.decodeToBytes(str);
     if (prefix !== 'ncontent') return null;
 
     let contentStr = '';

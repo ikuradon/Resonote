@@ -1,5 +1,5 @@
 import { getProfileDisplay, type ProfileDisplay } from '$shared/browser/profile.js';
-import { t, type TranslationKey } from '$shared/i18n/t.js';
+import { t } from '$shared/i18n/t.js';
 import { getContentPathFromTags } from '$shared/nostr/helpers.js';
 import { isEmojiTag } from '$shared/utils/emoji.js';
 
@@ -62,7 +62,7 @@ export function typeIcon(type: NotificationType): string {
 }
 
 export function typeLabel(type: NotificationType): string {
-  return t(`notification.${type}` as TranslationKey);
+  return t(`notification.${type}`);
 }
 
 export function relativeTime(ts: number): string {
