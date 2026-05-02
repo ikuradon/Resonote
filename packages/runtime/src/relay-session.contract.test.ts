@@ -1625,6 +1625,57 @@ describe('relay replay request identity contract', () => {
     session.dispose();
   });
 
+  it('resolves negentropy responses from a canonicalized relay URL', async () => {
+    const normalizedRelayUrl = `${RELAY_URL}/`;
+    const session = createRelaySession({
+      defaultRelays: [],
+      eoseTimeout: 100
+    });
+
+    const warmup = session.requestCount({
+      relayUrl: normalizedRelayUrl,
+      filters: [{ kinds: [1] }],
+      timeoutMs: 100
+    });
+
+    await waitUntil(() =>
+      FakeWebSocket.instances.some((socket) => socket.url === normalizedRelayUrl)
+    );
+    const socket = FakeWebSocket.instances.find((entry) => entry.url === normalizedRelayUrl);
+    if (!socket) throw new Error('canonical socket was not created');
+    socket.open();
+    await waitUntil(() => socket.sent.length > 0);
+
+    const countPacket = socket.sent[0] as [string, string, Record<string, unknown>];
+    socket.message(['COUNT', countPacket[1], { count: 1 }]);
+    await expect(warmup).resolves.toEqual({ capability: 'supported', count: 1 });
+
+    const pending = session.requestNegentropySync({
+      relayUrl: RELAY_URL,
+      filter: { kinds: [1], authors: ['pubkey-a'] },
+      initialMessageHex: '6100000200',
+      timeoutMs: 100
+    });
+
+    await waitUntil(() =>
+      socket.sent.some((packet) => Array.isArray(packet) && packet[0] === 'NEG-OPEN')
+    );
+    const openPacket = socket.sent.find(
+      (packet): packet is [string, string, Record<string, unknown>, string] =>
+        Array.isArray(packet) && packet[0] === 'NEG-OPEN'
+    );
+    if (!openPacket) throw new Error('NEG-OPEN packet was not sent');
+    socket.message(['NEG-MSG', openPacket[1], '6100000201']);
+
+    await expect(pending).resolves.toEqual({
+      capability: 'supported',
+      messageHex: '6100000201'
+    });
+    expect(FakeWebSocket.instances.map((entry) => entry.url)).toEqual([normalizedRelayUrl]);
+
+    session.dispose();
+  });
+
   it('sends NIP-45 COUNT requests and resolves count responses', async () => {
     const session = createRelaySession({
       defaultRelays: [RELAY_URL],
@@ -1656,6 +1707,51 @@ describe('relay replay request identity contract', () => {
       approximate: true,
       hll
     });
+
+    session.dispose();
+  });
+
+  it('resolves NIP-45 COUNT responses from a canonicalized relay URL', async () => {
+    const normalizedRelayUrl = `${RELAY_URL}/`;
+    const session = createRelaySession({
+      defaultRelays: [],
+      eoseTimeout: 100
+    });
+
+    const warmup = session.requestCount({
+      relayUrl: normalizedRelayUrl,
+      filters: [{ kinds: [1] }],
+      timeoutMs: 100
+    });
+
+    await waitUntil(() =>
+      FakeWebSocket.instances.some((socket) => socket.url === normalizedRelayUrl)
+    );
+    const socket = FakeWebSocket.instances.find((entry) => entry.url === normalizedRelayUrl);
+    if (!socket) throw new Error('canonical socket was not created');
+    socket.open();
+    await waitUntil(() => socket.sent.length > 0);
+
+    const warmupPacket = socket.sent[0] as [string, string, Record<string, unknown>];
+    socket.message(['COUNT', warmupPacket[1], { count: 1 }]);
+    await expect(warmup).resolves.toEqual({ capability: 'supported', count: 1 });
+
+    const pending = session.requestCount({
+      relayUrl: RELAY_URL,
+      filters: [{ kinds: [7], '#e': ['target-event'] }],
+      timeoutMs: 100
+    });
+
+    await waitUntil(() => socket.sent.length >= 2);
+    const countPacket = socket.sent.at(-1) as [string, string, Record<string, unknown>];
+    expect(countPacket[0]).toBe('COUNT');
+    socket.message(['COUNT', countPacket[1], { count: 12 }]);
+
+    await expect(pending).resolves.toEqual({
+      capability: 'supported',
+      count: 12
+    });
+    expect(FakeWebSocket.instances.map((entry) => entry.url)).toEqual([normalizedRelayUrl]);
 
     session.dispose();
   });

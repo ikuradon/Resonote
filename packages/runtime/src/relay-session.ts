@@ -1116,6 +1116,7 @@ class RelaySession implements RelaySessionApi {
     options: NegentropyRequestOptions
   ): Promise<NegentropyTransportResult> {
     const relay = this.getConnection(options.relayUrl);
+    const relayUrl = relay.url;
     const subId = createNegentropySubId();
 
     try {
@@ -1142,7 +1143,7 @@ class RelaySession implements RelaySessionApi {
 
       const messageSub = this.messages.subscribe({
         next: ({ from, message }) => {
-          if (from !== options.relayUrl || !Array.isArray(message)) return;
+          if (from !== relayUrl || !Array.isArray(message)) return;
           const [type, incomingSubId] = message as [string, string, ...unknown[]];
           if (incomingSubId !== subId) return;
 
@@ -1166,7 +1167,7 @@ class RelaySession implements RelaySessionApi {
 
       const stateSub = this.states.subscribe({
         next: (packet) => {
-          if (packet.from !== options.relayUrl) return;
+          if (packet.from !== relayUrl) return;
           if (
             packet.state === 'backoff' ||
             packet.state === 'closed' ||
@@ -1206,6 +1207,7 @@ class RelaySession implements RelaySessionApi {
     }
 
     const relay = this.getConnection(options.relayUrl);
+    const relayUrl = relay.url;
     const subId = createCountSubId();
 
     try {
@@ -1231,7 +1233,7 @@ class RelaySession implements RelaySessionApi {
 
       const messageSub = this.messages.subscribe({
         next: ({ from, message }) => {
-          if (from !== options.relayUrl || !Array.isArray(message)) return;
+          if (from !== relayUrl || !Array.isArray(message)) return;
           const [type, incomingSubId] = message as [string, string, ...unknown[]];
           if (incomingSubId !== subId) return;
 
@@ -1258,7 +1260,7 @@ class RelaySession implements RelaySessionApi {
 
       const stateSub = this.states.subscribe({
         next: (packet) => {
-          if (packet.from !== options.relayUrl) return;
+          if (packet.from !== relayUrl) return;
           if (
             packet.state === 'backoff' ||
             packet.state === 'closed' ||
