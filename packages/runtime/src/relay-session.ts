@@ -445,6 +445,7 @@ interface RelayAuthState {
 class RelaySession implements RelaySessionApi {
   private readonly defaultRelays = new Map<string, DefaultRelayConfig>();
   private readonly defaultRelayKeys = new Set<string>();
+  private readonly relayUrlsByKey = new Map<string, string>();
   private readonly connections = new Map<string, RelaySocket>();
   private readonly messages = new Subject<{ from: string; message: unknown }>();
   private readonly states = new Subject<ConnectionStatePacket>();
@@ -487,29 +488,36 @@ class RelaySession implements RelaySessionApi {
       const key = normalizeRelaySessionKey(relay);
       if (nextByKey.has(key)) continue;
       nextByKey.set(key, { url: relay, read: true, write: true });
-      this.registerRelayLifecyclePolicy(relay, 'lazy-keep');
     }
     const nextKeys = new Set(nextByKey.keys());
+    const retainedConnectionUrlsByKey = new Map<string, string>();
 
     for (const [url, connection] of this.connections.entries()) {
-      if (!nextKeys.has(normalizeRelaySessionKey(url))) {
+      const key = normalizeRelaySessionKey(url);
+      if (!nextKeys.has(key)) {
         connection.close();
         this.relayLifecyclePolicies.delete(url);
         this.connections.delete(url);
+      } else {
+        retainedConnectionUrlsByKey.set(key, url);
       }
     }
 
     this.defaultRelays.clear();
     this.defaultRelayKeys.clear();
+    this.relayUrlsByKey.clear();
     for (const [key, config] of nextByKey.entries()) {
       const url = config.url;
+      const relayUrl = retainedConnectionUrlsByKey.get(key) ?? url;
       this.defaultRelays.set(url, config);
       this.defaultRelayKeys.add(key);
+      this.relayUrlsByKey.set(key, relayUrl);
+      this.registerRelayLifecyclePolicy(relayUrl, 'lazy-keep');
     }
   }
 
   getRelayStatus(url: string): RelayStatus | undefined {
-    const relay = this.relayObservations.get(url);
+    const relay = this.relayObservations.get(this.resolveRelaySessionUrl(url));
     if (!relay) return undefined;
     return {
       connection: relay.connection,
@@ -1108,6 +1116,7 @@ class RelaySession implements RelaySessionApi {
     options: NegentropyRequestOptions
   ): Promise<NegentropyTransportResult> {
     const relay = this.getConnection(options.relayUrl);
+    const relayUrl = relay.url;
     const subId = createNegentropySubId();
 
     try {
@@ -1134,7 +1143,7 @@ class RelaySession implements RelaySessionApi {
 
       const messageSub = this.messages.subscribe({
         next: ({ from, message }) => {
-          if (from !== options.relayUrl || !Array.isArray(message)) return;
+          if (from !== relayUrl || !Array.isArray(message)) return;
           const [type, incomingSubId] = message as [string, string, ...unknown[]];
           if (incomingSubId !== subId) return;
 
@@ -1158,7 +1167,7 @@ class RelaySession implements RelaySessionApi {
 
       const stateSub = this.states.subscribe({
         next: (packet) => {
-          if (packet.from !== options.relayUrl) return;
+          if (packet.from !== relayUrl) return;
           if (
             packet.state === 'backoff' ||
             packet.state === 'closed' ||
@@ -1198,6 +1207,7 @@ class RelaySession implements RelaySessionApi {
     }
 
     const relay = this.getConnection(options.relayUrl);
+    const relayUrl = relay.url;
     const subId = createCountSubId();
 
     try {
@@ -1223,7 +1233,7 @@ class RelaySession implements RelaySessionApi {
 
       const messageSub = this.messages.subscribe({
         next: ({ from, message }) => {
-          if (from !== options.relayUrl || !Array.isArray(message)) return;
+          if (from !== relayUrl || !Array.isArray(message)) return;
           const [type, incomingSubId] = message as [string, string, ...unknown[]];
           if (incomingSubId !== subId) return;
 
@@ -1250,7 +1260,7 @@ class RelaySession implements RelaySessionApi {
 
       const stateSub = this.states.subscribe({
         next: (packet) => {
-          if (packet.from !== options.relayUrl) return;
+          if (packet.from !== relayUrl) return;
           if (
             packet.state === 'backoff' ||
             packet.state === 'closed' ||
@@ -1670,31 +1680,44 @@ class RelaySession implements RelaySessionApi {
   }
 
   private registerRelayLifecyclePolicy(url: string, mode: RelayLifecycleMode): void {
-    const current = this.relayLifecyclePolicies.get(url);
+    const relayUrl = this.resolveRelaySessionUrl(url);
+    const current = this.relayLifecyclePolicies.get(relayUrl);
     if (current?.mode === mode) return;
 
     const policy =
       mode === 'lazy-keep'
         ? this.relayLifecycleOptions.defaultRelay
         : this.relayLifecycleOptions.temporaryRelay;
-    this.relayLifecyclePolicies.set(url, policy);
+    this.relayLifecyclePolicies.set(relayUrl, policy);
   }
 
   private isDefaultRelayUrl(url: string): boolean {
     return this.defaultRelayKeys.has(normalizeRelaySessionKey(url));
   }
 
+  private rememberRelaySessionUrl(url: string): void {
+    const key = normalizeRelaySessionKey(url);
+    if (!this.relayUrlsByKey.has(key)) {
+      this.relayUrlsByKey.set(key, url);
+    }
+  }
+
+  private resolveRelaySessionUrl(url: string): string {
+    return this.relayUrlsByKey.get(normalizeRelaySessionKey(url)) ?? url;
+  }
+
   private addResolvedRelay(target: Map<string, string>, relay: string): void {
     const key = normalizeRelaySessionKey(relay);
     if (!target.has(key)) {
-      target.set(key, relay);
+      target.set(key, this.resolveRelaySessionUrl(relay));
     }
   }
 
   private getRelayLifecyclePolicy(url: string): RelayLifecyclePolicy {
-    const existing = this.relayLifecyclePolicies.get(url);
+    const relayUrl = this.resolveRelaySessionUrl(url);
+    const existing = this.relayLifecyclePolicies.get(relayUrl);
     if (existing) return existing;
-    this.relayLifecyclePolicies.set(url, this.relayLifecycleOptions.temporaryRelay);
+    this.relayLifecyclePolicies.set(relayUrl, this.relayLifecycleOptions.temporaryRelay);
     return this.relayLifecycleOptions.temporaryRelay;
   }
 
@@ -1709,12 +1732,14 @@ class RelaySession implements RelaySessionApi {
   }
 
   private getConnection(url: string): RelaySocket {
-    let connection = this.connections.get(url);
+    const relayUrl = this.resolveRelaySessionUrl(url);
+    let connection = this.connections.get(relayUrl);
     if (!connection) {
+      this.rememberRelaySessionUrl(relayUrl);
       connection = new RelaySocket(
-        url,
-        () => this.getRelayLifecyclePolicy(url),
-        () => (this.relayGroupKeys.get(url)?.size ?? 0) > 0,
+        relayUrl,
+        () => this.getRelayLifecyclePolicy(relayUrl),
+        () => (this.relayGroupKeys.get(relayUrl)?.size ?? 0) > 0,
         (from, message) => this.handleRelayMessage(from, message),
         (from, state, explicitReason) => {
           const reason =
@@ -1729,8 +1754,8 @@ class RelaySession implements RelaySessionApi {
           this.updateRelayObservation(from, state, reason);
         }
       );
-      this.connections.set(url, connection);
-      this.updateRelayObservation(url, 'idle', 'boot');
+      this.connections.set(relayUrl, connection);
+      this.updateRelayObservation(relayUrl, 'idle', 'boot');
     }
     return connection;
   }
