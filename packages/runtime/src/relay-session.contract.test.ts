@@ -798,7 +798,7 @@ describe('relay replay request identity contract', () => {
     session.dispose();
   });
 
-  it('keeps normalized default relay selections open after backward request completion', async () => {
+  it('reuses the default relay URL for normalized default relay selections', async () => {
     const normalizedRelayUrl = `${RELAY_URL}/`;
     const session = createRelaySession({
       defaultRelays: [RELAY_URL],
@@ -829,11 +829,9 @@ describe('relay replay request identity contract', () => {
     req.emit({ kinds: [1] });
     req.over();
 
-    await waitUntil(() =>
-      FakeWebSocket.instances.some((socket) => socket.url === normalizedRelayUrl)
-    );
-    const socket = FakeWebSocket.instances.find((entry) => entry.url === normalizedRelayUrl);
-    if (!socket) throw new Error('normalized default socket was not created');
+    await waitUntil(() => FakeWebSocket.instances.some((socket) => socket.url === RELAY_URL));
+    const socket = FakeWebSocket.instances.find((entry) => entry.url === RELAY_URL);
+    if (!socket) throw new Error('default socket was not created');
     socket.open();
     await waitUntil(() => socket.sent.length > 0);
 
@@ -844,9 +842,54 @@ describe('relay replay request identity contract', () => {
     await new Promise((resolve) => setTimeout(resolve, 30));
 
     expect(socket.readyState).toBe(FakeWebSocket.OPEN);
+    expect(session.getRelayStatus(RELAY_URL)?.connection).toBe('open');
     expect(session.getRelayStatus(normalizedRelayUrl)?.connection).toBe('open');
 
     sub.unsubscribe();
+    session.dispose();
+  });
+
+  it('keeps an existing normalized temporary socket canonical when promoted to default', async () => {
+    const normalizedRelayUrl = `${RELAY_URL}/`;
+    const session = createRelaySession({
+      defaultRelays: [],
+      eoseTimeout: 100
+    });
+    const temporaryReq = createBackwardReq({
+      requestKey: 'rq:v1:contract-temporary-normalized-before-default' as RequestKey
+    });
+    const defaultReq = createBackwardReq({
+      requestKey: 'rq:v1:contract-default-after-temporary-normalized' as RequestKey
+    });
+
+    const temporarySub = session
+      .use(temporaryReq, {
+        on: {
+          defaultReadRelays: false,
+          relays: [normalizedRelayUrl]
+        }
+      })
+      .subscribe({});
+    temporaryReq.emit({ kinds: [1] });
+    temporaryReq.over();
+
+    await waitUntil(() =>
+      FakeWebSocket.instances.some((socket) => socket.url === normalizedRelayUrl)
+    );
+    const socket = FakeWebSocket.instances.find((entry) => entry.url === normalizedRelayUrl);
+    if (!socket) throw new Error('temporary socket was not created');
+
+    session.setDefaultRelays([RELAY_URL]);
+    const defaultSub = session.use(defaultReq).subscribe({});
+    defaultReq.emit({ kinds: [1] });
+    defaultReq.over();
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(FakeWebSocket.instances.map((entry) => entry.url)).toEqual([normalizedRelayUrl]);
+
+    defaultSub.unsubscribe();
+    temporarySub.unsubscribe();
     session.dispose();
   });
 
