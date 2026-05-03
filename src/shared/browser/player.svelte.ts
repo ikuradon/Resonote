@@ -19,17 +19,6 @@ let state = $state<PlayerState>({
   isPaused: true
 });
 
-// For E2E tests: read position from window.__mockPlayer
-function getE2EPosition(): number | null {
-  if (typeof window === 'undefined') return null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mockPlayer = (window as any).__mockPlayer;
-  if (mockPlayer && typeof mockPlayer.position === 'number') {
-    return mockPlayer.position;
-  }
-  return null;
-}
-
 export function getPlayer() {
   return {
     get contentId() {
@@ -39,11 +28,6 @@ export function getPlayer() {
       return !state.isPaused;
     },
     get position() {
-      // E2E tests: use mock position if available
-      const e2ePosition = getE2EPosition();
-      if (e2ePosition !== null) {
-        return e2ePosition;
-      }
       return state.position;
     },
     get duration() {

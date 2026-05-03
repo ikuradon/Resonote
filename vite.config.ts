@@ -1,11 +1,29 @@
 import { codecovVitePlugin } from '@codecov/vite-plugin';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
+import { fileURLToPath, URL } from 'node:url';
 import { searchForWorkspaceRoot } from 'vite';
 import { defineConfig } from 'vitest/config';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
+    mode === 'e2e' && {
+      name: 'e2e-player-shim',
+      enforce: 'pre',
+      resolveId(id) {
+        // Match alias patterns (before resolution)
+        if (id === '$shared/browser/player.js' || id === '$shared/browser/player') {
+          return fileURLToPath(new URL('./e2e/shims/player.ts', import.meta.url));
+        }
+        // Match resolved file paths (after alias resolution)
+        if (
+          id.endsWith('/src/shared/browser/player.ts') ||
+          id.endsWith('/src/shared/browser/player.js')
+        ) {
+          return fileURLToPath(new URL('./e2e/shims/player.ts', import.meta.url));
+        }
+      }
+    },
     tailwindcss(),
     sveltekit(),
     codecovVitePlugin({
@@ -90,4 +108,4 @@ export default defineConfig({
       // - src/service-worker.ts — ブラウザ API 依存、E2E で担保
     }
   }
-});
+}));

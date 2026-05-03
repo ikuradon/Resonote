@@ -1,124 +1,138 @@
-/**
- * E2E player mocking helpers.
- *
- * Allows tests to simulate playback position for Flow tab testing.
- * Mock player state is injected via window.__mockPlayer and picked up
- * by the actual player bridge in src/shared/browser/player.svelte.ts
- */
 import type { Page } from '@playwright/test';
 
 export interface MockPlayerState {
   position: number;
   duration: number;
-  isPlaying: boolean;
+  isPaused: boolean;
 }
 
-/**
- * Initialize mock player infrastructure on the page.
- * Call this once before using other player mock functions.
- */
-export async function initMockPlayer(page: Page): Promise<void> {
+async function ensureE2EPlayerBridge(page: Page): Promise<void> {
   await page.evaluate(() => {
-    // Create global mock player object
-    (window as any).__mockPlayer = {
+    type E2EPlayerState = {
+      position: number;
+      duration: number;
+      isPaused: boolean;
+    };
+    type E2EPlayerBridge = {
+      setPlayback(positionMs: number, durationMs?: number, isPaused?: boolean): void;
+      resetPlayback(): void;
+      snapshot(): E2EPlayerState;
+    };
+    const win = window as Window & {
+      __resonoteE2EPlayerState?: E2EPlayerState;
+      __resonoteE2EPlayer?: E2EPlayerBridge;
+    };
+    win.__resonoteE2EPlayerState ??= {
       position: 0,
       duration: 0,
-      isPlaying: false
+      isPaused: true
     };
-
-    // Create event target for position updates
-    (window as any).__mockPlayerEvents = new EventTarget();
+    win.__resonoteE2EPlayer ??= {
+      setPlayback(positionMs, durationMs = 300_000, isPaused = false) {
+        const next = {
+          position: positionMs,
+          duration: durationMs,
+          isPaused
+        };
+        win.__resonoteE2EPlayerState = next;
+        window.dispatchEvent(
+          new CustomEvent('resonote:e2e-player:set', {
+            detail: next
+          })
+        );
+      },
+      resetPlayback() {
+        this.setPlayback(0, 0, true);
+      },
+      snapshot() {
+        return (
+          win.__resonoteE2EPlayerState ?? {
+            position: 0,
+            duration: 0,
+            isPaused: true
+          }
+        );
+      }
+    };
   });
 }
 
-/**
- * Simulate playback position for Flow tab testing.
- * @param positionMs Position in milliseconds
- * @param durationMs Optional duration (defaults to 5 minutes)
- */
+export async function initMockPlayer(page: Page): Promise<void> {
+  await ensureE2EPlayerBridge(page);
+}
+
 export async function simulatePlaybackPosition(
   page: Page,
   positionMs: number,
-  durationMs = 300000
+  durationMs = 300_000
 ): Promise<void> {
+  await ensureE2EPlayerBridge(page);
   await page.evaluate(
-    ({ pos, dur }: { pos: number; dur: number }) => {
-      const mockPlayer = (window as any).__mockPlayer;
-      if (!mockPlayer) {
-        throw new Error('Mock player not initialized. Call initMockPlayer first.');
-      }
-
-      mockPlayer.position = pos;
-      mockPlayer.duration = dur;
-      mockPlayer.isPlaying = true;
-
-      // Dispatch event for reactive updates
-      const event = new CustomEvent('e2e:player-position', {
-        detail: { position: pos, duration: dur }
-      });
-      (window as any).__mockPlayerEvents?.dispatchEvent(event);
-
-      // Also dispatch on document for broader compatibility
-      document.dispatchEvent(
-        new CustomEvent('e2e:player-position', {
-          detail: { position: pos, duration: dur }
-        })
-      );
+    ({ positionMs, durationMs }) => {
+      (
+        window as Window & {
+          __resonoteE2EPlayer?: {
+            setPlayback(positionMs: number, durationMs?: number, isPaused?: boolean): void;
+          };
+        }
+      ).__resonoteE2EPlayer?.setPlayback(positionMs, durationMs, false);
     },
-    { pos: positionMs, dur: durationMs }
+    { positionMs, durationMs }
   );
 }
 
-/**
- * Reset mock player to initial state (no position).
- */
 export async function resetMockPlayer(page: Page): Promise<void> {
+  await ensureE2EPlayerBridge(page);
   await page.evaluate(() => {
-    const mockPlayer = (window as any).__mockPlayer;
-    if (mockPlayer) {
-      mockPlayer.position = 0;
-      mockPlayer.duration = 0;
-      mockPlayer.isPlaying = false;
-    }
+    (
+      window as Window & {
+        __resonoteE2EPlayer?: {
+          resetPlayback(): void;
+        };
+      }
+    ).__resonoteE2EPlayer?.resetPlayback();
+  });
+}
 
-    document.dispatchEvent(
-      new CustomEvent('e2e:player-position', {
-        detail: { position: 0, duration: 0 }
-      })
+export async function getMockPlayerState(page: Page): Promise<MockPlayerState> {
+  await ensureE2EPlayerBridge(page);
+  return page.evaluate(() => {
+    return (
+      (
+        window as Window & {
+          __resonoteE2EPlayer?: {
+            snapshot(): MockPlayerState;
+          };
+        }
+      ).__resonoteE2EPlayer?.snapshot() ?? {
+        position: 0,
+        duration: 0,
+        isPaused: true
+      }
     );
   });
 }
 
-/**
- * Get current mock player state.
- */
-export async function getMockPlayerState(page: Page): Promise<MockPlayerState> {
-  return page.evaluate(() => {
-    const mockPlayer = (window as any).__mockPlayer;
-    return {
-      position: mockPlayer?.position ?? 0,
-      duration: mockPlayer?.duration ?? 0,
-      isPlaying: mockPlayer?.isPlaying ?? false
-    };
-  });
-}
-
-/**
- * Simulate player seek to a specific position.
- * Alias for simulatePlaybackPosition for semantic clarity.
- */
 export async function simulateSeek(page: Page, positionMs: number): Promise<void> {
   return simulatePlaybackPosition(page, positionMs);
 }
 
-/**
- * Simulate play/pause state.
- */
 export async function setPlayerPlaying(page: Page, isPlaying: boolean): Promise<void> {
+  await ensureE2EPlayerBridge(page);
   await page.evaluate((playing: boolean) => {
-    const mockPlayer = (window as any).__mockPlayer;
-    if (mockPlayer) {
-      mockPlayer.isPlaying = playing;
-    }
+    const e2ePlayer = (
+      window as Window & {
+        __resonoteE2EPlayer?: {
+          snapshot(): MockPlayerState;
+          setPlayback(positionMs: number, durationMs?: number, isPaused?: boolean): void;
+        };
+      }
+    ).__resonoteE2EPlayer;
+    const current = e2ePlayer?.snapshot() ?? {
+      position: 0,
+      duration: 300_000,
+      isPaused: true
+    };
+    e2ePlayer?.setPlayback(current.position, current.duration, !playing);
   }, isPlaying);
 }

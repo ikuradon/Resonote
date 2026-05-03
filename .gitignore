@@ -35,6 +35,7 @@ vite.config.ts.timestamp-*
 .serena/
 .playwright-mcp/
 .codex/
+.codex
 
 # Worktrees (git worktree add)
 .worktrees/
