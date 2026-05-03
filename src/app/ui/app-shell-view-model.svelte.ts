@@ -53,7 +53,7 @@ export function createAppShellViewModel() {
       return;
     }
 
-    void initRelayStatus();
+    void initRelayStatus(auth.pubkey ?? undefined);
     return () => {
       destroyRelayStatus();
     };
