@@ -71,13 +71,13 @@ jobs:
             --title "chore: bump version to $NEW_VERSION" \
             --body "## Version Bump
 
-- **Version:** $NEW_VERSION
-- **Type:** $VERSION_TYPE
+          - **Version:** $NEW_VERSION
+          - **Type:** $VERSION_TYPE
 
-### Changes
-- Updated \`package.json\` version
+          ### Changes
+          - Updated \`package.json\` version
 
-### After Merge
-This PR will automatically create:
-- Git tag \`v$NEW_VERSION\`
-- GitHub Release with generated notes"
+          ### After Merge
+          This PR will automatically create:
+          - Git tag \`v$NEW_VERSION\`
+          - GitHub Release with generated notes"
