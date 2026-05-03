@@ -96,10 +96,32 @@ export async function refreshRelayList(urls: string[]): Promise<void> {
   relays = snapshot.map(relaySnapshotToUiState);
 }
 
-export async function initRelayStatus(): Promise<void> {
+export async function initRelayStatus(pubkey?: string): Promise<void> {
   if (subscription) return;
 
-  const snapshot = await snapshotRelayStatuses(DEFAULT_RELAYS);
+  let relayUrls = DEFAULT_RELAYS;
+  if (pubkey) {
+    try {
+      const relayList = await fetchRelayList(pubkey);
+      if (relayList.entries.length > 0) {
+        relayUrls = relayList.entries.map((e) => e.url);
+        log.info('Using user relay list for initialization', {
+          count: relayUrls.length,
+          source: relayList.source
+        });
+      } else {
+        log.info('No user relay list found, using defaults', { pubkey });
+      }
+    } catch (error) {
+      log.warn('Failed to fetch user relay list, using defaults', { error, pubkey });
+    }
+  }
+
+  const snapshot = await snapshotRelayStatuses(relayUrls);
+
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  if (subscription) return;
+
   aggregateState = aggregateStateFromSnapshots(snapshot);
 
   relays = snapshot.map(relaySnapshotToUiState);

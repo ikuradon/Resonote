@@ -4,26 +4,25 @@ const {
   fetchRelayListEventsMock,
   observeRelayStatusesMock,
   snapshotRelayStatusesMock,
-  logInfoMock,
-  logDebugMock
+  fetchRelayListSourcesMock
 } = vi.hoisted(() => ({
   fetchRelayListEventsMock: vi.fn(),
   observeRelayStatusesMock: vi.fn(),
   snapshotRelayStatusesMock: vi.fn(),
-  logInfoMock: vi.fn(),
-  logDebugMock: vi.fn()
+  fetchRelayListSourcesMock: vi.fn()
 }));
 
 vi.mock('$shared/auftakt/resonote.js', () => ({
   fetchRelayListEvents: fetchRelayListEventsMock,
   observeRelayStatuses: observeRelayStatusesMock,
-  snapshotRelayStatuses: snapshotRelayStatusesMock
+  snapshotRelayStatuses: snapshotRelayStatusesMock,
+  fetchRelayListSources: fetchRelayListSourcesMock
 }));
 
 vi.mock('$shared/utils/logger.js', () => ({
   createLogger: () => ({
-    info: logInfoMock,
-    debug: logDebugMock,
+    info: vi.fn(),
+    debug: vi.fn(),
     warn: vi.fn(),
     error: vi.fn()
   })
@@ -288,6 +287,42 @@ describe('initRelayStatus', () => {
     destroyRelayStatus();
 
     expect(gateway.unsubscribe).toHaveBeenCalledOnce();
+  });
+
+  it('pubkeyを渡すとユーザーのリレーリストを使用する', async () => {
+    setupRelayGatewayMocks({
+      'wss://user.relay.com': 'open'
+    });
+    fetchRelayListSourcesMock.mockResolvedValue({
+      relayListEvents: [
+        {
+          id: '1',
+          pubkey: 'user-pubkey',
+          created_at: 1000,
+          kind: 10002,
+          tags: [['r', 'wss://user.relay.com']],
+          content: '',
+          sig: ''
+        }
+      ],
+      followListEvents: []
+    });
+
+    await initRelayStatus('user-pubkey-123');
+
+    expect(snapshotRelayStatusesMock).toHaveBeenCalledWith(['wss://user.relay.com']);
+  });
+
+  it('fetchRelayList失敗時はDEFAULT_RELAYSにフォールバック', async () => {
+    setupRelayGatewayMocks();
+    fetchRelayListSourcesMock.mockRejectedValue(new Error('Network error'));
+
+    await initRelayStatus('user-pubkey-123');
+
+    expect(snapshotRelayStatusesMock).toHaveBeenCalledWith([
+      'wss://relay.damus.io',
+      'wss://yabu.me'
+    ]);
   });
 
   it('runtime aggregate state を参照できる', async () => {
