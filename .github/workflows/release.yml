@@ -20,8 +20,9 @@ jobs:
 
       - name: Extract version from branch name
         id: extract_version
+        env:
+          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
         run: |
-          BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
           VERSION=${BRANCH_NAME#release/v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag_name=v$VERSION" >> $GITHUB_OUTPUT
@@ -32,9 +33,10 @@ jobs:
           node-version: '24'
 
       - name: Verify version consistency
+        env:
+          BRANCH_VERSION: ${{ steps.extract_version.outputs.version }}
         run: |
           PKG_VERSION=$(node -p "require('./package.json').version")
-          BRANCH_VERSION="${{ steps.extract_version.outputs.version }}"
           if [ "$PKG_VERSION" != "$BRANCH_VERSION" ]; then
             echo "Error: Version mismatch!"
             echo "Branch version: $BRANCH_VERSION"
@@ -44,11 +46,13 @@ jobs:
           echo "Version verified: $PKG_VERSION"
 
       - name: Create and push tag
+        env:
+          TAG_NAME: ${{ steps.extract_version.outputs.tag_name }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "${{ steps.extract_version.outputs.tag_name }}" -m "Release ${{ steps.extract_version.outputs.tag_name }}"
-          git push origin "${{ steps.extract_version.outputs.tag_name }}"
+          git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
+          git push origin "$TAG_NAME"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
@@ -58,5 +62,4 @@ jobs:
           generate_release_notes: true
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
