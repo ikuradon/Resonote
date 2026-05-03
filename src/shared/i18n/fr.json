@@ -220,6 +220,7 @@
   "toast.delete_failed": "Échec de la suppression du commentaire",
   "toast.dismiss": "Fermer",
   "comment.error.contains_private_key": "Votre commentaire contient une clé privée (nsec). Bloqué pour des raisons de sécurité.",
+  "comment.error.position_required": "Lancez la lecture pour ajouter un commentaire flow.",
   "quote.loading": "Chargement…",
   "quote.not_found": "Événement cité introuvable",
   "quote.title": "Citation",

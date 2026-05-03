@@ -84,6 +84,14 @@
       toastSuccess(t('toast.comment_sent'));
       return;
     }
+    if (result === 'position_required') {
+      toastError(t('comment.error.position_required'));
+      return;
+    }
+    if (result === 'private_key_blocked') {
+      toastError(t('comment.error.contains_private_key'));
+      return;
+    }
     if (result === 'failed') {
       toastError(t('toast.comment_failed'));
     }

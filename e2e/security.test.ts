@@ -195,6 +195,9 @@ test.describe('Private key detection', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    // Use Shout tab to bypass position requirement
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
 

@@ -220,6 +220,7 @@
   "toast.delete_failed": "コメントの削除でけへんかったわ",
   "toast.dismiss": "閉じるで",
   "comment.error.contains_private_key": "秘密鍵 (nsec) が入っとるで。安全のために投稿ブロックしたったわ。",
+  "comment.error.position_required": "再生してからフローコメント投稿してや。",
   "quote.loading": "読み込み中やで…",
   "quote.not_found": "引用元見つからへんわ",
   "quote.title": "引用",
