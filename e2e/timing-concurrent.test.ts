@@ -212,6 +212,9 @@ test.describe('Cross-feature: comment retry after failure', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    // Use Shout tab to bypass position requirement
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     // Configure relays to reject first
     await page.evaluate((relays: string[]) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

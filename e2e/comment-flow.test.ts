@@ -46,6 +46,11 @@ test.describe('Comment flow', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    // Use Shout tab to bypass position requirement
+    const shoutTab = page.getByRole('button', { name: /📢/ });
+    await expect(shoutTab).toBeVisible({ timeout: 10_000 });
+    await shoutTab.click();
+
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
 

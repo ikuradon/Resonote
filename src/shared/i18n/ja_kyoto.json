@@ -214,6 +214,7 @@
   "toast.delete_failed": "コメント削除できまへんどした",
   "toast.dismiss": "閉じますえ",
   "comment.error.contains_private_key": "秘密鍵が含まれてますえ。安全のため投稿止めましたえ",
+  "comment.error.position_required": "再生してからフローコメント残しとくれやす。",
   "quote.loading": "読み込み中…",
   "quote.not_found": "引用元が見つかりません",
   "quote.title": "引用",

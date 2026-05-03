@@ -2,7 +2,6 @@ import { neventEncode } from '@auftakt/core';
 
 import { getAuth } from '$shared/browser/auth.js';
 import { getPlayer } from '$shared/browser/player.js';
-import { toastError } from '$shared/browser/toast.js';
 import type { ContentId, ContentProvider } from '$shared/content/types.js';
 import { t } from '$shared/i18n/t.js';
 import { containsPrivateKey } from '$shared/nostr/content-parser.js';
@@ -19,7 +18,12 @@ interface CommentFormViewModelOptions {
   getActiveTab?: () => 'flow' | 'shout' | 'info';
 }
 
-export type CommentSubmitResult = 'sent' | 'failed' | 'skipped';
+export type CommentSubmitResult =
+  | 'sent'
+  | 'failed'
+  | 'skipped'
+  | 'position_required'
+  | 'private_key_blocked';
 
 export function createCommentFormViewModel(options: CommentFormViewModelOptions) {
   const auth = getAuth();
@@ -54,8 +58,11 @@ export function createCommentFormViewModel(options: CommentFormViewModelOptions)
     if (!trimmed || !auth.loggedIn) return 'skipped';
 
     if (containsPrivateKey(trimmed)) {
-      toastError(t('comment.error.contains_private_key'));
-      return 'failed';
+      return 'private_key_blocked';
+    }
+
+    if ((options.getActiveTab?.() ?? 'flow') === 'flow' && !hasPosition) {
+      return 'position_required';
     }
 
     flying = true;

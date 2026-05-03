@@ -31,6 +31,9 @@ test.describe('Toast notifications', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    // Use Shout tab to bypass position requirement
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
     await textarea.fill('Toast test comment');
@@ -46,6 +49,9 @@ test.describe('Toast notifications', () => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+
+    // Use Shout tab to bypass position requirement
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
@@ -128,6 +134,9 @@ test.describe('Toast — failure and manual close', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    // Use Shout tab to bypass position requirement
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     // Configure relays to reject
     await page.evaluate((relays: string[]) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -183,6 +192,9 @@ test.describe('Toast — failure and manual close', () => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+
+    // Use Shout tab to bypass position requirement
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });

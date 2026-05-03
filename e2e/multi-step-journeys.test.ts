@@ -37,7 +37,8 @@ test.describe('User journeys', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
-    // 4. Post a comment
+    // 4. Post a comment (use Shout tab to bypass position requirement)
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
     await textarea.fill('My first comment!');

@@ -214,6 +214,7 @@
   "toast.delete_failed": "Failed to delete comment",
   "toast.dismiss": "Dismiss",
   "comment.error.contains_private_key": "Your comment contains a private key (nsec). Blocked for security.",
+  "comment.error.position_required": "Start playback to add a flow comment.",
   "quote.loading": "Loading…",
   "quote.not_found": "Quoted event not found",
   "quote.title": "Quote",

@@ -72,6 +72,9 @@ test.describe('Comment form — submit behavior', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    // Use Shout tab to bypass position requirement
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
     await textarea.fill('Ctrl+Enter test');
@@ -102,6 +105,9 @@ test.describe('Comment form — submit behavior', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    // Use Shout tab to bypass position requirement
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
     await textarea.fill('Double submit test');
@@ -129,6 +135,9 @@ test.describe('Comment form — submit behavior', () => {
       }
     }, TEST_RELAYS);
 
+    // Use Shout tab to bypass position requirement
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
     await textarea.fill('Will fail');
@@ -144,6 +153,9 @@ test.describe('Comment form — submit behavior', () => {
     await page.goto(TEST_TRACK_URL);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
+
+    // Use Shout tab to bypass position requirement
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
@@ -392,6 +404,9 @@ test.describe('Comment form — CW empty reason', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    // Use Shout tab to bypass position requirement
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
+
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
 
@@ -430,6 +445,9 @@ test.describe('Comment form — network failure', () => {
         pool.relay(url).onEVENT((event: any) => ['OK', event.id, false, 'blocked']);
       }
     }, TEST_RELAYS);
+
+    // Use Shout tab to bypass position requirement
+    await page.locator('button').filter({ hasText: /📢/ }).first().click();
 
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
