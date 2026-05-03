@@ -33,6 +33,8 @@ vite.config.ts.timestamp-*
 .sisyphus/
 .superpowers/
 .serena/
+.playwright-mcp/
+.codex/
 
 # Worktrees (git worktree add)
 .worktrees/

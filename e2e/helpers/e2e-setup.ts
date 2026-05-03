@@ -292,6 +292,16 @@ export function buildComment(
       ['p', opts.parentPubkey]
     );
   }
+
+  // Re-export player mock helpers for convenience
+  export {
+    initMockPlayer,
+    simulatePlaybackPosition,
+    resetMockPlayer,
+    getMockPlayerState,
+    simulateSeek,
+    setPlayerPlaying
+  } from './player-mock.js';
   if (opts?.positionSec !== undefined) {
     tags.push(['position', String(opts.positionSec)]);
   }
