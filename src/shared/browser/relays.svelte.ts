@@ -118,6 +118,10 @@ export async function initRelayStatus(pubkey?: string): Promise<void> {
   }
 
   const snapshot = await snapshotRelayStatuses(relayUrls);
+
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  if (subscription) return;
+
   aggregateState = aggregateStateFromSnapshots(snapshot);
 
   relays = snapshot.map(relaySnapshotToUiState);
