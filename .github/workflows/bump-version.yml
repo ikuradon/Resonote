@@ -52,32 +52,32 @@ jobs:
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "branch_name=release/v$NEW_VERSION" >> $GITHUB_OUTPUT
 
-      - name: Create release branch
+      - name: Create release branch and PR
+        env:
+          BRANCH_NAME: ${{ steps.bump.outputs.branch_name }}
+          NEW_VERSION: ${{ steps.bump.outputs.new_version }}
+          VERSION_TYPE: ${{ github.event.inputs.version_type }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git checkout -b ${{ steps.bump.outputs.branch_name }}
-          git add package.json pnpm-lock.yaml
-          git commit -m "chore: bump version to ${{ steps.bump.outputs.new_version }}"
-          git push origin ${{ steps.bump.outputs.branch_name }}
+          git checkout -b "$BRANCH_NAME"
+          git add package.json
+          git commit -m "chore: bump version to $NEW_VERSION"
+          git push origin "$BRANCH_NAME"
 
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@4e1beaa7521e8b457b572c090b25bd3db56bf1c5 # v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ steps.bump.outputs.branch_name }}
-          title: 'chore: bump version to ${{ steps.bump.outputs.new_version }}'
-          body: |
-            ## Version Bump
+          # Create PR using GitHub CLI
+          gh pr create \
+            --base main \
+            --head "$BRANCH_NAME" \
+            --title "chore: bump version to $NEW_VERSION" \
+            --body "## Version Bump
 
-            - **Version:** ${{ steps.bump.outputs.new_version }}
-            - **Type:** ${{ github.event.inputs.version_type }}
+- **Version:** $NEW_VERSION
+- **Type:** $VERSION_TYPE
 
-            ### Changes
-            - Updated `package.json` version
-            - Updated `pnpm-lock.yaml`
+### Changes
+- Updated \`package.json\` version
 
-            ### After Merge
-            This PR will automatically create:
-            - Git tag `v${{ steps.bump.outputs.new_version }}`
-            - GitHub Release with generated notes
-          base: main
-          delete-branch: true
+### After Merge
+This PR will automatically create:
+- Git tag \`v$NEW_VERSION\`
+- GitHub Release with generated notes"
