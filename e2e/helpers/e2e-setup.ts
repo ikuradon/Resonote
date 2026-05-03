@@ -10,6 +10,14 @@ import { finalizeEvent, generateSecretKey, getPublicKey } from '@auftakt/core';
 import path from 'path';
 
 import { TEST_RELAYS } from './test-relays.js';
+import {
+  getMockPlayerState,
+  initMockPlayer,
+  resetMockPlayer,
+  setPlayerPlaying,
+  simulatePlaybackPosition,
+  simulateSeek
+} from './player-mock.js';
 
 // Kind constants mirrored from src/shared/nostr/events.ts.
 // Direct import is not possible because events.ts transitively imports helpers.ts
@@ -292,6 +300,7 @@ export function buildComment(
       ['p', opts.parentPubkey]
     );
   }
+
   if (opts?.positionSec !== undefined) {
     tags.push(['position', String(opts.positionSec)]);
   }
@@ -527,3 +536,13 @@ export async function getPublishedEvents(page: Page, kind?: number): Promise<unk
     { relayUrls: TEST_RELAYS, filterKind: kind }
   );
 }
+
+// Re-export player mock helpers for convenience
+export {
+  getMockPlayerState,
+  initMockPlayer,
+  resetMockPlayer,
+  setPlayerPlaying,
+  simulatePlaybackPosition,
+  simulateSeek
+};
