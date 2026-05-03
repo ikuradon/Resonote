@@ -29,18 +29,23 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.2
+
       - name: Bump version
         id: bump
         run: |
           # Bump version without creating git tag
-          npm version ${{ github.event.inputs.version_type }} --no-git-tag-version
+          pnpm version ${{ github.event.inputs.version_type }} --no-git-tag-version
 
           # Get new version
           NEW_VERSION=$(node -p "require('./package.json').version")
@@ -50,7 +55,7 @@ jobs:
       - name: Create release branch
         run: |
           git checkout -b ${{ steps.bump.outputs.branch_name }}
-          git add package.json package-lock.json
+          git add package.json pnpm-lock.yaml
           git commit -m "chore: bump version to ${{ steps.bump.outputs.new_version }}"
           git push origin ${{ steps.bump.outputs.branch_name }}
 
@@ -68,7 +73,7 @@ jobs:
 
             ### Changes
             - Updated `package.json` version
-            - Updated `package-lock.json`
+            - Updated `pnpm-lock.yaml`
 
             ### After Merge
             This PR will automatically create:

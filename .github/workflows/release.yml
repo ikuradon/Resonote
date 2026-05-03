@@ -29,13 +29,19 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: '20'
+          node-version: '24'
 
-      - name: Get version from package.json
-        id: package_version
+      - name: Verify version consistency
         run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          BRANCH_VERSION="${{ steps.extract_version.outputs.version }}"
+          if [ "$PKG_VERSION" != "$BRANCH_VERSION" ]; then
+            echo "Error: Version mismatch!"
+            echo "Branch version: $BRANCH_VERSION"
+            echo "Package.json version: $PKG_VERSION"
+            exit 1
+          fi
+          echo "Version verified: $PKG_VERSION"
 
       - name: Create and push tag
         run: |
