@@ -299,6 +299,25 @@ describe('createRelaySettingsViewModel', () => {
       ).toBe('loaded');
     });
 
+    it('treats the settled newer kind10002 relay list as loaded after a late older candidate is ignored upstream', () => {
+      expect(
+        resolveRelayListLoadState(
+          {
+            event: {
+              id: 'new-relay-list',
+              pubkey: 'pubkey-a',
+              created_at: 1000,
+              kind: 10002,
+              tags: [['r', 'wss://new.example.test']],
+              content: ''
+            },
+            settlement: { phase: 'settled', provenance: 'relay', reason: 'cache-hit' }
+          },
+          1
+        )
+      ).toBe('loaded');
+    });
+
     it('returns no-list for settled miss with no event and empty entries', () => {
       expect(
         resolveRelayListLoadState(
