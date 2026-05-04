@@ -84,6 +84,32 @@ describe('HotEventIndex', () => {
     expect(index.getById('old-emoji')).toBeNull();
   });
 
+  it('keeps newer hot kind10002 relay list head when an older relay list arrives late', () => {
+    const index = createHotEventIndex();
+    index.applyVisible(
+      event('new-relay-list', {
+        pubkey: 'alice',
+        kind: 10002,
+        created_at: 1000,
+        tags: [['r', 'wss://new.example.test']]
+      })
+    );
+    index.applyVisible(
+      event('old-relay-list', {
+        pubkey: 'alice',
+        kind: 10002,
+        created_at: 500,
+        tags: [['r', 'wss://old.example.test']]
+      })
+    );
+
+    expect(index.getReplaceableHead('alice', 10002)).toMatchObject({
+      id: 'new-relay-list',
+      tags: [['r', 'wss://new.example.test']]
+    });
+    expect(index.getById('old-relay-list')).toBeNull();
+  });
+
   it('removes deleted events from all hot indexes', () => {
     const index = createHotEventIndex();
     index.applyVisible(
