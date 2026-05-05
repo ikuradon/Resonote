@@ -1,6 +1,7 @@
 # Changelog Review
 
 Each package entry must be completed before its update batch is committed. If release notes are sparse, use GitHub compare, npm diff, package README, or npm package metadata and record the source.
+This file is scoped to all update targets reviewed across subsequent batches, not only the 8 wanted/current audit entries.
 
 ## Required package entries
 

@@ -1,6 +1,7 @@
 # Wanted/current Audit
 
 This audit is read-only. No dependency update is performed in this task.
+This file is scoped to the 8 packages that had wanted/current differences in the snapshot audit.
 
 | Package                            | Current  | Wanted    | Target resolution | package.json range | Boundary                                 | Update batch                        |
 | ---------------------------------- | -------- | --------- | ----------------- | ------------------ | ---------------------------------------- | ----------------------------------- |
