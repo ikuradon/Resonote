@@ -2,6 +2,7 @@
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import { getAuth } from '$shared/browser/auth.js';
   import { copyToClipboard } from '$shared/browser/clipboard.js';
+  import { getCustomEmojiDiagnostics } from '$shared/browser/custom-emoji-diagnostics.js';
   import {
     buildDebugInfo,
     checkServiceWorkerStatus,
@@ -15,6 +16,12 @@
   import { getRelays } from '$shared/browser/relays.js';
   import { t } from '$shared/i18n/t.js';
 
+  import {
+    buildEmojiDiagnosticsCopyPayload,
+    cacheOnlyCaveat,
+    truncateRefs
+  } from './developer-emoji-diagnostics-view-model.js';
+
   const auth = getAuth();
 
   let dbStats = $state<DbStats | null>(null);
@@ -22,7 +29,14 @@
   let swStatus = $state<'active' | 'none'>('none');
   let swUpdated = $state(false);
   let debugCopied = $state(false);
+  let emojiDiagnosticsCopied = $state(false);
   let clearAllConfirm = $state(false);
+  let emojiDiagnostics = $derived(getCustomEmojiDiagnostics());
+  let missingRefs = $derived(truncateRefs(emojiDiagnostics.missingRefs));
+  let invalidRefs = $derived(truncateRefs(emojiDiagnostics.invalidRefs));
+  let emojiCacheOnlyCaveat = $derived(
+    cacheOnlyCaveat(emojiDiagnostics.sourceMode, emojiDiagnostics.missingRefs, t)
+  );
 
   $effect(() => {
     void auth.pubkey;
@@ -81,6 +95,16 @@
       }, 2000);
     }
   }
+
+  async function copyEmojiDiagnostics() {
+    const ok = await copyToClipboard(buildEmojiDiagnosticsCopyPayload(emojiDiagnostics));
+    if (ok) {
+      emojiDiagnosticsCopied = true;
+      setTimeout(() => {
+        emojiDiagnosticsCopied = false;
+      }, 2000);
+    }
+  }
 </script>
 
 <section class="rounded-2xl border border-border bg-surface-1 p-6 space-y-5">
@@ -101,6 +125,104 @@
       </div>
     {:else}
       <p class="text-xs text-text-muted">{t('dev.stats_loading')}</p>
+    {/if}
+  </div>
+
+  <div class="space-y-3 border-t border-border-subtle pt-4">
+    <div class="flex items-center justify-between gap-3">
+      <h3 class="text-sm font-medium text-text-secondary">{t('dev.emoji.title')}</h3>
+      <button
+        type="button"
+        onclick={copyEmojiDiagnostics}
+        class="rounded-lg bg-surface-2 px-3 py-1.5 text-xs text-text-muted transition-colors hover:bg-surface-3 hover:text-text-secondary"
+      >
+        {emojiDiagnosticsCopied ? t('dev.emoji.copied') : t('dev.emoji.copy')}
+      </button>
+    </div>
+
+    <div class="grid grid-cols-2 gap-2 text-xs text-text-muted">
+      <span>{t('dev.emoji.db_counts')}</span>
+      <span class="font-mono text-text-primary">
+        kind10030:{emojiDiagnostics.dbCounts.kind10030} kind30030:{emojiDiagnostics.dbCounts
+          .kind30030}
+      </span>
+      <span>{t('dev.emoji.db_counts')}</span>
+      <span class="font-mono text-text-primary">
+        categories:{emojiDiagnostics.summary.categoryCount} emojis:{emojiDiagnostics.summary
+          .emojiCount}
+      </span>
+    </div>
+
+    {#if emojiDiagnostics.listEvent}
+      <div class="grid grid-cols-2 gap-2 text-xs text-text-muted">
+        <span>{t('dev.emoji.list_event')}</span>
+        <span class="min-w-0 space-y-1 font-mono text-text-primary">
+          <span class="block truncate">{emojiDiagnostics.listEvent.id}</span>
+          <span class="block">
+            created_at:{emojiDiagnostics.listEvent.createdAtSec} inline:{emojiDiagnostics.listEvent
+              .inlineEmojiCount} sets:{emojiDiagnostics.listEvent.referencedSetRefCount}
+          </span>
+        </span>
+      </div>
+    {/if}
+
+    {#if emojiDiagnostics.sets.length > 0}
+      <details class="space-y-2 rounded-lg border border-border-subtle bg-surface-2 p-3 text-xs">
+        <summary class="cursor-pointer text-text-secondary">
+          {t('dev.emoji.sets')} ({emojiDiagnostics.sets.length})
+        </summary>
+        <div class="mt-3 space-y-2">
+          {#each emojiDiagnostics.sets as set (set.ref)}
+            <div class="grid grid-cols-2 gap-2 border-t border-border-subtle pt-2 text-text-muted">
+              <span>{set.title}</span>
+              <span class="min-w-0 space-y-1 font-mono text-text-primary">
+                <span class="block truncate">{set.ref}</span>
+                <span class="block">
+                  created_at:{set.createdAtSec} emojis:{set.emojiCount} via:{set.resolvedVia}
+                </span>
+              </span>
+            </div>
+          {/each}
+        </div>
+      </details>
+    {/if}
+
+    {#if emojiCacheOnlyCaveat}
+      <p
+        class="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300"
+      >
+        {emojiCacheOnlyCaveat}
+      </p>
+    {/if}
+
+    {#if emojiDiagnostics.missingRefs.length > 0}
+      <div class="space-y-1 text-xs text-text-muted">
+        <p>
+          {t('dev.emoji.missing_refs')} ({emojiDiagnostics.missingRefs
+            .length}){#if missingRefs.hiddenCount > 0}
+            +{missingRefs.hiddenCount}{/if}
+        </p>
+        <div class="space-y-1 font-mono text-text-primary">
+          {#each missingRefs.visible as ref (ref)}
+            <p class="truncate">{ref}</p>
+          {/each}
+        </div>
+      </div>
+    {/if}
+
+    {#if emojiDiagnostics.invalidRefs.length > 0}
+      <div class="space-y-1 text-xs text-text-muted">
+        <p>
+          {t('dev.emoji.invalid_refs')} ({emojiDiagnostics.invalidRefs
+            .length}){#if invalidRefs.hiddenCount > 0}
+            +{invalidRefs.hiddenCount}{/if}
+        </p>
+        <div class="space-y-1 font-mono text-text-primary">
+          {#each invalidRefs.visible as ref (ref)}
+            <p class="truncate">{ref}</p>
+          {/each}
+        </div>
+      </div>
     {/if}
   </div>
 
