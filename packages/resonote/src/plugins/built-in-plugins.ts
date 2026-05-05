@@ -43,6 +43,11 @@ export interface CustomEmojiSourceDiagnosticsResult {
   categories: EmojiCategory[];
 }
 
+export interface CustomEmojiSourceDiagnosticsOptions {
+  readonly generation?: number;
+  readonly getGeneration?: () => number;
+}
+
 export const EMOJI_CATALOG_READ_MODEL = 'emojiCatalog';
 export const NOTIFICATIONS_FLOW = 'notificationsFlow';
 
@@ -52,7 +57,10 @@ export interface EmojiCatalogReadModel {
     setEvents: StoredEvent[];
   }>;
   fetchCustomEmojiCategories(pubkey: string): Promise<EmojiCategory[]>;
-  fetchCustomEmojiSourceDiagnostics(pubkey: string): Promise<CustomEmojiSourceDiagnosticsResult>;
+  fetchCustomEmojiSourceDiagnostics(
+    pubkey: string,
+    options?: CustomEmojiSourceDiagnosticsOptions
+  ): Promise<CustomEmojiSourceDiagnosticsResult>;
 }
 
 export interface CommentsFlow {

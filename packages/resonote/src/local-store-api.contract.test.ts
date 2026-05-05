@@ -21,6 +21,34 @@ function makeEvent(id: string, overrides: Partial<StoredEvent> = {}): StoredEven
   };
 }
 
+const runtime = {
+  fetchLatestEvent: async () => null,
+  getEventsDB: async () => ({
+    getByPubkeyAndKind: vi.fn(async () => null),
+    getManyByPubkeysAndKind: vi.fn(async () => []),
+    getByReplaceKey: vi.fn(async () => null),
+    getByTagValue: vi.fn(async () => []),
+    getById: vi.fn(async () => null),
+    getAllByKind: vi.fn(async () => []),
+    listNegentropyEventRefs: vi.fn(async () => []),
+    deleteByIds: vi.fn(async () => {}),
+    clearAll: vi.fn(async () => {}),
+    put: vi.fn(async () => true),
+    putWithReconcile: vi.fn(async () => ({ stored: true, emissions: [] }))
+  }),
+  getRelaySession: async () => ({
+    use: () => ({
+      subscribe: () => ({ unsubscribe() {} })
+    })
+  }),
+  createBackwardReq: () => ({ emit() {}, over() {} }),
+  createForwardReq: () => ({ emit() {}, over() {} }),
+  uniq: () => ({}) as unknown,
+  merge: () => ({}) as unknown,
+  getRelayConnectionState: async () => null,
+  observeRelayConnectionStates: async () => ({ unsubscribe() {} })
+};
+
 function createTestCoordinator() {
   const first = makeEvent('first', { tags: [['I', 'spotify:track:abc']] });
   const followList = makeEvent('follow-list', { kind: 3, tags: [['p', 'followed-pubkey']] });
@@ -41,21 +69,7 @@ function createTestCoordinator() {
   };
 
   const coordinator = createResonoteCoordinator({
-    runtime: {
-      fetchLatestEvent: async () => null,
-      getEventsDB: async () => store,
-      getRelaySession: async () => ({
-        use: () => ({
-          subscribe: () => ({ unsubscribe() {} })
-        })
-      }),
-      createBackwardReq: () => ({ emit() {}, over() {} }),
-      createForwardReq: () => ({ emit() {}, over() {} }),
-      uniq: () => ({}) as unknown,
-      merge: () => ({}) as unknown,
-      getRelayConnectionState: async () => null,
-      observeRelayConnectionStates: async () => ({ unsubscribe() {} })
-    },
+    runtime: { ...runtime, getEventsDB: async () => store },
     cachedFetchByIdRuntime: {
       cachedFetchById: async () => ({ event: null, settlement: null }),
       invalidateFetchByIdCache: () => {}
@@ -117,5 +131,38 @@ describe('@auftakt/resonote local store api contract', () => {
     expect(store.getByPubkeyAndKind).toHaveBeenCalledWith('pubkey-1', 3);
     expect(store.getAllByKind).toHaveBeenCalledWith(3);
     expect(store.clearAll).toHaveBeenCalledOnce();
+  });
+
+  it('deletes stored events only for requested kinds', async () => {
+    const deletedIds: string[] = [];
+    const db = {
+      getByPubkeyAndKind: vi.fn(async () => null),
+      getManyByPubkeysAndKind: vi.fn(async () => []),
+      getByReplaceKey: vi.fn(async () => null),
+      getByTagValue: vi.fn(async () => []),
+      getById: vi.fn(async () => null),
+      getAllByKind: vi.fn(async (kind: number) =>
+        kind === 10030
+          ? [{ id: 'list', pubkey: 'pk', kind, tags: [], content: '', created_at: 1 }]
+          : kind === 30030
+            ? [{ id: 'set', pubkey: 'pk', kind, tags: [['d', 'x']], content: '', created_at: 1 }]
+            : [{ id: 'other', pubkey: 'pk', kind, tags: [], content: '', created_at: 1 }]
+      ),
+      listNegentropyEventRefs: vi.fn(async () => []),
+      deleteByIds: vi.fn(async (ids: string[]) => {
+        deletedIds.push(...ids);
+      }),
+      clearAll: vi.fn(async () => undefined),
+      put: vi.fn(async () => true),
+      putWithReconcile: vi.fn(async () => ({ stored: true, emissions: [] }))
+    };
+    const coordinator = createResonoteCoordinator({
+      runtime: { ...runtime, getEventsDB: async () => db }
+    });
+
+    await coordinator.deleteStoredEventsByKinds([10030, 30030]);
+
+    expect(deletedIds.sort()).toEqual(['list', 'set']);
+    expect(db.clearAll).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,7 @@ export type {
   CustomEmojiDiagnosticsSource,
   CustomEmojiSetDiagnosticsSource,
   CustomEmojiSetResolution,
+  CustomEmojiSourceDiagnosticsOptions,
   CustomEmojiSourceDiagnosticsResult,
   CustomEmojiSourceMode,
   EmojiCatalogReadModel,

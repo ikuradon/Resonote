@@ -1389,6 +1389,7 @@ export interface ResonoteCoordinator<TResult = unknown, TLatestResult = unknown>
     kinds: readonly number[]
   ): Promise<Array<{ readonly kind: number; readonly count: number }>>;
   clearStoredEvents(): Promise<void>;
+  deleteStoredEventsByKinds(kinds: readonly number[]): Promise<void>;
   fetchProfileCommentEvents(
     pubkey: string,
     until?: number,
@@ -1422,7 +1423,13 @@ export interface ResonoteCoordinator<TResult = unknown, TLatestResult = unknown>
     setEvents: StoredEvent[];
   }>;
   fetchCustomEmojiCategories(pubkey: string): Promise<EmojiCategory[]>;
-  fetchCustomEmojiSourceDiagnostics(pubkey: string): Promise<CustomEmojiSourceDiagnosticsResult>;
+  fetchCustomEmojiSourceDiagnostics(
+    pubkey: string,
+    options?: {
+      readonly generation?: number;
+      readonly getGeneration?: () => number;
+    }
+  ): Promise<CustomEmojiSourceDiagnosticsResult>;
   searchBookmarkDTagEvent(pubkey: string, normalizedUrl: string): Promise<StoredEvent | null>;
   searchEpisodeBookmarkByGuid(pubkey: string, guid: string): Promise<StoredEvent | null>;
   fetchNostrEventById<TEvent>(
@@ -1895,8 +1902,8 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
 
         return categories;
       },
-      fetchCustomEmojiSourceDiagnostics: (pubkey) =>
-        fetchCustomEmojiSourceDiagnostics(queryRuntime, pubkey)
+      fetchCustomEmojiSourceDiagnostics: (pubkey, options) =>
+        fetchCustomEmojiSourceDiagnostics(queryRuntime, pubkey, options)
     }),
     createResonoteCommentsFlowPlugin({
       loadCommentSubscriptionDeps: () => loadEventSubscriptionDeps(materializedSubscriptionRuntime),
@@ -2100,6 +2107,11 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       const db = await runtime.getEventsDB();
       await db.clearAll();
     },
+    deleteStoredEventsByKinds: async (kinds) => {
+      const db = await runtime.getEventsDB();
+      const events = (await Promise.all(kinds.map((kind) => db.getAllByKind(kind)))).flat();
+      await db.deleteByIds([...new Set(events.map((event) => event.id))]);
+    },
     fetchProfileCommentEvents: async (pubkey, until, limit = 20) => {
       const filter = until
         ? { kinds: [1111], authors: [pubkey], limit, until }
@@ -2122,10 +2134,10 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       runtimeCoordinator
         .getReadModel<EmojiCatalogReadModel>(EMOJI_CATALOG_READ_MODEL)
         .fetchCustomEmojiCategories(pubkey),
-    fetchCustomEmojiSourceDiagnostics: (pubkey) =>
+    fetchCustomEmojiSourceDiagnostics: (pubkey, options) =>
       runtimeCoordinator
         .getReadModel<EmojiCatalogReadModel>(EMOJI_CATALOG_READ_MODEL)
-        .fetchCustomEmojiSourceDiagnostics(pubkey),
+        .fetchCustomEmojiSourceDiagnostics(pubkey, options),
     searchBookmarkDTagEvent: (pubkey, normalizedUrl) =>
       runtimeCoordinator
         .getFlow<ContentResolutionFlow>(CONTENT_RESOLUTION_FLOW)

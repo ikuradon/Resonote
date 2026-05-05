@@ -5,6 +5,12 @@ import {
   type CommentFilterKinds,
   type CommentSubscriptionRefs,
   createResonoteCoordinator,
+  type CustomEmojiDiagnosticsSource,
+  type CustomEmojiSetDiagnosticsSource,
+  type CustomEmojiSetResolution,
+  type CustomEmojiSourceDiagnosticsOptions,
+  type CustomEmojiSourceDiagnosticsResult,
+  type CustomEmojiSourceMode,
   type DeletionEvent,
   type EmojiCategory,
   startCommentDeletionReconcile as startCommentDeletionReconcileImpl,
@@ -118,11 +124,19 @@ const coordinator = createResonoteCoordinator({
 
 type AppCoordinator = typeof coordinator;
 
+let customEmojiCacheGeneration = 0;
+
 export type { StoredEvent, WotResult };
 export type {
   CachedFetchByIdResult,
   CommentFilterKinds,
   CommentSubscriptionRefs,
+  CustomEmojiDiagnosticsSource,
+  CustomEmojiSetDiagnosticsSource,
+  CustomEmojiSetResolution,
+  CustomEmojiSourceDiagnosticsOptions,
+  CustomEmojiSourceDiagnosticsResult,
+  CustomEmojiSourceMode,
   DeletionEvent,
   EmojiCategory,
   RelayCapabilityPacket,
@@ -208,6 +222,17 @@ export async function clearStoredEvents(): Promise<void> {
   return coordinator.clearStoredEvents();
 }
 
+export async function deleteStoredEventsByKinds(kinds: readonly number[]): Promise<void> {
+  if (kinds.includes(10030) || kinds.includes(30030)) {
+    customEmojiCacheGeneration++;
+  }
+  await coordinator.deleteStoredEventsByKinds(kinds);
+}
+
+export function getCustomEmojiCacheGeneration(): number {
+  return customEmojiCacheGeneration;
+}
+
 export async function setPreferredRelays(urls: string[]): Promise<void> {
   return coordinator.setDefaultRelays(urls);
 }
@@ -256,6 +281,16 @@ export async function fetchCustomEmojiSources(pubkey: string) {
 
 export async function fetchCustomEmojiCategories(pubkey: string): Promise<EmojiCategory[]> {
   return coordinator.fetchCustomEmojiCategories(pubkey);
+}
+
+export async function fetchCustomEmojiSourceDiagnostics(
+  pubkey: string
+): Promise<CustomEmojiSourceDiagnosticsResult> {
+  const generation = customEmojiCacheGeneration;
+  return coordinator.fetchCustomEmojiSourceDiagnostics(pubkey, {
+    generation,
+    getGeneration: () => customEmojiCacheGeneration
+  });
 }
 
 export async function searchBookmarkDTagEvent(pubkey: string, normalizedUrl: string) {
