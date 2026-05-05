@@ -38,7 +38,7 @@ Add a small LISTEN URL parser near the existing feed URL parsing:
 ```ts
 interface ParsedListenUrl {
   feedUrl: string;
-  episodeUrl?: string;
+  episodeUrl?: string; // normalized canonical LISTEN episode URL used for RSS item link matching
   initialTimeSec?: number;
   initialTimeParam?: string;
 }
@@ -64,6 +64,14 @@ const contentId = parseContentUrl(inputUrl);
 
 This avoids an intermediate feed navigation before the final episode redirect.
 
+`isListenEpisodeUrl()` should be implemented as a thin wrapper around `parseListenUrl()` rather than a separate regular expression, so interception behavior cannot diverge from parser behavior:
+
+```ts
+function isListenEpisodeUrl(url: string): boolean {
+  return parseListenUrl(url)?.episodeUrl != null;
+}
+```
+
 ### LISTEN URL Normalization Rules
 
 For episode matching, normalize both the user-provided LISTEN episode URL and RSS item `link` as follows:
@@ -83,6 +91,7 @@ Slug handling:
 
 - Extract slugs from URL path segments, not from raw string slicing.
 - Reject decoded slugs that contain `/`, `?`, `#`, or control characters.
+- If percent-decoding a slug segment fails, treat the URL as malformed and return `null`.
 - When building RSS URLs or canonical episode URLs, encode slugs with `encodeURIComponent`.
 - Do not decode and re-encode for comparison unless both sides use the same canonicalization function.
 
@@ -92,11 +101,15 @@ Supported shape decisions:
 - `https://listen.style/p/foo/bar/` is an episode URL and matches `/p/foo/bar`.
 - `https://listen.style/p/foo/bar?foo=1&t=90` is an episode URL and preserves `t=90`.
 - `https://listen.style/p/foo/bar#fragment` is an episode URL and ignores the hash for matching.
+- `https://listen.style/p/foo/bar//` falls through as unsupported.
 - `https://listen.style/p/foo/bar/baz` falls through as unsupported.
 - `https://listen.style/u/user` falls through as unsupported.
 - `https://listen.style/p/` falls through as unsupported.
 - `https://rss.listen.style/p/foo/rss/` is accepted and canonicalized to `https://rss.listen.style/p/foo/rss`.
 - `http://listen.style/p/foo` is accepted and canonicalized to `https://listen.style/p/foo`.
+- `https://listen.style/p/foo%2Fbar` falls through as unsupported.
+- `https://listen.style/p/foo/%2Fbar` falls through as unsupported.
+- Invalid percent-encoding in any slug segment falls through as unsupported.
 
 ### Episode Resolution
 
@@ -119,6 +132,8 @@ The resolver:
 5. Builds `buildEpisodeContentId(feedUrl, item.guid)`. The API normalizes missing RSS guid values to `enclosureUrl`.
 6. Returns `/podcast/episode/{contentId.id}`, preserving `?t={seconds}` when present.
 
+When appending `?t=...` to the resolved episode path, use `initialTimeParam`, not `initialTimeSec`, so accepted decimal strings are preserved exactly.
+
 `t` parsing:
 
 - Use the first `t` query parameter.
@@ -137,6 +152,10 @@ If the feed resolves but the item is not found, the resolver returns feed fallba
 If the feed cannot be fetched or parsed, the resolver returns the feed path with the internal `listen_feed_unavailable` result code. Existing podcast feed UI can then show the normal feed error state.
 
 `listen_feed_unavailable` is an internal `reason` for the resolver. It does not need a dedicated user-facing warning in the first implementation, because the feed page already has an error state for fetch/parse failures. Use `warning` only for user-facing warning codes.
+
+For `kind: 'error'`, callers should still navigate to `result.path` without adding a warning query parameter. The existing podcast feed error state handles user-facing feedback.
+
+Resolver failures may log diagnostic reasons such as `feed_unavailable`, `feed_parse_error`, `item_link_missing`, `item_link_mismatch`, or `duplicate_match`, but only allowlisted warning codes may be surfaced in the UI.
 
 ### API Shape
 
@@ -279,6 +298,8 @@ Add targeted tests for:
 - `PodcastProvider.parseUrl()` accepts LISTEN podcast page URLs.
 - `PodcastProvider.parseUrl()` accepts LISTEN RSS URLs.
 - LISTEN episode URL parsing extracts podcast slug, episode slug, canonical feed URL, normalized episode URL, and optional `t`.
+- `ParsedListenUrl.episodeUrl` is canonicalized without query parameters or hash fragments.
+- `isListenEpisodeUrl()` uses the same parsing behavior as `parseListenUrl()`.
 - `normalizeListenEpisodeUrl()` returns `null` for unsupported or malformed URLs.
 - `normalizeListenEpisodeUrl()` does not lowercase path segments.
 - `http://listen.style/p/foo` is canonicalized to `https://listen.style/p/foo`.
@@ -291,6 +312,7 @@ Add targeted tests for:
 - `?t=` is preserved on successful episode redirect.
 - `?t=abc`, `?t=-1`, `?t=0`, and `?t=1e3` are dropped.
 - `?t=90.50` is preserved as `initialTimeParam = '90.50'` and exposed as `initialTimeSec = 90.5`.
+- Successful redirects append `?t=90.50`, not `?t=90.5`.
 - Multiple `t` params use the first value.
 - LISTEN episode URL with query, hash, or trailing slash still matches the RSS item link.
 - RSS item link with query, hash, or trailing slash still matches the canonical LISTEN episode URL.
@@ -299,9 +321,13 @@ Add targeted tests for:
 - Whitespace-only `<link>` is treated as missing.
 - Duplicate matching item links use the first item in feed order.
 - Malformed LISTEN paths such as `/p/{podcast}/{episode}/extra` fall through.
+- LISTEN episode URLs with multiple trailing slashes fall through.
+- Invalid percent-encoding in slug segments returns `null`.
+- Decoded slug values containing `/` are rejected.
 - Unsupported LISTEN paths such as `/u/{user}` fall through.
 - Feed warning UI displays only allowlisted warning codes.
 - Resolver error results use internal `reason` and do not create user-facing warning text.
+- Resolver `kind: 'error'` navigates to the feed path without adding warning query parameters.
 - Toast warning display removes the warning query parameter after display.
 
 Existing podcast feed and audio tests should continue to pass unchanged.
