@@ -9,6 +9,7 @@ const APPLE_PODCASTS_RE =
 const LISTEN_TIME_PARAM_RE = /^(?:\d+|\d+\.\d+)$/;
 const INVALID_LISTEN_SLUG_RE = /[/?#]/;
 const CONTROL_CHARACTER_RE = /\p{Cc}/u;
+const LISTEN_HOSTS = new Set(['listen.style', 'rss.listen.style']);
 
 export interface ParsedListenUrl {
   feedUrl: string;
@@ -158,6 +159,9 @@ export class PodcastProvider implements ContentProvider {
     if (listen) {
       return { platform: this.platform, type: 'feed', id: toBase64url(listen.feedUrl) };
     }
+    if (isListenHost(url)) {
+      return null;
+    }
 
     const withoutQuery = url.split('?')[0].split('#')[0];
     const isFeedExtension = FEED_EXTENSIONS.test(withoutQuery);
@@ -211,6 +215,14 @@ export class PodcastProvider implements ContentProvider {
       return fromBase64url(encodedFeed) ?? '';
     }
     return fromBase64url(contentId.id) ?? '';
+  }
+}
+
+function isListenHost(url: string): boolean {
+  try {
+    return LISTEN_HOSTS.has(new URL(url).hostname);
+  } catch {
+    return false;
   }
 }
 
