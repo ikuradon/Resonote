@@ -403,3 +403,73 @@ Use this exact entry format for each package before running its update command:
 - Project impact: none
 - Verification commands: `pnpm run lint`, `pnpm run format:check`, `pnpm run check`
 - Notes: 既に target range 設定済みのため pre-commit toolchain の install/lint/check で確認。
+
+## Task 7 Entries
+
+### hono
+
+- Update: `4.12.9` -> `4.12.17`
+- Sources:
+  - release notes: https://github.com/honojs/hono/releases
+  - changelog: https://github.com/honojs/hono/blob/main/CHANGELOG.md
+  - npm: https://www.npmjs.com/package/hono
+- Version range reviewed: `4.12.9...4.12.17`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Runtime behavior focus: route/middleware/error shape を verify で確認
+- hono/jsx usage: hono/jsx not used
+- Project impact: none
+- Verification commands: `pnpm run test:packages`, `pnpm run test:auftakt:app-regression`, `pnpm run check`
+- Notes: API route/middleware 基本挙動は既存回帰テストで確認する。
+
+### zod
+
+- Update: `4.3.6` -> `4.4.3`
+- Sources:
+  - release notes: https://github.com/colinhacks/zod/releases
+  - changelog: https://github.com/colinhacks/zod/blob/main/CHANGELOG.md
+  - npm: https://www.npmjs.com/package/zod
+- Version range reviewed: `4.3.6...4.4.3`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: optional/default/catch/preprocess/transform 挙動は既存型検証・回帰テストで確認
+- Project impact: none
+- Verification commands: `pnpm run test:packages`, `pnpm run test:auftakt:app-regression`, `pnpm run check`
+- Notes: schema 変換系の回帰は app regression と check の通過で評価。
+
+### @konemono/nostr-login
+
+- Update: `1.15.2` -> `1.15.7`
+- Sources:
+  - release notes: https://github.com/KonemonoTech/nostr-login/releases
+  - changelog: logs/pnpm-update-2026-05-05/npm-diff-nostr-login.txt
+  - npm: https://www.npmjs.com/package/@konemono/nostr-login
+- Version range reviewed: `1.15.2...1.15.7`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Runtime behavior focus: login flow / publish path の既存 e2e・app regression 影響観点を確認
+- Project impact: none
+- Verification commands: `pnpm run test:packages`, `pnpm run test:auftakt:app-regression`, `pnpm run check`
+- Notes: npm diff で差分確認済み、実行回帰は batch verify で確認。
+
+### @scure/base
+
+- Update: `2.0.0` -> `2.2.0`
+- Sources:
+  - release notes: https://github.com/paulmillr/scure-base/releases
+  - changelog: logs/pnpm-update-2026-05-05/npm-diff-scure-base.txt
+  - npm: https://www.npmjs.com/package/@scure/base
+- Version range reviewed: `2.0.0...2.2.0`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Runtime behavior focus: encoding golden-vector risk を package/app regression verify で確認
+- Project impact: none
+- Verification commands: `pnpm run test:packages`, `pnpm run test:auftakt:app-regression`, `pnpm run check`
+- Notes: base encoding 系は既存テスト群で回帰有無を確認。

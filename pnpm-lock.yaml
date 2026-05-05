@@ -26,7 +26,7 @@ importers:
         version: link:packages/runtime
       '@hono/zod-validator':
         specifier: ^0.7.6
-        version: 0.7.6(hono@4.12.16)(zod@4.3.6)
+        version: 0.7.6(hono@4.12.17)(zod@4.4.3)
       '@ikuradon/emoji-kitchen-mart':
         specifier: ^7.0.0
         version: 7.0.0
@@ -34,14 +34,14 @@ importers:
         specifier: ^2.0.0
         version: 2.0.0
       '@konemono/nostr-login':
-        specifier: ^1.15.2
-        version: 1.15.2(typescript@6.0.3)
+        specifier: ^1.15.7
+        version: 1.15.7(typescript@6.0.3)
       '@scure/base':
-        specifier: ^2.0.0
-        version: 2.0.0
+        specifier: ^2.2.0
+        version: 2.2.0
       hono:
-        specifier: ^4.12.14
-        version: 4.12.16
+        specifier: ^4.12.17
+        version: 4.12.17
       idb:
         specifier: ^8.0.3
         version: 8.0.3
@@ -49,8 +49,8 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
       zod:
-        specifier: ^4.3.6
-        version: 4.3.6
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@codecov/vite-plugin':
         specifier: ^2.0.1
@@ -868,8 +868,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
 
-  '@konemono/nostr-login@1.15.2':
-    resolution: {integrity: sha512-BOmD+GoMMYu1nFSq3nd5RI8IT99AsynqhaO4oyNa/z4uZ9kcH1PlAsh0StqlYb/Sj4i5z2C0t8nV2siUCUnReQ==}
+  '@konemono/nostr-login@1.15.7':
+    resolution: {integrity: sha512-a06n6JbS908QA6LN4qN9tdzePOavKQ/R4oKnsBXuU56d4ujzs+8dfVaqB4cChXO6oTpusU/w/IzLhgCbf3eo6A==}
 
   '@napi-rs/wasm-runtime@1.1.4':
     resolution: {integrity: sha512-3NQNNgA1YSlJb/kMH1ildASP9HW7/7kYnRI2szWJaofaS1hWmbGI4H+d3+22aGzXXN9IJ+n+GiFVcGipJP18ow==}
@@ -1078,6 +1078,9 @@ packages:
 
   '@scure/base@2.0.0':
     resolution: {integrity: sha512-3E1kpuZginKkek01ovG8krQ0Z44E3DHPjc5S2rjJw9lZn3KSQOs8S7wqikF/AH7iRanHypj85uGyxk0XAyC37w==}
+
+  '@scure/base@2.2.0':
+    resolution: {integrity: sha512-b8XEupJibegiXV+tDUseI8oLQc8ei3d/4Jkb2RpbHh3MfE054ov3uIz2dhFkB3FI8iwYkEh0gGCApkrYggkPNg==}
 
   '@scure/bip32@2.0.1':
     resolution: {integrity: sha512-4Md1NI5BzoVP+bhyJaY3K6yMesEFzNS1sE/cP+9nuvE7p/b0kx9XbpDHHFl8dHtufcbdHRUUQdRqLIPHN/s7yA==}
@@ -1659,8 +1662,8 @@ packages:
     resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}
     engines: {node: '>=8'}
 
-  hono@4.12.16:
-    resolution: {integrity: sha512-jN0ZewiNAWSe5khM3EyCmBb250+b40wWbwNILNfEvq84VREWwOIkuUsFONk/3i3nqkz7Oe1PcpM2mwQEK2L9Kg==}
+  hono@4.12.17:
+    resolution: {integrity: sha512-FbJJNb/XgX7YW0hX/V8w5oYLztKEsRLykCMZWt1WdLtsfjzMvmoqWBA4H4t5norinq8/rh20oiZYr+WSl4UzAQ==}
     engines: {node: '>=16.9.0'}
 
   html-escaper@2.0.2:
@@ -2323,8 +2326,8 @@ packages:
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
-  zod@4.3.6:
-    resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
+  zod@4.4.3:
+    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
 snapshots:
 
@@ -2629,10 +2632,10 @@ snapshots:
       '@eslint/core': 1.2.1
       levn: 0.4.1
 
-  '@hono/zod-validator@0.7.6(hono@4.12.16)(zod@4.3.6)':
+  '@hono/zod-validator@0.7.6(hono@4.12.17)(zod@4.4.3)':
     dependencies:
-      hono: 4.12.16
-      zod: 4.3.6
+      hono: 4.12.17
+      zod: 4.4.3
 
   '@humanfs/core@0.19.1': {}
 
@@ -2771,7 +2774,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@konemono/nostr-login@1.15.2(typescript@6.0.3)':
+  '@konemono/nostr-login@1.15.7(typescript@6.0.3)':
     dependencies:
       '@rx-nostr/crypto': 0.0.0(rx-nostr@3.6.2)
       nostr-tools: 2.23.3(typescript@6.0.3)
@@ -2942,6 +2945,8 @@ snapshots:
   '@scure/base@1.2.6': {}
 
   '@scure/base@2.0.0': {}
+
+  '@scure/base@2.2.0': {}
 
   '@scure/bip32@2.0.1':
     dependencies:
@@ -3575,7 +3580,7 @@ snapshots:
 
   has-flag@4.0.0: {}
 
-  hono@4.12.16: {}
+  hono@4.12.17: {}
 
   html-escaper@2.0.2: {}
 
@@ -4156,4 +4161,4 @@ snapshots:
 
   zod@3.25.76: {}
 
-  zod@4.3.6: {}
+  zod@4.4.3: {}

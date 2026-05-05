@@ -93,12 +93,12 @@
     "@hono/zod-validator": "^0.7.6",
     "@ikuradon/emoji-kitchen-mart": "^7.0.0",
     "@ikuradon/emoji-kitchen-mart-data": "^2.0.0",
-    "@konemono/nostr-login": "^1.15.2",
-    "@scure/base": "^2.0.0",
-    "hono": "^4.12.14",
+    "@konemono/nostr-login": "^1.15.7",
+    "@scure/base": "^2.2.0",
+    "hono": "^4.12.17",
     "idb": "^8.0.3",
     "rxjs": "^7.8.2",
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
