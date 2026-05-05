@@ -101,3 +101,575 @@ Already up to date
 . prepare$ (svelte-kit sync || echo '') && simple-git-hooks
 . prepare: Done
 Done in 4s using pnpm v10.33.2
+
+=== evidence_start ===
+executed_at_utc: 2026-05-05T13:43:17Z
+command: pnpm add -w -D vitest@4.1.5 @vitest/coverage-v8@4.1.5 @playwright/test@1.59.1
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Progress: resolved 406, reused 0, downloaded 0, added 0
+Progress: resolved 433, reused 0, downloaded 0, added 0, done
+ WARN  Issues with peer dependencies found
+.
+└─┬ @codecov/vite-plugin 2.0.1
+  └── ✕ unmet peer vite@"4.x || 5.x || 6.x": found 8.0.10
+
+Already up to date
+. prepare$ (svelte-kit sync || echo '') && simple-git-hooks
+. prepare: Done
+Done in 5.5s using pnpm v10.33.2
+exit_status: 0
+summary: success
+=== evidence_end ===
+
+=== evidence_start ===
+executed_at_utc: 2026-05-05T13:43:23Z
+command: pnpm run test:packages
+
+> resonote@0.2.3 test:packages /root/src/github.com/ikuradon/Resonote
+> vitest run packages/
+
+
+ RUN  v4.1.5 /root/src/github.com/ikuradon/Resonote
+
+ ✓ packages/core/src/public-api.contract.test.ts (4 tests) 899ms
+     ✓ keeps raw relay internals out of the package root  885ms
+ ✓ packages/resonote/src/public-api.contract.test.ts (8 tests) 1240ms
+     ✓ exports only the minimal Resonote-specific value allowlist  1214ms
+ ✓ packages/runtime/src/public-api.contract.test.ts (4 tests) 1258ms
+     ✓ exposes only generic runtime execution values from the package root  1210ms
+ ✓ packages/adapter-dexie/src/materialization.contract.test.ts (20 tests) 392ms
+ ✓ packages/adapter-dexie/src/public-api.contract.test.ts (3 tests) 176ms
+ ✓ packages/resonote/src/subscription-visibility.contract.test.ts (7 tests) 380ms
+ ✓ packages/runtime/src/cached-read.contract.test.ts (2 tests) 176ms
+ ✓ packages/resonote/src/public-read-cutover.contract.test.ts (11 tests) 208ms
+ ✓ packages/runtime/src/event-coordinator.contract.test.ts (28 tests) 204ms
+ ✓ packages/resonote/src/built-in-plugins.contract.test.ts (7 tests) 140ms
+ ✓ packages/runtime/src/subscription-registry.contract.test.ts (7 tests) 207ms
+ ✓ packages/adapter-dexie/src/app-bridge.contract.test.ts (3 tests) 116ms
+ ✓ packages/adapter-dexie/src/hot-path.contract.test.ts (4 tests) 103ms
+ ✓ packages/runtime/src/relay-session.contract.test.ts (42 tests) 1321ms
+ ✓ packages/core/src/nip98-http-auth.contract.test.ts (4 tests) 126ms
+ ✓ packages/core/src/nip86-relay-management.contract.test.ts (5 tests) 102ms
+ ✓ packages/core/src/nip37-draft-wrap.contract.test.ts (4 tests) 78ms
+ ✓ packages/core/src/nip17-direct-message.contract.test.ts (6 tests) 125ms
+ ✓ packages/core/src/event-validation.contract.test.ts (3 tests) 115ms
+ ✓ packages/runtime/src/relay-repair.contract.test.ts (18 tests) 2107ms
+     ✓ chunks multi-id negentropy repair fetches at the canonical 50-id boundary  1297ms
+ ✓ packages/adapter-dexie/src/maintenance.contract.test.ts (3 tests) 75ms
+ ✓ packages/adapter-dexie/src/pending-publishes.contract.test.ts (4 tests) 98ms
+ ✓ packages/adapter-dexie/src/schema.contract.test.ts (3 tests) 67ms
+ ✓ packages/runtime/src/publish-queue.contract.test.ts (5 tests) 62ms
+ ✓ packages/adapter-dexie/src/sync-cursors.contract.test.ts (3 tests) 70ms
+ ✓ packages/adapter-dexie/src/relay-capabilities.contract.test.ts (3 tests) 73ms
+ ✓ packages/core/src/nip59-gift-wrap.contract.test.ts (6 tests) 74ms
+ ❯ packages/runtime/src/relay-session-word-guard.contract.test.ts (2 tests | 2 failed) 28ms
+     × rejects disallowed relay session words in tracked package paths and content 17ms
+     × excludes evidence and generated caches from the tracked scan set 9ms
+ ✓ packages/adapter-dexie/src/relay-hints.contract.test.ts (1 test) 37ms
+ ✓ packages/resonote/src/relay-routing-publish.contract.test.ts (6 tests) 37ms
+ ❯ packages/runtime/src/package-boundary.contract.test.ts (2 tests | 2 failed) 28ms
+     × keeps the tracked package inventory explicit 17ms
+     × keeps production package imports flowing core <- runtime <- resonote 8ms
+ ✓ packages/core/src/relay-selection.contract.test.ts (8 tests) 24ms
+ ✓ packages/core/src/negentropy-repair.contract.test.ts (3 tests) 21ms
+ ✓ packages/resonote/src/relay-selection-runtime.contract.test.ts (14 tests) 43ms
+ ✓ packages/core/src/reconcile.contract.test.ts (7 tests) 36ms
+ ✓ packages/core/src/request-key.contract.test.ts (3 tests) 27ms
+ ✓ packages/resonote/src/event-ingress.contract.test.ts (3 tests) 12ms
+ ✓ packages/runtime/src/negentropy-message.contract.test.ts (15 tests) 15ms
+ ✓ packages/resonote/src/custom-emoji.contract.test.ts (15 tests) 27ms
+ ✓ packages/core/src/nip53-live-activity.contract.test.ts (7 tests) 15ms
+ ✓ packages/core/src/nip56-report.contract.test.ts (5 tests) 9ms
+ ✓ packages/resonote/src/local-store-api.contract.test.ts (4 tests) 17ms
+ ✓ packages/runtime/src/entity-handles.contract.test.ts (17 tests) 22ms
+ ✓ packages/runtime/src/relay-gateway.contract.test.ts (6 tests) 15ms
+ ✓ packages/runtime/src/relay-selection-runtime.contract.test.ts (5 tests) 17ms
+ ✓ packages/runtime/src/request-planning.contract.test.ts (5 tests) 24ms
+ ✓ packages/runtime/src/negentropy-transport.contract.test.ts (1 test) 22ms
+ ✓ packages/core/src/nip85-trusted-assertions.contract.test.ts (4 tests) 15ms
+ ✓ packages/core/src/nip52-calendar.contract.test.ts (7 tests) 20ms
+ ✓ packages/core/src/nip71-video.contract.test.ts (3 tests) 15ms
+ ✓ packages/core/src/nip27-references.contract.test.ts (4 tests) 13ms
+ ✓ packages/core/src/nip72-community.contract.test.ts (4 tests) 11ms
+ ✓ packages/resonote/src/relay-capability-api.contract.test.ts (3 tests) 16ms
+ ✓ packages/core/src/nip92-media-attachments.contract.test.ts (4 tests) 14ms
+ ✓ packages/core/src/nip28-public-chat.contract.test.ts (5 tests) 16ms
+ ✓ packages/runtime/src/plugin-api.contract.test.ts (5 tests) 20ms
+ ✓ packages/core/src/nip24-extra-metadata.contract.test.ts (7 tests) 15ms
+ ✓ packages/core/src/nip39-external-identity.contract.test.ts (8 tests) 19ms
+ ✓ packages/runtime/src/plugin-isolation.contract.test.ts (6 tests) 20ms
+ ✓ packages/core/src/nipA0-voice-messages.contract.test.ts (4 tests) 15ms
+ ✓ packages/core/src/nip50-search.contract.test.ts (4 tests) 8ms
+ ✓ packages/core/src/nipA4-public-messages.contract.test.ts (4 tests) 16ms
+ ✓ packages/core/src/nip51-list.contract.test.ts (8 tests) 15ms
+ ✓ packages/core/src/nip13-proof-of-work.contract.test.ts (5 tests) 12ms
+ ✓ packages/core/src/nip14-subject.contract.test.ts (7 tests) 10ms
+ ✓ packages/core/src/nip89-application-handlers.contract.test.ts (4 tests) 13ms
+ ✓ packages/core/src/nip7d-thread.contract.test.ts (4 tests) 12ms
+ ✓ packages/core/src/nip21-uri.contract.test.ts (5 tests) 17ms
+ ✓ packages/core/src/nip58-badges.contract.test.ts (6 tests) 15ms
+ ✓ packages/core/src/nipB7-blossom.contract.test.ts (5 tests) 16ms
+ ✓ packages/runtime/src/relay-capability-runtime.contract.test.ts (3 tests) 12ms
+ ✓ packages/core/src/nip68-picture.contract.test.ts (3 tests) 14ms
+ ✓ packages/core/src/nip88-polls.contract.test.ts (4 tests) 12ms
+ ✓ packages/runtime/src/relay-hints.contract.test.ts (2 tests) 8ms
+ ✓ packages/core/src/nip55-android-signer.contract.test.ts (6 tests) 14ms
+ ✓ packages/core/src/nip48-proxy-tags.contract.test.ts (8 tests) 12ms
+ ✓ packages/resonote/src/relay-metrics-nip66.contract.test.ts (2 tests) 16ms
+ ✓ packages/core/src/nip32-label.contract.test.ts (7 tests) 16ms
+ ✓ packages/runtime/src/hot-event-index.contract.test.ts (7 tests) 14ms
+ ✓ packages/core/src/nip31-alt.contract.test.ts (4 tests) 7ms
+ ✓ packages/core/src/nip43-relay-access.contract.test.ts (5 tests) 14ms
+ ✓ packages/core/src/nipC7-chats.contract.test.ts (4 tests) 9ms
+ ✓ packages/core/src/nip23-long-form.contract.test.ts (3 tests) 9ms
+ ✓ packages/core/src/nip38-user-status.contract.test.ts (8 tests) 10ms
+ ✓ packages/core/src/nip84-highlight.contract.test.ts (3 tests) 11ms
+ ✓ packages/core/src/nip94-file-metadata.contract.test.ts (4 tests) 13ms
+ ✓ packages/core/src/nip03-open-timestamps.contract.test.ts (4 tests) 10ms
+ ✓ packages/core/src/relay-capability.contract.test.ts (7 tests) 10ms
+ ✓ packages/core/src/nip46-remote-signing.contract.test.ts (6 tests) 12ms
+ ✓ packages/core/src/module-boundary.contract.test.ts (3 tests) 7ms
+ ✓ packages/core/src/nip62-request-to-vanish.contract.test.ts (5 tests) 10ms
+ ✓ packages/core/src/relay-observation.contract.test.ts (2 tests) 11ms
+ ✓ packages/core/src/read-settlement.contract.test.ts (4 tests) 7ms
+ ✓ packages/core/src/nipC0-code-snippets.contract.test.ts (4 tests) 13ms
+ ✓ packages/core/src/publish-settlement.contract.test.ts (5 tests) 9ms
+ ✓ packages/runtime/src/relay-observation.contract.test.ts (2 tests) 11ms
+ ✓ packages/core/src/nip40-expiration.contract.test.ts (3 tests) 8ms
+ ✓ packages/core/src/request-planning.contract.test.ts (1 test) 8ms
+ ✓ packages/resonote/src/degraded-storage.contract.test.ts (1 test) 11ms
+ ✓ packages/core/src/nip78-application-data.contract.test.ts (3 tests) 8ms
+ ✓ packages/runtime/src/relay-capability.contract.test.ts (1 test) 6ms
+ ✓ packages/runtime/src/materializer-queue.contract.test.ts (2 tests) 6ms
+ ✓ packages/core/src/nip36-content-warning.contract.test.ts (4 tests) 5ms
+ ✓ packages/runtime/src/relay-lifecycle.contract.test.ts (2 tests) 6ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/runtime/src/package-boundary.contract.test.ts > @auftakt package boundary guard > keeps the tracked package inventory explicit
+Error: spawnSync git EPERM
+ ❯ trackedPackagePaths packages/runtime/src/package-boundary.contract.test.ts:14:15
+     12|
+     13| function trackedPackagePaths(): string[] {
+     14|   const raw = execFileSync('git', ['ls-files', 'packages/'], {
+       |               ^
+     15|     cwd: repoRoot,
+     16|     encoding: 'utf8'
+ ❯ packages/runtime/src/package-boundary.contract.test.ts:86:25
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  packages/runtime/src/package-boundary.contract.test.ts > @auftakt package boundary guard > keeps production package imports flowing core <- runtime <- resonote
+Error: spawnSync git EPERM
+ ❯ trackedPackagePaths packages/runtime/src/package-boundary.contract.test.ts:14:15
+     12|
+     13| function trackedPackagePaths(): string[] {
+     14|   const raw = execFileSync('git', ['ls-files', 'packages/'], {
+       |               ^
+     15|     cwd: repoRoot,
+     16|     encoding: 'utf8'
+ ❯ packages/runtime/src/package-boundary.contract.test.ts:90:19
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  packages/runtime/src/relay-session-word-guard.contract.test.ts > @auftakt/runtime relay session word guard > rejects disallowed relay session words in tracked package paths and content
+Error: spawnSync git EPERM
+ ❯ trackedGuardFiles packages/runtime/src/relay-session-word-guard.contract.test.ts:56:15
+     54|
+     55| function trackedGuardFiles(): string[] {
+     56|   const raw = execFileSync('git', ['ls-files'], {
+       |               ^
+     57|     cwd: repoRoot,
+     58|     encoding: 'utf8'
+ ❯ packages/runtime/src/relay-session-word-guard.contract.test.ts:105:19
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  packages/runtime/src/relay-session-word-guard.contract.test.ts > @auftakt/runtime relay session word guard > excludes evidence and generated caches from the tracked scan set
+Error: spawnSync git EPERM
+ ❯ trackedGuardFiles packages/runtime/src/relay-session-word-guard.contract.test.ts:56:15
+     54|
+     55| function trackedGuardFiles(): string[] {
+     56|   const raw = execFileSync('git', ['ls-files'], {
+       |               ^
+     57|     cwd: repoRoot,
+     58|     encoding: 'utf8'
+ ❯ packages/runtime/src/relay-session-word-guard.contract.test.ts:114:19
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  2 failed | 102 passed (104)
+      Tests  4 failed | 590 passed (594)
+   Start at  22:43:27
+   Duration  9.78s (transform 7.44s, setup 0ms, import 29.81s, tests 11.16s, environment 68ms)
+
+JUNIT report written to /root/src/github.com/ikuradon/Resonote/test-results/junit.xml
+ ELIFECYCLE  Command failed with exit code 1.
+exit_status: 1
+summary: failed
+=== evidence_end ===
+
+=== evidence_start ===
+executed_at_utc: 2026-05-05T13:43:38Z
+command: pnpm run test:auftakt:app-regression
+
+> resonote@0.2.3 test:auftakt:app-regression /root/src/github.com/ikuradon/Resonote
+> vitest run src/shared/auftakt/cached-read.test.ts src/shared/browser/profile.svelte.test.ts src/shared/browser/relays.test.ts src/features/comments/ui/comment-view-model.test.ts src/features/notifications/ui/notification-feed-view-model.test.ts src/features/relays/ui/relay-settings-view-model.test.ts src/features/comments/application/comment-actions.test.ts src/features/content-resolution/application/resolve-content.test.ts
+
+
+ RUN  v4.1.5 /root/src/github.com/ikuradon/Resonote
+
+ ✓ src/features/comments/application/comment-actions.test.ts (35 tests) 27ms
+ ✓ src/features/content-resolution/application/resolve-content.test.ts (28 tests) 17ms
+ ✓ src/shared/browser/relays.test.ts (17 tests) 15ms
+ ✓ src/features/relays/ui/relay-settings-view-model.test.ts (34 tests) 20ms
+ ✓ src/features/notifications/ui/notification-feed-view-model.test.ts (20 tests) 16ms
+ ✓ src/features/comments/ui/comment-view-model.test.ts (60 tests) 52ms
+ ✓ src/shared/browser/profile.svelte.test.ts (14 tests) 79ms
+ ✓ src/shared/auftakt/cached-read.test.ts (23 tests) 7027ms
+     ✓ returns event with cache-hit settlement on DB cache hit  604ms
+     ✓ eventually settles after all async paths complete  602ms
+     ✓ event stays null when neither DB nor relay provides data  603ms
+     ✓ DB cache miss keeps settlement as settled miss after relay settle  604ms
+     ✓ keeps a local cache hit partial until late EOSE settles the relay path  655ms
+     ✓ keeps a miss partial until all relays disconnect or complete  655ms
+     ✓ returns DB cached event even when DB is slow  604ms
+     ✓ handles DB error gracefully (settled miss)  602ms
+     ✓ destroy() prevents DB result from updating state  653ms
+     ✓ destroy() is safe to call multiple times  605ms
+     ✓ exposes reactive getters  605ms
+
+ Test Files  8 passed (8)
+      Tests  231 passed (231)
+   Start at  22:43:42
+   Duration  9.51s (transform 7.38s, setup 0ms, import 10.48s, tests 7.25s, environment 6ms)
+
+JUNIT report written to /root/src/github.com/ikuradon/Resonote/test-results/junit.xml
+exit_status: 0
+summary: success
+=== evidence_end ===
+
+=== evidence_start ===
+executed_at_utc: 2026-05-05T13:43:52Z
+command: pnpm run test:auftakt:e2e
+
+> resonote@0.2.3 test:auftakt:e2e /root/src/github.com/ikuradon/Resonote
+> playwright test e2e/reply-thread.test.ts e2e/comment-flow.test.ts e2e/reaction-delete-reply.test.ts e2e/notifications-page.test.ts e2e/profile-data.test.ts e2e/relay-settings-data.test.ts e2e/nip19-routes.test.ts e2e/content-page.test.ts
+
+Error: Process from config.webServer was not able to start. Exit code: 1
+
+ ELIFECYCLE  Command failed with exit code 1.
+exit_status: 1
+summary: failed
+=== evidence_end ===
+
+=== evidence_start ===
+executed_at_utc: 2026-05-05T13:45:25Z
+command: pnpm run test:packages
+
+> resonote@0.2.3 test:packages /root/src/github.com/ikuradon/Resonote
+> vitest run packages/
+
+
+ RUN  v4.1.5 /root/src/github.com/ikuradon/Resonote
+
+ ✓ packages/runtime/src/package-boundary.contract.test.ts (2 tests) 34ms
+ ✓ packages/runtime/src/relay-session-word-guard.contract.test.ts (2 tests) 37ms
+ ✓ packages/core/src/public-api.contract.test.ts (4 tests) 1054ms
+     ✓ keeps raw relay internals out of the package root  1041ms
+ ✓ packages/runtime/src/public-api.contract.test.ts (4 tests) 1359ms
+     ✓ exposes only generic runtime execution values from the package root  1323ms
+ ✓ packages/resonote/src/public-api.contract.test.ts (8 tests) 1277ms
+     ✓ exports only the minimal Resonote-specific value allowlist  1247ms
+ ✓ packages/adapter-dexie/src/materialization.contract.test.ts (20 tests) 386ms
+ ✓ packages/resonote/src/subscription-visibility.contract.test.ts (7 tests) 384ms
+ ✓ packages/adapter-dexie/src/public-api.contract.test.ts (3 tests) 181ms
+ ✓ packages/resonote/src/public-read-cutover.contract.test.ts (11 tests) 250ms
+ ✓ packages/runtime/src/event-coordinator.contract.test.ts (28 tests) 203ms
+ ✓ packages/runtime/src/subscription-registry.contract.test.ts (7 tests) 218ms
+ ✓ packages/runtime/src/cached-read.contract.test.ts (2 tests) 179ms
+ ✓ packages/core/src/nip98-http-auth.contract.test.ts (4 tests) 144ms
+ ✓ packages/resonote/src/built-in-plugins.contract.test.ts (7 tests) 155ms
+ ✓ packages/core/src/nip17-direct-message.contract.test.ts (6 tests) 109ms
+ ✓ packages/adapter-dexie/src/app-bridge.contract.test.ts (3 tests) 132ms
+ ✓ packages/core/src/event-validation.contract.test.ts (3 tests) 110ms
+ ✓ packages/runtime/src/relay-session.contract.test.ts (42 tests) 1362ms
+ ✓ packages/core/src/nip86-relay-management.contract.test.ts (5 tests) 121ms
+ ✓ packages/adapter-dexie/src/hot-path.contract.test.ts (4 tests) 133ms
+ ✓ packages/adapter-dexie/src/pending-publishes.contract.test.ts (4 tests) 97ms
+ ✓ packages/core/src/nip37-draft-wrap.contract.test.ts (4 tests) 110ms
+ ✓ packages/runtime/src/relay-repair.contract.test.ts (18 tests) 2163ms
+     ✓ chunks multi-id negentropy repair fetches at the canonical 50-id boundary  1317ms
+ ✓ packages/adapter-dexie/src/maintenance.contract.test.ts (3 tests) 94ms
+ ✓ packages/core/src/nip59-gift-wrap.contract.test.ts (6 tests) 114ms
+ ✓ packages/adapter-dexie/src/relay-capabilities.contract.test.ts (3 tests) 100ms
+ ✓ packages/adapter-dexie/src/sync-cursors.contract.test.ts (3 tests) 72ms
+ ✓ packages/adapter-dexie/src/schema.contract.test.ts (3 tests) 80ms
+ ✓ packages/runtime/src/publish-queue.contract.test.ts (5 tests) 73ms
+ ✓ packages/resonote/src/relay-selection-runtime.contract.test.ts (14 tests) 49ms
+ ✓ packages/adapter-dexie/src/relay-hints.contract.test.ts (1 test) 48ms
+ ✓ packages/resonote/src/relay-routing-publish.contract.test.ts (6 tests) 36ms
+ ✓ packages/core/src/reconcile.contract.test.ts (7 tests) 38ms
+ ✓ packages/core/src/request-key.contract.test.ts (3 tests) 25ms
+ ✓ packages/core/src/relay-selection.contract.test.ts (8 tests) 24ms
+ ✓ packages/resonote/src/custom-emoji.contract.test.ts (15 tests) 28ms
+ ✓ packages/runtime/src/request-planning.contract.test.ts (5 tests) 23ms
+ ✓ packages/core/src/negentropy-repair.contract.test.ts (3 tests) 32ms
+ ✓ packages/core/src/nip52-calendar.contract.test.ts (7 tests) 16ms
+ ✓ packages/runtime/src/negentropy-transport.contract.test.ts (1 test) 21ms
+ ✓ packages/runtime/src/entity-handles.contract.test.ts (17 tests) 27ms
+ ✓ packages/core/src/nip39-external-identity.contract.test.ts (8 tests) 11ms
+ ✓ packages/runtime/src/plugin-api.contract.test.ts (5 tests) 16ms
+ ✓ packages/runtime/src/plugin-isolation.contract.test.ts (6 tests) 17ms
+ ✓ packages/runtime/src/relay-selection-runtime.contract.test.ts (5 tests) 16ms
+ ✓ packages/core/src/nip21-uri.contract.test.ts (5 tests) 12ms
+ ✓ packages/resonote/src/local-store-api.contract.test.ts (4 tests) 22ms
+ ✓ packages/resonote/src/relay-capability-api.contract.test.ts (3 tests) 22ms
+ ✓ packages/core/src/nip28-public-chat.contract.test.ts (5 tests) 12ms
+ ✓ packages/core/src/nipA4-public-messages.contract.test.ts (4 tests) 14ms
+ ✓ packages/core/src/nip32-label.contract.test.ts (7 tests) 16ms
+ ✓ packages/core/src/nipB7-blossom.contract.test.ts (5 tests) 16ms
+ ✓ packages/resonote/src/relay-metrics-nip66.contract.test.ts (2 tests) 11ms
+ ✓ packages/runtime/src/relay-gateway.contract.test.ts (6 tests) 13ms
+ ✓ packages/core/src/nip53-live-activity.contract.test.ts (7 tests) 16ms
+ ✓ packages/core/src/nip51-list.contract.test.ts (8 tests) 11ms
+ ✓ packages/core/src/nip85-trusted-assertions.contract.test.ts (4 tests) 12ms
+ ✓ packages/core/src/nip24-extra-metadata.contract.test.ts (7 tests) 11ms
+ ✓ packages/runtime/src/negentropy-message.contract.test.ts (15 tests) 20ms
+ ✓ packages/core/src/nip58-badges.contract.test.ts (6 tests) 11ms
+ ✓ packages/runtime/src/hot-event-index.contract.test.ts (7 tests) 16ms
+ ✓ packages/core/src/nip71-video.contract.test.ts (3 tests) 11ms
+ ✓ packages/core/src/nipA0-voice-messages.contract.test.ts (4 tests) 13ms
+ ✓ packages/core/src/nip55-android-signer.contract.test.ts (6 tests) 11ms
+ ✓ packages/core/src/nip43-relay-access.contract.test.ts (5 tests) 14ms
+ ✓ packages/core/src/nip68-picture.contract.test.ts (3 tests) 11ms
+ ✓ packages/core/src/nip92-media-attachments.contract.test.ts (4 tests) 14ms
+ ✓ packages/core/src/nipC0-code-snippets.contract.test.ts (4 tests) 9ms
+ ✓ packages/core/src/nip89-application-handlers.contract.test.ts (4 tests) 10ms
+ ✓ packages/core/src/nip27-references.contract.test.ts (4 tests) 12ms
+ ✓ packages/core/src/nip94-file-metadata.contract.test.ts (4 tests) 13ms
+ ✓ packages/core/src/nip13-proof-of-work.contract.test.ts (5 tests) 10ms
+ ✓ packages/core/src/nip48-proxy-tags.contract.test.ts (8 tests) 12ms
+ ✓ packages/resonote/src/event-ingress.contract.test.ts (3 tests) 14ms
+ ✓ packages/core/src/nip7d-thread.contract.test.ts (4 tests) 7ms
+ ✓ packages/core/src/nip88-polls.contract.test.ts (4 tests) 12ms
+ ✓ packages/core/src/nip46-remote-signing.contract.test.ts (6 tests) 21ms
+ ✓ packages/runtime/src/relay-capability-runtime.contract.test.ts (3 tests) 13ms
+ ✓ packages/core/src/nip84-highlight.contract.test.ts (3 tests) 13ms
+ ✓ packages/core/src/nip72-community.contract.test.ts (4 tests) 13ms
+ ✓ packages/core/src/relay-observation.contract.test.ts (2 tests) 8ms
+ ✓ packages/resonote/src/degraded-storage.contract.test.ts (1 test) 8ms
+ ✓ packages/core/src/relay-capability.contract.test.ts (7 tests) 14ms
+ ✓ packages/core/src/nip03-open-timestamps.contract.test.ts (4 tests) 11ms
+ ✓ packages/core/src/nip14-subject.contract.test.ts (7 tests) 10ms
+ ✓ packages/runtime/src/relay-observation.contract.test.ts (2 tests) 11ms
+ ✓ packages/core/src/nip38-user-status.contract.test.ts (8 tests) 11ms
+ ✓ packages/core/src/nip62-request-to-vanish.contract.test.ts (5 tests) 11ms
+ ✓ packages/core/src/publish-settlement.contract.test.ts (5 tests) 7ms
+ ✓ packages/core/src/nipC7-chats.contract.test.ts (4 tests) 9ms
+ ✓ packages/core/src/nip23-long-form.contract.test.ts (3 tests) 7ms
+ ✓ packages/core/src/nip56-report.contract.test.ts (5 tests) 9ms
+ ✓ packages/core/src/nip50-search.contract.test.ts (4 tests) 12ms
+ ✓ packages/core/src/nip40-expiration.contract.test.ts (3 tests) 10ms
+ ✓ packages/core/src/request-planning.contract.test.ts (1 test) 6ms
+ ✓ packages/runtime/src/relay-hints.contract.test.ts (2 tests) 9ms
+ ✓ packages/core/src/nip78-application-data.contract.test.ts (3 tests) 7ms
+ ✓ packages/core/src/module-boundary.contract.test.ts (3 tests) 9ms
+ ✓ packages/runtime/src/materializer-queue.contract.test.ts (2 tests) 7ms
+ ✓ packages/core/src/read-settlement.contract.test.ts (4 tests) 6ms
+ ✓ packages/core/src/nip31-alt.contract.test.ts (4 tests) 8ms
+ ✓ packages/core/src/nip36-content-warning.contract.test.ts (4 tests) 6ms
+ ✓ packages/runtime/src/relay-capability.contract.test.ts (1 test) 6ms
+ ✓ packages/runtime/src/relay-lifecycle.contract.test.ts (2 tests) 8ms
+
+ Test Files  104 passed (104)
+      Tests  594 passed (594)
+   Start at  22:45:29
+   Duration  9.66s (transform 8.05s, setup 0ms, import 29.23s, tests 11.83s, environment 66ms)
+
+JUNIT report written to /root/src/github.com/ikuradon/Resonote/test-results/junit.xml
+exit_status: 0
+summary: success (rerun)
+=== evidence_end ===
+
+=== evidence_start ===
+executed_at_utc: 2026-05-05T13:45:39Z
+command: pnpm run test:auftakt:e2e
+
+> resonote@0.2.3 test:auftakt:e2e /root/src/github.com/ikuradon/Resonote
+> playwright test e2e/reply-thread.test.ts e2e/comment-flow.test.ts e2e/reaction-delete-reply.test.ts e2e/notifications-page.test.ts e2e/profile-data.test.ts e2e/relay-settings-data.test.ts e2e/nip19-routes.test.ts e2e/content-page.test.ts
+
+[2m[WebServer] [22m(node:223204) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:223217) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:223217) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m[plugin builtin:vite-reporter] [33m[1m
+[2m[WebServer] [22m(!) Some chunks are larger than 1000 kB after minification. Consider:
+[2m[WebServer] [22m- Using dynamic import() to code-split the application
+[2m[WebServer] [22m- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+[2m[WebServer] [22m- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[0m[39m
+[2m[WebServer] [22m[33m[EVAL] Warning:[0m Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.
+[2m[WebServer] [22m - Use of direct `eval` here. in node_modules/.pnpm/@konemono+nostr-login@1.15.2_typescript@6.0.3/node_modules/@konemono/nostr-login/dist/index.esm.js at 239524..239528
+[2m[WebServer] [22m [38;5;240m │[0m 
+[2m[WebServer] [22m [38;5;240m │[0m [38;5;115mHelp[0m: Consider using indirect eval. For more information, check the documentation: https://rolldown.rs/guide/troubleshooting#avoiding-direct-eval
+[2m[WebServer] [22m
+[2m[WebServer] [22m[33m[EVAL] Warning:[0m Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.
+[2m[WebServer] [22m - Use of direct `eval` here. in node_modules/.pnpm/@konemono+nostr-login@1.15.2_typescript@6.0.3/node_modules/@konemono/nostr-login/dist/index.esm.js at 240687..240691
+[2m[WebServer] [22m [38;5;240m │[0m 
+[2m[WebServer] [22m [38;5;240m │[0m [38;5;115mHelp[0m: Consider using indirect eval. For more information, check the documentation: https://rolldown.rs/guide/troubleshooting#avoiding-direct-eval
+[2m[WebServer] [22m
+[2m[WebServer] [22m[33m[EVAL] Warning:[0m Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.
+[2m[WebServer] [22m - Use of direct `eval` here. in node_modules/.pnpm/@konemono+nostr-login@1.15.2_typescript@6.0.3/node_modules/@konemono/nostr-login/dist/index.esm.js at 241553..241557
+[2m[WebServer] [22m [38;5;240m │[0m 
+[2m[WebServer] [22m [38;5;240m │[0m [38;5;115mHelp[0m: Consider using indirect eval. For more information, check the documentation: https://rolldown.rs/guide/troubleshooting#avoiding-direct-eval
+[2m[WebServer] [22m
+[2m[WebServer] [22m(node:223217) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m[33m[PLUGIN_TIMINGS] Warning:[0m Your build spent significant time in plugins. Here is a breakdown:
+[2m[WebServer] [22m  - e2e-player-shim (50%)
+[2m[WebServer] [22m  - vite-plugin-sveltekit-guard (39%)
+[2m[WebServer] [22m  - vite-plugin-sveltekit-virtual-modules (5%)
+[2m[WebServer] [22mSee https://rolldown.rs/options/checks#plugintimings for more details.
+[2m[WebServer] [22m
+[2m[WebServer] [22m(node:223269) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mUsing direct eval with a bundler is not recommended and may cause problems[0m [direct-eval]
+[2m[WebServer] [22m
+[2m[WebServer] [22m    .wrangler/tmp/pages-bX0PNN/bundledWorker-0.37094080175466326.mjs:58080:26:
+[2m[WebServer] [22m[37m      58080 │         var funcFactory = [32meval[37m(funcFactoryCode);
+[2m[WebServer] [22m            ╵                           [32m~~~~[0m
+[2m[WebServer] [22m
+[2m[WebServer] [22m  You can read more about direct eval and bundling here: [4mhttps://esbuild.github.io/link/direct-eval[0m
+[2m[WebServer] [22m
+[2m[WebServer] [22m
+[2m[WebServer] [22m[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mUsing direct eval with a bundler is not recommended and may cause problems[0m [direct-eval]
+[2m[WebServer] [22m
+[2m[WebServer] [22m    .wrangler/tmp/pages-bX0PNN/bundledWorker-0.37094080175466326.mjs:58095:26:
+[2m[WebServer] [22m[37m      58095 │         var funcFactory = [32meval[37m(funcFactoryCode);
+[2m[WebServer] [22m            ╵                           [32m~~~~[0m
+[2m[WebServer] [22m
+[2m[WebServer] [22m  You can read more about direct eval and bundling here: [4mhttps://esbuild.github.io/link/direct-eval[0m
+[2m[WebServer] [22m
+[2m[WebServer] [22m
+[2m[WebServer] [22m[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mUsing direct eval with a bundler is not recommended and may cause problems[0m [direct-eval]
+[2m[WebServer] [22m
+[2m[WebServer] [22m    .wrangler/tmp/pages-bX0PNN/bundledWorker-0.37094080175466326.mjs:58107:26:
+[2m[WebServer] [22m[37m      58107 │         var funcFactory = [32meval[37m(funcFactoryCode);
+[2m[WebServer] [22m            ╵                           [32m~~~~[0m
+[2m[WebServer] [22m
+[2m[WebServer] [22m  You can read more about direct eval and bundling here: [4mhttps://esbuild.github.io/link/direct-eval[0m
+[2m[WebServer] [22m
+[2m[WebServer] [22m
+
+Running 93 tests using 1 worker
+
+(node:223349) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:223349) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › e2e/comment-flow.test.ts:24:3 › Comment flow › should post a timed comment and display it (4.6s)
+  ✓   2 [chromium] › e2e/comment-flow.test.ts:44:3 › Comment flow › should clear textarea after successful send (3.9s)
+  ✓   3 [chromium] › e2e/comment-flow.test.ts:61:3 › Comment flow › should block submission in Flow tab without position (3.6s)
+  ✓   4 [chromium] › e2e/comment-flow.test.ts:87:3 › Read-only login › should keep comment form hidden after read-only login (1.6s)
+  ✓   5 [chromium] › e2e/comment-flow.test.ts:99:3 › Read-only login › should show NIP-44 warning on settings page (1.6s)
+  ✓   6 [chromium] › e2e/comment-flow.test.ts:109:3 › Read-only login › should show relay heading on settings page after login (1.6s)
+  ✓   7 [chromium] › e2e/content-page.test.ts:8:3 › Content page (track) › should display Spotify embed (1.1s)
+  ✓   8 [chromium] › e2e/content-page.test.ts:13:3 › Content page (track) › should display Comments heading (1.0s)
+  ✓   9 [chromium] › e2e/content-page.test.ts:18:3 › Content page (track) › should display login prompt when not logged in (935ms)
+  ✓  10 [chromium] › e2e/content-page.test.ts:23:3 › Content page (track) › should not display comment form when not logged in (328ms)
+  ✓  11 [chromium] › e2e/content-page.test.ts:28:3 › Content page (track) › should display "No comments yet" initially (1.1s)
+  ✓  12 [chromium] › e2e/content-page.test.ts:40:3 › Content page (track) › should show header with logo navigation back to home (1.1s)
+  ✓  13 [chromium] › e2e/content-page.test.ts:52:3 › Content page (episode) › should display Spotify embed for episode (1.0s)
+  ✓  14 [chromium] › e2e/content-page.test.ts:57:3 › Content page (episode) › should display Comments section for episode (903ms)
+  ✓  15 [chromium] › e2e/content-page.test.ts:66:3 › Content page (show / collection) › should display Spotify embed for show (914ms)
+  ✓  16 [chromium] › e2e/content-page.test.ts:71:3 › Content page (show / collection) › should display "View all episodes on Spotify" link (902ms)
+  ✓  17 [chromium] › e2e/content-page.test.ts:82:3 › Content page (show / collection) › should display episode URL guidance text (928ms)
+  ✓  18 [chromium] › e2e/content-page.test.ts:87:3 › Content page (show / collection) › should NOT display Comments heading for show (337ms)
+  ✓  19 [chromium] › e2e/content-page.test.ts:92:3 › Content page (show / collection) › should NOT display comment form or login prompt for show (343ms)
+  ✓  20 [chromium] › e2e/content-page.test.ts:102:3 › Content page (YouTube) › should display YouTube embed (877ms)
+  ✓  21 [chromium] › e2e/content-page.test.ts:107:3 › Content page (YouTube) › should display Comments heading for YouTube (910ms)
+  ✓  22 [chromium] › e2e/content-page.test.ts:112:3 › Content page (YouTube) › should display login prompt when not logged in on YouTube (921ms)
+  ✓  23 [chromium] › e2e/content-page.test.ts:121:3 › Content page (niconico) › should display niconico embed (956ms)
+  ✓  24 [chromium] › e2e/content-page.test.ts:126:3 › Content page (niconico) › should display Comments heading for niconico (1.2s)
+  ✓  25 [chromium] › e2e/content-page.test.ts:131:3 › Content page (niconico) › should display login prompt when not logged in on niconico (922ms)
+  ✓  26 [chromium] › e2e/content-page.test.ts:141:3 › Content page (audio) › should display audio embed (995ms)
+  ✓  27 [chromium] › e2e/content-page.test.ts:146:3 › Content page (audio) › should display Comments heading for audio (996ms)
+  ✓  28 [chromium] › e2e/content-page.test.ts:151:3 › Content page (audio) › should display login prompt when not logged in on audio (1.0s)
+  ✓  29 [chromium] › e2e/content-page.test.ts:161:3 › Content page (podcast feed) › should render podcast feed page with header (930ms)
+  ✓  30 [chromium] › e2e/content-page.test.ts:166:3 › Content page (podcast feed) › should display episode selection hint for podcast feed (967ms)
+  ✓  31 [chromium] › e2e/content-page.test.ts:171:3 › Content page (podcast feed) › should show episode selection hint instead of comment form (864ms)
+  ✓  32 [chromium] › e2e/content-page.test.ts:182:3 › Content page (podbean) › should display podbean embed (1.0s)
+  ✓  33 [chromium] › e2e/content-page.test.ts:187:3 › Content page (podbean) › should display Comments heading for podbean (1.1s)
+  ✓  34 [chromium] › e2e/content-page.test.ts:192:3 › Content page (podbean) › should display login prompt when not logged in on podbean (1.1s)
+  ✓  35 [chromium] › e2e/content-page.test.ts:199:3 › Content page navigation between types › should navigate from Spotify track to YouTube video via home (1.4s)
+  ✓  36 [chromium] › e2e/content-page.test.ts:215:3 › Content page navigation between types › should navigate from YouTube to niconico via home (1.8s)
+  ✓  37 [chromium] › e2e/content-page.test.ts:233:3 › Content page (invalid) › should show unsupported content for unknown platform (917ms)
+  ✓  38 [chromium] › e2e/content-page.test.ts:238:3 › Content page (invalid) › should show back to home link on unsupported content (1.0s)
+[2m[WebServer] [22m[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1m[0m
+[2m[WebServer] [22m
+[2m[WebServer] [22m  [1;31m[404] GET /spotify/track/[0m
+[2m[WebServer] [22m
+[2m[WebServer] [22m
+  ✓  39 [chromium] › e2e/content-page.test.ts:246:3 › Content page (invalid) › should show unsupported content for empty type/id segments (877ms)
+  ✓  40 [chromium] › e2e/nip19-routes.test.ts:8:3 › NIP-19 routes › should show loading state for note1 URL (865ms)
+  ✓  41 [chromium] › e2e/nip19-routes.test.ts:14:3 › NIP-19 routes › should show loading state for nevent1 URL (848ms)
+  ✓  42 [chromium] › e2e/nip19-routes.test.ts:21:3 › NIP-19 routes › should show error for invalid NIP-19 string (927ms)
+  ✓  43 [chromium] › e2e/nip19-routes.test.ts:27:3 › NIP-19 routes › should have back to home link on NIP-19 page (832ms)
+  ✓  44 [chromium] › e2e/nip19-routes.test.ts:33:3 › NIP-19 routes › should redirect nprofile to profile page (862ms)
+  ✓  45 [chromium] › e2e/notifications-page.test.ts:27:3 › Notifications page › should display notifications title (1.5s)
+  ✓  46 [chromium] › e2e/notifications-page.test.ts:37:3 › Notifications page › should display filter tabs (1.5s)
+  ✓  47 [chromium] › e2e/notifications-page.test.ts:54:3 › Notifications page › should show empty state when no notifications (1.4s)
+  ✓  48 [chromium] › e2e/notifications-page.test.ts:64:3 › Notifications page › should switch filter tabs (1.7s)
+  ✓  49 [chromium] › e2e/notifications-page.test.ts:77:3 › Notifications page › should activate Reactions filter tab on click (1.5s)
+  ✓  50 [chromium] › e2e/notifications-page.test.ts:91:3 › Notifications page › should not show mark-all-read button when no notifications (1.6s)
+  ✓  51 [chromium] › e2e/notifications-page.test.ts:103:3 › Notifications page › should show reply target preview text in notification item (2.1s)
+  ✓  52 [chromium] › e2e/notifications-page.test.ts:131:3 › Notifications page — not logged in › should show login prompt (1.4s)
+  ✓  53 [chromium] › e2e/profile-data.test.ts:31:3 › Profile page — kind:0 display › should display profile name from kind:0 metadata (1.7s)
+  ✓  54 [chromium] › e2e/profile-data.test.ts:44:3 › Profile page — kind:0 display › should display profile bio from kind:0 metadata (1.7s)
+  ✓  55 [chromium] › e2e/profile-data.test.ts:59:3 › Profile page — kind:0 display › should show empty comments message on profile (1.7s)
+  ✓  56 [chromium] › e2e/profile-data.test.ts:69:3 › Profile page — kind:0 display › should show no profile found for unknown pubkey (1.6s)
+  ✓  57 [chromium] › e2e/profile-data.test.ts:83:3 › Profile page — kind:0 display › should display profile name with nip05 metadata (1.9s)
+  ✓  58 [chromium] › e2e/profile-data.test.ts:97:3 › Profile page — kind:0 display › should show default avatar when no picture in profile (1.7s)
+  ✓  59 [chromium] › e2e/profile-data.test.ts:109:3 › Profile page — kind:0 display › should display profile bio text (1.8s)
+  ✓  60 [chromium] › e2e/reaction-delete-reply.test.ts:26:3 › Reaction flow › should send a reaction and update count (4.2s)
+  ✓  61 [chromium] › e2e/reaction-delete-reply.test.ts:52:3 › Reaction flow › should display reaction from another user in real-time (3.0s)
+  ✓  62 [chromium] › e2e/reaction-delete-reply.test.ts:81:3 › Reaction flow › should not show reaction buttons when not logged in (3.0s)
+  ✓  63 [chromium] › e2e/reaction-delete-reply.test.ts:106:3 › Delete flow › should delete own comment via ConfirmDialog (5.4s)
+  ✓  64 [chromium] › e2e/reaction-delete-reply.test.ts:135:3 › Delete flow › should cancel delete via ConfirmDialog (5.6s)
+  ✓  65 [chromium] › e2e/reaction-delete-reply.test.ts:163:3 › Delete flow › should not show delete button on other users comments (4.1s)
+  ✓  66 [chromium] › e2e/reaction-delete-reply.test.ts:187:3 › Delete flow › should remove comment when kind:5 received from another relay (3.2s)
+  ✓  67 [chromium] › e2e/reaction-delete-reply.test.ts:214:3 › Reply flow › should open reply form and post a reply (4.6s)
+  ✓  68 [chromium] › e2e/reaction-delete-reply.test.ts:243:3 › Reply flow › should cancel reply form (4.1s)
+  ✓  69 [chromium] › e2e/relay-settings-data.test.ts:26:3 › Relay settings — kind:10002 display › should display relay URLs from kind:10002 event (1.7s)
+  ✓  70 [chromium] › e2e/relay-settings-data.test.ts:43:3 › Relay settings — kind:10002 display › should display Read/Write buttons for each relay (1.7s)
+  ✓  71 [chromium] › e2e/relay-settings-data.test.ts:62:3 › Relay settings — kind:10002 display › should add relay via input field (1.7s)
+  ✓  72 [chromium] › e2e/relay-settings-data.test.ts:79:3 › Relay settings — kind:10002 display › should reject invalid relay URL (1.7s)
+  ✓  73 [chromium] › e2e/relay-settings-data.test.ts:96:3 › Relay settings — kind:10002 display › should remove relay from list (1.7s)
+  ✓  74 [chromium] › e2e/relay-settings-data.test.ts:118:3 › Relay settings — kind:10002 display › should publish kind:10002 on save (2.0s)
+  ✓  75 [chromium] › e2e/relay-settings-data.test.ts:143:3 › Relay settings — kind:10002 display › should show "Not found" or relay list after settled (1.6s)
+  ✓  76 [chromium] › e2e/relay-settings-data.test.ts:164:3 › Relay settings — validation › should reject empty relay URL (1.7s)
+  ✓  77 [chromium] › e2e/relay-settings-data.test.ts:184:3 › Relay settings — validation › should clear input after adding relay (1.8s)
+  ✓  78 [chromium] › e2e/relay-settings-data.test.ts:202:3 › Relay settings — validation › should enable save button after modification (1.7s)
+  ✓  79 [chromium] › e2e/reply-thread.test.ts:33:3 › Reply threading › should display reply under parent comment (3.2s)
+  ✓  80 [chromium] › e2e/reply-thread.test.ts:56:3 › Reply threading › should receive reply from another user in real-time (3.6s)
+  ✓  81 [chromium] › e2e/reply-thread.test.ts:79:3 › Reply threading › should show reply success toast (4.7s)
+  ✓  82 [chromium] › e2e/reply-thread.test.ts:112:3 › Reply threading › should preserve reply text on failure (4.3s)
+  ✓  83 [chromium] › e2e/reply-thread.test.ts:155:3 › Reply threading › should display nested reply (reply to reply) (3.2s)
+  ✓  84 [chromium] › e2e/reply-thread.test.ts:178:3 › Reply threading › should disable reply send button while sending (4.6s)
+  ✓  85 [chromium] › e2e/reply-thread.test.ts:209:3 › Reply threading › should show reply with CW tag (3.8s)
+  ✓  86 [chromium] › e2e/reply-thread.test.ts:233:3 › Reply threading › should show quote button and prefill textarea (4.0s)
+  ✓  87 [chromium] › e2e/reply-thread.test.ts:274:3 › Reply failure › should keep comment on delete failure (5.1s)
+  ✓  88 [chromium] › e2e/reply-thread.test.ts:319:3 › Orphan placeholders › should show orphan placeholder for reply with missing parent (3.4s)
+  ✓  89 [chromium] › e2e/reply-thread.test.ts:344:3 › Orphan placeholders › should show deleted placeholder when parent was deleted (3.0s)
+  ✓  90 [chromium] › e2e/reply-thread.test.ts:375:3 › Deletion with thread effects › should show spinner while deleting (5.9s)
+  ✓  91 [chromium] › e2e/reply-thread.test.ts:408:3 › Deletion with thread effects › should ignore invalid kind:5 from non-author (2.9s)
+  ✓  92 [chromium] › e2e/reply-thread.test.ts:433:3 › Deletion with thread effects › should remove reply thread when parent is deleted (5.7s)
+  ✓  93 [chromium] › e2e/reply-thread.test.ts:468:3 › Deletion with thread effects › should remove reaction count when comment is deleted (5.5s)
+
+  93 passed (3.6m)
+exit_status: 0
+summary: success (rerun)
+=== evidence_end ===
