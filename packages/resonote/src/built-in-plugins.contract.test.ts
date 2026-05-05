@@ -325,6 +325,22 @@ describe('@auftakt/resonote built-in plugins', () => {
     expect(storedEvents).toEqual([fetchedEvent]);
   });
 
+  it('exposes coordinator-owned custom emoji diagnostics through the emoji catalog read model', async () => {
+    const coordinator = createTestCoordinator();
+
+    await expect(coordinator.fetchCustomEmojiSourceDiagnostics('missing-user')).resolves.toEqual({
+      diagnostics: {
+        listEvent: null,
+        sets: [],
+        missingRefs: [],
+        invalidRefs: [],
+        warnings: [],
+        sourceMode: 'unknown'
+      },
+      categories: []
+    });
+  });
+
   it('exposes coordinator-owned backward reads that materialize relay events', async () => {
     const relayEvent = finalizeEvent(
       {
