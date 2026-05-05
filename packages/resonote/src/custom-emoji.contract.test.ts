@@ -254,6 +254,34 @@ describe('custom emoji read model', () => {
     expect(stored).toEqual([]);
   });
 
+  it('writes fetched sources when the cache generation still matches', async () => {
+    const pubkey = 'user-pubkey';
+    const setAuthor = 'set-author';
+    const listEvent = event('emoji-list', {
+      pubkey,
+      kind: 10030,
+      tags: [['a', `30030:${setAuthor}:remote`]]
+    });
+    const fetchedSet = event('fetched-set', {
+      pubkey: setAuthor,
+      kind: 30030,
+      tags: [
+        ['d', 'remote'],
+        ['emoji', 'spark', 'https://example.com/spark.png']
+      ]
+    });
+    const { runtime, stored } = createEmojiRuntime({ listEvent, fetchedSets: [fetchedSet] });
+
+    await expect(
+      fetchCustomEmojiSources(runtime, pubkey, {
+        generation: 1,
+        getGeneration: () => 1
+      })
+    ).resolves.toEqual({ listEvent, setEvents: [fetchedSet] });
+
+    expect(stored).toEqual([listEvent, fetchedSet]);
+  });
+
   it('does not write fetched diagnostics sources when the cache generation changed', async () => {
     const pubkey = 'user-pubkey';
     const setAuthor = 'set-author';
@@ -427,6 +455,36 @@ describe('custom emoji read model', () => {
     expect(result.diagnostics.sourceMode).toBe('cache-only');
     expect(result.diagnostics.sets[0]).toMatchObject({
       title: 'Named Set',
+      resolvedVia: 'cache'
+    });
+  });
+
+  it('falls back to the set event id when emoji set metadata is unnamed', async () => {
+    const pubkey = 'user-pubkey';
+    const setAuthor = 'set-author';
+    const listEvent = event('emoji-list', {
+      pubkey,
+      kind: 10030,
+      tags: [['a', `30030:${setAuthor}:unnamed`]]
+    });
+    const unnamedSet = event('unnamed-set-id', {
+      pubkey: setAuthor,
+      kind: 30030,
+      created_at: 700,
+      tags: [['emoji', 'spark', 'https://example.com/spark.png']]
+    });
+    const { runtime } = createEmojiRuntime({
+      listEvent,
+      cachedSets: { [`${setAuthor}:unnamed`]: unnamedSet }
+    });
+
+    const result = await fetchCustomEmojiSourceDiagnostics(runtime, pubkey);
+
+    expect(result.categories[0]?.name).toBe('unnamed-');
+    expect(result.diagnostics.sets[0]).toMatchObject({
+      dTag: '',
+      title: 'unnamed-',
+      emojiCount: 1,
       resolvedVia: 'cache'
     });
   });
