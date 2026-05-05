@@ -140,6 +140,49 @@ describe('custom emoji read model', () => {
     ]);
   });
 
+  it('does not write fetched categories when the cache generation changed', async () => {
+    const pubkey = 'user-pubkey';
+    const setAuthor = 'set-author';
+    const listEvent = event('emoji-list', {
+      pubkey,
+      kind: 10030,
+      tags: [
+        ['emoji', 'wave', 'https://example.com/wave.png'],
+        ['a', `30030:${setAuthor}:remote`]
+      ]
+    });
+    const fetchedSet = event('fetched-set', {
+      pubkey: setAuthor,
+      kind: 30030,
+      tags: [
+        ['d', 'remote'],
+        ['title', 'Remote'],
+        ['emoji', 'spark', 'https://example.com/spark.png']
+      ]
+    });
+    const { runtime, stored } = createEmojiRuntime({ listEvent, fetchedSets: [fetchedSet] });
+
+    await expect(
+      fetchCustomEmojiCategories(runtime, pubkey, {
+        generation: 1,
+        getGeneration: () => 2
+      })
+    ).resolves.toEqual([
+      {
+        id: 'custom-inline',
+        name: 'Custom',
+        emojis: [{ id: 'wave', name: 'wave', skins: [{ src: 'https://example.com/wave.png' }] }]
+      },
+      {
+        id: 'set-fetched-',
+        name: 'Remote',
+        emojis: [{ id: 'spark', name: 'spark', skins: [{ src: 'https://example.com/spark.png' }] }]
+      }
+    ]);
+
+    expect(stored).toEqual([]);
+  });
+
   it('returns an empty source set when no kind:10030 list exists', async () => {
     const { runtime } = createEmojiRuntime({ listEvent: null });
 

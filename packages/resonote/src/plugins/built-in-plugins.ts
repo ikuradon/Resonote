@@ -59,7 +59,10 @@ export interface EmojiCatalogReadModel {
     listEvent: StoredEvent | null;
     setEvents: StoredEvent[];
   }>;
-  fetchCustomEmojiCategories(pubkey: string): Promise<EmojiCategory[]>;
+  fetchCustomEmojiCategories(
+    pubkey: string,
+    options?: CustomEmojiSourceDiagnosticsOptions
+  ): Promise<EmojiCategory[]>;
   fetchCustomEmojiSourceDiagnostics(
     pubkey: string,
     options?: CustomEmojiSourceDiagnosticsOptions

@@ -1428,7 +1428,13 @@ export interface ResonoteCoordinator<TResult = unknown, TLatestResult = unknown>
     listEvent: StoredEvent | null;
     setEvents: StoredEvent[];
   }>;
-  fetchCustomEmojiCategories(pubkey: string): Promise<EmojiCategory[]>;
+  fetchCustomEmojiCategories(
+    pubkey: string,
+    options?: {
+      readonly generation?: number;
+      readonly getGeneration?: () => number;
+    }
+  ): Promise<EmojiCategory[]>;
   fetchCustomEmojiSourceDiagnostics(
     pubkey: string,
     options?: {
@@ -1902,8 +1908,8 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
     createEmojiCatalogPlugin({
       fetchCustomEmojiSources: (pubkey, options) =>
         fetchCustomEmojiSourcesFromRuntime(pubkey, options),
-      fetchCustomEmojiCategories: async (pubkey) => {
-        const { listEvent, setEvents } = await fetchCustomEmojiSourcesFromRuntime(pubkey);
+      fetchCustomEmojiCategories: async (pubkey, options) => {
+        const { listEvent, setEvents } = await fetchCustomEmojiSourcesFromRuntime(pubkey, options);
         if (!listEvent) return [];
 
         const categories: EmojiCategory[] = [];
@@ -2146,10 +2152,10 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       runtimeCoordinator
         .getReadModel<EmojiCatalogReadModel>(EMOJI_CATALOG_READ_MODEL)
         .fetchCustomEmojiSources(pubkey, options),
-    fetchCustomEmojiCategories: (pubkey) =>
+    fetchCustomEmojiCategories: (pubkey, options) =>
       runtimeCoordinator
         .getReadModel<EmojiCatalogReadModel>(EMOJI_CATALOG_READ_MODEL)
-        .fetchCustomEmojiCategories(pubkey),
+        .fetchCustomEmojiCategories(pubkey, options),
     fetchCustomEmojiSourceDiagnostics: (pubkey, options) =>
       runtimeCoordinator
         .getReadModel<EmojiCatalogReadModel>(EMOJI_CATALOG_READ_MODEL)
@@ -2760,9 +2766,13 @@ export async function fetchCustomEmojiSourceDiagnostics(
 
 export async function fetchCustomEmojiCategories(
   runtime: QueryRuntime,
-  pubkey: string
+  pubkey: string,
+  options: {
+    readonly generation?: number;
+    readonly getGeneration?: () => number;
+  } = {}
 ): Promise<EmojiCategory[]> {
-  return (await fetchCustomEmojiSourceDiagnostics(runtime, pubkey)).categories;
+  return (await fetchCustomEmojiSourceDiagnostics(runtime, pubkey, options)).categories;
 }
 
 function hasBookmarkDTagPayload(tags: string[][]): boolean {
