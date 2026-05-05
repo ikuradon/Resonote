@@ -193,6 +193,22 @@ describe('custom emoji read model', () => {
     expect(runtime.fetchBackwardEvents).not.toHaveBeenCalled();
   });
 
+  it('returns the list event without fetching sets when it has no valid set refs', async () => {
+    const pubkey = 'user-pubkey';
+    const listEvent = event('emoji-list', {
+      pubkey,
+      kind: 10030,
+      tags: [['emoji', 'wave', 'https://example.com/wave.png']]
+    });
+    const { runtime } = createEmojiRuntime({ listEvent });
+
+    await expect(fetchCustomEmojiSources(runtime, pubkey)).resolves.toEqual({
+      listEvent,
+      setEvents: []
+    });
+    expect(runtime.fetchBackwardEvents).not.toHaveBeenCalled();
+  });
+
   it('returns empty diagnostics when no kind:10030 list exists', async () => {
     const { runtime } = createEmojiRuntime({ listEvent: null });
 

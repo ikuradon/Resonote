@@ -177,5 +177,24 @@ describe('custom emoji app facade generation', () => {
       generation: expect.any(Number),
       getGeneration: expect.any(Function)
     });
+    const [, options] = coordinator.fetchCustomEmojiSources.mock.calls[0] as unknown as [
+      string,
+      { generation: number; getGeneration: () => number }
+    ];
+    expect(options.getGeneration()).toBe(options.generation);
+  });
+
+  it('passes generation guard options when fetching custom emoji diagnostics', async () => {
+    await facade.fetchCustomEmojiSourceDiagnostics('pubkey');
+
+    expect(coordinator.fetchCustomEmojiSourceDiagnostics).toHaveBeenCalledWith('pubkey', {
+      generation: expect.any(Number),
+      getGeneration: expect.any(Function)
+    });
+    const [, options] = coordinator.fetchCustomEmojiSourceDiagnostics.mock.calls[0] as unknown as [
+      string,
+      { generation: number; getGeneration: () => number }
+    ];
+    expect(options.getGeneration()).toBe(options.generation);
   });
 });
