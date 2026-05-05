@@ -249,6 +249,47 @@ describe('custom emoji diagnostics browser state', () => {
     expect(setCustomEmojisMock).toHaveBeenCalledTimes(1);
   });
 
+  it('ignores a refresh success when the pubkey is reset before completion', async () => {
+    resetCustomEmojiDiagnosticsForPubkey(PUBKEY);
+    let resolveRefresh: (value: ReturnType<typeof result>) => void = () => {};
+    fetchDiagnosticsMock.mockImplementation(
+      () => new Promise((resolve) => (resolveRefresh = resolve))
+    );
+
+    const refresh = refreshCustomEmojiDiagnostics(PUBKEY);
+    resetCustomEmojiDiagnosticsForPubkey('q'.repeat(64));
+    clearCustomEmojisMock.mockClear();
+    resolveRefresh(result());
+    await refresh;
+
+    const state = getCustomEmojiDiagnostics();
+    expect(state.pubkey).toBe('q'.repeat(64));
+    expect(state.status).toBe('idle');
+    expect(setCustomEmojisMock).not.toHaveBeenCalled();
+    expect(clearCustomEmojisMock).not.toHaveBeenCalled();
+  });
+
+  it('ignores a refresh failure when a newer operation has already started', async () => {
+    resetCustomEmojiDiagnosticsForPubkey(PUBKEY);
+    let rejectRefresh: (error: Error) => void = () => {};
+    fetchDiagnosticsMock.mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          rejectRefresh = reject;
+        })
+    );
+
+    const refresh = refreshCustomEmojiDiagnostics(PUBKEY);
+    resetCustomEmojiDiagnosticsForPubkey('q'.repeat(64));
+    rejectRefresh(new Error('stale failure'));
+    await refresh;
+
+    const state = getCustomEmojiDiagnostics();
+    expect(state.pubkey).toBe('q'.repeat(64));
+    expect(state.status).toBe('idle');
+    expect(state.error).toBeNull();
+  });
+
   it('initial refresh failure records string errors without stale diagnostics', async () => {
     resetCustomEmojiDiagnosticsForPubkey(PUBKEY);
     fetchDiagnosticsMock.mockRejectedValueOnce('offline');
@@ -279,6 +320,27 @@ describe('custom emoji diagnostics browser state', () => {
     expect(state.status).toBe('idle');
     expect(state.dbCounts).toEqual({ kind10030: 0, kind30030: 0 });
     expect(state.lastCheckedAtMs).toBeNull();
+  });
+
+  it('ignores a clear success when the pubkey is reset before completion', async () => {
+    resetCustomEmojiDiagnosticsForPubkey(PUBKEY);
+    fetchDiagnosticsMock.mockResolvedValue(result());
+    await refreshCustomEmojiDiagnostics(PUBKEY);
+    let resolveClear: () => void = () => {};
+    deleteStoredEventsByKindsMock.mockImplementation(
+      () => new Promise<void>((resolve) => (resolveClear = resolve))
+    );
+
+    const clear = clearCustomEmojiCache();
+    resetCustomEmojiDiagnosticsForPubkey('q'.repeat(64));
+    clearCustomEmojisMock.mockClear();
+    resolveClear();
+    await clear;
+
+    const state = getCustomEmojiDiagnostics();
+    expect(state.pubkey).toBe('q'.repeat(64));
+    expect(state.status).toBe('idle');
+    expect(clearCustomEmojisMock).not.toHaveBeenCalled();
   });
 
   it('clear failure preserves diagnostics and reports the error', async () => {
