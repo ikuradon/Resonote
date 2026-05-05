@@ -6,7 +6,7 @@ const { mockResolvePodcastFeed } = vi.hoisted(() => ({
   mockResolvePodcastFeed: vi.fn()
 }));
 
-vi.mock('$features/content-resolution/application/resolve-feed.js', () => ({
+vi.mock('./resolve-feed.js', () => ({
   resolvePodcastFeed: (...args: unknown[]) => mockResolvePodcastFeed(...(args as []))
 }));
 
