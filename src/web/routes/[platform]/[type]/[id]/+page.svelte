@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
   import { page } from '$app/state';
   import {
     deleteContentReaction,
@@ -100,6 +101,13 @@
   const collectionVm = createPlayerColumnViewModel({
     getContentId: () => contentId,
     getProvider: () => provider!
+  });
+
+  $effect(() => {
+    if (!browser || !isFeed || !feedWarningKey) return;
+    const nextUrl = new URL(page.url);
+    nextUrl.searchParams.delete('warning');
+    history.replaceState(history.state, '', nextUrl);
   });
 </script>
 

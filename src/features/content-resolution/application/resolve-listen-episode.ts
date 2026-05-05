@@ -40,9 +40,7 @@ export async function resolveListenEpisodeUrl(
 
   const contentId = buildEpisodeContentId(parsed.feedUrl, episode.guid);
   const basePath = `/podcast/episode/${contentId.id}`;
-  const path = parsed.initialTimeParam
-    ? `${basePath}?t=${encodeURIComponent(parsed.initialTimeParam)}`
-    : basePath;
+  const path = parsed.initialTimeParam ? `${basePath}?t=${parsed.initialTimeParam}` : basePath;
 
   return {
     kind: 'episode',
