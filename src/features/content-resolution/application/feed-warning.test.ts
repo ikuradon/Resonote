@@ -9,6 +9,8 @@ describe('getFeedWarningKey', () => {
     );
     expect(getFeedWarningKey('listen_feed_unavailable')).toBeNull();
     expect(getFeedWarningKey('<script>')).toBeNull();
+    expect(getFeedWarningKey('toString')).toBeNull();
+    expect(getFeedWarningKey('constructor')).toBeNull();
     expect(getFeedWarningKey(null)).toBeNull();
   });
 });

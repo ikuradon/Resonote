@@ -6,5 +6,6 @@ const FEED_WARNING_KEY_BY_CODE: Record<string, TranslationKey | undefined> = {
 
 export function getFeedWarningKey(code: string | null): TranslationKey | null {
   if (!code) return null;
+  if (!Object.hasOwn(FEED_WARNING_KEY_BY_CODE, code)) return null;
   return FEED_WARNING_KEY_BY_CODE[code] ?? null;
 }
