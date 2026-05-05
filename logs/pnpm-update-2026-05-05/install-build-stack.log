@@ -311,3 +311,11 @@ dist-extension/sidepanel/bridge.js                  1.75 kB │ gzip: 0.78 kB
 dist-extension/content-scripts/index.js            14.69 kB │ gzip: 3.89 kB
 
 ✓ built in 56ms
+
+---
+review_section: build_stack_warning_scan
+peer_warning_scan_result: found
+peer_warning_details: `@codecov/vite-plugin@2.0.1` が `vite@"4.x || 5.x || 6.x"` を peer 宣言（実際は `vite@8.0.10` で install/check/build 成功）
+engine_warning_scan_result: none
+engine_warning_details: install/verify ログ内に Node engine 警告は未検出
+judgement: peer=found, engine=none

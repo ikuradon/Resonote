@@ -140,7 +140,7 @@ importers:
         specifier: ^8.59.2
         version: 8.59.2(eslint@10.1.0(jiti@2.6.1))(typescript@6.0.3)
       vite:
-        specifier: 8.0.10
+        specifier: ^8.0.10
         version: 8.0.10(@types/node@25.6.0)(esbuild@0.28.0)(jiti@2.6.1)
       vitest:
         specifier: ^4.1.2

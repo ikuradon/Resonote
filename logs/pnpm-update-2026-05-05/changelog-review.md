@@ -154,11 +154,11 @@ Use this exact entry format for each package before running its update command:
 - Version range reviewed: `8.0.3...8.0.10`
 - Breaking changes: none found
 - Peer dependency changes: none found
-- Engine changes: none found
-- Config/default behavior changes: none found
-- Project impact: none
+- Engine changes: Node エンジン要件は本repoの実行環境で `pnpm run check` / `pnpm run build` 成功、engine 警告はログ上で未検出
+- Config/default behavior changes: Vite 8 (rolldown) 由来の `PLUGIN_TIMINGS` / chunk size warning は発生したが build は成功し、既存設定で動作継続
+- Project impact: none（ただし Vite 8 migration は未解決リスクとして監視継続）
 - Verification commands: `pnpm run check`, `pnpm run build`
-- Notes: patch 更新中心のため、既存 build/check の通過で回帰有無を確認。
+- Notes: 未解決 migration risk は「一部 plugin が Vite 8 peer を未宣言」の点（`@codecov/vite-plugin`）で、現時点は警告のみ・実動作は通過。
 
 ### @sveltejs/kit
 
@@ -170,8 +170,8 @@ Use this exact entry format for each package before running its update command:
 - Version range reviewed: `2.55.0...2.59.1`
 - Breaking changes: none found
 - Peer dependency changes: none found
-- Engine changes: none found
-- Config/default behavior changes: none found
+- Engine changes: Node engine 警告は install/verify ログ上で未検出、Kit 更新後も check/build が通過
+- Config/default behavior changes: plugin hook 実行は継続（`svelte-kit sync` / adapter-cloudflare 出力を確認）
 - Project impact: none
 - Verification commands: `pnpm run check`, `pnpm run build`
 - Notes: SvelteKit runtime/build 周辺変更を batch で検証。
@@ -186,8 +186,8 @@ Use this exact entry format for each package before running its update command:
 - Version range reviewed: `7.0.0...7.1.0`
 - Breaking changes: none found
 - Peer dependency changes: none found
-- Engine changes: none found
-- Config/default behavior changes: none found
+- Engine changes: Node engine 警告は未検出
+- Config/default behavior changes: Vite 8 上で plugin hook が動作し build 完了（`vite-plugin-sveltekit-guard` timing warning は性能観点のみ）
 - Project impact: none
 - Verification commands: `pnpm run check`, `pnpm run build`
 - Notes: Vite 8 系との組み合わせで build/check 通過を確認。
@@ -202,8 +202,8 @@ Use this exact entry format for each package before running its update command:
 - Version range reviewed: `5.55.0...5.55.5`
 - Breaking changes: none found
 - Peer dependency changes: none found
-- Engine changes: none found
-- Config/default behavior changes: none found
+- Engine changes: Node engine 警告は未検出
+- Config/default behavior changes: Svelte 5.55.5 への更新後も `svelte-check` 0 error/0 warning
 - Project impact: none
 - Verification commands: `pnpm run check`, `pnpm run build`
 - Notes: patch 更新のため check/build を主検証とする。
@@ -218,8 +218,8 @@ Use this exact entry format for each package before running its update command:
 - Version range reviewed: `4.2.2...4.2.4`
 - Breaking changes: none found
 - Peer dependency changes: none found
-- Engine changes: none found
-- Config/default behavior changes: none found
+- Engine changes: Node engine 警告は未検出
+- Config/default behavior changes: build フック動作は維持（生成物更新と build 成功を確認）
 - Project impact: none
 - Verification commands: `pnpm run build`
 - Notes: Vite plugin の patch 更新として build 出力回帰を確認。
@@ -234,8 +234,8 @@ Use this exact entry format for each package before running its update command:
 - Version range reviewed: `4.2.2...4.2.4`
 - Breaking changes: none found
 - Peer dependency changes: none found
-- Engine changes: none found
-- Config/default behavior changes: none found
+- Engine changes: Node engine 警告は未検出
+- Config/default behavior changes: Tailwind 4.2.4 適用後も CSS アセット生成は正常（build 成功）
 - Project impact: none
 - Verification commands: `pnpm run build`
 - Notes: CSS 生成回帰は build 成功で確認。
@@ -248,10 +248,10 @@ Use this exact entry format for each package before running its update command:
   - changelog: https://github.com/evanw/esbuild/blob/main/CHANGELOG.md
   - npm: https://www.npmjs.com/package/esbuild
 - Version range reviewed: `0.27.4...0.28.0`
-- Breaking changes: none found
+- Breaking changes: 0.x 系は minor でも破壊的変更を含みうるためリスクあり（0.27 -> 0.28）
 - Peer dependency changes: none found
-- Engine changes: none found
-- Config/default behavior changes: none found
-- Project impact: none
+- Engine changes: Node engine 警告は未検出
+- Config/default behavior changes: `build:e2e-helpers` / `build:ext:chrome` で esbuild 0.28.0 実行成功
+- Project impact: none（0.x minor risk を踏まえ verify 実施済み）
 - Verification commands: `pnpm run check`, `pnpm run build`
-- Notes: transitive 依存影響を `pnpm why esbuild` と build/check で確認。
+- Notes: `pnpm why esbuild` で 0.27.3（wrangler 経由）と 0.28.0（direct/Vite 経由）の共存を確認。今回の対象 build は 0.28.0 で成功。
