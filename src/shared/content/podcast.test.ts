@@ -106,6 +106,12 @@ describe('PodcastProvider', () => {
       expect(result).toEqual({ platform: 'podcast', type: 'feed', id: toBase64url(feedUrl) });
     });
 
+    it('should parse LISTEN RSS URL with trailing slash and query as canonical feed URL', () => {
+      const feedUrl = 'https://rss.listen.style/p/foo/rss';
+      const result = provider.parseUrl('https://rss.listen.style/p/foo/rss/?utm=1');
+      expect(result).toEqual({ platform: 'podcast', type: 'feed', id: toBase64url(feedUrl) });
+    });
+
     it('should return null for a URL with unrecognized extension', () => {
       expect(provider.parseUrl('https://example.com/page.html')).toBeNull();
     });
