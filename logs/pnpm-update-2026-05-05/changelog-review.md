@@ -141,3 +141,117 @@ Use this exact entry format for each package before running its update command:
 - Project impact: none
 - Verification commands: `pnpm run check`, `pnpm run test:packages`
 - Notes: extension 側型定義更新のため check/test で回帰確認。
+
+## Task 4 Entries
+
+### vite
+
+- Update: `8.0.3` -> `8.0.10`
+- Sources:
+  - release notes: https://github.com/vitejs/vite/releases
+  - changelog: https://github.com/vitejs/vite/blob/main/packages/vite/CHANGELOG.md
+  - npm: https://www.npmjs.com/package/vite
+- Version range reviewed: `8.0.3...8.0.10`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Project impact: none
+- Verification commands: `pnpm run check`, `pnpm run build`
+- Notes: patch 更新中心のため、既存 build/check の通過で回帰有無を確認。
+
+### @sveltejs/kit
+
+- Update: `2.55.0` -> `2.59.1`
+- Sources:
+  - release notes: https://github.com/sveltejs/kit/releases
+  - changelog: https://github.com/sveltejs/kit/blob/main/packages/kit/CHANGELOG.md
+  - npm: https://www.npmjs.com/package/@sveltejs/kit
+- Version range reviewed: `2.55.0...2.59.1`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Project impact: none
+- Verification commands: `pnpm run check`, `pnpm run build`
+- Notes: SvelteKit runtime/build 周辺変更を batch で検証。
+
+### @sveltejs/vite-plugin-svelte
+
+- Update: `7.0.0` -> `7.1.0`
+- Sources:
+  - release notes: https://github.com/sveltejs/vite-plugin-svelte/releases
+  - changelog: https://github.com/sveltejs/vite-plugin-svelte/blob/main/packages/vite-plugin-svelte/CHANGELOG.md
+  - npm: https://www.npmjs.com/package/@sveltejs/vite-plugin-svelte
+- Version range reviewed: `7.0.0...7.1.0`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Project impact: none
+- Verification commands: `pnpm run check`, `pnpm run build`
+- Notes: Vite 8 系との組み合わせで build/check 通過を確認。
+
+### svelte
+
+- Update: `5.55.0` -> `5.55.5`
+- Sources:
+  - release notes: https://github.com/sveltejs/svelte/releases
+  - changelog: https://github.com/sveltejs/svelte/blob/main/packages/svelte/CHANGELOG.md
+  - npm: https://www.npmjs.com/package/svelte
+- Version range reviewed: `5.55.0...5.55.5`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Project impact: none
+- Verification commands: `pnpm run check`, `pnpm run build`
+- Notes: patch 更新のため check/build を主検証とする。
+
+### @tailwindcss/vite
+
+- Update: `4.2.2` -> `4.2.4`
+- Sources:
+  - release notes: https://github.com/tailwindlabs/tailwindcss/releases
+  - changelog: https://github.com/tailwindlabs/tailwindcss/blob/main/CHANGELOG.md
+  - npm: https://www.npmjs.com/package/@tailwindcss/vite
+- Version range reviewed: `4.2.2...4.2.4`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Project impact: none
+- Verification commands: `pnpm run build`
+- Notes: Vite plugin の patch 更新として build 出力回帰を確認。
+
+### tailwindcss
+
+- Update: `4.2.2` -> `4.2.4`
+- Sources:
+  - release notes: https://github.com/tailwindlabs/tailwindcss/releases
+  - changelog: https://github.com/tailwindlabs/tailwindcss/blob/main/CHANGELOG.md
+  - npm: https://www.npmjs.com/package/tailwindcss
+- Version range reviewed: `4.2.2...4.2.4`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Project impact: none
+- Verification commands: `pnpm run build`
+- Notes: CSS 生成回帰は build 成功で確認。
+
+### esbuild
+
+- Update: `0.27.4` -> `0.28.0`
+- Sources:
+  - release notes: https://github.com/evanw/esbuild/releases
+  - changelog: https://github.com/evanw/esbuild/blob/main/CHANGELOG.md
+  - npm: https://www.npmjs.com/package/esbuild
+- Version range reviewed: `0.27.4...0.28.0`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Project impact: none
+- Verification commands: `pnpm run check`, `pnpm run build`
+- Notes: transitive 依存影響を `pnpm why esbuild` と build/check で確認。
