@@ -164,6 +164,28 @@ describe('createTrackInputViewModel', () => {
       await firstSubmit;
       expect(navigateMock).toHaveBeenCalledTimes(1);
     });
+
+    it('ignores stale navigation when the same url is submitted again before the first result resolves', async () => {
+      const first = deferred<{ path: string }>();
+      const second = deferred<{ path: string }>();
+      resolveContentNavigationMock
+        .mockReturnValueOnce(first.promise)
+        .mockReturnValueOnce(second.promise);
+
+      const vm = makeVm();
+      vm.url = 'https://example.com/same';
+      const firstSubmit = vm.submit();
+      const secondSubmit = vm.submit();
+
+      second.resolve({ path: '/resolve/latest' });
+      await secondSubmit;
+      expect(navigateMock).toHaveBeenCalledTimes(1);
+      expect(navigateMock).toHaveBeenCalledWith('/resolve/latest');
+
+      first.resolve({ path: '/resolve/stale' });
+      await firstSubmit;
+      expect(navigateMock).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('placeholder', () => {

@@ -56,6 +56,16 @@ describe('resolveContentNavigation', () => {
     expect(resolveListenEpisodeUrlMock).not.toHaveBeenCalled();
   });
 
+  it('should parse scheme-less LISTEN feed URLs through the provider parser', async () => {
+    const feedUrl = 'https://rss.listen.style/p/foo/rss';
+
+    await expect(resolveContentNavigation('listen.style/p/foo')).resolves.toEqual({
+      path: `/podcast/feed/${toBase64url(feedUrl)}`
+    });
+
+    expect(resolveListenEpisodeUrlMock).not.toHaveBeenCalled();
+  });
+
   it('should use the resolver error path without adding warning query', async () => {
     const feedPath = `/podcast/feed/${toBase64url('https://rss.listen.style/p/foo/rss')}`;
     resolveListenEpisodeUrlMock.mockResolvedValueOnce({
