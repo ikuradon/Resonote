@@ -150,6 +150,34 @@ describe('custom emoji read model', () => {
     expect(runtime.fetchBackwardEvents).not.toHaveBeenCalled();
   });
 
+  it('does not write fetched sources when the cache generation changed', async () => {
+    const pubkey = 'user-pubkey';
+    const setAuthor = 'set-author';
+    const listEvent = event('emoji-list', {
+      pubkey,
+      kind: 10030,
+      tags: [['a', `30030:${setAuthor}:remote`]]
+    });
+    const fetchedSet = event('fetched-set', {
+      pubkey: setAuthor,
+      kind: 30030,
+      tags: [
+        ['d', 'remote'],
+        ['emoji', 'spark', 'https://example.com/spark.png']
+      ]
+    });
+    const { runtime, stored } = createEmojiRuntime({ listEvent, fetchedSets: [fetchedSet] });
+
+    await expect(
+      fetchCustomEmojiSources(runtime, pubkey, {
+        generation: 1,
+        getGeneration: () => 2
+      })
+    ).resolves.toEqual({ listEvent, setEvents: [fetchedSet] });
+
+    expect(stored).toEqual([]);
+  });
+
   it('returns diagnostics and categories from the same custom emoji source resolution', async () => {
     const pubkey = 'user-pubkey';
     const setAuthor = 'set-author';

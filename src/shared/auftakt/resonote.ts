@@ -219,7 +219,8 @@ export async function countStoredEventsByKinds(
 }
 
 export async function clearStoredEvents(): Promise<void> {
-  return coordinator.clearStoredEvents();
+  customEmojiCacheGeneration++;
+  await coordinator.clearStoredEvents();
 }
 
 export async function deleteStoredEventsByKinds(kinds: readonly number[]): Promise<void> {
@@ -276,11 +277,15 @@ export async function fetchProfileMetadataSources(pubkeys: readonly string[], ba
 }
 
 export async function fetchCustomEmojiSources(pubkey: string) {
-  return coordinator.fetchCustomEmojiSources(pubkey);
+  const generation = customEmojiCacheGeneration;
+  return coordinator.fetchCustomEmojiSources(pubkey, {
+    generation,
+    getGeneration: () => customEmojiCacheGeneration
+  });
 }
 
 export async function fetchCustomEmojiCategories(pubkey: string): Promise<EmojiCategory[]> {
-  return coordinator.fetchCustomEmojiCategories(pubkey);
+  return (await fetchCustomEmojiSourceDiagnostics(pubkey)).categories;
 }
 
 export async function fetchCustomEmojiSourceDiagnostics(

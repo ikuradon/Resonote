@@ -52,7 +52,10 @@ export const EMOJI_CATALOG_READ_MODEL = 'emojiCatalog';
 export const NOTIFICATIONS_FLOW = 'notificationsFlow';
 
 export interface EmojiCatalogReadModel {
-  fetchCustomEmojiSources(pubkey: string): Promise<{
+  fetchCustomEmojiSources(
+    pubkey: string,
+    options?: CustomEmojiSourceDiagnosticsOptions
+  ): Promise<{
     listEvent: StoredEvent | null;
     setEvents: StoredEvent[];
   }>;

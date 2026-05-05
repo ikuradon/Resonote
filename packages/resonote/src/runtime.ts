@@ -1418,7 +1418,13 @@ export interface ResonoteCoordinator<TResult = unknown, TLatestResult = unknown>
     }>;
     unresolvedPubkeys: string[];
   }>;
-  fetchCustomEmojiSources(pubkey: string): Promise<{
+  fetchCustomEmojiSources(
+    pubkey: string,
+    options?: {
+      readonly generation?: number;
+      readonly getGeneration?: () => number;
+    }
+  ): Promise<{
     listEvent: StoredEvent | null;
     setEvents: StoredEvent[];
   }>;
@@ -1886,7 +1892,8 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
   const builtInPlugins: AuftaktRuntimePlugin[] = [
     createTimelinePlugin(),
     createEmojiCatalogPlugin({
-      fetchCustomEmojiSources: (pubkey) => fetchCustomEmojiSourcesFromRuntime(pubkey),
+      fetchCustomEmojiSources: (pubkey, options) =>
+        fetchCustomEmojiSourcesFromRuntime(pubkey, options),
       fetchCustomEmojiCategories: async (pubkey) => {
         const { listEvent, setEvents } = await fetchCustomEmojiSourcesFromRuntime(pubkey);
         if (!listEvent) return [];
@@ -2109,7 +2116,8 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
     },
     deleteStoredEventsByKinds: async (kinds) => {
       const db = await runtime.getEventsDB();
-      const events = (await Promise.all(kinds.map((kind) => db.getAllByKind(kind)))).flat();
+      const uniqueKinds = [...new Set(kinds)];
+      const events = (await Promise.all(uniqueKinds.map((kind) => db.getAllByKind(kind)))).flat();
       await db.deleteByIds([...new Set(events.map((event) => event.id))]);
     },
     fetchProfileCommentEvents: async (pubkey, until, limit = 20) => {
@@ -2126,10 +2134,10 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       fetchReplaceableEventsByAuthorsAndKind(queryRuntime, pubkeys, 0, batchSize),
     fetchProfileMetadataSources: (pubkeys, batchSize = 50) =>
       fetchProfileMetadataSources(queryRuntime, relayStatusRuntime, pubkeys, batchSize),
-    fetchCustomEmojiSources: (pubkey) =>
+    fetchCustomEmojiSources: (pubkey, options) =>
       runtimeCoordinator
         .getReadModel<EmojiCatalogReadModel>(EMOJI_CATALOG_READ_MODEL)
-        .fetchCustomEmojiSources(pubkey),
+        .fetchCustomEmojiSources(pubkey, options),
     fetchCustomEmojiCategories: (pubkey) =>
       runtimeCoordinator
         .getReadModel<EmojiCatalogReadModel>(EMOJI_CATALOG_READ_MODEL)
@@ -2562,7 +2570,11 @@ function buildInlineCategory(listEvent: Pick<StoredEvent, 'tags'>): EmojiCategor
 
 export async function fetchCustomEmojiSources(
   runtime: QueryRuntime,
-  pubkey: string
+  pubkey: string,
+  options: {
+    readonly generation?: number;
+    readonly getGeneration?: () => number;
+  } = {}
 ): Promise<{
   listEvent: StoredEvent | null;
   setEvents: StoredEvent[];
@@ -2572,7 +2584,7 @@ export async function fetchCustomEmojiSources(
     [{ kinds: [10030], authors: [pubkey], limit: 1 }],
     { timeoutMs: 5_000 }
   );
-  if (listEvent) {
+  if (listEvent && canWriteCustomEmojiCache(options)) {
     await cacheEvent(eventsDB, listEvent);
   }
 
@@ -2616,7 +2628,9 @@ export async function fetchCustomEmojiSources(
           timeoutMs: 5_000
         });
 
-  await Promise.all(fetchedEvents.map((event) => cacheEvent(eventsDB, event)));
+  if (canWriteCustomEmojiCache(options)) {
+    await Promise.all(fetchedEvents.map((event) => cacheEvent(eventsDB, event)));
+  }
 
   return { listEvent, setEvents: [...cachedEvents, ...fetchedEvents] };
 }

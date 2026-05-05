@@ -143,9 +143,29 @@ describe('@auftakt/resonote local store api contract', () => {
       getById: vi.fn(async () => null),
       getAllByKind: vi.fn(async (kind: number) =>
         kind === 10030
-          ? [{ id: 'list', pubkey: 'pk', kind, tags: [], content: '', created_at: 1 }]
+          ? [
+              { id: 'list', pubkey: 'pk', kind, tags: [], content: '', created_at: 1 },
+              { id: 'shared', pubkey: 'pk', kind, tags: [], content: '', created_at: 1 }
+            ]
           : kind === 30030
-            ? [{ id: 'set', pubkey: 'pk', kind, tags: [['d', 'x']], content: '', created_at: 1 }]
+            ? [
+                {
+                  id: 'set',
+                  pubkey: 'pk',
+                  kind,
+                  tags: [['d', 'x']],
+                  content: '',
+                  created_at: 1
+                },
+                {
+                  id: 'shared',
+                  pubkey: 'pk',
+                  kind,
+                  tags: [['d', 'y']],
+                  content: '',
+                  created_at: 1
+                }
+              ]
             : [{ id: 'other', pubkey: 'pk', kind, tags: [], content: '', created_at: 1 }]
       ),
       listNegentropyEventRefs: vi.fn(async () => []),
@@ -160,9 +180,12 @@ describe('@auftakt/resonote local store api contract', () => {
       runtime: { ...runtime, getEventsDB: async () => db }
     });
 
-    await coordinator.deleteStoredEventsByKinds([10030, 30030]);
+    await coordinator.deleteStoredEventsByKinds([10030, 10030, 30030]);
 
-    expect(deletedIds.sort()).toEqual(['list', 'set']);
+    expect(db.getAllByKind).toHaveBeenCalledTimes(2);
+    expect(db.getAllByKind).toHaveBeenCalledWith(10030);
+    expect(db.getAllByKind).toHaveBeenCalledWith(30030);
+    expect(deletedIds.sort()).toEqual(['list', 'set', 'shared']);
     expect(db.clearAll).not.toHaveBeenCalled();
   });
 });
