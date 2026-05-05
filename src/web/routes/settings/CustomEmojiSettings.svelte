@@ -68,7 +68,7 @@
   {#if !auth.pubkey}
     <p class="text-sm text-text-muted">{t('settings.custom_emoji.not_logged_in')}</p>
   {:else}
-    <p class="text-sm text-text-muted">{customEmojiStatusMessage(diagnostics)}</p>
+    <p class="text-sm text-text-muted">{customEmojiStatusMessage(diagnostics, t)}</p>
     <div class="grid grid-cols-2 gap-2 text-xs text-text-muted">
       <span
         >{t('settings.custom_emoji.emoji_sets', { count: diagnostics.summary.categoryCount })}</span
@@ -79,7 +79,7 @@
         <span>{formatNostrTimestampSec(diagnostics.listEvent.createdAtSec)}</span>
       {/if}
       <span>{t('settings.custom_emoji.last_checked')}</span>
-      <span>{formatAppTimestampMs(diagnostics.lastCheckedAtMs)}</span>
+      <span>{formatAppTimestampMs(diagnostics.lastCheckedAtMs, t)}</span>
     </div>
   {/if}
 
