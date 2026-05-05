@@ -320,35 +320,144 @@ Progress: resolved 429, reused 0, downloaded 0, added 0
  ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/acorn: request to https://registry.npmjs.org/acorn failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
 Progress: resolved 431, reused 0, downloaded 0, added 0
  WARN  GET https://registry.npmjs.org/yocto-queue error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/yocto-queue: request to https://registry.npmjs.org/yocto-queue failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+Progress: resolved 432, reused 0, downloaded 0, added 0
+Progress: resolved 432, reused 0, downloaded 0, added 0, done
+ WARN  Issues with peer dependencies found
+.
+└─┬ @codecov/vite-plugin 2.0.1
+  └── ✕ unmet peer vite@"4.x || 5.x || 6.x": found 8.0.10
 
-=== rerun_evidence_digest_start ===
-executed_at_utc: 2026-05-05T13:57:40Z
-command: pnpm add -w -D eslint@10.3.0 eslint-plugin-svelte@3.17.1 eslint-plugin-simple-import-sort@13.0.0 prettier@3.8.3 globals@17.6.0 nano-staged@1.0.2
+Packages: +23 -23
++++++++++++++++++++++++-----------------------
+. prepare$ (svelte-kit sync || echo '') && simple-git-hooks
+. prepare: Done
+Done in 8m 15.2s using pnpm v10.33.2
 exit_status: 0
-summary: success (rerun)
+summary: success
+=== evidence_end ===
 
-executed_at_utc: 2026-05-05T13:57:47Z
+=== evidence_start ===
+executed_at_utc: 2026-05-05T14:00:46Z
 command: pnpm install
-exit_status: 0
-summary: success (rerun)
+Scope: all 5 workspace projects
+Lockfile is up to date, resolution step is skipped
+Already up to date
 
-executed_at_utc: 2026-05-05T13:57:52Z
+. prepare$ (svelte-kit sync || echo '') && simple-git-hooks
+. prepare: Done
+Done in 3.6s using pnpm v10.33.2
+exit_status: 0
+summary: success
+=== evidence_end ===
+
+=== evidence_start ===
+executed_at_utc: 2026-05-05T14:00:50Z
 command: pnpm list --depth 0 | tee logs/pnpm-update-2026-05-05/pnpm-list-depth-0-lint-format.txt
-exit_status: 0
-summary: success (rerun)
+Legend: production dependency, optional only, dev only
 
-executed_at_utc: 2026-05-05T13:57:53Z
+resonote@0.2.3 /root/src/github.com/ikuradon/Resonote (PRIVATE)
+│
+│   dependencies:
+├── @auftakt/adapter-dexie@link:packages/adapter-dexie
+├── @auftakt/core@link:packages/core
+├── @auftakt/resonote@link:packages/resonote
+├── @auftakt/runtime@link:packages/runtime
+├── @hono/zod-validator@0.7.6
+├── @ikuradon/emoji-kitchen-mart@7.0.0
+├── @ikuradon/emoji-kitchen-mart-data@2.0.0
+├── @konemono/nostr-login@1.15.2
+├── @scure/base@2.0.0
+├── hono@4.12.16
+├── idb@8.0.3
+├── rxjs@7.8.2
+├── zod@4.3.6
+│
+│   devDependencies:
+├── @codecov/vite-plugin@2.0.1
+├── @eslint/js@10.0.1
+├── @ikuradon/tsunagiya@0.4.0
+├── @playwright/test@1.59.1
+├── @sveltejs/adapter-cloudflare@7.2.8
+├── @sveltejs/kit@2.59.1
+├── @sveltejs/vite-plugin-svelte@7.1.0
+├── @tailwindcss/vite@4.2.4
+├── @types/chrome@0.1.40
+├── @types/node@25.6.0
+├── @types/webextension-polyfill@0.12.5
+├── @vitest/coverage-v8@4.1.5
+├── esbuild@0.28.0
+├── eslint@10.3.0
+├── eslint-config-prettier@10.1.8
+├── eslint-plugin-simple-import-sort@13.0.0
+├── eslint-plugin-svelte@3.17.1
+├── fake-indexeddb@6.2.5
+├── globals@17.6.0
+├── nano-staged@1.0.2
+├── nostr-typedef@0.13.0
+├── prettier@3.8.3
+├── prettier-plugin-svelte@3.5.1
+├── simple-git-hooks@2.13.1
+├── svelte@5.55.5
+├── svelte-check@4.4.8
+├── tailwindcss@4.2.4
+├── typescript@6.0.3
+├── typescript-eslint@8.59.2
+├── vite@8.0.10
+├── vitest@4.1.5
+├── webextension-polyfill@0.12.0
+└── wrangler@4.78.0
+
+46 packages
+exit_status: 0
+summary: success
+=== evidence_end ===
+
+=== evidence_start ===
+executed_at_utc: 2026-05-05T14:00:51Z
 command: pnpm run lint
-exit_status: 0
-summary: success (rerun)
 
-executed_at_utc: 2026-05-05T13:58:31Z
+> resonote@0.2.3 lint /root/src/github.com/ikuradon/Resonote
+> eslint .
+
+exit_status: 0
+summary: success
+=== evidence_end ===
+
+=== evidence_start ===
+executed_at_utc: 2026-05-05T14:01:30Z
 command: pnpm run format:check
-exit_status: 0
-summary: success (rerun)
 
-executed_at_utc: 2026-05-05T13:59:02Z
-command: pnpm run check
+> resonote@0.2.3 format:check /root/src/github.com/ikuradon/Resonote
+> prettier --check .
+
+Checking formatting...
+All matched files use Prettier code style!
 exit_status: 0
-summary: success (rerun)
-=== rerun_evidence_digest_end ===
+summary: success
+=== evidence_end ===
+
+=== evidence_start ===
+executed_at_utc: 2026-05-05T14:02:01Z
+command: pnpm run check
+
+> resonote@0.2.3 check /root/src/github.com/ikuradon/Resonote
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /root/src/github.com/ikuradon/Resonote
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+exit_status: 0
+summary: success
+=== evidence_end ===
+fig.json
+
+Loading svelte-check in workspace: /root/src/github.com/ikuradon/Resonote
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+exit_status: 0
+summary: success
+Task 6 gate final status: PASS
+=== evidence_end ===
