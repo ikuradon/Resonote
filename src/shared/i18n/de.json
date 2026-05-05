@@ -82,6 +82,7 @@
   "dialog.close": "Schließen",
   "loading": "Laden...",
   "podcast.loading": "Episoden werden geladen...",
+  "podcast.warning.listen_episode_not_found": "Die angeforderte LISTEN-Episode wurde im RSS-Feed nicht gefunden. Wähle eine Episode aus der Liste aus.",
   "youtube.feed.loading": "Videos werden geladen...",
   "youtube.feed.error": "Videoliste konnte nicht geladen werden",
   "youtube.feed.select_video": "Wähle ein Video, um Kommentare anzuzeigen",

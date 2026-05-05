@@ -82,6 +82,7 @@
   "dialog.close": "閉じるで",
   "loading": "読み込み中やで...",
   "podcast.loading": "エピソード一覧読み込み中やで...",
+  "podcast.warning.listen_episode_not_found": "指定された LISTEN エピソードは RSS 内で見つかりませんでした。一覧から選択してください。",
   "youtube.feed.loading": "動画一覧読み込み中やで...",
   "youtube.feed.error": "動画一覧の取得でけへんかったわ",
   "youtube.feed.select_video": "動画選んでコメント見てや",

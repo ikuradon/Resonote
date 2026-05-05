@@ -14,6 +14,7 @@
     episodeFeedTitle?: string;
     episodeImage?: string;
     onFeedLoaded?: (info: { title: string; imageUrl: string; description: string }) => void;
+    feedWarningText?: string | null;
   }
 
   let {
@@ -23,7 +24,8 @@
     episodeTitle,
     episodeFeedTitle,
     episodeImage,
-    onFeedLoaded
+    onFeedLoaded,
+    feedWarningText
   }: Props = $props();
   const vm = createPlayerColumnViewModel({
     getContentId: () => contentId,
@@ -41,7 +43,7 @@
   class="md:sticky md:top-[var(--header-height)] md:max-h-[calc(100vh-var(--header-height)-2rem)] md:overflow-y-auto md:scrollbar-hide"
 >
   {#if vm.surfaceKind === 'podcast-feed'}
-    <PodcastEpisodeList {contentId} {onFeedLoaded} />
+    <PodcastEpisodeList {contentId} {onFeedLoaded} warningText={feedWarningText} />
   {:else if vm.surfaceKind === 'youtube-feed'}
     <YouTubeFeedList {contentId} />
   {:else if vm.surfaceKind === 'audio'}

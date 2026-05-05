@@ -327,6 +327,72 @@ describe('parseRss', () => {
     expect(result!.episodes[0].description).toBe('Episode 1 description');
   });
 
+  it('should trim link and expose raw guid for episodes', async () => {
+    const xml = `<rss><channel><title>Podcast</title><podcast:guid>g</podcast:guid>
+      <item>
+        <title>Ep</title>
+        <guid>raw-guid-1</guid>
+        <link>
+          https://listen.style/p/foo/bar
+        </link>
+        <enclosure url="https://example.com/audio.mp3" type="audio/mpeg"/>
+      </item>
+    </channel></rss>`;
+    const result = await parseRss(xml, 'https://example.com/feed.xml');
+    const episode = result!.episodes[0];
+
+    expect(episode).toMatchObject({
+      guid: 'raw-guid-1',
+      rawGuid: 'raw-guid-1',
+      link: 'https://listen.style/p/foo/bar',
+      enclosureUrl: 'https://example.com/audio.mp3'
+    });
+  });
+
+  it('should treat whitespace-only episode link as missing', async () => {
+    const xml = `<rss><channel><title>Podcast</title><podcast:guid>g</podcast:guid>
+      <item>
+        <title>Ep</title>
+        <guid>raw-guid-1</guid>
+        <link>   </link>
+        <enclosure url="https://example.com/audio.mp3" type="audio/mpeg"/>
+      </item>
+    </channel></rss>`;
+    const result = await parseRss(xml, 'https://example.com/feed.xml');
+    const episode = result!.episodes[0];
+
+    expect(episode.link).toBeUndefined();
+  });
+
+  it('should fall back to enclosureUrl when episode guid is whitespace-only', async () => {
+    const xml = `<rss><channel><title>Podcast</title><podcast:guid>g</podcast:guid>
+      <item>
+        <title>Ep</title>
+        <guid>   </guid>
+        <enclosure url="https://example.com/audio.mp3" type="audio/mpeg"/>
+      </item>
+    </channel></rss>`;
+    const result = await parseRss(xml, 'https://example.com/feed.xml');
+    const episode = result!.episodes[0];
+
+    expect(episode.guid).toBe('https://example.com/audio.mp3');
+    expect(episode.rawGuid).toBeUndefined();
+  });
+
+  it('should fall back to enclosureUrl when episode guid is missing', async () => {
+    const xml = `<rss><channel><title>Podcast</title><podcast:guid>g</podcast:guid>
+      <item>
+        <title>Ep</title>
+        <enclosure url="https://example.com/audio.mp3" type="audio/mpeg"/>
+      </item>
+    </channel></rss>`;
+    const result = await parseRss(xml, 'https://example.com/feed.xml');
+    const episode = result!.episodes[0];
+
+    expect(episode.guid).toBe('https://example.com/audio.mp3');
+    expect(episode.rawGuid).toBeUndefined();
+  });
+
   it('should return null for non-RSS XML', async () => {
     const result = await parseRss(
       '<html><body>Not RSS</body></html>',

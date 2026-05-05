@@ -25,6 +25,7 @@ export function createTrackInputViewModel(options: TrackInputViewModelOptions) {
   let error = $state('');
   let placeholderIndex = $state(0);
   let placeholderVisible = $state(true);
+  let navigationRequestId = 0;
 
   let placeholders = $derived.by(() =>
     TRACK_PLACEHOLDER_KEYS.map((translationKey) => t(translationKey))
@@ -46,9 +47,11 @@ export function createTrackInputViewModel(options: TrackInputViewModelOptions) {
     };
   });
 
-  function submit(): void {
+  async function submit(): Promise<void> {
     error = '';
-    const result = resolveContentNavigation(url);
+    const requestId = ++navigationRequestId;
+    const result = await resolveContentNavigation(url);
+    if (requestId !== navigationRequestId) return;
     if (!result) return;
 
     if ('errorKey' in result) {
@@ -64,6 +67,9 @@ export function createTrackInputViewModel(options: TrackInputViewModelOptions) {
       return url;
     },
     set url(value: string) {
+      if (value !== url) {
+        navigationRequestId++;
+      }
       url = value;
       if (error) {
         error = '';

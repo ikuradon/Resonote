@@ -37,11 +37,14 @@ describe('resolvePodcastFeed', () => {
   it('returns feed data on success', async () => {
     const episodes = [
       {
-        guid: 'ep1',
         title: 'Episode 1',
+        guid: 'ep1',
+        rawGuid: 'ep1',
+        link: 'https://ex.com/episodes/1',
         enclosureUrl: 'https://ex.com/ep1.mp3',
+        pubDate: 'Mon, 01 Jan 2024 00:00:00 GMT',
         duration: 3600,
-        publishedAt: 1700000000
+        description: 'Episode 1 description'
       }
     ];
     resolveByApiMock.mockResolvedValue({

@@ -82,6 +82,7 @@
   "dialog.close": "关闭",
   "loading": "加载中...",
   "podcast.loading": "正在加载剧集...",
+  "podcast.warning.listen_episode_not_found": "在 RSS Feed 中未找到请求的 LISTEN 剧集。请从列表中选择一个剧集。",
   "youtube.feed.loading": "正在加载视频...",
   "youtube.feed.error": "加载视频列表失败",
   "youtube.feed.select_video": "选择一个视频查看评论",

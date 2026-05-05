@@ -10,11 +10,14 @@ import { createLogger } from '$shared/utils/logger.js';
 const log = createLogger('resolve-feed');
 
 export interface FeedEpisode {
-  guid: string;
   title: string;
+  guid: string;
+  rawGuid?: string;
+  link?: string;
   enclosureUrl: string;
+  pubDate: string;
   duration: number;
-  publishedAt: number;
+  description: string;
 }
 
 export interface FeedResolveResult {

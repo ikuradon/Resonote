@@ -82,6 +82,7 @@
   "dialog.close": "Fermer",
   "loading": "Chargement...",
   "podcast.loading": "Chargement des épisodes...",
+  "podcast.warning.listen_episode_not_found": "L’épisode LISTEN demandé est introuvable dans le flux RSS. Sélectionnez un épisode dans la liste.",
   "youtube.feed.loading": "Chargement des vidéos...",
   "youtube.feed.error": "Échec du chargement de la liste de vidéos",
   "youtube.feed.select_video": "Sélectionnez une vidéo pour voir les commentaires",

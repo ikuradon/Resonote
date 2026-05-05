@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Resonote",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Comment on music and video with Nostr",
   "permissions": ["activeTab", "storage"],
   "sidebar_action": {

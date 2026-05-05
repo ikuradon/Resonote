@@ -82,6 +82,7 @@
   "dialog.close": "닫기",
   "loading": "로딩 중...",
   "podcast.loading": "에피소드 불러오는 중...",
+  "podcast.warning.listen_episode_not_found": "요청한 LISTEN 에피소드를 RSS 피드에서 찾을 수 없습니다. 목록에서 에피소드를 선택하세요.",
   "youtube.feed.loading": "동영상 불러오는 중...",
   "youtube.feed.error": "동영상 목록을 불러오지 못했습니다",
   "youtube.feed.select_video": "동영상을 선택하여 댓글 보기",

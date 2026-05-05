@@ -61,8 +61,8 @@ describe('episode-resolver', () => {
           guid: GUID,
           title: 'Episode 1',
           enclosureUrl: 'https://example.com/ep1.mp3',
+          pubDate: 'Tue, 14 Nov 2023 22:13:20 GMT',
           duration: 3600,
-          publishedAt: 1700000000,
           description: 'API description'
         }
       ]

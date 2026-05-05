@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildEpisodeContentId, PodcastProvider } from '$shared/content/podcast.js';
+import {
+  buildEpisodeContentId,
+  buildListenFeedUrl,
+  isListenEpisodeUrl,
+  normalizeListenEpisodeUrl,
+  parseListenUrl,
+  PodcastProvider
+} from '$shared/content/podcast.js';
 import { fromBase64url, toBase64url } from '$shared/content/url-utils.js';
 
 const provider = new PodcastProvider();
@@ -85,6 +92,30 @@ describe('PodcastProvider', () => {
 
     it('should return null for an empty string', () => {
       expect(provider.parseUrl('')).toBeNull();
+    });
+
+    it('should parse LISTEN URL as canonical RSS feed URL', () => {
+      const feedUrl = 'https://rss.listen.style/p/foo/rss';
+      const result = provider.parseUrl('https://listen.style/p/foo');
+      expect(result).toEqual({ platform: 'podcast', type: 'feed', id: toBase64url(feedUrl) });
+    });
+
+    it('should parse LISTEN RSS URL as canonical feed URL before generic RSS detection', () => {
+      const feedUrl = 'https://rss.listen.style/p/foo/rss';
+      const result = provider.parseUrl('https://rss.listen.style/p/foo/rss?utm=1');
+      expect(result).toEqual({ platform: 'podcast', type: 'feed', id: toBase64url(feedUrl) });
+    });
+
+    it('should parse LISTEN RSS URL with trailing slash and query as canonical feed URL', () => {
+      const feedUrl = 'https://rss.listen.style/p/foo/rss';
+      const result = provider.parseUrl('https://rss.listen.style/p/foo/rss/?utm=1');
+      expect(result).toEqual({ platform: 'podcast', type: 'feed', id: toBase64url(feedUrl) });
+    });
+
+    it('should reject unsupported LISTEN URLs before generic RSS detection', () => {
+      expect(provider.parseUrl('https://rss.listen.style/p/foo/rss/extra')).toBeNull();
+      expect(provider.parseUrl('https://listen.style/p/foo/bar/baz')).toBeNull();
+      expect(provider.parseUrl('https://listen.style/p/foo/bar//')).toBeNull();
     });
 
     it('should return null for a URL with unrecognized extension', () => {
@@ -186,6 +217,108 @@ describe('PodcastProvider', () => {
       const contentId = buildEpisodeContentId(feedUrl, 'guid-123');
       expect(provider.openUrl(contentId)).toBe(feedUrl);
     });
+  });
+});
+
+describe('LISTEN URL parsing', () => {
+  it('should build a canonical LISTEN feed URL', () => {
+    expect(buildListenFeedUrl('foo')).toBe('https://rss.listen.style/p/foo/rss');
+  });
+
+  it('should parse LISTEN podcast and RSS URLs as canonical feed URLs', () => {
+    expect(parseListenUrl('https://listen.style/p/foo')).toEqual({
+      feedUrl: 'https://rss.listen.style/p/foo/rss'
+    });
+
+    expect(parseListenUrl('https://rss.listen.style/p/foo/rss/')).toEqual({
+      feedUrl: 'https://rss.listen.style/p/foo/rss'
+    });
+  });
+
+  it('should canonicalize decoded percent-encoded slugs', () => {
+    expect(parseListenUrl('https://listen.style/p/%E3%81%82/episode')).toEqual({
+      feedUrl: 'https://rss.listen.style/p/%E3%81%82/rss',
+      episodeUrl: 'https://listen.style/p/%E3%81%82/episode'
+    });
+  });
+
+  it('should return null for malformed and unsupported LISTEN URLs', () => {
+    for (const url of [
+      'not a url',
+      'ftp://listen.style/p/foo',
+      'https://example.com/p/foo',
+      'https://listen.style/u/user',
+      'https://listen.style/p/foo/bar//',
+      'https://listen.style/p/foo/%2Fbar',
+      'https://listen.style/p/%E0%A4%A/bar',
+      'https://listen.style/p/foo/%C2%85bar',
+      'https://rss.listen.style/p/foo',
+      'https://rss.listen.style/p/foo/rss/extra',
+      'https://rss.listen.style/p/foo/rss//'
+    ]) {
+      expect(parseListenUrl(url)).toBeNull();
+    }
+  });
+
+  it('should parse LISTEN episode URLs with accepted initial time params', () => {
+    expect(parseListenUrl('http://listen.style/p/Foo/Ep?t=90.50#x')).toEqual({
+      feedUrl: 'https://rss.listen.style/p/Foo/rss',
+      episodeUrl: 'https://listen.style/p/Foo/Ep',
+      initialTimeSec: 90.5,
+      initialTimeParam: '90.50'
+    });
+
+    expect(parseListenUrl('https://listen.style/p/foo/bar?t=90.5')).toEqual({
+      feedUrl: 'https://rss.listen.style/p/foo/rss',
+      episodeUrl: 'https://listen.style/p/foo/bar',
+      initialTimeSec: 90.5,
+      initialTimeParam: '90.5'
+    });
+
+    expect(parseListenUrl('https://listen.style/p/foo/bar?t=10&t=20')).toEqual({
+      feedUrl: 'https://rss.listen.style/p/foo/rss',
+      episodeUrl: 'https://listen.style/p/foo/bar',
+      initialTimeSec: 10,
+      initialTimeParam: '10'
+    });
+  });
+
+  it('should drop unsupported initial time params', () => {
+    for (const timeParam of ['1e3', '+90', '0', '-1', 'abc']) {
+      expect(parseListenUrl(`https://listen.style/p/foo/bar?t=${timeParam}`)).toEqual({
+        feedUrl: 'https://rss.listen.style/p/foo/rss',
+        episodeUrl: 'https://listen.style/p/foo/bar'
+      });
+    }
+  });
+
+  it('should normalize only valid LISTEN episode URLs', () => {
+    expect(normalizeListenEpisodeUrl('http://LISTEN.STYLE/p/Foo/Ep?x=1#frag')).toBe(
+      'https://listen.style/p/Foo/Ep'
+    );
+    expect(normalizeListenEpisodeUrl('https://listen.style/p/Foo/Ep?x=1#frag')).toBe(
+      'https://listen.style/p/Foo/Ep'
+    );
+    expect(normalizeListenEpisodeUrl('https://listen.style/p/foo/bar//')).toBeNull();
+    expect(normalizeListenEpisodeUrl('https://listen.style/u/user')).toBeNull();
+    expect(normalizeListenEpisodeUrl('https://listen.style/p/foo/%2Fbar')).toBeNull();
+    expect(normalizeListenEpisodeUrl('https://listen.style/p/%E0%A4%A/bar')).toBeNull();
+  });
+
+  it('should report episode URLs from the parsed episode URL', () => {
+    const urls = [
+      'https://listen.style/p/foo/bar?t=1e3',
+      'https://listen.style/p/foo',
+      'https://listen.style/u/user',
+      'https://rss.listen.style/p/foo/rss'
+    ];
+
+    expect(isListenEpisodeUrl('https://listen.style/p/foo/bar?t=1e3')).toBe(true);
+    expect(isListenEpisodeUrl('https://listen.style/p/foo')).toBe(false);
+
+    for (const url of urls) {
+      expect(isListenEpisodeUrl(url)).toBe(parseListenUrl(url)?.episodeUrl != null);
+    }
   });
 });
 

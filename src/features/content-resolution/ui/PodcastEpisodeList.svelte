@@ -7,14 +7,16 @@
   import { t } from '$shared/i18n/t.js';
   import { formatCompactDuration, formatDateOnly } from '$shared/utils/format.js';
 
+  import type { FeedEpisode } from '../application/resolve-feed.js';
   import { resolvePodcastFeed } from '../application/resolve-feed.js';
 
   interface Props {
     contentId: ContentId;
     onFeedLoaded?: (info: { title: string; imageUrl: string; description: string }) => void;
+    warningText?: string | null;
   }
 
-  let { contentId, onFeedLoaded }: Props = $props();
+  let { contentId, onFeedLoaded, warningText }: Props = $props();
 
   type Status = 'loading' | 'loaded' | 'error';
 
@@ -22,15 +24,7 @@
   let feedTitle = $state('');
   let feedImage = $state('');
   let feedDescription = $state('');
-  let episodes = $state<
-    {
-      guid: string;
-      title: string;
-      enclosureUrl: string;
-      duration: number;
-      publishedAt: number;
-    }[]
-  >([]);
+  let episodes = $state<FeedEpisode[]>([]);
   let errorMessage = $state('');
 
   function selectEpisode(ep: { guid: string }) {
@@ -71,6 +65,12 @@
       status = 'error';
       errorMessage = t('podcast.error');
     }
+  }
+
+  function formatPubDate(pubDate: string): string {
+    const timestamp = Date.parse(pubDate);
+    if (!Number.isFinite(timestamp)) return '';
+    return formatDateOnly(Math.floor(timestamp / 1000));
   }
 </script>
 
@@ -116,8 +116,19 @@
     {/if}
 
     <!-- Episode list -->
+    {#if warningText}
+      <p
+        class="mx-4 mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-text-primary"
+        role="status"
+      >
+        {warningText}
+      </p>
+    {/if}
+
     <ul class="max-h-[480px] overflow-y-auto divide-y divide-border-subtle">
       {#each episodes as ep (ep.guid)}
+        {@const episodeDate = formatPubDate(ep.pubDate)}
+        {@const episodeDuration = formatCompactDuration(ep.duration)}
         <li>
           <button
             class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-primary transition-colors"
@@ -141,12 +152,14 @@
             <div class="min-w-0 flex-1">
               <p class="truncate text-sm font-medium text-text-primary">{ep.title}</p>
               <div class="mt-0.5 flex items-center gap-2 text-xs text-text-secondary">
-                {#if ep.publishedAt}
-                  <span>{formatDateOnly(ep.publishedAt)}</span>
+                {#if episodeDate}
+                  <span>{episodeDate}</span>
                 {/if}
-                {#if ep.duration}
+                {#if episodeDate && episodeDuration}
                   <span>·</span>
-                  <span>{formatCompactDuration(ep.duration)}</span>
+                {/if}
+                {#if episodeDuration}
+                  <span>{episodeDuration}</span>
                 {/if}
               </div>
             </div>

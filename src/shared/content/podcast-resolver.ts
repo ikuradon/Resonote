@@ -102,26 +102,23 @@ export async function resolveByDTag(
 export interface ResolveApiResponse {
   type: 'episode' | 'feed' | 'redirect';
   feed?: { guid: string; title: string; feedUrl: string; imageUrl: string; description?: string };
-  episode?: {
-    guid: string;
-    title: string;
-    enclosureUrl: string;
-    duration: number;
-    publishedAt: number;
-    description?: string;
-  };
-  episodes?: {
-    guid: string;
-    title: string;
-    enclosureUrl: string;
-    duration: number;
-    publishedAt: number;
-    description?: string;
-  }[];
+  episode?: ResolveApiEpisode;
+  episodes?: ResolveApiEpisode[];
   feedUrl?: string;
   signedEvents?: EventParameters[];
   metadata?: { title?: string; artist?: string; album?: string; image?: string };
   error?: string;
+}
+
+export interface ResolveApiEpisode {
+  title: string;
+  guid: string;
+  rawGuid?: string;
+  link?: string;
+  enclosureUrl: string;
+  pubDate: string;
+  duration: number;
+  description: string;
 }
 
 export async function searchBookmarkByUrl(url: string): Promise<DTagResult | null> {

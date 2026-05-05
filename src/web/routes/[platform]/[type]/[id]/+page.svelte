@@ -1,9 +1,11 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
   import { page } from '$app/state';
   import {
     deleteContentReaction,
     sendContentReaction
   } from '$features/comments/application/comment-actions.js';
+  import { getFeedWarningKey } from '$features/content-resolution/application/feed-warning.js';
   import { createPlayerColumnViewModel } from '$features/content-resolution/ui/player-column-view-model.svelte.js';
   import { createResolvedContentViewModel } from '$features/content-resolution/ui/resolved-content-view-model.svelte.js';
   import CommentInfoTab from '$lib/components/CommentInfoTab.svelte';
@@ -26,6 +28,10 @@
   let isValid = $derived(provider !== undefined && contentType !== '' && contentIdParam !== '');
   let isCollection = $derived(contentType === 'show');
   let isFeed = $derived(platform === 'podcast' && contentType === 'feed');
+  let feedWarningKey = $derived(
+    isFeed ? getFeedWarningKey(page.url.searchParams.get('warning')) : null
+  );
+  let feedWarningText = $derived(feedWarningKey ? t(feedWarningKey) : null);
   let isYouTubeFeed = $derived(
     platform === 'youtube' && (contentType === 'playlist' || contentType === 'channel')
   );
@@ -95,6 +101,13 @@
   const collectionVm = createPlayerColumnViewModel({
     getContentId: () => contentId,
     getProvider: () => provider!
+  });
+
+  $effect(() => {
+    if (!browser || !isFeed || !feedWarningKey) return;
+    const nextUrl = new URL(page.url);
+    nextUrl.searchParams.delete('warning');
+    history.replaceState(history.state, '', nextUrl);
   });
 </script>
 
@@ -178,6 +191,7 @@
           episodeFeedTitle={vm.episodeFeedTitle}
           episodeImage={vm.episodeImage}
           onFeedLoaded={handleFeedLoaded}
+          {feedWarningText}
         />
       </div>
 
