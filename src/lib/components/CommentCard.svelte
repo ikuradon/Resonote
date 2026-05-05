@@ -136,6 +136,68 @@
   </svg>
 {/snippet}
 
+{#snippet actionButtons(showEmoji = false)}
+  <div class="flex items-center gap-4">
+    {#if loggedIn}
+      <button
+        type="button"
+        onclick={() => onReply(comment)}
+        class="rounded p-1 text-text-muted transition-colors hover:text-text-secondary"
+        title={t('reply.title')}
+      >
+        <svg
+          aria-hidden="true"
+          class="h-4 w-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        onclick={() => onRepost(comment)}
+        disabled={acting || !comment.relayHint}
+        class="rounded p-1 text-text-muted transition-colors hover:text-text-secondary disabled:opacity-50"
+        title={t('repost.title')}
+      >
+        {@render repostIcon()}
+      </button>
+    {/if}
+    <button
+      type="button"
+      onclick={() => onReaction(comment)}
+      disabled={acting || myReaction}
+      class="flex items-center gap-1 rounded p-1 text-xs transition-colors
+        {myReaction ? 'text-accent' : 'text-text-muted hover:text-text-secondary'}"
+      title={myReaction ? t('liked.title') : t('like.title')}
+    >
+      {@render heartIcon(myReaction)}
+      {#if stats.likes > 0}<span class="text-xs font-mono">{stats.likes}</span>{/if}
+    </button>
+    {#if loggedIn && showEmoji}
+      <EmojiPickerPopover
+        id={popoverId}
+        onSelect={(reaction, emojiUrl) => onReaction(comment, reaction, emojiUrl)}
+      />
+    {/if}
+    <CommentActionMenu
+      eventId={comment.id}
+      authorPubkey={comment.pubkey}
+      {isOwn}
+      {canMute}
+      inlineActions={showEmoji
+        ? new Set(['reply', 'like', 'renote', 'emoji'])
+        : new Set(['reply', 'like', 'renote'])}
+      onQuote={onQuote ? () => onQuote(comment) : undefined}
+      onMuteUser={() => onMute(comment.pubkey)}
+      onDelete={() => onDelete(comment)}
+    />
+  </div>
+{/snippet}
+
 <div
   data-comment-id={comment.id}
   class="{compact
@@ -152,80 +214,19 @@
   <div class="{compact ? 'mb-1.5' : 'mb-2'} flex items-center justify-between">
     <div class="flex items-center gap-2 min-w-0 flex-1">
       <UserAvatar pubkey={comment.pubkey} picture={author.picture} size={compact ? 'xs' : 'sm'} />
-      <a href={author.profileHref} class="text-xs font-medium text-accent hover:underline"
+      <a
+        href={author.profileHref}
+        class="min-w-0 flex-1 truncate text-xs font-medium text-accent hover:underline"
         >{author.displayName}</a
       >
       {#if author.formattedNip05}
-        <span class="text-xs text-text-muted" title={author.nip05 ?? ''}>
+        <span class="truncate text-xs text-text-muted flex-shrink-0" title={author.nip05 ?? ''}>
           ✓{author.formattedNip05}
         </span>
       {/if}
-      {#if showPosition && comment.positionMs !== null}
-        <button
-          type="button"
-          onclick={() => onSeek(comment.positionMs!)}
-          class="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 font-mono text-xs text-accent transition-colors hover:bg-accent/20"
-          title={t('seek.title')}
-        >
-          {formatPosition(comment.positionMs)}
-        </button>
-      {/if}
-      <span class="text-xs text-text-muted flex-shrink-0">{formatTimestamp(comment.createdAt)}</span
+      <span class="flex-shrink-0 text-xs text-text-muted">{formatTimestamp(comment.createdAt)}</span
       >
     </div>
-    {#if mode === 'flow'}
-      <div class="flex items-center gap-1 flex-shrink-0 ml-2">
-        {#if loggedIn}
-          <button
-            type="button"
-            onclick={() => onReply(comment)}
-            class="rounded p-1 text-text-muted transition-colors hover:text-text-secondary"
-            title={t('reply.title')}
-          >
-            <svg
-              aria-hidden="true"
-              class="h-4 w-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onclick={() => onRepost(comment)}
-            disabled={acting || !comment.relayHint}
-            class="rounded p-1 text-text-muted transition-colors hover:text-text-secondary disabled:opacity-50"
-            title={t('repost.title')}
-          >
-            {@render repostIcon()}
-          </button>
-        {/if}
-        <button
-          type="button"
-          onclick={() => onReaction(comment)}
-          disabled={acting || myReaction}
-          class="flex items-center gap-1 rounded p-1 text-xs transition-colors
-            {myReaction ? 'text-accent' : 'text-text-muted hover:text-text-secondary'}"
-          title={myReaction ? t('liked.title') : t('like.title')}
-        >
-          {@render heartIcon(myReaction)}
-          {#if stats.likes > 0}<span class="text-xs font-mono">{stats.likes}</span>{/if}
-        </button>
-        <CommentActionMenu
-          eventId={comment.id}
-          authorPubkey={comment.pubkey}
-          {isOwn}
-          {canMute}
-          inlineActions={new Set(['reply', 'like', 'renote'])}
-          onQuote={onQuote ? () => onQuote(comment) : undefined}
-          onMuteUser={() => onMute(comment.pubkey)}
-          onDelete={() => onDelete(comment)}
-        />
-      </div>
-    {/if}
   </div>
 
   <!-- CW / Content -->
@@ -294,6 +295,28 @@
     {/if}
   {/if}
 
+  {#if mode === 'flow'}
+    <div
+      class="mt-3 flex items-center justify-between border-t border-border-subtle pt-2 {compact
+        ? ''
+        : 'ml-9'}"
+    >
+      <div class="flex items-center gap-2">
+        {#if showPosition && comment.positionMs !== null}
+          <button
+            type="button"
+            onclick={() => onSeek(comment.positionMs!)}
+            class="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 font-mono text-xs text-accent transition-colors hover:bg-accent/20"
+            title={t('seek.title')}
+          >
+            {formatPosition(comment.positionMs)}
+          </button>
+        {/if}
+      </div>
+      {@render actionButtons(false)}
+    </div>
+  {/if}
+
   {#if mode === 'shout'}
     <!-- Emoji reaction pills -->
     {#if stats.emojis.length > 0}
@@ -314,66 +337,8 @@
       </div>
     {/if}
     <!-- Action row -->
-    <div class="mt-1.5 flex flex-wrap gap-1 {compact ? '' : 'ml-9'}">
-      {#if loggedIn}
-        <button
-          type="button"
-          onclick={() => onReply(comment)}
-          class="flex items-center gap-1 rounded-md border border-border-subtle px-2.5 py-1 text-xs text-text-muted transition-colors hover:text-text-secondary"
-          title={t('reply.title')}
-        >
-          <svg
-            aria-hidden="true"
-            class="h-3.5 w-3.5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <polyline points="9 17 4 12 9 7" />
-            <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          onclick={() => onRepost(comment)}
-          disabled={acting || !comment.relayHint}
-          aria-label="ReNote"
-          class="flex items-center gap-1 rounded-md border border-border-subtle px-2.5 py-1 text-xs text-text-muted transition-colors hover:text-text-secondary disabled:opacity-50"
-          title={t('repost.title')}
-        >
-          {@render repostIcon('h-3.5 w-3.5')}
-        </button>
-      {/if}
-      <button
-        type="button"
-        onclick={() => onReaction(comment)}
-        disabled={acting || myReaction}
-        class="flex items-center gap-1 rounded-md border border-border-subtle px-2.5 py-1 text-xs transition-colors
-          {myReaction
-          ? 'border-accent/30 text-accent'
-          : 'text-text-muted hover:text-text-secondary'}"
-        title={myReaction ? t('liked.title') : t('like.title')}
-      >
-        {@render heartIcon(myReaction)}
-        {#if stats.likes > 0}{stats.likes}{/if}
-      </button>
-      {#if loggedIn}
-        <EmojiPickerPopover
-          id={popoverId}
-          onSelect={(reaction, emojiUrl) => onReaction(comment, reaction, emojiUrl)}
-        />
-      {/if}
-      <CommentActionMenu
-        eventId={comment.id}
-        authorPubkey={comment.pubkey}
-        {isOwn}
-        {canMute}
-        inlineActions={new Set(['reply', 'like', 'renote', 'emoji'])}
-        onQuote={onQuote ? () => onQuote(comment) : undefined}
-        onMuteUser={() => onMute(comment.pubkey)}
-        onDelete={() => onDelete(comment)}
-      />
+    <div class="mt-1.5 flex flex-wrap gap-4 {compact ? '' : 'ml-9'}">
+      {@render actionButtons(true)}
     </div>
   {/if}
 
