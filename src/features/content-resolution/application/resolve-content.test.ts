@@ -240,8 +240,9 @@ describe('resolveAudioUrl', () => {
           guid: GUID,
           title: 'API Title',
           enclosureUrl: ENCLOSURE_URL,
+          pubDate: '',
           duration: 100,
-          publishedAt: 0
+          description: ''
         }
       });
       const result = await resolveAudioUrl('somebase64');
@@ -297,8 +298,9 @@ describe('resolveAudioUrl', () => {
           guid: GUID,
           title: 'Episode Title',
           enclosureUrl: ENCLOSURE_URL,
+          pubDate: '',
           duration: 100,
-          publishedAt: 0
+          description: ''
         },
         metadata: { title: 'ID3 Title' }
       });
@@ -318,8 +320,9 @@ describe('resolveAudioUrl', () => {
           guid: GUID,
           title: 'T',
           enclosureUrl: ENCLOSURE_URL,
+          pubDate: '',
           duration: 100,
-          publishedAt: 0
+          description: ''
         },
         feed: { guid: 'fg', title: 'F', feedUrl: FEED_URL, imageUrl: '' }
       });
@@ -335,8 +338,9 @@ describe('resolveAudioUrl', () => {
           guid: GUID,
           title: 'T',
           enclosureUrl: ENCLOSURE_URL,
+          pubDate: '',
           duration: 100,
-          publishedAt: 0
+          description: ''
         }
       });
       const result = await resolveAudioUrl('somebase64');

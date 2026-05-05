@@ -7,6 +7,7 @@
   import { t } from '$shared/i18n/t.js';
   import { formatCompactDuration, formatDateOnly } from '$shared/utils/format.js';
 
+  import type { FeedEpisode } from '../application/resolve-feed.js';
   import { resolvePodcastFeed } from '../application/resolve-feed.js';
 
   interface Props {
@@ -22,15 +23,7 @@
   let feedTitle = $state('');
   let feedImage = $state('');
   let feedDescription = $state('');
-  let episodes = $state<
-    {
-      guid: string;
-      title: string;
-      enclosureUrl: string;
-      duration: number;
-      publishedAt: number;
-    }[]
-  >([]);
+  let episodes = $state<FeedEpisode[]>([]);
   let errorMessage = $state('');
 
   function selectEpisode(ep: { guid: string }) {
@@ -71,6 +64,12 @@
       status = 'error';
       errorMessage = t('podcast.error');
     }
+  }
+
+  function formatPubDate(pubDate: string): string {
+    const timestamp = Date.parse(pubDate);
+    if (!Number.isFinite(timestamp)) return '';
+    return formatDateOnly(Math.floor(timestamp / 1000));
   }
 </script>
 
@@ -141,8 +140,8 @@
             <div class="min-w-0 flex-1">
               <p class="truncate text-sm font-medium text-text-primary">{ep.title}</p>
               <div class="mt-0.5 flex items-center gap-2 text-xs text-text-secondary">
-                {#if ep.publishedAt}
-                  <span>{formatDateOnly(ep.publishedAt)}</span>
+                {#if formatPubDate(ep.pubDate)}
+                  <span>{formatPubDate(ep.pubDate)}</span>
                 {/if}
                 {#if ep.duration}
                   <span>·</span>
