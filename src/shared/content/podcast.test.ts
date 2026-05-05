@@ -100,6 +100,12 @@ describe('PodcastProvider', () => {
       expect(result).toEqual({ platform: 'podcast', type: 'feed', id: toBase64url(feedUrl) });
     });
 
+    it('should parse LISTEN RSS URL as canonical feed URL before generic RSS detection', () => {
+      const feedUrl = 'https://rss.listen.style/p/foo/rss';
+      const result = provider.parseUrl('https://rss.listen.style/p/foo/rss?utm=1');
+      expect(result).toEqual({ platform: 'podcast', type: 'feed', id: toBase64url(feedUrl) });
+    });
+
     it('should return null for a URL with unrecognized extension', () => {
       expect(provider.parseUrl('https://example.com/page.html')).toBeNull();
     });
@@ -217,6 +223,13 @@ describe('LISTEN URL parsing', () => {
     });
   });
 
+  it('should canonicalize decoded percent-encoded slugs', () => {
+    expect(parseListenUrl('https://listen.style/p/%E3%81%82/episode')).toEqual({
+      feedUrl: 'https://rss.listen.style/p/%E3%81%82/rss',
+      episodeUrl: 'https://listen.style/p/%E3%81%82/episode'
+    });
+  });
+
   it('should return null for malformed and unsupported LISTEN URLs', () => {
     for (const url of [
       'not a url',
@@ -248,6 +261,13 @@ describe('LISTEN URL parsing', () => {
       episodeUrl: 'https://listen.style/p/foo/bar',
       initialTimeSec: 90.5,
       initialTimeParam: '90.5'
+    });
+
+    expect(parseListenUrl('https://listen.style/p/foo/bar?t=10&t=20')).toEqual({
+      feedUrl: 'https://rss.listen.style/p/foo/rss',
+      episodeUrl: 'https://listen.style/p/foo/bar',
+      initialTimeSec: 10,
+      initialTimeParam: '10'
     });
   });
 
