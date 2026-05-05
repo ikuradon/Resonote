@@ -220,7 +220,6 @@ export async function clearCustomEmojiCache(): Promise<void> {
     state = {
       ...state,
       status: 'idle',
-      isClearing: false,
       emptyReason: null,
       lastCheckedAtMs: null,
       lastSuccessfulAtMs: null,
@@ -234,7 +233,6 @@ export async function clearCustomEmojiCache(): Promise<void> {
     if (version === operationVersion) {
       state = {
         ...state,
-        isClearing: false,
         error: errorMessage(error)
       };
     }
