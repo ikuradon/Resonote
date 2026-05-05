@@ -4,6 +4,7 @@ import type {
 } from '$shared/browser/custom-emoji-diagnostics.js';
 
 export type CustomEmojiSettingsMessageKey =
+  | 'settings.custom_emoji.reset_message'
   | 'settings.custom_emoji.not_checked'
   | 'settings.custom_emoji.status_ready'
   | 'settings.custom_emoji.status_loading'
@@ -19,6 +20,26 @@ export type CustomEmojiSettingsMessageKey =
   | 'settings.custom_emoji.empty_unknown';
 
 export type CustomEmojiSettingsTranslator = (key: CustomEmojiSettingsMessageKey) => string;
+
+export interface CustomEmojiPubkeyChangeAction {
+  changed: boolean;
+  resetPubkey: string | null;
+  refreshPubkey: string | null;
+}
+
+export function customEmojiPubkeyChangeAction(
+  previousPubkey: string | null | undefined,
+  nextPubkey: string | null
+): CustomEmojiPubkeyChangeAction {
+  if (previousPubkey === nextPubkey) {
+    return { changed: false, resetPubkey: null, refreshPubkey: null };
+  }
+  return {
+    changed: true,
+    resetPubkey: nextPubkey,
+    refreshPubkey: nextPubkey
+  };
+}
 
 export function formatNostrTimestampSec(createdAtSec: number): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -80,10 +101,6 @@ export function customEmojiStatusMessage(
   return translate('settings.custom_emoji.not_checked');
 }
 
-export function clearCustomEmojiCacheMessage(): string {
-  return [
-    'This deletes locally cached custom emoji lists and emoji sets for all accounts on this device.',
-    'Your published Nostr events will not be deleted.',
-    'You may need to refresh custom emoji again after this.'
-  ].join('\n');
+export function customEmojiResetCacheMessage(translate: CustomEmojiSettingsTranslator): string {
+  return translate('settings.custom_emoji.reset_message');
 }

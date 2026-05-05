@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  clearCustomEmojiCacheMessage,
+  customEmojiPubkeyChangeAction,
+  customEmojiResetCacheMessage,
   customEmojiStatusMessage,
   emptyReasonMessage,
   formatAppTimestampMs,
@@ -69,9 +70,46 @@ describe('custom emoji settings view model', () => {
     ).toBe('tx:settings.custom_emoji.status_error_stale_diagnostics');
   });
 
-  it('contains all required clear cache warnings', () => {
-    expect(clearCustomEmojiCacheMessage()).toContain('all accounts');
-    expect(clearCustomEmojiCacheMessage()).toContain('locally cached');
-    expect(clearCustomEmojiCacheMessage()).toContain('published Nostr events will not be deleted');
+  it('refreshes once when the observed pubkey changes to a logged-in account', () => {
+    expect(customEmojiPubkeyChangeAction(undefined, null)).toEqual({
+      changed: true,
+      resetPubkey: null,
+      refreshPubkey: null
+    });
+    expect(customEmojiPubkeyChangeAction(null, 'pubkey-a')).toEqual({
+      changed: true,
+      resetPubkey: 'pubkey-a',
+      refreshPubkey: 'pubkey-a'
+    });
+    expect(customEmojiPubkeyChangeAction('pubkey-a', 'pubkey-a')).toEqual({
+      changed: false,
+      resetPubkey: null,
+      refreshPubkey: null
+    });
+    expect(customEmojiPubkeyChangeAction('pubkey-a', 'pubkey-b')).toEqual({
+      changed: true,
+      resetPubkey: 'pubkey-b',
+      refreshPubkey: 'pubkey-b'
+    });
+    expect(customEmojiPubkeyChangeAction('pubkey-b', null)).toEqual({
+      changed: true,
+      resetPubkey: null,
+      refreshPubkey: null
+    });
+  });
+
+  it('uses localized reset cache warning copy', () => {
+    const message = customEmojiResetCacheMessage((key) => {
+      expect(key).toBe('settings.custom_emoji.reset_message');
+      return [
+        'This deletes locally cached custom emoji lists and emoji sets for all accounts on this device.',
+        'Your published Nostr events will not be deleted.',
+        'You may need to refresh custom emoji again after this.'
+      ].join('\n');
+    });
+
+    expect(message).toContain('all accounts');
+    expect(message).toContain('locally cached');
+    expect(message).toContain('published Nostr events will not be deleted');
   });
 });

@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import { getAuth } from '$shared/browser/auth.js';
   import {
@@ -12,6 +10,8 @@
   import { t } from '$shared/i18n/t.js';
 
   import {
+    customEmojiPubkeyChangeAction,
+    customEmojiResetCacheMessage,
     customEmojiStatusMessage,
     formatAppTimestampMs,
     formatNostrTimestampSec
@@ -21,13 +21,14 @@
   let diagnostics = $derived(getCustomEmojiDiagnostics());
   let confirmClear = $state(false);
   let clearError = $state<string | null>(null);
+  let observedPubkey: string | null | undefined;
 
   $effect(() => {
-    resetCustomEmojiDiagnosticsForPubkey(auth.pubkey);
-  });
-
-  onMount(() => {
-    if (auth.pubkey) void refreshCustomEmojiDiagnostics(auth.pubkey);
+    const action = customEmojiPubkeyChangeAction(observedPubkey, auth.pubkey);
+    if (!action.changed) return;
+    observedPubkey = auth.pubkey;
+    resetCustomEmojiDiagnosticsForPubkey(action.resetPubkey);
+    if (action.refreshPubkey) void refreshCustomEmojiDiagnostics(action.refreshPubkey);
   });
 
   async function handleRefresh() {
@@ -35,11 +36,21 @@
     await refreshCustomEmojiDiagnostics(auth.pubkey);
   }
 
+  function openClearDialog() {
+    clearError = null;
+    confirmClear = true;
+  }
+
+  function closeClearDialog() {
+    clearError = null;
+    confirmClear = false;
+  }
+
   async function handleClear() {
     clearError = null;
     try {
       await clearCustomEmojiCache();
-      confirmClear = false;
+      closeClearDialog();
     } catch (error) {
       clearError = error instanceof Error ? error.message : String(error);
     }
@@ -87,7 +98,7 @@
     <h3 class="text-sm font-medium text-text-secondary">{t('settings.custom_emoji.advanced')}</h3>
     <button
       type="button"
-      onclick={() => (confirmClear = true)}
+      onclick={openClearDialog}
       disabled={diagnostics.isClearing}
       class="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/20 disabled:opacity-50"
     >
@@ -99,10 +110,10 @@
 <ConfirmDialog
   open={confirmClear}
   title={t('settings.custom_emoji.reset_title')}
-  message={clearError ?? t('settings.custom_emoji.reset_message')}
+  message={clearError ?? customEmojiResetCacheMessage(t)}
   variant="danger"
   confirmLabel={t('settings.custom_emoji.reset_confirm')}
   cancelLabel={t('confirm.cancel')}
   onConfirm={handleClear}
-  onCancel={() => (confirmClear = false)}
+  onCancel={closeClearDialog}
 />
