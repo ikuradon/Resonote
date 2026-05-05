@@ -1,7 +1,7 @@
 {
   "name": "resonote",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.3",
   "type": "module",
   "engines": {
     "node": ">=24.0.0"
@@ -11,11 +11,13 @@
     "dev": "vite dev",
     "dev:full": "wrangler pages dev --port 5173 --proxy 5174 -- vite dev --port 5174",
     "build": "vite build",
+    "build:e2e": "vite build --mode e2e",
     "preview": "vite preview",
     "prepare": "(svelte-kit sync || echo '') && simple-git-hooks",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-    "check:structure": "node scripts/check-structure.mjs",
+    "check:structure": "node scripts/check-structure.mjs && pnpm run check:no-test-code-in-src",
+    "check:no-test-code-in-src": "node scripts/check-no-test-code-in-src.mjs",
     "check:auftakt-migration": "node scripts/check-auftakt-migration.mjs",
     "check:auftakt:nips": "node --experimental-strip-types scripts/check-auftakt-nips.ts",
     "check:auftakt:strict-closure": "git ls-files -co --exclude-standard | node --experimental-strip-types scripts/check-auftakt-strict-closure.ts",

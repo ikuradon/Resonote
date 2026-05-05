@@ -486,6 +486,52 @@ describe('EventCoordinator read policy', () => {
     });
   });
 
+  it('does not return a late older kind10002 relay candidate after newer local materialization', async () => {
+    const newerRelayList = {
+      id: 'new-relay-list',
+      pubkey: 'alice',
+      created_at: 1000,
+      kind: 10002,
+      tags: [['r', 'wss://new.example.test']],
+      content: ''
+    };
+    const olderRelayList = {
+      id: 'old-relay-list',
+      pubkey: 'alice',
+      created_at: 500,
+      kind: 10002,
+      tags: [['r', 'wss://old.example.test']],
+      content: ''
+    };
+    const putWithReconcile = vi.fn(async (candidate: typeof newerRelayList) => ({
+      stored: candidate.created_at > 500
+    }));
+    const coordinator = createEventCoordinator({
+      relayGateway: {
+        verify: vi.fn(async () => ({
+          strategy: 'fallback-req' as const,
+          candidates: [{ event: { raw: 'late-old' }, relayUrl: 'wss://old-relay.example.test' }]
+        }))
+      },
+      ingestRelayCandidate: vi.fn(async () => ({ ok: true as const, event: olderRelayList })),
+      store: {
+        getById: vi.fn(async () => null),
+        getAllByKind: vi.fn(async () => [newerRelayList]),
+        putWithReconcile
+      },
+      relay: { verify: vi.fn(async () => []) }
+    });
+
+    const result = await coordinator.read(
+      { authors: ['alice'], kinds: [10002], limit: 1 },
+      { policy: 'relayConfirmed' }
+    );
+
+    expect(result.events).toEqual([newerRelayList]);
+    expect(result.events[0]?.tags).toEqual([['r', 'wss://new.example.test']]);
+    expect(putWithReconcile).toHaveBeenCalledWith(olderRelayList);
+  });
+
   it('coalesces duplicate gateway candidates while materialization is in flight', async () => {
     const remote = {
       id: 'dupe',

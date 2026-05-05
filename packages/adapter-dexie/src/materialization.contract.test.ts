@@ -490,6 +490,40 @@ describe('Dexie NIP-62 request to vanish materialization', () => {
 });
 
 describe('Dexie replaceable materialization', () => {
+  it('keeps newer kind10002 relay list head when an older relay list arrives late', async () => {
+    const store = await createDexieEventStore({
+      dbName: `auftakt-dexie-relay-list-late-older-${Date.now()}-${Math.random()}`
+    });
+
+    await expect(
+      store.putWithReconcile(
+        event('new-relay-list', {
+          pubkey: 'alice',
+          created_at: 1000,
+          kind: 10002,
+          tags: [['r', 'wss://new.example.test']]
+        })
+      )
+    ).resolves.toMatchObject({ stored: true });
+
+    await expect(
+      store.putWithReconcile(
+        event('old-relay-list', {
+          pubkey: 'alice',
+          created_at: 500,
+          kind: 10002,
+          tags: [['r', 'wss://old.example.test']]
+        })
+      )
+    ).resolves.toMatchObject({ stored: false });
+
+    await expect(store.getReplaceableHead('alice', 10002, '')).resolves.toMatchObject({
+      id: 'new-relay-list',
+      tags: [['r', 'wss://new.example.test']]
+    });
+    await expect(store.getById('old-relay-list')).resolves.toBeNull();
+  });
+
   it('keeps newest replaceable head by pubkey and kind', async () => {
     const store = await createDexieEventStore({
       dbName: 'auftakt-dexie-replaceable'

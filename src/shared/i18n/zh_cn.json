@@ -221,6 +221,7 @@
   "toast.delete_failed": "评论删除失败",
   "toast.dismiss": "关闭",
   "comment.error.contains_private_key": "你的评论包含私钥（nsec）。出于安全考虑已阻止发布。",
+  "comment.error.position_required": "开始播放以添加时间线评论。",
   "quote.loading": "加载中…",
   "quote.not_found": "未找到引用的事件",
   "quote.title": "引用",

@@ -2,10 +2,12 @@ import { finalizeEvent, generateSecretKey, getPublicKey } from '@auftakt/core';
 import { expect, test } from '@playwright/test';
 
 import {
+  resetMockPlayer,
   setupFullLogin,
   setupMockPool,
   setupReadOnlyLogin,
   simulateLogin,
+  simulatePlaybackPosition,
   simulateReadOnlyLogin
 } from './helpers/e2e-setup.js';
 
@@ -19,15 +21,13 @@ test.describe('Comment flow', () => {
     await setupFullLogin(page, testPubkey, (event) => finalizeEvent(event, sk));
   });
 
-  test('should post a comment and display it', async ({ page }) => {
+  test('should post a timed comment and display it', async ({ page }) => {
     await page.goto(trackUrl);
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
-    // Switch to Shout tab so the comment appears as a general comment
-    const shoutTab = page.getByRole('button', { name: /📢/ });
-    await expect(shoutTab).toBeVisible({ timeout: 10_000 });
-    await shoutTab.click();
+    // Simulate playback position for Flow tab
+    await simulatePlaybackPosition(page, 60000); // 1:00
 
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
@@ -46,6 +46,8 @@ test.describe('Comment flow', () => {
     await page.waitForLoadState('networkidle');
     await simulateLogin(page);
 
+    await simulatePlaybackPosition(page, 30000);
+
     const textarea = page.locator('textarea');
     await expect(textarea).toBeVisible({ timeout: 10_000 });
 
@@ -54,6 +56,25 @@ test.describe('Comment flow', () => {
     await sendButton.click();
 
     await expect(textarea).toHaveValue('', { timeout: 10_000 });
+  });
+
+  test('should block submission in Flow tab without position', async ({ page }) => {
+    await page.goto(trackUrl);
+    await page.waitForLoadState('networkidle');
+    await simulateLogin(page);
+
+    // Ensure no playback position (explicitly reset)
+    await resetMockPlayer(page);
+
+    const textarea = page.locator('textarea');
+    await expect(textarea).toBeVisible({ timeout: 10_000 });
+
+    await textarea.fill('Blocked comment');
+    const sendButton = page.locator('button[type="submit"]');
+    await sendButton.click();
+
+    // Textarea should NOT be cleared (submission blocked)
+    await expect(textarea).toHaveValue('Blocked comment', { timeout: 5_000 });
   });
 });
 

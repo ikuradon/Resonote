@@ -89,6 +89,23 @@ describe('fetchRelayList', () => {
     });
   });
 
+  it('keeps newer kind10002 entries when an older relay-list event is returned after it', async () => {
+    fetchRelayListSourcesMock.mockResolvedValueOnce({
+      relayListEvents: [
+        { created_at: 1000, tags: [['r', 'wss://new.example.test']] },
+        { created_at: 500, tags: [['r', 'wss://old.example.test']] }
+      ],
+      followListEvents: []
+    });
+
+    const result = await fetchRelayList(PUBKEY);
+
+    expect(result).toEqual({
+      source: 'kind10002',
+      entries: [{ url: 'wss://new.example.test', read: true, write: true }]
+    });
+  });
+
   it('keeps kind10002 as the consumed read source when kind3 also exists', async () => {
     fetchRelayListSourcesMock.mockResolvedValueOnce({
       relayListEvents: [{ created_at: 1000, tags: [['r', 'wss://primary.relay.com']] }],

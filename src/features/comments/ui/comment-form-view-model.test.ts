@@ -207,6 +207,42 @@ describe('createCommentFormViewModel', () => {
       expect(sendCommentMock).not.toHaveBeenCalled();
     });
 
+    it('returns position_required when flow tab has no position', async () => {
+      playerState.position = 0;
+      const vm = createCommentFormViewModel({
+        getContentId: () => contentId,
+        getProvider: () => provider,
+        getActiveTab: () => 'flow'
+      });
+      vm.content = 'hello';
+
+      const result = await vm.submit();
+
+      expect(result).toBe('position_required');
+      expect(sendCommentMock).not.toHaveBeenCalled();
+    });
+
+    it('allows submit when shout tab has no position', async () => {
+      playerState.position = 0;
+      const vm = createCommentFormViewModel({
+        getContentId: () => contentId,
+        getProvider: () => provider,
+        getActiveTab: () => 'shout'
+      });
+      vm.content = 'hello';
+
+      const submitPromise = vm.submit();
+      await vi.runAllTimersAsync();
+      const result = await submitPromise;
+
+      expect(result).toBe('sent');
+      expect(sendCommentMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          positionMs: undefined
+        })
+      );
+    });
+
     it('calls sendComment with trimmed content and positionMs when effectiveAttach=true', async () => {
       playerState.position = 15_000;
       const vm = makeVm();

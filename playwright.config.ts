@@ -26,7 +26,7 @@ export default defineConfig({
     trace: 'on-first-retry'
   },
   webServer: {
-    command: `VITE_DEFAULT_RELAYS='${JSON.stringify(TEST_RELAYS)}' pnpm run build && pnpm run preview:e2e --binding SYSTEM_NOSTR_PRIVKEY=${TEST_NOSTR_PRIVKEY} --binding UNSAFE_ALLOW_PRIVATE_IPS=1`,
+    command: `VITE_DEFAULT_RELAYS='${JSON.stringify(TEST_RELAYS)}' pnpm run build:e2e && pnpm run preview:e2e --binding SYSTEM_NOSTR_PRIVKEY=${TEST_NOSTR_PRIVKEY} --binding UNSAFE_ALLOW_PRIVATE_IPS=1`,
     port: 4173,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000

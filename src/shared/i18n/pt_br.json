@@ -221,6 +221,7 @@
   "toast.delete_failed": "Falha ao excluir comentário",
   "toast.dismiss": "Fechar",
   "comment.error.contains_private_key": "Seu comentário contém uma chave privada (nsec). Bloqueado por segurança.",
+  "comment.error.position_required": "Inicie a reprodução para adicionar um comentário flow.",
   "quote.loading": "Carregando…",
   "quote.not_found": "Evento citado não encontrado",
   "quote.title": "Citação",
