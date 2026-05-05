@@ -328,6 +328,11 @@ describe('@auftakt/resonote built-in plugins', () => {
   it('exposes coordinator-owned custom emoji diagnostics through the emoji catalog read model', async () => {
     const coordinator = createTestCoordinator();
 
+    await expect(coordinator.fetchCustomEmojiSources('missing-user')).resolves.toEqual({
+      listEvent: null,
+      setEvents: []
+    });
+    await expect(coordinator.fetchCustomEmojiCategories('missing-user')).resolves.toEqual([]);
     await expect(coordinator.fetchCustomEmojiSourceDiagnostics('missing-user')).resolves.toEqual({
       diagnostics: {
         listEvent: null,
