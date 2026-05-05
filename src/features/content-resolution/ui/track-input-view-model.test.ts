@@ -78,11 +78,11 @@ describe('createTrackInputViewModel', () => {
       expect(vm.canSubmit).toBe(false);
     });
 
-    it('should clear error when url is updated', () => {
-      resolveContentNavigationMock.mockReturnValueOnce({ errorKey: 'track.unsupported' });
+    it('should clear error when url is updated', async () => {
+      resolveContentNavigationMock.mockResolvedValueOnce({ errorKey: 'track.unsupported' });
       const vm = makeVm();
       vm.url = 'bad-input';
-      vm.submit();
+      await vm.submit();
       expect(vm.error).toBe('track.unsupported');
 
       vm.url = 'new-input';
@@ -91,55 +91,78 @@ describe('createTrackInputViewModel', () => {
   });
 
   describe('submit', () => {
-    it('does nothing when resolveContentNavigation returns null', () => {
-      resolveContentNavigationMock.mockReturnValueOnce(null);
+    it('does nothing when resolveContentNavigation returns null', async () => {
+      resolveContentNavigationMock.mockResolvedValueOnce(null);
       const vm = makeVm();
       vm.url = 'some-url';
-      vm.submit();
+      await vm.submit();
       expect(navigateMock).not.toHaveBeenCalled();
       expect(vm.error).toBe('');
     });
 
-    it('sets error when result has errorKey', () => {
-      resolveContentNavigationMock.mockReturnValueOnce({ errorKey: 'track.unsupported' });
+    it('sets error when result has errorKey', async () => {
+      resolveContentNavigationMock.mockResolvedValueOnce({ errorKey: 'track.unsupported' });
       const vm = makeVm();
       vm.url = 'not-a-real-url';
-      vm.submit();
+      await vm.submit();
       expect(vm.error).toBe('track.unsupported');
       expect(navigateMock).not.toHaveBeenCalled();
     });
 
-    it('calls navigate with path when result has path', () => {
-      resolveContentNavigationMock.mockReturnValueOnce({ path: '/spotify/track/abc' });
+    it('calls navigate with path after async navigation resolves', async () => {
+      resolveContentNavigationMock.mockResolvedValueOnce({ path: '/spotify/track/abc' });
       const vm = makeVm();
       vm.url = 'https://open.spotify.com/track/abc';
-      vm.submit();
+      await vm.submit();
       expect(navigateMock).toHaveBeenCalledWith('/spotify/track/abc');
       expect(vm.error).toBe('');
     });
 
-    it('clears error before processing on second submit', () => {
+    it('clears error before processing on second submit', async () => {
       resolveContentNavigationMock
-        .mockReturnValueOnce({ errorKey: 'track.unsupported' })
-        .mockReturnValueOnce({ path: '/resolve/encodedurl' });
+        .mockResolvedValueOnce({ errorKey: 'track.unsupported' })
+        .mockResolvedValueOnce({ path: '/resolve/encodedurl' });
       const vm = makeVm();
       vm.url = 'bad';
-      vm.submit();
+      await vm.submit();
       expect(vm.error).toBe('track.unsupported');
 
-      vm.submit();
+      await vm.submit();
       expect(vm.error).toBe('');
       expect(navigateMock).toHaveBeenCalledWith('/resolve/encodedurl');
     });
 
-    it('passes the current url value to resolveContentNavigation', () => {
-      resolveContentNavigationMock.mockReturnValueOnce(null);
+    it('passes the current url value to resolveContentNavigation', async () => {
+      resolveContentNavigationMock.mockResolvedValueOnce(null);
       const vm = makeVm();
       vm.url = 'https://www.youtube.com/watch?v=xyz';
-      vm.submit();
+      await vm.submit();
       expect(resolveContentNavigationMock).toHaveBeenCalledWith(
         'https://www.youtube.com/watch?v=xyz'
       );
+    });
+
+    it('ignores stale navigation when url changes and a later submit resolves first', async () => {
+      const first = deferred<{ path: string }>();
+      const second = deferred<{ path: string }>();
+      resolveContentNavigationMock
+        .mockReturnValueOnce(first.promise)
+        .mockReturnValueOnce(second.promise);
+
+      const vm = makeVm();
+      vm.url = 'https://example.com/first';
+      const firstSubmit = vm.submit();
+      vm.url = 'https://example.com/second';
+      const secondSubmit = vm.submit();
+
+      second.resolve({ path: '/resolve/second' });
+      await secondSubmit;
+      expect(navigateMock).toHaveBeenCalledTimes(1);
+      expect(navigateMock).toHaveBeenCalledWith('/resolve/second');
+
+      first.resolve({ path: '/resolve/first' });
+      await firstSubmit;
+      expect(navigateMock).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -156,3 +179,11 @@ describe('createTrackInputViewModel', () => {
     });
   });
 });
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}

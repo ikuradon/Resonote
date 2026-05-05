@@ -1,5 +1,8 @@
+import { isListenEpisodeUrl } from '$shared/content/podcast.js';
 import { parseContentUrl } from '$shared/content/registry.js';
 import { extractTimeParam, toBase64url } from '$shared/content/url-utils.js';
+
+import { resolveListenEpisodeUrl } from './resolve-listen-episode.js';
 
 export interface ContentNavigationPath {
   path: string;
@@ -15,9 +18,15 @@ function normalizeInputUrl(input: string): string {
   return input.startsWith('http') ? input : `https://${input}`;
 }
 
-export function resolveContentNavigation(input: string): ContentNavigationResult {
+export async function resolveContentNavigation(input: string): Promise<ContentNavigationResult> {
   const trimmed = input.trim();
   if (!trimmed) return null;
+
+  const normalizedInput = normalizeInputUrl(trimmed);
+  if (isListenEpisodeUrl(normalizedInput)) {
+    const listenResult = await resolveListenEpisodeUrl(normalizedInput);
+    if (listenResult) return { path: listenResult.path };
+  }
 
   const contentId = parseContentUrl(trimmed);
   if (contentId) {
@@ -28,14 +37,13 @@ export function resolveContentNavigation(input: string): ContentNavigationResult
     };
   }
 
-  const normalizedUrl = normalizeInputUrl(trimmed);
   try {
-    new URL(normalizedUrl);
+    new URL(normalizedInput);
   } catch {
     return { errorKey: 'track.unsupported' };
   }
 
   return {
-    path: `/resolve/${toBase64url(normalizedUrl)}`
+    path: `/resolve/${toBase64url(normalizedInput)}`
   };
 }

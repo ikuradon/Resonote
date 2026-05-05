@@ -68,8 +68,8 @@
     }
   ].sort(() => Math.random() - 0.5);
 
-  function handleExample(url: string) {
-    const result = resolveContentNavigation(url);
+  async function handleExample(url: string) {
+    const result = await resolveContentNavigation(url);
     if (result && 'path' in result) {
       goto(result.path);
     }
