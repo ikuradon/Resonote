@@ -1,0 +1,354 @@
+
+=== evidence_start ===
+executed_at_utc: 2026-05-05T13:52:30Z
+command: pnpm add -w -D eslint@10.3.0 eslint-plugin-svelte@3.17.1 eslint-plugin-simple-import-sort@13.0.0 prettier@3.8.3 globals@17.6.0 nano-staged@1.0.2
+Progress: resolved 1, reused 0, downloaded 0, added 0
+ WARN  GET https://registry.npmjs.org/@eslint-community%2Feslint-utils error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@eslint-community%2Fregexpp error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@eslint%2Fconfig-array error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@eslint%2Fconfig-helpers error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@eslint%2Fcore error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@eslint%2Fplugin-kit error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@humanfs%2Fnode error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@humanwhocodes%2Fmodule-importer error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@humanwhocodes%2Fretry error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@types%2Festree error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/ajv error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/cross-spawn error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/debug error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/escape-string-regexp error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/eslint-scope error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/eslint-visitor-keys error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/espree error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/esquery error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/esutils error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/fast-deep-equal error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/file-entry-cache error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+Progress: resolved 217, reused 0, downloaded 0, added 0
+ WARN  GET https://registry.npmjs.org/@eslint-community%2Feslint-utils error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@eslint-community%2Fregexpp error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@eslint%2Fconfig-array error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@eslint%2Fconfig-helpers error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@eslint%2Fcore error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@eslint%2Fplugin-kit error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@humanfs%2Fnode error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@humanwhocodes%2Fmodule-importer error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@humanwhocodes%2Fretry error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@types%2Festree error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/ajv error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/cross-spawn error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/debug error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/escape-string-regexp error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/eslint-scope error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/eslint-visitor-keys error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/espree error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/esquery error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/esutils error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/fast-deep-equal error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/file-entry-cache error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@eslint-community%2Fregexpp: request to https://registry.npmjs.org/@eslint-community%2Fregexpp failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@eslint-community%2Feslint-utils: request to https://registry.npmjs.org/@eslint-community%2Feslint-utils failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@eslint%2Fconfig-array: request to https://registry.npmjs.org/@eslint%2Fconfig-array failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+Progress: resolved 218, reused 0, downloaded 0, added 0
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@eslint%2Fcore: request to https://registry.npmjs.org/@eslint%2Fcore failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/find-up error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/glob-parent error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@eslint%2Fplugin-kit: request to https://registry.npmjs.org/@eslint%2Fplugin-kit failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@humanfs%2Fnode: request to https://registry.npmjs.org/@humanfs%2Fnode failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@humanwhocodes%2Fretry: request to https://registry.npmjs.org/@humanwhocodes%2Fretry failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@types%2Festree: request to https://registry.npmjs.org/@types%2Festree failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@humanwhocodes%2Fmodule-importer: request to https://registry.npmjs.org/@humanwhocodes%2Fmodule-importer failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/debug: request to https://registry.npmjs.org/debug failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/cross-spawn: request to https://registry.npmjs.org/cross-spawn failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/escape-string-regexp: request to https://registry.npmjs.org/escape-string-regexp failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/eslint-scope: request to https://registry.npmjs.org/eslint-scope failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/eslint-visitor-keys: request to https://registry.npmjs.org/eslint-visitor-keys failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/ignore error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/imurmurhash error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/espree: request to https://registry.npmjs.org/espree failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/ajv: request to https://registry.npmjs.org/ajv failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/is-glob error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/json-stable-stringify-without-jsonify error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/minimatch error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/natural-compare error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/optionator error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@eslint-community%2Feslint-utils error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@jridgewell%2Fsourcemap-codec error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/esutils error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/globals error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/known-css-properties error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/esquery: request to https://registry.npmjs.org/esquery failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/postcss error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/postcss-load-config error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/esutils: request to https://registry.npmjs.org/esutils failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/file-entry-cache: request to https://registry.npmjs.org/file-entry-cache failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/fast-deep-equal: request to https://registry.npmjs.org/fast-deep-equal failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/postcss-safe-parser error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/semver error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/svelte-eslint-parser error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@eslint%2Fconfig-helpers: request to https://registry.npmjs.org/@eslint%2Fconfig-helpers failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+Progress: resolved 379, reused 0, downloaded 0, added 0
+ WARN  GET https://registry.npmjs.org/find-up error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/glob-parent error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/ignore error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/imurmurhash error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/is-glob error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/json-stable-stringify-without-jsonify error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/minimatch error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/natural-compare error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/optionator error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@eslint-community%2Feslint-utils error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@jridgewell%2Fsourcemap-codec error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/esutils error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/globals error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/known-css-properties error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/postcss error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/postcss-load-config error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/postcss-safe-parser error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/semver error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/svelte-eslint-parser error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/ignore: request to https://registry.npmjs.org/ignore failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+Progress: resolved 380, reused 0, downloaded 0, added 0
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/find-up: request to https://registry.npmjs.org/find-up failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/glob-parent: request to https://registry.npmjs.org/glob-parent failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/imurmurhash: request to https://registry.npmjs.org/imurmurhash failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/is-glob: request to https://registry.npmjs.org/is-glob failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/natural-compare: request to https://registry.npmjs.org/natural-compare failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/json-stable-stringify-without-jsonify: request to https://registry.npmjs.org/json-stable-stringify-without-jsonify failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@eslint-community%2Feslint-utils: request to https://registry.npmjs.org/@eslint-community%2Feslint-utils failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/optionator: request to https://registry.npmjs.org/optionator failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/minimatch: request to https://registry.npmjs.org/minimatch failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@jridgewell%2Fsourcemap-codec: request to https://registry.npmjs.org/@jridgewell%2Fsourcemap-codec failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/esutils: request to https://registry.npmjs.org/esutils failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/@eslint%2Fobject-schema error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/debug error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/minimatch error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@types%2Fjson-schema error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@eslint%2Fcore error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/levn error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@humanwhocodes%2Fretry error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@humanfs%2Fcore error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/which error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/path-key error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/shebang-command error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@types%2Fesrecurse error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/globals: request to https://registry.npmjs.org/globals failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/known-css-properties: request to https://registry.npmjs.org/known-css-properties failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/postcss: request to https://registry.npmjs.org/postcss failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/@types%2Festree error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/esrecurse error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/postcss-load-config: request to https://registry.npmjs.org/postcss-load-config failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/estraverse error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/acorn error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/acorn-jsx error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/semver: request to https://registry.npmjs.org/semver failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/postcss-safe-parser: request to https://registry.npmjs.org/postcss-safe-parser failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/eslint-visitor-keys error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/svelte-eslint-parser: request to https://registry.npmjs.org/svelte-eslint-parser failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/fast-deep-equal error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/fast-json-stable-stringify error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/json-schema-traverse error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+Progress: resolved 391, reused 0, downloaded 0, added 0
+ WARN  GET https://registry.npmjs.org/@eslint%2Fobject-schema error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/debug error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/minimatch error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@types%2Fjson-schema error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@eslint%2Fcore error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/levn error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@humanwhocodes%2Fretry error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@humanfs%2Fcore error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/which error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/path-key error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/shebang-command error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@types%2Fesrecurse error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@types%2Festree error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/esrecurse error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/estraverse error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/acorn error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/acorn-jsx error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/eslint-visitor-keys error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/fast-deep-equal error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/fast-json-stable-stringify error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/json-schema-traverse error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/debug: request to https://registry.npmjs.org/debug failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/minimatch: request to https://registry.npmjs.org/minimatch failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@humanwhocodes%2Fretry: request to https://registry.npmjs.org/@humanwhocodes%2Fretry failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@types%2Fjson-schema: request to https://registry.npmjs.org/@types%2Fjson-schema failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+Progress: resolved 392, reused 0, downloaded 0, added 0
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/levn: request to https://registry.npmjs.org/levn failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@humanfs%2Fcore: request to https://registry.npmjs.org/@humanfs%2Fcore failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@eslint%2Fcore: request to https://registry.npmjs.org/@eslint%2Fcore failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@eslint%2Fobject-schema: request to https://registry.npmjs.org/@eslint%2Fobject-schema failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/uri-js error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/estraverse error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/flat-cache error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@eslint%2Fcore error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/locate-path error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/path-exists error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/is-glob error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/path-key: request to https://registry.npmjs.org/path-key failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/which: request to https://registry.npmjs.org/which failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/shebang-command: request to https://registry.npmjs.org/shebang-command failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@types%2Fesrecurse: request to https://registry.npmjs.org/@types%2Fesrecurse failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@types%2Festree: request to https://registry.npmjs.org/@types%2Festree failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/eslint-visitor-keys: request to https://registry.npmjs.org/eslint-visitor-keys failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/fast-deep-equal: request to https://registry.npmjs.org/fast-deep-equal failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/acorn: request to https://registry.npmjs.org/acorn failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/esrecurse: request to https://registry.npmjs.org/esrecurse failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/is-extglob error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/estraverse: request to https://registry.npmjs.org/estraverse failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/json-schema-traverse: request to https://registry.npmjs.org/json-schema-traverse failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/acorn-jsx: request to https://registry.npmjs.org/acorn-jsx failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/fast-json-stable-stringify: request to https://registry.npmjs.org/fast-json-stable-stringify failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/prelude-ls error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/deep-is error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/word-wrap error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/type-check error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/levn error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/fast-levenshtein error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/yaml error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/lilconfig error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/eslint-scope error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/eslint-visitor-keys error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/espree error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/postcss error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/postcss-scss error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+Progress: resolved 404, reused 0, downloaded 0, added 0
+ WARN  GET https://registry.npmjs.org/uri-js error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/estraverse error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/flat-cache error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@eslint%2Fcore error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/locate-path error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/path-exists error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/is-glob error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/is-extglob error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/prelude-ls error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/deep-is error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/word-wrap error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/type-check error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/levn error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/fast-levenshtein error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/yaml error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/lilconfig error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/eslint-scope error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/eslint-visitor-keys error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/espree error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/postcss error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/postcss-scss error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/estraverse: request to https://registry.npmjs.org/estraverse failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/postcss-selector-parser error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@eslint%2Fcore: request to https://registry.npmjs.org/@eslint%2Fcore failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/uri-js: request to https://registry.npmjs.org/uri-js failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+Progress: resolved 405, reused 0, downloaded 0, added 0
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/is-glob: request to https://registry.npmjs.org/is-glob failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/path-exists: request to https://registry.npmjs.org/path-exists failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/locate-path: request to https://registry.npmjs.org/locate-path failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/semver error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/isexe error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/is-extglob: request to https://registry.npmjs.org/is-extglob failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/shebang-regex error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/flat-cache: request to https://registry.npmjs.org/flat-cache failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/estraverse error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/punycode error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/prelude-ls: request to https://registry.npmjs.org/prelude-ls failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/prelude-ls: request to https://registry.npmjs.org/prelude-ls failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/p-locate error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/keyv error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/deep-is: request to https://registry.npmjs.org/deep-is failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/flatted error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/levn: request to https://registry.npmjs.org/levn failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/word-wrap: request to https://registry.npmjs.org/word-wrap failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/type-check: request to https://registry.npmjs.org/type-check failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/type-check: request to https://registry.npmjs.org/type-check failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/fast-levenshtein: request to https://registry.npmjs.org/fast-levenshtein failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/eslint-scope: request to https://registry.npmjs.org/eslint-scope failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/eslint-visitor-keys: request to https://registry.npmjs.org/eslint-visitor-keys failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/espree: request to https://registry.npmjs.org/espree failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/prelude-ls error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/postcss: request to https://registry.npmjs.org/postcss failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/yaml: request to https://registry.npmjs.org/yaml failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/lilconfig: request to https://registry.npmjs.org/lilconfig failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/postcss-scss: request to https://registry.npmjs.org/postcss-scss failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+Progress: resolved 420, reused 0, downloaded 0, added 0
+ WARN  GET https://registry.npmjs.org/postcss-selector-parser error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/semver error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/isexe error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/shebang-regex error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/estraverse error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/punycode error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/p-locate error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/keyv error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/flatted error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/prelude-ls error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/semver: request to https://registry.npmjs.org/semver failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/shebang-regex: request to https://registry.npmjs.org/shebang-regex failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+Progress: resolved 421, reused 0, downloaded 0, added 0
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/postcss-selector-parser: request to https://registry.npmjs.org/postcss-selector-parser failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/isexe: request to https://registry.npmjs.org/isexe failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/estraverse: request to https://registry.npmjs.org/estraverse failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/punycode: request to https://registry.npmjs.org/punycode failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/esrecurse error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/estraverse error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/acorn error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/acorn-jsx error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/eslint-visitor-keys error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/cssesc error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/util-deprecate error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/p-locate: request to https://registry.npmjs.org/p-locate failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/prelude-ls: request to https://registry.npmjs.org/prelude-ls failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/keyv: request to https://registry.npmjs.org/keyv failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/p-limit error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/flatted: request to https://registry.npmjs.org/flatted failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+Progress: resolved 428, reused 0, downloaded 0, added 0
+ WARN  GET https://registry.npmjs.org/esrecurse error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/estraverse error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/acorn error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/acorn-jsx error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/eslint-visitor-keys error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/cssesc error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/util-deprecate error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/p-limit error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/esrecurse: request to https://registry.npmjs.org/esrecurse failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/cssesc: request to https://registry.npmjs.org/cssesc failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+Progress: resolved 429, reused 0, downloaded 0, added 0
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/util-deprecate: request to https://registry.npmjs.org/util-deprecate failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/p-limit: request to https://registry.npmjs.org/p-limit failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/acorn-jsx: request to https://registry.npmjs.org/acorn-jsx failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/estraverse: request to https://registry.npmjs.org/estraverse failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ WARN  GET https://registry.npmjs.org/yocto-queue error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/eslint-visitor-keys: request to https://registry.npmjs.org/eslint-visitor-keys failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/acorn: request to https://registry.npmjs.org/acorn failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+Progress: resolved 431, reused 0, downloaded 0, added 0
+ WARN  GET https://registry.npmjs.org/yocto-queue error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+
+=== rerun_evidence_digest_start ===
+executed_at_utc: 2026-05-05T13:57:40Z
+command: pnpm add -w -D eslint@10.3.0 eslint-plugin-svelte@3.17.1 eslint-plugin-simple-import-sort@13.0.0 prettier@3.8.3 globals@17.6.0 nano-staged@1.0.2
+exit_status: 0
+summary: success (rerun)
+
+executed_at_utc: 2026-05-05T13:57:47Z
+command: pnpm install
+exit_status: 0
+summary: success (rerun)
+
+executed_at_utc: 2026-05-05T13:57:52Z
+command: pnpm list --depth 0 | tee logs/pnpm-update-2026-05-05/pnpm-list-depth-0-lint-format.txt
+exit_status: 0
+summary: success (rerun)
+
+executed_at_utc: 2026-05-05T13:57:53Z
+command: pnpm run lint
+exit_status: 0
+summary: success (rerun)
+
+executed_at_utc: 2026-05-05T13:58:31Z
+command: pnpm run format:check
+exit_status: 0
+summary: success (rerun)
+
+executed_at_utc: 2026-05-05T13:59:02Z
+command: pnpm run check
+exit_status: 0
+summary: success (rerun)
+=== rerun_evidence_digest_end ===

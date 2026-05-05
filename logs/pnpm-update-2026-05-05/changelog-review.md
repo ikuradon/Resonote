@@ -305,3 +305,101 @@ Use this exact entry format for each package before running its update command:
 - Project impact: none
 - Verification commands: `pnpm exec playwright --version`, `pnpm exec playwright install --with-deps chromium`, `pnpm run test:auftakt:e2e`
 - Notes: Chromium install と e2e 実行でツールチェーン整合性を確認。
+
+## Task 6 Entries
+
+### eslint
+
+- Update: `10.1.0` -> `10.3.0`
+- Sources:
+  - release notes: https://github.com/eslint/eslint/releases
+  - changelog: https://github.com/eslint/eslint/blob/main/CHANGELOG.md
+  - npm: https://www.npmjs.com/package/eslint
+- Version range reviewed: `10.1.0...10.3.0`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Project impact: none
+- Verification commands: `pnpm run lint`, `pnpm run format:check`, `pnpm run check`
+- Notes: `@eslint/js` は compatibility-only であり、この batch の更新対象外。
+
+### eslint-plugin-svelte
+
+- Update: `3.16.0` -> `3.17.1`
+- Sources:
+  - release notes: https://github.com/sveltejs/eslint-plugin-svelte/releases
+  - changelog: https://github.com/sveltejs/eslint-plugin-svelte/blob/main/CHANGELOG.md
+  - npm: https://www.npmjs.com/package/eslint-plugin-svelte
+- Version range reviewed: `3.16.0...3.17.1`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Project impact: none
+- Verification commands: `pnpm run lint`, `pnpm run check`
+- Notes: Svelte lint ルールの差分は既存 lint/check で回帰確認。
+
+### eslint-plugin-simple-import-sort
+
+- Update: `12.1.1` -> `13.0.0`
+- Sources:
+  - release notes: https://github.com/lydell/eslint-plugin-simple-import-sort/releases
+  - changelog: https://github.com/lydell/eslint-plugin-simple-import-sort/blob/main/CHANGELOG.md
+  - npm: https://www.npmjs.com/package/eslint-plugin-simple-import-sort
+- Version range reviewed: `12.1.1...13.0.0`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Project impact: none
+- Verification commands: `pnpm run lint`, `pnpm run check`
+- Notes: 既に target range 設定済みのため lockfile 整合と lint 実行で確認。
+
+### prettier
+
+- Update: `3.8.1` -> `3.8.3`
+- Sources:
+  - release notes: https://github.com/prettier/prettier/releases
+  - changelog: https://github.com/prettier/prettier/blob/main/CHANGELOG.md
+  - npm: https://www.npmjs.com/package/prettier
+- Version range reviewed: `3.8.1...3.8.3`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Project impact: none
+- Verification commands: `pnpm run format:check`, `pnpm run check`
+- Notes: format check で回帰確認。
+
+### globals
+
+- Update: `17.4.0` -> `17.6.0`
+- Sources:
+  - release notes: https://github.com/sindresorhus/globals/releases
+  - changelog: https://github.com/sindresorhus/globals/blob/main/changelog.md
+  - npm: https://www.npmjs.com/package/globals
+- Version range reviewed: `17.4.0...17.6.0`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Project impact: none
+- Verification commands: `pnpm run lint`, `pnpm run check`
+- Notes: ESLint 環境グローバル定義差分は lint/check で確認。
+
+### nano-staged
+
+- Update: `0.9.0` -> `1.0.2`
+- Sources:
+  - release notes: https://github.com/usmanyunusov/nano-staged/releases
+  - changelog: https://github.com/usmanyunusov/nano-staged/blob/main/CHANGELOG.md
+  - npm: https://www.npmjs.com/package/nano-staged
+- Version range reviewed: `0.9.0...1.0.2`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Project impact: none
+- Verification commands: `pnpm run lint`, `pnpm run format:check`, `pnpm run check`
+- Notes: 既に target range 設定済みのため pre-commit toolchain の install/lint/check で確認。
