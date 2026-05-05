@@ -1799,13 +1799,19 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       })
   };
 
-  const fetchCustomEmojiSourcesFromRuntime = async (pubkey: string) => {
+  const fetchCustomEmojiSourcesFromRuntime = async (
+    pubkey: string,
+    options: {
+      readonly generation?: number;
+      readonly getGeneration?: () => number;
+    } = {}
+  ) => {
     const eventsDB = await runtime.getEventsDB();
     const listEvent = await queryRuntime.fetchBackwardFirst<StoredEvent>(
       [{ kinds: [10030], authors: [pubkey], limit: 1 }],
       { timeoutMs: 5_000 }
     );
-    if (listEvent) {
+    if (listEvent && canWriteCustomEmojiCache(options)) {
       await cacheEvent(eventsDB, listEvent);
     }
 
@@ -1849,7 +1855,9 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
             timeoutMs: 5_000
           });
 
-    await Promise.all(fetchedEvents.map((event) => cacheEvent(eventsDB, event)));
+    if (canWriteCustomEmojiCache(options)) {
+      await Promise.all(fetchedEvents.map((event) => cacheEvent(eventsDB, event)));
+    }
 
     return { listEvent, setEvents: [...cachedEvents, ...fetchedEvents] };
   };

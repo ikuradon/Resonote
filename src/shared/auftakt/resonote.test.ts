@@ -1,22 +1,49 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+interface TestEmojiCategory {
+  id: string;
+  name: string;
+  emojis: Array<{ id: string; name: string; skins: Array<{ src: string }> }>;
+}
+
+interface TestCustomEmojiDiagnosticsResult {
+  diagnostics: {
+    listEvent: null;
+    sets: [];
+    missingRefs: [];
+    invalidRefs: [];
+    warnings: [];
+    sourceMode: 'unknown';
+  };
+  categories: TestEmojiCategory[];
+}
+
+interface TestCustomEmojiSourcesResult {
+  listEvent: null;
+  setEvents: [];
+}
+
 const { coordinator } = vi.hoisted(() => ({
   coordinator: {
     clearStoredEvents: vi.fn(async () => undefined),
     deleteStoredEventsByKinds: vi.fn(async () => undefined),
-    fetchCustomEmojiCategories: vi.fn(async () => []),
-    fetchCustomEmojiSourceDiagnostics: vi.fn(async () => ({
-      diagnostics: {
-        listEvent: null,
-        sets: [],
-        missingRefs: [],
-        invalidRefs: [],
-        warnings: [],
-        sourceMode: 'unknown'
-      },
-      categories: []
-    })),
-    fetchCustomEmojiSources: vi.fn(async () => ({ listEvent: null, setEvents: [] }))
+    fetchCustomEmojiCategories: vi.fn(async (): Promise<TestEmojiCategory[]> => []),
+    fetchCustomEmojiSourceDiagnostics: vi.fn(
+      async (): Promise<TestCustomEmojiDiagnosticsResult> => ({
+        diagnostics: {
+          listEvent: null,
+          sets: [],
+          missingRefs: [],
+          invalidRefs: [],
+          warnings: [],
+          sourceMode: 'unknown'
+        },
+        categories: []
+      })
+    ),
+    fetchCustomEmojiSources: vi.fn(
+      async (): Promise<TestCustomEmojiSourcesResult> => ({ listEvent: null, setEvents: [] })
+    )
   }
 }));
 
@@ -68,7 +95,7 @@ vi.mock('$shared/nostr/pending-publishes.js', () => ({
 
 const facade = await import('./resonote.js');
 
-function makeCategory(id: string) {
+function makeCategory(id: string): TestEmojiCategory {
   return {
     id,
     name: id,
