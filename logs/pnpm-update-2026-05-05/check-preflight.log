@@ -1,0 +1,8 @@
+
+> resonote@0.2.3 check /root/src/github.com/ikuradon/Resonote
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /root/src/github.com/ikuradon/Resonote
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
