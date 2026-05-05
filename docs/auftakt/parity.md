@@ -56,20 +56,26 @@
 
 ## 2. Type Exports Inventory
 
-| Export Name               | Status                  | Spec §6 | Role                                                   |
-| :------------------------ | :---------------------- | :------ | :----------------------------------------------------- |
-| `StoredEvent`             | `supporting-only`       | No      | Used in `getEventsDB` return type                      |
-| `WotResult`               | `documented in spec §6` | Yes     | Return type for `fetchWot`                             |
-| `CachedFetchByIdResult`   | `documented in spec §6` | Yes     | Return type for `cachedFetchById`                      |
-| `CommentFilterKinds`      | `supporting-only`       | No      | Parameter for `buildCommentContentFilters`             |
-| `CommentSubscriptionRefs` | `supporting-only`       | No      | Return type for `loadCommentSubscriptionDeps`          |
-| `DeletionEvent`           | `supporting-only`       | No      | Callback parameter for `startCommentDeletionReconcile` |
-| `EmojiCategory`           | `documented in spec §6` | Yes     | Return type for `fetchCustomEmojiCategories`           |
-| `RelayCapabilityPacket`   | `documented in spec §6` | Yes     | Packet type for `observeRelayCapabilities`             |
-| `RelayCapabilitySnapshot` | `documented in spec §6` | Yes     | Return type for `snapshotRelayCapabilities`            |
-| `RelayMetricSnapshot`     | `documented in spec §6` | Yes     | Return type for `snapshotRelayMetrics`                 |
-| `SubscriptionHandle`      | `supporting-only`       | No      | Return type for subscription starters                  |
-| `UseCachedLatestResult`   | `documented in spec §6` | Yes     | Return type for `useCachedLatest`                      |
+| Export Name                           | Status                  | Spec §6 | Role                                                   |
+| :------------------------------------ | :---------------------- | :------ | :----------------------------------------------------- |
+| `StoredEvent`                         | `supporting-only`       | No      | Used in `getEventsDB` return type                      |
+| `WotResult`                           | `documented in spec §6` | Yes     | Return type for `fetchWot`                             |
+| `CachedFetchByIdResult`               | `documented in spec §6` | Yes     | Return type for `cachedFetchById`                      |
+| `CommentFilterKinds`                  | `supporting-only`       | No      | Parameter for `buildCommentContentFilters`             |
+| `CommentSubscriptionRefs`             | `supporting-only`       | No      | Return type for `loadCommentSubscriptionDeps`          |
+| `DeletionEvent`                       | `supporting-only`       | No      | Callback parameter for `startCommentDeletionReconcile` |
+| `EmojiCategory`                       | `documented in spec §6` | Yes     | Return type for `fetchCustomEmojiCategories`           |
+| `CustomEmojiDiagnosticsSource`        | `supporting-only`       | No      | Diagnostic payload for custom emoji source inspection  |
+| `CustomEmojiSetDiagnosticsSource`     | `supporting-only`       | No      | Resolved set payload for custom emoji diagnostics      |
+| `CustomEmojiSetResolution`            | `supporting-only`       | No      | Resolution enum for custom emoji diagnostics           |
+| `CustomEmojiSourceDiagnosticsOptions` | `supporting-only`       | No      | Generation guard options for custom emoji diagnostics  |
+| `CustomEmojiSourceDiagnosticsResult`  | `supporting-only`       | No      | Return type for `fetchCustomEmojiSourceDiagnostics`    |
+| `CustomEmojiSourceMode`               | `supporting-only`       | No      | Source mode enum for custom emoji diagnostics          |
+| `RelayCapabilityPacket`               | `documented in spec §6` | Yes     | Packet type for `observeRelayCapabilities`             |
+| `RelayCapabilitySnapshot`             | `documented in spec §6` | Yes     | Return type for `snapshotRelayCapabilities`            |
+| `RelayMetricSnapshot`                 | `documented in spec §6` | Yes     | Return type for `snapshotRelayMetrics`                 |
+| `SubscriptionHandle`                  | `supporting-only`       | No      | Return type for subscription starters                  |
+| `UseCachedLatestResult`               | `documented in spec §6` | Yes     | Return type for `useCachedLatest`                      |
 
 ## 3. Allowed Non-§6 Surfaces
 

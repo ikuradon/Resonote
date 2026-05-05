@@ -34,6 +34,7 @@ const RESONOTE_TYPE_EXPORT_ALLOWLIST = [
   'CustomEmojiDiagnosticsSource',
   'CustomEmojiSetDiagnosticsSource',
   'CustomEmojiSetResolution',
+  'CustomEmojiSourceDiagnosticsOptions',
   'CustomEmojiSourceDiagnosticsResult',
   'CustomEmojiSourceMode',
   'DeletionEvent',
