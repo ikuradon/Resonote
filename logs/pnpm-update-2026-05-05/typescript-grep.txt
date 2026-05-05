@@ -1,0 +1,11 @@
+## Command 1
+$ rg "tsc .*\.(ts|tsx)" package.json .github scripts packages
+
+## Command 2
+$ rg "importsNotUsedAsValues|preserveValueImports|suppressImplicitAnyIndexErrors|keyofStringsOnly|moduleResolution.*node|target.*es5|no-default-lib|outFile|asserts? \{\s*type" .
+./docs/superpowers/plans/2026-03-15-pwa-codesplit-plan.md:/// <reference no-default-lib="true"/>
+./docs/superpowers/specs/2026-05-05-pnpm-outdated-update-design.md:rg "importsNotUsedAsValues|preserveValueImports|suppressImplicitAnyIndexErrors|keyofStringsOnly|moduleResolution.*node|target.*es5|no-default-lib|outFile|asserts? \\{\\s*type" .
+./docs/superpowers/plans/2026-05-05-pnpm-outdated-update.md:  rg "importsNotUsedAsValues|preserveValueImports|suppressImplicitAnyIndexErrors|keyofStringsOnly|moduleResolution.*node|target.*es5|no-default-lib|outFile|asserts? \\{\\s*type" . || true;
+./src/service-worker.ts:/// <reference no-default-lib="true"/>
+./logs/pnpm-update-2026-05-05/npm-diff-nostr-login.txt:-{"version":3,"file":"index.esm.js","sources":["../../../node_modules/@stencil/core/internal/app-data/index.js","../../../node_modules/@stencil/core/internal/client/index.js","../../components/dist/co [... omitted end of long line]
+./logs/pnpm-update-2026-05-05/npm-diff-nostr-login.txt:+{"version":3,"file":"index.esm.js","sources":["../../../node_modules/@stencil/core/internal/app-data/index.js","../../../node_modules/@stencil/core/internal/client/index.js","../../components/dist/co [... omitted end of long line]

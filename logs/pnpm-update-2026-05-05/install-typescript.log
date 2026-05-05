@@ -1,0 +1,17 @@
+Scope: all 5 workspace projects
+Lockfile is up to date, resolution step is skipped
+Already up to date
+
+. prepare$ (svelte-kit sync || echo '') && simple-git-hooks
+. prepare: [INFO] Successfully set the pre-commit with command: pnpm nano-staged
+. prepare: [INFO] Successfully set all git hooks
+. prepare: Done
+╭ Warning ─────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│   Ignored build scripts: sharp@0.34.5, simple-git-hooks@2.13.1,              │
+│   workerd@1.20260317.1.                                                      │
+│   Run "pnpm approve-builds" to pick which dependencies should be allowed     │
+│   to run scripts.                                                            │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Done in 4s using pnpm v10.33.2

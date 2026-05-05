@@ -54,3 +54,85 @@ Use this exact entry format for each package before running its update command:
 - Verification commands: list the commands run for this package or batch
 - Notes: short project-specific conclusion
 ```
+
+## Task 3 Entries
+
+### typescript
+
+- Update: `5.9.3` -> `6.0.3`
+- Sources:
+  - release notes: https://devblogs.microsoft.com/typescript/
+  - changelog: https://github.com/microsoft/TypeScript/releases
+  - npm: https://www.npmjs.com/package/typescript
+- Version range reviewed: `5.9.3...6.0.3`
+- Breaking changes: TypeScript 6 系へのメジャー更新のため破壊的変更の可能性あり（実プロジェクト検証で確認）
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: 旧/非推奨オプション影響の可能性あり（grep と check/lint/test で検証）
+- Project impact: none
+- Verification commands: `pnpm run check`, `pnpm run lint`, `pnpm run test:packages`
+- Notes: 既存 tsconfig/script を grep で確認し、更新後の実行検証を通過させる。
+
+### typescript-eslint
+
+- Update: `8.57.2` -> `8.59.2`
+- Sources:
+  - release notes: https://github.com/typescript-eslint/typescript-eslint/releases
+  - changelog: https://github.com/typescript-eslint/typescript-eslint/blob/main/CHANGELOG.md
+  - npm: https://www.npmjs.com/package/typescript-eslint
+- Version range reviewed: `8.57.2...8.59.2`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Project impact: none
+- Verification commands: `pnpm run lint`, `pnpm run check`
+- Notes: TypeScript 6 系との組み合わせで lint/check を実行して整合性確認。
+
+### svelte-check
+
+- Update: `4.4.5` -> `4.4.8`
+- Sources:
+  - release notes: https://github.com/sveltejs/language-tools/releases
+  - changelog: https://github.com/sveltejs/language-tools/blob/master/packages/svelte-check/CHANGELOG.md
+  - npm: https://www.npmjs.com/package/svelte-check
+- Version range reviewed: `4.4.5...4.4.8`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Project impact: none
+- Verification commands: `pnpm run check`
+- Notes: Svelte 型検査コマンドの通過をもって回帰なしを確認。
+
+### @types/node
+
+- Update: `25.5.0` -> `25.6.0`
+- Sources:
+  - release notes: https://github.com/DefinitelyTyped/DefinitelyTyped/commits/master/types/node
+  - changelog: https://www.npmjs.com/package/@types/node?activeTab=versions
+  - npm: https://www.npmjs.com/package/@types/node
+- Version range reviewed: `25.5.0...25.6.0`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Project impact: none
+- Verification commands: `pnpm run check`, `pnpm run test:packages`
+- Notes: Node 型定義更新による型エラー増減を検証コマンドで確認。
+
+### @types/chrome
+
+- Update: `0.1.38` -> `0.1.40`
+- Sources:
+  - release notes: https://github.com/DefinitelyTyped/DefinitelyTyped/commits/master/types/chrome
+  - changelog: https://www.npmjs.com/package/@types/chrome?activeTab=versions
+  - npm: https://www.npmjs.com/package/@types/chrome
+- Version range reviewed: `0.1.38...0.1.40`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Project impact: none
+- Verification commands: `pnpm run check`, `pnpm run test:packages`
+- Notes: extension 側型定義更新のため check/test で回帰確認。
