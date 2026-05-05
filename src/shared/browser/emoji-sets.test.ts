@@ -21,7 +21,12 @@ vi.mock('$shared/auftakt/resonote.js', () => ({
     fetchCustomEmojiCategoriesMock(...(args as []))
 }));
 
-import { clearCustomEmojis, getCustomEmojis, loadCustomEmojis } from './emoji-sets.svelte.js';
+import {
+  clearCustomEmojis,
+  getCustomEmojis,
+  loadCustomEmojis,
+  setCustomEmojis
+} from './emoji-sets.svelte.js';
 
 const PUBKEY = 'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
 
@@ -125,5 +130,34 @@ describe('loadCustomEmojis', () => {
   it('pubkey を façade に渡す', async () => {
     await loadCustomEmojis(PUBKEY);
     expect(fetchCustomEmojiCategoriesMock).toHaveBeenCalledWith(PUBKEY);
+  });
+});
+
+describe('setCustomEmojis', () => {
+  beforeEach(() => {
+    clearCustomEmojis();
+    vi.clearAllMocks();
+  });
+
+  it('replaces categories without fetching', () => {
+    setCustomEmojis([makeCategory('custom-inline', 'wave')]);
+
+    expect(getCustomEmojis().categories).toEqual([makeCategory('custom-inline', 'wave')]);
+    expect(fetchCustomEmojiCategoriesMock).not.toHaveBeenCalled();
+  });
+
+  it('cancels an in-flight load when diagnostics replaces categories', async () => {
+    let resolveLoad: (categories: unknown[]) => void = () => {};
+    fetchCustomEmojiCategoriesMock.mockImplementation(
+      () => new Promise((resolve) => (resolveLoad = resolve))
+    );
+
+    const load = loadCustomEmojis(PUBKEY);
+    setCustomEmojis([makeCategory('diagnostics', 'spark')]);
+    resolveLoad([makeCategory('late', 'old')]);
+    await load;
+
+    expect(getCustomEmojis().categories).toEqual([makeCategory('diagnostics', 'spark')]);
+    expect(getCustomEmojis().loading).toBe(false);
   });
 });

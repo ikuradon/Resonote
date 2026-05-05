@@ -3,6 +3,7 @@
   import { getNotifFilter, setNotifFilter } from '$shared/browser/notifications.js';
   import { t, type TranslationKey } from '$shared/i18n/t.js';
 
+  import CustomEmojiSettings from './CustomEmojiSettings.svelte';
   import DeveloperTools from './DeveloperTools.svelte';
   import MuteSettings from './MuteSettings.svelte';
   import RelaySettings from './RelaySettings.svelte';
@@ -40,6 +41,8 @@
   <RelaySettings />
 
   <MuteSettings />
+
+  <CustomEmojiSettings />
 
   <!-- Notification Filter section -->
   <section class="rounded-2xl border border-border bg-surface-1 p-6 space-y-5">

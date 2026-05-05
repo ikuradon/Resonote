@@ -189,7 +189,18 @@ describe('@auftakt/resonote built-in plugins', () => {
     const timelinePlugin = createTimelinePlugin();
     const emojiPlugin = createEmojiCatalogPlugin({
       fetchCustomEmojiSources: async () => ({ listEvent: null, setEvents: [] }),
-      fetchCustomEmojiCategories: async () => []
+      fetchCustomEmojiCategories: async () => [],
+      fetchCustomEmojiSourceDiagnostics: async () => ({
+        diagnostics: {
+          listEvent: null,
+          sets: [],
+          missingRefs: [],
+          invalidRefs: [],
+          warnings: [],
+          sourceMode: 'unknown'
+        },
+        categories: []
+      })
     });
     const notificationsPlugin = createNotificationsFlowPlugin({
       subscribeNotificationStreams: async () => []
@@ -312,6 +323,27 @@ describe('@auftakt/resonote built-in plugins', () => {
 
     expect(result).toEqual(fetchedEvent);
     expect(storedEvents).toEqual([fetchedEvent]);
+  });
+
+  it('exposes coordinator-owned custom emoji diagnostics through the emoji catalog read model', async () => {
+    const coordinator = createTestCoordinator();
+
+    await expect(coordinator.fetchCustomEmojiSources('missing-user')).resolves.toEqual({
+      listEvent: null,
+      setEvents: []
+    });
+    await expect(coordinator.fetchCustomEmojiCategories('missing-user')).resolves.toEqual([]);
+    await expect(coordinator.fetchCustomEmojiSourceDiagnostics('missing-user')).resolves.toEqual({
+      diagnostics: {
+        listEvent: null,
+        sets: [],
+        missingRefs: [],
+        invalidRefs: [],
+        warnings: [],
+        sourceMode: 'unknown'
+      },
+      categories: []
+    });
   });
 
   it('exposes coordinator-owned backward reads that materialize relay events', async () => {

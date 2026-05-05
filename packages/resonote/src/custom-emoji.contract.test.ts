@@ -2,7 +2,11 @@ import type { StoredEvent } from '@auftakt/core';
 import type { EventStoreLike, QueryRuntime } from '@auftakt/runtime';
 import { describe, expect, it, vi } from 'vitest';
 
-import { fetchCustomEmojiCategories, fetchCustomEmojiSources } from './runtime.js';
+import {
+  fetchCustomEmojiCategories,
+  fetchCustomEmojiSourceDiagnostics,
+  fetchCustomEmojiSources
+} from './runtime.js';
 
 function event(id: string, overrides: Partial<StoredEvent>): StoredEvent {
   return {
@@ -136,6 +140,49 @@ describe('custom emoji read model', () => {
     ]);
   });
 
+  it('does not write fetched categories when the cache generation changed', async () => {
+    const pubkey = 'user-pubkey';
+    const setAuthor = 'set-author';
+    const listEvent = event('emoji-list', {
+      pubkey,
+      kind: 10030,
+      tags: [
+        ['emoji', 'wave', 'https://example.com/wave.png'],
+        ['a', `30030:${setAuthor}:remote`]
+      ]
+    });
+    const fetchedSet = event('fetched-set', {
+      pubkey: setAuthor,
+      kind: 30030,
+      tags: [
+        ['d', 'remote'],
+        ['title', 'Remote'],
+        ['emoji', 'spark', 'https://example.com/spark.png']
+      ]
+    });
+    const { runtime, stored } = createEmojiRuntime({ listEvent, fetchedSets: [fetchedSet] });
+
+    await expect(
+      fetchCustomEmojiCategories(runtime, pubkey, {
+        generation: 1,
+        getGeneration: () => 2
+      })
+    ).resolves.toEqual([
+      {
+        id: 'custom-inline',
+        name: 'Custom',
+        emojis: [{ id: 'wave', name: 'wave', skins: [{ src: 'https://example.com/wave.png' }] }]
+      },
+      {
+        id: 'set-fetched-',
+        name: 'Remote',
+        emojis: [{ id: 'spark', name: 'spark', skins: [{ src: 'https://example.com/spark.png' }] }]
+      }
+    ]);
+
+    expect(stored).toEqual([]);
+  });
+
   it('returns an empty source set when no kind:10030 list exists', async () => {
     const { runtime } = createEmojiRuntime({ listEvent: null });
 
@@ -144,5 +191,340 @@ describe('custom emoji read model', () => {
       setEvents: []
     });
     expect(runtime.fetchBackwardEvents).not.toHaveBeenCalled();
+  });
+
+  it('returns the list event without fetching sets when it has no valid set refs', async () => {
+    const pubkey = 'user-pubkey';
+    const listEvent = event('emoji-list', {
+      pubkey,
+      kind: 10030,
+      tags: [['emoji', 'wave', 'https://example.com/wave.png']]
+    });
+    const { runtime } = createEmojiRuntime({ listEvent });
+
+    await expect(fetchCustomEmojiSources(runtime, pubkey)).resolves.toEqual({
+      listEvent,
+      setEvents: []
+    });
+    expect(runtime.fetchBackwardEvents).not.toHaveBeenCalled();
+  });
+
+  it('returns empty diagnostics when no kind:10030 list exists', async () => {
+    const { runtime } = createEmojiRuntime({ listEvent: null });
+
+    await expect(fetchCustomEmojiSourceDiagnostics(runtime, 'missing-user')).resolves.toEqual({
+      diagnostics: {
+        listEvent: null,
+        sets: [],
+        missingRefs: [],
+        invalidRefs: [],
+        warnings: [],
+        sourceMode: 'unknown'
+      },
+      categories: []
+    });
+    expect(runtime.fetchBackwardEvents).not.toHaveBeenCalled();
+  });
+
+  it('does not write fetched sources when the cache generation changed', async () => {
+    const pubkey = 'user-pubkey';
+    const setAuthor = 'set-author';
+    const listEvent = event('emoji-list', {
+      pubkey,
+      kind: 10030,
+      tags: [['a', `30030:${setAuthor}:remote`]]
+    });
+    const fetchedSet = event('fetched-set', {
+      pubkey: setAuthor,
+      kind: 30030,
+      tags: [
+        ['d', 'remote'],
+        ['emoji', 'spark', 'https://example.com/spark.png']
+      ]
+    });
+    const { runtime, stored } = createEmojiRuntime({ listEvent, fetchedSets: [fetchedSet] });
+
+    await expect(
+      fetchCustomEmojiSources(runtime, pubkey, {
+        generation: 1,
+        getGeneration: () => 2
+      })
+    ).resolves.toEqual({ listEvent, setEvents: [fetchedSet] });
+
+    expect(stored).toEqual([]);
+  });
+
+  it('writes fetched sources when the cache generation still matches', async () => {
+    const pubkey = 'user-pubkey';
+    const setAuthor = 'set-author';
+    const listEvent = event('emoji-list', {
+      pubkey,
+      kind: 10030,
+      tags: [['a', `30030:${setAuthor}:remote`]]
+    });
+    const fetchedSet = event('fetched-set', {
+      pubkey: setAuthor,
+      kind: 30030,
+      tags: [
+        ['d', 'remote'],
+        ['emoji', 'spark', 'https://example.com/spark.png']
+      ]
+    });
+    const { runtime, stored } = createEmojiRuntime({ listEvent, fetchedSets: [fetchedSet] });
+
+    await expect(
+      fetchCustomEmojiSources(runtime, pubkey, {
+        generation: 1,
+        getGeneration: () => 1
+      })
+    ).resolves.toEqual({ listEvent, setEvents: [fetchedSet] });
+
+    expect(stored).toEqual([listEvent, fetchedSet]);
+  });
+
+  it('does not write fetched diagnostics sources when the cache generation changed', async () => {
+    const pubkey = 'user-pubkey';
+    const setAuthor = 'set-author';
+    const listEvent = event('emoji-list', {
+      pubkey,
+      kind: 10030,
+      tags: [['a', `30030:${setAuthor}:remote`]]
+    });
+    const fetchedSet = event('fetched-set', {
+      pubkey: setAuthor,
+      kind: 30030,
+      tags: [
+        ['d', 'remote'],
+        ['emoji', 'spark', 'https://example.com/spark.png']
+      ]
+    });
+    const { runtime, stored } = createEmojiRuntime({ listEvent, fetchedSets: [fetchedSet] });
+
+    const result = await fetchCustomEmojiSourceDiagnostics(runtime, pubkey, {
+      generation: 1,
+      getGeneration: () => 2
+    });
+
+    expect(result.diagnostics.sets[0]).toMatchObject({
+      ref: `30030:${setAuthor}:remote`,
+      resolvedVia: 'relay'
+    });
+    expect(result.categories).toEqual([
+      {
+        id: 'set-fetched-',
+        name: 'remote',
+        emojis: [{ id: 'spark', name: 'spark', skins: [{ src: 'https://example.com/spark.png' }] }]
+      }
+    ]);
+    expect(stored).toEqual([]);
+  });
+
+  it('returns diagnostics and categories from the same custom emoji source resolution', async () => {
+    const pubkey = 'user-pubkey';
+    const setAuthor = 'set-author';
+    const listEvent = event('emoji-list', {
+      pubkey,
+      kind: 10030,
+      created_at: 300,
+      tags: [
+        ['emoji', 'wave', 'https://example.com/wave.png'],
+        ['emoji', 'bad-name', 'https://example.com/bad.png'],
+        ['a', `30030:${setAuthor}:cached`],
+        ['a', `30030:${setAuthor}:cached`],
+        ['a', '30030:missing-author:missing'],
+        ['a', 'not-a-valid-ref']
+      ]
+    });
+    const cachedSet = event('cached-set', {
+      pubkey: setAuthor,
+      kind: 30030,
+      created_at: 400,
+      tags: [
+        ['d', 'cached'],
+        ['title', 'Cached Set'],
+        ['emoji', 'spark', 'https://example.com/spark.png'],
+        ['emoji', 'spark', 'https://example.com/duplicate.png'],
+        ['emoji', 'bad-name', 'https://example.com/bad.png']
+      ]
+    });
+    const { runtime } = createEmojiRuntime({
+      listEvent,
+      cachedSets: { [`${setAuthor}:cached`]: cachedSet },
+      fetchedSets: []
+    });
+
+    const result = await fetchCustomEmojiSourceDiagnostics(runtime, pubkey);
+
+    expect(result.categories).toEqual([
+      {
+        id: 'custom-inline',
+        name: 'Custom',
+        emojis: [{ id: 'wave', name: 'wave', skins: [{ src: 'https://example.com/wave.png' }] }]
+      },
+      {
+        id: 'set-cached-s',
+        name: 'Cached Set',
+        emojis: [{ id: 'spark', name: 'spark', skins: [{ src: 'https://example.com/spark.png' }] }]
+      }
+    ]);
+    expect(result.diagnostics.listEvent).toEqual({
+      id: 'emoji-list',
+      createdAtSec: 300,
+      inlineEmojiCount: 1,
+      referencedSetRefCount: 2
+    });
+    expect(result.diagnostics.sets).toEqual([
+      {
+        ref: `30030:${setAuthor}:cached`,
+        id: 'cached-set',
+        pubkey: setAuthor,
+        dTag: 'cached',
+        title: 'Cached Set',
+        createdAtSec: 400,
+        emojiCount: 1,
+        resolvedVia: 'cache'
+      }
+    ]);
+    expect(result.diagnostics.missingRefs).toEqual(['30030:missing-author:missing']);
+    expect(result.diagnostics.invalidRefs).toEqual(['not-a-valid-ref']);
+    expect(result.diagnostics.sourceMode).toBe('relay-checked');
+  });
+
+  it('keeps resolved empty emoji sets in diagnostics while categories stay empty', async () => {
+    const pubkey = 'user-pubkey';
+    const setAuthor = 'set-author';
+    const listEvent = event('emoji-list', {
+      pubkey,
+      kind: 10030,
+      tags: [['a', `30030:${setAuthor}:empty`]]
+    });
+    const emptySet = event('empty-set', {
+      pubkey: setAuthor,
+      kind: 30030,
+      created_at: 500,
+      tags: [['d', 'empty']]
+    });
+    const { runtime } = createEmojiRuntime({
+      listEvent,
+      cachedSets: { [`${setAuthor}:empty`]: emptySet }
+    });
+
+    const result = await fetchCustomEmojiSourceDiagnostics(runtime, pubkey);
+
+    expect(result.categories).toEqual([]);
+    expect(result.diagnostics.sets).toEqual([
+      {
+        ref: `30030:${setAuthor}:empty`,
+        id: 'empty-set',
+        pubkey: setAuthor,
+        dTag: 'empty',
+        title: 'empty',
+        createdAtSec: 500,
+        emojiCount: 0,
+        resolvedVia: 'cache'
+      }
+    ]);
+  });
+
+  it('reports cache-only diagnostics when all referenced sets resolve locally', async () => {
+    const pubkey = 'user-pubkey';
+    const setAuthor = 'set-author';
+    const listEvent = event('emoji-list', {
+      pubkey,
+      kind: 10030,
+      tags: [['a', `30030:${setAuthor}:named`]]
+    });
+    const namedSet = event('named-set-id', {
+      pubkey: setAuthor,
+      kind: 30030,
+      created_at: 600,
+      tags: [
+        ['d', 'named'],
+        ['name', 'Named Set'],
+        ['emoji', 'spark', 'https://example.com/spark.png']
+      ]
+    });
+    const { runtime } = createEmojiRuntime({
+      listEvent,
+      cachedSets: { [`${setAuthor}:named`]: namedSet }
+    });
+
+    const result = await fetchCustomEmojiSourceDiagnostics(runtime, pubkey);
+
+    expect(runtime.fetchBackwardEvents).not.toHaveBeenCalled();
+    expect(result.diagnostics.sourceMode).toBe('cache-only');
+    expect(result.diagnostics.sets[0]).toMatchObject({
+      title: 'Named Set',
+      resolvedVia: 'cache'
+    });
+  });
+
+  it('falls back to the set event id when emoji set metadata is unnamed', async () => {
+    const pubkey = 'user-pubkey';
+    const setAuthor = 'set-author';
+    const listEvent = event('emoji-list', {
+      pubkey,
+      kind: 10030,
+      tags: [['a', `30030:${setAuthor}:unnamed`]]
+    });
+    const unnamedSet = event('unnamed-set-id', {
+      pubkey: setAuthor,
+      kind: 30030,
+      created_at: 700,
+      tags: [['emoji', 'spark', 'https://example.com/spark.png']]
+    });
+    const { runtime } = createEmojiRuntime({
+      listEvent,
+      cachedSets: { [`${setAuthor}:unnamed`]: unnamedSet }
+    });
+
+    const result = await fetchCustomEmojiSourceDiagnostics(runtime, pubkey);
+
+    expect(result.categories[0]?.name).toBe('unnamed-');
+    expect(result.diagnostics.sets[0]).toMatchObject({
+      dTag: '',
+      title: 'unnamed-',
+      emojiCount: 1,
+      resolvedVia: 'cache'
+    });
+  });
+
+  it('uses compact serialized tags for invalid set refs without a value', async () => {
+    const pubkey = 'user-pubkey';
+    const listEvent = event('emoji-list', {
+      pubkey,
+      kind: 10030,
+      tags: [['a']]
+    });
+    const { runtime } = createEmojiRuntime({ listEvent });
+
+    const result = await fetchCustomEmojiSourceDiagnostics(runtime, pubkey);
+
+    expect(result.diagnostics.invalidRefs).toEqual(['["a"]']);
+    expect(result.diagnostics.listEvent?.referencedSetRefCount).toBe(0);
+  });
+
+  it('marks source mode relay-checked when relay lookup ran but refs remain unresolved', async () => {
+    const pubkey = 'user-pubkey';
+    const setAuthor = 'set-author';
+    const listEvent = event('emoji-list', {
+      pubkey,
+      kind: 10030,
+      tags: [['a', `30030:${setAuthor}:missing`]]
+    });
+    const { runtime } = createEmojiRuntime({
+      listEvent,
+      cachedSets: {},
+      fetchedSets: []
+    });
+
+    const result = await fetchCustomEmojiSourceDiagnostics(runtime, pubkey);
+
+    expect(runtime.fetchBackwardEvents).toHaveBeenCalledWith(
+      [{ kinds: [30030], authors: [setAuthor], '#d': ['missing'] }],
+      { timeoutMs: 5_000 }
+    );
+    expect(result.diagnostics.missingRefs).toEqual([`30030:${setAuthor}:missing`]);
+    expect(result.diagnostics.sourceMode).toBe('relay-checked');
   });
 });

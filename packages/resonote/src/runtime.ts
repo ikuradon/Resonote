@@ -94,6 +94,8 @@ import {
   type ContentResolutionFlow,
   createEmojiCatalogPlugin,
   createNotificationsFlowPlugin,
+  type CustomEmojiSetDiagnosticsSource,
+  type CustomEmojiSourceDiagnosticsResult,
   EMOJI_CATALOG_READ_MODEL,
   type EmojiCatalogReadModel,
   NOTIFICATIONS_FLOW,
@@ -1387,6 +1389,7 @@ export interface ResonoteCoordinator<TResult = unknown, TLatestResult = unknown>
     kinds: readonly number[]
   ): Promise<Array<{ readonly kind: number; readonly count: number }>>;
   clearStoredEvents(): Promise<void>;
+  deleteStoredEventsByKinds(kinds: readonly number[]): Promise<void>;
   fetchProfileCommentEvents(
     pubkey: string,
     until?: number,
@@ -1415,11 +1418,30 @@ export interface ResonoteCoordinator<TResult = unknown, TLatestResult = unknown>
     }>;
     unresolvedPubkeys: string[];
   }>;
-  fetchCustomEmojiSources(pubkey: string): Promise<{
+  fetchCustomEmojiSources(
+    pubkey: string,
+    options?: {
+      readonly generation?: number;
+      readonly getGeneration?: () => number;
+    }
+  ): Promise<{
     listEvent: StoredEvent | null;
     setEvents: StoredEvent[];
   }>;
-  fetchCustomEmojiCategories(pubkey: string): Promise<EmojiCategory[]>;
+  fetchCustomEmojiCategories(
+    pubkey: string,
+    options?: {
+      readonly generation?: number;
+      readonly getGeneration?: () => number;
+    }
+  ): Promise<EmojiCategory[]>;
+  fetchCustomEmojiSourceDiagnostics(
+    pubkey: string,
+    options?: {
+      readonly generation?: number;
+      readonly getGeneration?: () => number;
+    }
+  ): Promise<CustomEmojiSourceDiagnosticsResult>;
   searchBookmarkDTagEvent(pubkey: string, normalizedUrl: string): Promise<StoredEvent | null>;
   searchEpisodeBookmarkByGuid(pubkey: string, guid: string): Promise<StoredEvent | null>;
   fetchNostrEventById<TEvent>(
@@ -1783,13 +1805,19 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       })
   };
 
-  const fetchCustomEmojiSourcesFromRuntime = async (pubkey: string) => {
+  const fetchCustomEmojiSourcesFromRuntime = async (
+    pubkey: string,
+    options: {
+      readonly generation?: number;
+      readonly getGeneration?: () => number;
+    } = {}
+  ) => {
     const eventsDB = await runtime.getEventsDB();
     const listEvent = await queryRuntime.fetchBackwardFirst<StoredEvent>(
       [{ kinds: [10030], authors: [pubkey], limit: 1 }],
       { timeoutMs: 5_000 }
     );
-    if (listEvent) {
+    if (listEvent && canWriteCustomEmojiCache(options)) {
       await cacheEvent(eventsDB, listEvent);
     }
 
@@ -1833,7 +1861,9 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
             timeoutMs: 5_000
           });
 
-    await Promise.all(fetchedEvents.map((event) => cacheEvent(eventsDB, event)));
+    if (canWriteCustomEmojiCache(options)) {
+      await Promise.all(fetchedEvents.map((event) => cacheEvent(eventsDB, event)));
+    }
 
     return { listEvent, setEvents: [...cachedEvents, ...fetchedEvents] };
   };
@@ -1876,9 +1906,10 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
   const builtInPlugins: AuftaktRuntimePlugin[] = [
     createTimelinePlugin(),
     createEmojiCatalogPlugin({
-      fetchCustomEmojiSources: (pubkey) => fetchCustomEmojiSourcesFromRuntime(pubkey),
-      fetchCustomEmojiCategories: async (pubkey) => {
-        const { listEvent, setEvents } = await fetchCustomEmojiSourcesFromRuntime(pubkey);
+      fetchCustomEmojiSources: (pubkey, options) =>
+        fetchCustomEmojiSourcesFromRuntime(pubkey, options),
+      fetchCustomEmojiCategories: async (pubkey, options) => {
+        const { listEvent, setEvents } = await fetchCustomEmojiSourcesFromRuntime(pubkey, options);
         if (!listEvent) return [];
 
         const categories: EmojiCategory[] = [];
@@ -1891,7 +1922,9 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
         }
 
         return categories;
-      }
+      },
+      fetchCustomEmojiSourceDiagnostics: (pubkey, options) =>
+        fetchCustomEmojiSourceDiagnostics(queryRuntime, pubkey, options)
     }),
     createResonoteCommentsFlowPlugin({
       loadCommentSubscriptionDeps: () => loadEventSubscriptionDeps(materializedSubscriptionRuntime),
@@ -2095,6 +2128,12 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       const db = await runtime.getEventsDB();
       await db.clearAll();
     },
+    deleteStoredEventsByKinds: async (kinds) => {
+      const db = await runtime.getEventsDB();
+      const uniqueKinds = [...new Set(kinds)];
+      const events = (await Promise.all(uniqueKinds.map((kind) => db.getAllByKind(kind)))).flat();
+      await db.deleteByIds([...new Set(events.map((event) => event.id))]);
+    },
     fetchProfileCommentEvents: async (pubkey, until, limit = 20) => {
       const filter = until
         ? { kinds: [1111], authors: [pubkey], limit, until }
@@ -2109,14 +2148,18 @@ export function createResonoteCoordinator<TResult, TLatestResult>({
       fetchReplaceableEventsByAuthorsAndKind(queryRuntime, pubkeys, 0, batchSize),
     fetchProfileMetadataSources: (pubkeys, batchSize = 50) =>
       fetchProfileMetadataSources(queryRuntime, relayStatusRuntime, pubkeys, batchSize),
-    fetchCustomEmojiSources: (pubkey) =>
+    fetchCustomEmojiSources: (pubkey, options) =>
       runtimeCoordinator
         .getReadModel<EmojiCatalogReadModel>(EMOJI_CATALOG_READ_MODEL)
-        .fetchCustomEmojiSources(pubkey),
-    fetchCustomEmojiCategories: (pubkey) =>
+        .fetchCustomEmojiSources(pubkey, options),
+    fetchCustomEmojiCategories: (pubkey, options) =>
       runtimeCoordinator
         .getReadModel<EmojiCatalogReadModel>(EMOJI_CATALOG_READ_MODEL)
-        .fetchCustomEmojiCategories(pubkey),
+        .fetchCustomEmojiCategories(pubkey, options),
+    fetchCustomEmojiSourceDiagnostics: (pubkey, options) =>
+      runtimeCoordinator
+        .getReadModel<EmojiCatalogReadModel>(EMOJI_CATALOG_READ_MODEL)
+        .fetchCustomEmojiSourceDiagnostics(pubkey, options),
     searchBookmarkDTagEvent: (pubkey, normalizedUrl) =>
       runtimeCoordinator
         .getFlow<ContentResolutionFlow>(CONTENT_RESOLUTION_FLOW)
@@ -2458,10 +2501,37 @@ export async function fetchProfileMetadataSources(
   };
 }
 
+function isValidEmojiSetRef(value: string | undefined): value is string {
+  if (!value) return false;
+  const [kind, pubkey, dTag] = value.split(':');
+  return kind === '30030' && Boolean(pubkey) && Boolean(dTag);
+}
+
+function parseEmojiSetRefs(tags: string[][]): {
+  refs: string[];
+  invalidRefs: string[];
+} {
+  const refs: string[] = [];
+  const seen = new Set<string>();
+  const invalidRefs: string[] = [];
+
+  for (const tag of tags) {
+    if (tag[0] !== 'a') continue;
+    const value = tag[1];
+    if (!isValidEmojiSetRef(value)) {
+      invalidRefs.push(value ?? JSON.stringify(tag));
+      continue;
+    }
+    if (seen.has(value)) continue;
+    seen.add(value);
+    refs.push(value);
+  }
+
+  return { refs, invalidRefs };
+}
+
 function extractEmojiSetRefs(event: Pick<StoredEvent, 'tags'>): string[] {
-  return event.tags
-    .filter((tag) => tag[0] === 'a' && tag[1]?.startsWith('30030:'))
-    .map((tag) => tag[1] as string);
+  return parseEmojiSetRefs(event.tags).refs;
 }
 
 function findDTag(tags: string[][]): string {
@@ -2472,28 +2542,41 @@ function isNip30EmojiTag(tag: string[]): tag is [string, string, string, ...stri
   return tag[0] === 'emoji' && /^[A-Za-z0-9_]+$/.test(tag[1] ?? '') && Boolean(tag[2]);
 }
 
-function buildCategoryFromEvent(event: Pick<StoredEvent, 'id' | 'tags'>): EmojiCategory | null {
-  const setName =
-    event.tags.find((tag) => tag[0] === 'title')?.[1] ??
-    event.tags.find((tag) => tag[0] === 'd')?.[1] ??
-    'Emoji Set';
+function buildEmojiItems(tags: string[][]): EmojiCategory['emojis'] {
+  const seen = new Set<string>();
+  const emojis: EmojiCategory['emojis'] = [];
+  for (const tag of tags) {
+    if (!isNip30EmojiTag(tag)) continue;
+    if (seen.has(tag[1])) continue;
+    seen.add(tag[1]);
+    emojis.push({
+      id: tag[1],
+      name: tag[1],
+      skins: [{ src: tag[2] }]
+    });
+  }
+  return emojis;
+}
 
-  const emojis = event.tags.filter(isNip30EmojiTag).map((tag) => ({
-    id: tag[1],
-    name: tag[1],
-    skins: [{ src: tag[2] }]
-  }));
+function titleForEmojiSet(event: Pick<StoredEvent, 'id' | 'tags'>): string {
+  return (
+    event.tags.find((tag) => tag[0] === 'title')?.[1] ||
+    event.tags.find((tag) => tag[0] === 'name')?.[1] ||
+    findDTag(event.tags) ||
+    event.id.slice(0, 8)
+  );
+}
+
+function buildCategoryFromEvent(event: Pick<StoredEvent, 'id' | 'tags'>): EmojiCategory | null {
+  const setName = titleForEmojiSet(event);
+  const emojis = buildEmojiItems(event.tags);
 
   if (emojis.length === 0) return null;
   return { id: `set-${event.id.slice(0, 8)}`, name: setName, emojis };
 }
 
 function buildInlineCategory(listEvent: Pick<StoredEvent, 'tags'>): EmojiCategory | null {
-  const emojis = listEvent.tags.filter(isNip30EmojiTag).map((tag) => ({
-    id: tag[1],
-    name: tag[1],
-    skins: [{ src: tag[2] }]
-  }));
+  const emojis = buildEmojiItems(listEvent.tags);
 
   if (emojis.length === 0) return null;
   return { id: 'custom-inline', name: 'Custom', emojis };
@@ -2501,7 +2584,11 @@ function buildInlineCategory(listEvent: Pick<StoredEvent, 'tags'>): EmojiCategor
 
 export async function fetchCustomEmojiSources(
   runtime: QueryRuntime,
-  pubkey: string
+  pubkey: string,
+  options: {
+    readonly generation?: number;
+    readonly getGeneration?: () => number;
+  } = {}
 ): Promise<{
   listEvent: StoredEvent | null;
   setEvents: StoredEvent[];
@@ -2511,7 +2598,7 @@ export async function fetchCustomEmojiSources(
     [{ kinds: [10030], authors: [pubkey], limit: 1 }],
     { timeoutMs: 5_000 }
   );
-  if (listEvent) {
+  if (listEvent && canWriteCustomEmojiCache(options)) {
     await cacheEvent(eventsDB, listEvent);
   }
 
@@ -2555,28 +2642,141 @@ export async function fetchCustomEmojiSources(
           timeoutMs: 5_000
         });
 
-  await Promise.all(fetchedEvents.map((event) => cacheEvent(eventsDB, event)));
+  if (canWriteCustomEmojiCache(options)) {
+    await Promise.all(fetchedEvents.map((event) => cacheEvent(eventsDB, event)));
+  }
 
   return { listEvent, setEvents: [...cachedEvents, ...fetchedEvents] };
 }
 
-export async function fetchCustomEmojiCategories(
-  runtime: QueryRuntime,
-  pubkey: string
-): Promise<EmojiCategory[]> {
-  const { listEvent, setEvents } = await fetchCustomEmojiSources(runtime, pubkey);
-  if (!listEvent) return [];
+function canWriteCustomEmojiCache(options: {
+  readonly generation?: number;
+  readonly getGeneration?: () => number;
+}): boolean {
+  return options.getGeneration === undefined || options.generation === options.getGeneration();
+}
 
+export async function fetchCustomEmojiSourceDiagnostics(
+  runtime: QueryRuntime,
+  pubkey: string,
+  options: {
+    readonly generation?: number;
+    readonly getGeneration?: () => number;
+  } = {}
+): Promise<CustomEmojiSourceDiagnosticsResult> {
+  const eventsDB = await runtime.getEventsDB();
+  const listEvent = await runtime.fetchBackwardFirst<StoredEvent>(
+    [{ kinds: [10030], authors: [pubkey], limit: 1 }],
+    { timeoutMs: 5_000 }
+  );
+  if (listEvent && canWriteCustomEmojiCache(options)) {
+    await cacheEvent(eventsDB, listEvent);
+  }
+
+  if (!listEvent) {
+    return {
+      diagnostics: {
+        listEvent: null,
+        sets: [],
+        missingRefs: [],
+        invalidRefs: [],
+        warnings: [],
+        sourceMode: 'unknown'
+      },
+      categories: []
+    };
+  }
+
+  const { refs, invalidRefs } = parseEmojiSetRefs(listEvent.tags);
+  const cachedPairs = await Promise.all(
+    refs.map(async (ref) => {
+      const [, author, dTag] = ref.split(':');
+      return {
+        ref,
+        event: await eventsDB.getByReplaceKey(author, 30030, dTag)
+      };
+    })
+  );
+  const cachedByRef = new Map(
+    cachedPairs.filter((pair) => pair.event !== null).map((pair) => [pair.ref, pair.event!])
+  );
+  const missingBeforeRelay = refs.filter((ref) => !cachedByRef.has(ref));
+  const relayFilters = missingBeforeRelay.map((ref) => {
+    const [, author, dTag] = ref.split(':');
+    return { kinds: [30030], authors: [author], '#d': [dTag] };
+  });
+  const relayChecked = relayFilters.length > 0;
+  const fetchedEvents =
+    relayFilters.length === 0
+      ? []
+      : await runtime.fetchBackwardEvents<StoredEvent>(relayFilters, {
+          timeoutMs: 5_000
+        });
+
+  if (canWriteCustomEmojiCache(options)) {
+    await Promise.all(fetchedEvents.map((event) => cacheEvent(eventsDB, event)));
+  }
+
+  const fetchedByRef = new Map(
+    fetchedEvents.map((event) => [`30030:${event.pubkey}:${findDTag(event.tags)}`, event])
+  );
   const categories: EmojiCategory[] = [];
   const inlineCategory = buildInlineCategory(listEvent);
   if (inlineCategory) categories.push(inlineCategory);
 
-  for (const event of setEvents) {
+  const sets: CustomEmojiSetDiagnosticsSource[] = [];
+  const missingRefs: string[] = [];
+  for (const ref of refs) {
+    const event = cachedByRef.get(ref) ?? fetchedByRef.get(ref) ?? null;
+    if (!event) {
+      missingRefs.push(ref);
+      continue;
+    }
+
     const category = buildCategoryFromEvent(event);
     if (category) categories.push(category);
+    sets.push({
+      ref,
+      id: event.id,
+      pubkey: event.pubkey,
+      dTag: findDTag(event.tags),
+      title: titleForEmojiSet(event),
+      createdAtSec: event.created_at,
+      emojiCount: buildEmojiItems(event.tags).length,
+      resolvedVia: cachedByRef.has(ref) ? 'cache' : 'relay'
+    });
   }
 
-  return categories;
+  return {
+    diagnostics: {
+      listEvent: {
+        id: listEvent.id,
+        createdAtSec: listEvent.created_at,
+        inlineEmojiCount: buildEmojiItems(listEvent.tags).length,
+        referencedSetRefCount: refs.length
+      },
+      sets,
+      missingRefs,
+      invalidRefs,
+      warnings: [],
+      sourceMode:
+        relayChecked || sets.some((set) => set.resolvedVia === 'relay')
+          ? 'relay-checked'
+          : 'cache-only'
+    },
+    categories
+  };
+}
+
+export async function fetchCustomEmojiCategories(
+  runtime: QueryRuntime,
+  pubkey: string,
+  options: {
+    readonly generation?: number;
+    readonly getGeneration?: () => number;
+  } = {}
+): Promise<EmojiCategory[]> {
+  return (await fetchCustomEmojiSourceDiagnostics(runtime, pubkey, options)).categories;
 }
 
 function hasBookmarkDTagPayload(tags: string[][]): boolean {
