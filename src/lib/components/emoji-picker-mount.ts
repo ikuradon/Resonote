@@ -1,6 +1,9 @@
 import type { Action } from 'svelte/action';
 
 import type { EmojiCategory } from '$shared/browser/emoji-sets.js';
+import { createLogger } from '$shared/utils/logger.js';
+
+const log = createLogger('emoji-picker-mount');
 
 interface EmojiMartModules {
   data: unknown;
@@ -11,6 +14,30 @@ interface EmojiPickerMountOptions {
   getEmojiMartModules: () => Promise<EmojiMartModules>;
   getLocale: () => string;
   onEmojiSelect: (emoji: Record<string, unknown>) => void;
+}
+
+function hasSameCustomCategories(
+  a: readonly EmojiCategory[],
+  b: readonly EmojiCategory[]
+): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    const left = a[i];
+    const right = b[i];
+    if (left.id !== right.id || left.name !== right.name) return false;
+    if (left.emojis.length !== right.emojis.length) return false;
+    for (let j = 0; j < left.emojis.length; j += 1) {
+      const leftEmoji = left.emojis[j];
+      const rightEmoji = right.emojis[j];
+      if (leftEmoji.id !== rightEmoji.id || leftEmoji.name !== rightEmoji.name) return false;
+      if (leftEmoji.skins.length !== rightEmoji.skins.length) return false;
+      for (let k = 0; k < leftEmoji.skins.length; k += 1) {
+        if (leftEmoji.skins[k]?.src !== rightEmoji.skins[k]?.src) return false;
+      }
+    }
+  }
+  return true;
 }
 
 export function createEmojiPickerMountAction(
@@ -44,14 +71,19 @@ export function createEmojiPickerMountAction(
       node.appendChild(picker as unknown as Node);
     }
 
-    void options.getEmojiMartModules().then((loaded) => {
-      modules = loaded;
-      appendPicker();
-    });
+    void options
+      .getEmojiMartModules()
+      .then((loaded) => {
+        modules = loaded;
+        appendPicker();
+      })
+      .catch((error: unknown) => {
+        log.error('Failed to load emoji mart modules', error);
+      });
 
     return {
       update(nextCustom = []) {
-        if (nextCustom === custom) return;
+        if (hasSameCustomCategories(nextCustom, custom)) return;
         custom = nextCustom;
         appendPicker();
       },
