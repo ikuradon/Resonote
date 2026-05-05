@@ -34,7 +34,7 @@ import {
 
 const PUBKEY = 'p'.repeat(64);
 
-function result(overrides = {}) {
+function result(overrides = {}, categories = defaultCategories()) {
   return {
     diagnostics: {
       listEvent: {
@@ -61,20 +61,24 @@ function result(overrides = {}) {
       sourceMode: 'relay-checked',
       ...overrides
     },
-    categories: [
-      {
-        id: 'custom-inline',
-        name: 'Custom',
-        emojis: [
-          {
-            id: 'wave',
-            name: 'wave',
-            skins: [{ src: 'https://example.com/wave.png' }]
-          }
-        ]
-      }
-    ]
+    categories
   };
+}
+
+function defaultCategories() {
+  return [
+    {
+      id: 'custom-inline',
+      name: 'Custom',
+      emojis: [
+        {
+          id: 'wave',
+          name: 'wave',
+          skins: [{ src: 'https://example.com/wave.png' }]
+        }
+      ]
+    }
+  ];
 }
 
 describe('custom emoji diagnostics browser state', () => {
@@ -123,6 +127,110 @@ describe('custom emoji diagnostics browser state', () => {
     expect(getCustomEmojiDiagnostics().dbCounts).toEqual({ kind10030: 2, kind30030: 5 });
   });
 
+  it.each([
+    [
+      'no-list-event',
+      {
+        listEvent: null,
+        sets: [],
+        missingRefs: [],
+        invalidRefs: [],
+        sourceMode: 'unknown'
+      }
+    ],
+    [
+      'only-invalid-set-refs',
+      {
+        listEvent: {
+          id: 'list',
+          createdAtSec: 100,
+          inlineEmojiCount: 0,
+          referencedSetRefCount: 0
+        },
+        sets: [],
+        missingRefs: [],
+        invalidRefs: ['not-a-ref']
+      }
+    ],
+    [
+      'no-emoji-sources',
+      {
+        listEvent: {
+          id: 'list',
+          createdAtSec: 100,
+          inlineEmojiCount: 0,
+          referencedSetRefCount: 0
+        },
+        sets: [],
+        missingRefs: [],
+        invalidRefs: []
+      }
+    ],
+    [
+      'all-set-refs-missing',
+      {
+        listEvent: {
+          id: 'list',
+          createdAtSec: 100,
+          inlineEmojiCount: 0,
+          referencedSetRefCount: 1
+        },
+        sets: [],
+        missingRefs: [`30030:${PUBKEY}:missing`],
+        invalidRefs: []
+      }
+    ],
+    [
+      'resolved-sets-empty',
+      {
+        listEvent: {
+          id: 'list',
+          createdAtSec: 100,
+          inlineEmojiCount: 0,
+          referencedSetRefCount: 1
+        },
+        sets: [
+          {
+            ref: `30030:${PUBKEY}:empty`,
+            id: 'empty-set',
+            pubkey: PUBKEY,
+            dTag: 'empty',
+            title: 'Empty',
+            createdAtSec: 120,
+            emojiCount: 0,
+            resolvedVia: 'cache'
+          }
+        ],
+        missingRefs: [],
+        invalidRefs: []
+      }
+    ],
+    [
+      'no-valid-emoji',
+      {
+        listEvent: {
+          id: 'list',
+          createdAtSec: 100,
+          inlineEmojiCount: 1,
+          referencedSetRefCount: 0
+        },
+        sets: [],
+        missingRefs: [],
+        invalidRefs: []
+      }
+    ]
+  ])('sets emptyReason %s for empty diagnostics results', async (expectedReason, overrides) => {
+    resetCustomEmojiDiagnosticsForPubkey(PUBKEY);
+    fetchDiagnosticsMock.mockResolvedValue(result(overrides, []));
+
+    await refreshCustomEmojiDiagnostics(PUBKEY);
+
+    const state = getCustomEmojiDiagnostics();
+    expect(state.status).toBe('empty');
+    expect(state.emptyReason).toBe(expectedReason);
+    expect(state.summary).toEqual({ categoryCount: 0, emojiCount: 0 });
+  });
+
   it('refresh failure keeps previous diagnostics and marks stale', async () => {
     resetCustomEmojiDiagnosticsForPubkey(PUBKEY);
     fetchDiagnosticsMock.mockResolvedValueOnce(result());
@@ -139,6 +247,20 @@ describe('custom emoji diagnostics browser state', () => {
     expect(state.lastCheckedAtMs).toBe(Date.parse('2026-05-05T00:01:00.000Z'));
     expect(state.lastSuccessfulAtMs).toBe(Date.parse('2026-05-05T00:00:00.000Z'));
     expect(setCustomEmojisMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('initial refresh failure records string errors without stale diagnostics', async () => {
+    resetCustomEmojiDiagnosticsForPubkey(PUBKEY);
+    fetchDiagnosticsMock.mockRejectedValueOnce('offline');
+
+    await refreshCustomEmojiDiagnostics(PUBKEY);
+
+    const state = getCustomEmojiDiagnostics();
+    expect(state.status).toBe('error');
+    expect(state.error).toBe('offline');
+    expect(state.stale).toBe(false);
+    expect(state.summary).toEqual({ categoryCount: 0, emojiCount: 0 });
+    expect(setCustomEmojisMock).not.toHaveBeenCalled();
   });
 
   it('clear success resets state and clears categories', async () => {

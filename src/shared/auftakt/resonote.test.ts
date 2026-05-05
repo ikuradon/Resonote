@@ -132,6 +132,20 @@ describe('custom emoji app facade generation', () => {
     expect(coordinator.clearStoredEvents).toHaveBeenCalledOnce();
   });
 
+  it('only advances custom emoji cache generation when deleted kinds include custom emoji events', async () => {
+    const before = facade.getCustomEmojiCacheGeneration();
+
+    await facade.deleteStoredEventsByKinds([1, 3]);
+
+    expect(facade.getCustomEmojiCacheGeneration()).toBe(before);
+    expect(coordinator.deleteStoredEventsByKinds).toHaveBeenCalledWith([1, 3]);
+
+    await facade.deleteStoredEventsByKinds([10030]);
+
+    expect(facade.getCustomEmojiCacheGeneration()).toBe(before + 1);
+    expect(coordinator.deleteStoredEventsByKinds).toHaveBeenCalledWith([10030]);
+  });
+
   it('routes custom emoji categories through guarded diagnostics', async () => {
     const category = makeCategory('custom-inline');
     coordinator.fetchCustomEmojiSourceDiagnostics.mockResolvedValue({
