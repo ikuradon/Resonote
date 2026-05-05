@@ -76,6 +76,7 @@
   "dialog.close": "Close",
   "loading": "Loading...",
   "podcast.loading": "Loading episodes...",
+  "podcast.warning.listen_episode_not_found": "The requested LISTEN episode was not found in the RSS feed. Select an episode from the list.",
   "youtube.feed.loading": "Loading videos...",
   "youtube.feed.error": "Failed to load video list",
   "youtube.feed.select_video": "Select a video to see comments",

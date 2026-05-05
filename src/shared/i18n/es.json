@@ -82,6 +82,7 @@
   "dialog.close": "Cerrar",
   "loading": "Cargando...",
   "podcast.loading": "Cargando episodios...",
+  "podcast.warning.listen_episode_not_found": "El episodio de LISTEN solicitado no se encontró en el feed RSS. Selecciona un episodio de la lista.",
   "youtube.feed.loading": "Cargando videos...",
   "youtube.feed.error": "Error al cargar la lista de videos",
   "youtube.feed.select_video": "Selecciona un video para ver comentarios",

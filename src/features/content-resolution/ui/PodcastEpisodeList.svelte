@@ -13,9 +13,10 @@
   interface Props {
     contentId: ContentId;
     onFeedLoaded?: (info: { title: string; imageUrl: string; description: string }) => void;
+    warningText?: string | null;
   }
 
-  let { contentId, onFeedLoaded }: Props = $props();
+  let { contentId, onFeedLoaded, warningText }: Props = $props();
 
   type Status = 'loading' | 'loaded' | 'error';
 
@@ -115,6 +116,15 @@
     {/if}
 
     <!-- Episode list -->
+    {#if warningText}
+      <p
+        class="mx-4 mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-text-primary"
+        role="status"
+      >
+        {warningText}
+      </p>
+    {/if}
+
     <ul class="max-h-[480px] overflow-y-auto divide-y divide-border-subtle">
       {#each episodes as ep (ep.guid)}
         {@const episodeDate = formatPubDate(ep.pubDate)}
