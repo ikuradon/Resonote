@@ -3,8 +3,10 @@
 
   import { extractShortcode } from '$shared/auftakt/resonote.js';
   import { getEmojiMartModules } from '$shared/browser/emoji-mart.js';
-  import { type EmojiCategory, getCustomEmojis } from '$shared/browser/emoji-sets.js';
+  import { getCustomEmojis } from '$shared/browser/emoji-sets.js';
   import { getLocale } from '$shared/browser/locale.js';
+
+  import { createEmojiPickerMountAction } from './emoji-picker-mount.js';
 
   interface Props {
     onSelect: (reaction: string, emojiUrl?: string) => void;
@@ -29,34 +31,15 @@
     }
   }
 
-  const mountPicker: Action<HTMLDivElement, EmojiCategory[]> = (node, custom) => {
-    let mounted = true;
-
-    (async () => {
-      const { data, Picker } = await getEmojiMartModules();
-
-      if (!mounted) return;
-
-      const PickerClass = Picker as new (opts: Record<string, unknown>) => HTMLElement;
-      const picker = new PickerClass({
-        data,
-        custom: custom.length > 0 ? custom : undefined,
-        theme: 'dark',
-        locale: getLocale(),
-        previewPosition: 'none',
-        skinTonePosition: 'search',
-        onEmojiSelect: handleEmojiSelect
-      });
-
-      node.appendChild(picker);
-    })();
-
-    return {
-      destroy() {
-        mounted = false;
-      }
-    };
-  };
+  const mountPicker: Action<HTMLDivElement, typeof emojiSets.categories> =
+    createEmojiPickerMountAction({
+      getEmojiMartModules: async () => {
+        const { data, Picker } = await getEmojiMartModules();
+        return { data, Picker: Picker as new (opts: Record<string, unknown>) => HTMLElement };
+      },
+      getLocale,
+      onEmojiSelect: handleEmojiSelect
+    });
 </script>
 
 <div use:mountPicker={emojiSets.categories} class="emoji-picker-container"></div>
