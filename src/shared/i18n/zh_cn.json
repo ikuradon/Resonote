@@ -213,6 +213,7 @@
   "dev.debug_copied": "已复制到剪贴板",
   "dev.emoji.title": "Emoji 诊断",
   "dev.emoji.db_counts": "计数",
+  "dev.emoji.summary": "摘要",
   "dev.emoji.list_event": "列表事件",
   "dev.emoji.sets": "集合",
   "dev.emoji.missing_refs": "缺失 refs",

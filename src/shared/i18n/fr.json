@@ -213,6 +213,7 @@
   "dev.debug_copied": "Copié dans le presse-papiers",
   "dev.emoji.title": "Diagnostic des emoji",
   "dev.emoji.db_counts": "Comptes",
+  "dev.emoji.summary": "Résumé",
   "dev.emoji.list_event": "Événement de liste",
   "dev.emoji.sets": "Sets",
   "dev.emoji.missing_refs": "Refs manquantes",

@@ -213,6 +213,7 @@
   "dev.debug_copied": "클립보드에 복사됨",
   "dev.emoji.title": "이모지 진단",
   "dev.emoji.db_counts": "개수",
+  "dev.emoji.summary": "요약",
   "dev.emoji.list_event": "목록 이벤트",
   "dev.emoji.sets": "세트",
   "dev.emoji.missing_refs": "누락 refs",

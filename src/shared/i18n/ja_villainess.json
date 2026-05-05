@@ -207,6 +207,7 @@
   "dev.debug_copied": "クリップボードにコピーしました",
   "dev.emoji.title": "絵文字診断",
   "dev.emoji.db_counts": "件数",
+  "dev.emoji.summary": "概要",
   "dev.emoji.list_event": "リストイベント",
   "dev.emoji.sets": "セット",
   "dev.emoji.missing_refs": "未解決 refs",

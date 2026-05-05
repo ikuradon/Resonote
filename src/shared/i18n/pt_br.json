@@ -213,6 +213,7 @@
   "dev.debug_copied": "Copiado para a área de transferência",
   "dev.emoji.title": "Diagnóstico de emoji",
   "dev.emoji.db_counts": "Contagens",
+  "dev.emoji.summary": "Resumo",
   "dev.emoji.list_event": "Evento de lista",
   "dev.emoji.sets": "Conjuntos",
   "dev.emoji.missing_refs": "Refs ausentes",

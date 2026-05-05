@@ -213,6 +213,7 @@
   "dev.debug_copied": "In die Zwischenablage kopiert",
   "dev.emoji.title": "Emoji-Diagnose",
   "dev.emoji.db_counts": "Zähler",
+  "dev.emoji.summary": "Zusammenfassung",
   "dev.emoji.list_event": "Listenereignis",
   "dev.emoji.sets": "Sets",
   "dev.emoji.missing_refs": "Fehlende refs",

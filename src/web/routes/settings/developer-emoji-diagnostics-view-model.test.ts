@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildEmojiDiagnosticsCopyPayload,
   cacheOnlyCaveat,
+  diagnosticRefRowKey,
+  replaceCopiedFeedbackTimer,
   truncateRefs
 } from './developer-emoji-diagnostics-view-model.js';
 
@@ -36,6 +38,41 @@ describe('cacheOnlyCaveat', () => {
     );
     expect(cacheOnlyCaveat('relay-checked', ['missing-ref'], translate)).toBeNull();
     expect(cacheOnlyCaveat('cache-only', [], translate)).toBeNull();
+  });
+});
+
+describe('diagnosticRefRowKey', () => {
+  it('keeps duplicate invalid refs renderable with unique row keys', () => {
+    const refs = ['broken-ref', 'broken-ref', 'other-ref'];
+
+    expect(refs.map((ref, index) => diagnosticRefRowKey(ref, index))).toEqual([
+      '0:broken-ref',
+      '1:broken-ref',
+      '2:other-ref'
+    ]);
+  });
+});
+
+describe('replaceCopiedFeedbackTimer', () => {
+  it('clears an existing feedback timer before starting the next one', () => {
+    const previousTimer = 10;
+    const nextTimer = 20;
+    const clearTimer = vi.fn();
+    const setTimer = vi.fn((callback: () => void, delayMs: number) => {
+      expect(delayMs).toBe(2000);
+      callback();
+      return nextTimer;
+    });
+    const hideFeedback = vi.fn();
+
+    expect(
+      replaceCopiedFeedbackTimer(previousTimer, hideFeedback, {
+        setTimer,
+        clearTimer
+      })
+    ).toBe(nextTimer);
+    expect(clearTimer).toHaveBeenCalledWith(previousTimer);
+    expect(hideFeedback).toHaveBeenCalledOnce();
   });
 });
 

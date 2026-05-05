@@ -19,6 +19,8 @@
   import {
     buildEmojiDiagnosticsCopyPayload,
     cacheOnlyCaveat,
+    diagnosticRefRowKey,
+    replaceCopiedFeedbackTimer,
     truncateRefs
   } from './developer-emoji-diagnostics-view-model.js';
 
@@ -30,6 +32,7 @@
   let swUpdated = $state(false);
   let debugCopied = $state(false);
   let emojiDiagnosticsCopied = $state(false);
+  let emojiDiagnosticsCopiedTimer = $state<ReturnType<typeof setTimeout> | null>(null);
   let clearAllConfirm = $state(false);
   let emojiDiagnostics = $derived(getCustomEmojiDiagnostics());
   let missingRefs = $derived(truncateRefs(emojiDiagnostics.missingRefs));
@@ -100,9 +103,17 @@
     const ok = await copyToClipboard(buildEmojiDiagnosticsCopyPayload(emojiDiagnostics));
     if (ok) {
       emojiDiagnosticsCopied = true;
-      setTimeout(() => {
-        emojiDiagnosticsCopied = false;
-      }, 2000);
+      emojiDiagnosticsCopiedTimer = replaceCopiedFeedbackTimer(
+        emojiDiagnosticsCopiedTimer,
+        () => {
+          emojiDiagnosticsCopied = false;
+          emojiDiagnosticsCopiedTimer = null;
+        },
+        {
+          setTimer: setTimeout,
+          clearTimer: clearTimeout
+        }
+      );
     }
   }
 </script>
@@ -146,7 +157,7 @@
         kind10030:{emojiDiagnostics.dbCounts.kind10030} kind30030:{emojiDiagnostics.dbCounts
           .kind30030}
       </span>
-      <span>{t('dev.emoji.db_counts')}</span>
+      <span>{t('dev.emoji.summary')}</span>
       <span class="font-mono text-text-primary">
         categories:{emojiDiagnostics.summary.categoryCount} emojis:{emojiDiagnostics.summary
           .emojiCount}
@@ -174,7 +185,7 @@
         <div class="mt-3 space-y-2">
           {#each emojiDiagnostics.sets as set (set.ref)}
             <div class="grid grid-cols-2 gap-2 border-t border-border-subtle pt-2 text-text-muted">
-              <span>{set.title}</span>
+              <span class="min-w-0 truncate">{set.title}</span>
               <span class="min-w-0 space-y-1 font-mono text-text-primary">
                 <span class="block truncate">{set.ref}</span>
                 <span class="block">
@@ -218,7 +229,7 @@
             +{invalidRefs.hiddenCount}{/if}
         </p>
         <div class="space-y-1 font-mono text-text-primary">
-          {#each invalidRefs.visible as ref (ref)}
+          {#each invalidRefs.visible as ref, index (diagnosticRefRowKey(ref, index))}
             <p class="truncate">{ref}</p>
           {/each}
         </div>
