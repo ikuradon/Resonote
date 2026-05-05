@@ -1,3 +1,6 @@
+=== evidence_start ===
+executed_at_utc: 2026-05-05T14:49:50Z
+command: pnpm list --depth 0
 Legend: production dependency, optional only, dev only
 
 resonote@0.2.3 /root/src/github.com/ikuradon/Resonote (PRIVATE)
@@ -53,3 +56,6 @@ resonote@0.2.3 /root/src/github.com/ikuradon/Resonote (PRIVATE)
 └── wrangler@4.87.0
 
 46 packages
+exit_status: 0
+summary: success
+=== evidence_end ===

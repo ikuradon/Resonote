@@ -16,3 +16,11 @@
 - `pnpm run build` (success)
 
 Evidence is recorded in `logs/pnpm-update-2026-05-05/final-gate.log`.
+Primary successful evidence blocks:
+
+- `pnpm run check:auftakt-migration -- --proof` rerun success block
+- `pnpm run lint` success block
+- `pnpm run format:check` rerun success block
+- `pnpm run test:packages` rerun success block
+- `pnpm run check` rerun success block
+- `pnpm run build` success block

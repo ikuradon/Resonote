@@ -1,3 +1,6 @@
+=== evidence_start ===
+executed_at_utc: 2026-05-05T14:49:41Z
+command: pnpm install --frozen-lockfile
 Scope: all 5 workspace projects
 Lockfile is up to date, resolution step is skipped
 Already up to date
@@ -11,4 +14,7 @@ Already up to date
 │   to run scripts.                                                            │
 │                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
-Done in 3.9s using pnpm v10.33.2
+Done in 3.8s using pnpm v10.33.2
+exit_status: 0
+summary: success
+=== evidence_end ===

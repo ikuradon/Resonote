@@ -1,6 +1,11 @@
 # Final Resolution Summary
 
 Completion is based on the approved target resolution table, not on `pnpm outdated` being empty.
+Source of truth:
+
+- `docs/superpowers/specs/2026-05-05-pnpm-outdated-update-design.md`
+- `docs/superpowers/plans/2026-05-05-pnpm-outdated-update.md`
+- `logs/pnpm-update-2026-05-05/pnpm-list-depth-0-final.txt`
 
 ## Target resolution check
 
