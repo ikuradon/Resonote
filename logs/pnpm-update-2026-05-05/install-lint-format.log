@@ -451,13 +451,4 @@ svelte-check found 0 errors and 0 warnings
 exit_status: 0
 summary: success
 === evidence_end ===
-fig.json
-
-Loading svelte-check in workspace: /root/src/github.com/ikuradon/Resonote
-Getting Svelte diagnostics...
-
-svelte-check found 0 errors and 0 warnings
-exit_status: 0
-summary: success
 Task 6 gate final status: PASS
-=== evidence_end ===
