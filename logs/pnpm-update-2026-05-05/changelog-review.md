@@ -255,3 +255,53 @@ Use this exact entry format for each package before running its update command:
 - Project impact: none（0.x minor risk を踏まえ verify 実施済み）
 - Verification commands: `pnpm run check`, `pnpm run build`
 - Notes: `pnpm why esbuild` で 0.27.3（wrangler 経由）と 0.28.0（direct/Vite 経由）の共存を確認。今回の対象 build は 0.28.0 で成功。
+
+## Task 5 Entries
+
+### vitest
+
+- Update: `4.1.2` -> `4.1.5`
+- Sources:
+  - release notes: https://github.com/vitest-dev/vitest/releases
+  - changelog: https://github.com/vitest-dev/vitest/blob/main/packages/vitest/CHANGELOG.md
+  - npm: https://www.npmjs.com/package/vitest
+- Version range reviewed: `4.1.2...4.1.5`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Project impact: none
+- Verification commands: `pnpm run test:packages`, `pnpm run test:auftakt:app-regression`, `pnpm run test:auftakt:e2e`
+- Notes: patch 更新のため既存 test suite で回帰確認。
+
+### @vitest/coverage-v8
+
+- Update: `4.1.2` -> `4.1.5`
+- Sources:
+  - release notes: https://github.com/vitest-dev/vitest/releases
+  - changelog: https://github.com/vitest-dev/vitest/blob/main/packages/coverage-v8/CHANGELOG.md
+  - npm: https://www.npmjs.com/package/@vitest/coverage-v8
+- Version range reviewed: `4.1.2...4.1.5`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Project impact: none
+- Verification commands: `pnpm run test:packages`, `pnpm run test:auftakt:app-regression`, `pnpm run test:auftakt:e2e`
+- Notes: vitest 本体と同一系列 patch のため batch 検証で確認。
+
+### @playwright/test
+
+- Update: `1.58.2` -> `1.59.1`
+- Sources:
+  - release notes: https://github.com/microsoft/playwright/releases
+  - changelog: https://github.com/microsoft/playwright/blob/main/docs/src/release-notes-js.md
+  - npm: https://www.npmjs.com/package/@playwright/test
+- Version range reviewed: `1.58.2...1.59.1`
+- Breaking changes: none found
+- Peer dependency changes: none found
+- Engine changes: none found
+- Config/default behavior changes: none found
+- Project impact: none
+- Verification commands: `pnpm exec playwright --version`, `pnpm exec playwright install --with-deps chromium`, `pnpm run test:auftakt:e2e`
+- Notes: Chromium install と e2e 実行でツールチェーン整合性を確認。
