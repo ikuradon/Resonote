@@ -142,6 +142,7 @@
       <button
         type="button"
         onclick={() => onReply(comment)}
+        aria-label={t('reply.title')}
         class="rounded p-1 text-text-muted transition-colors hover:text-text-secondary"
         title={t('reply.title')}
       >
