@@ -15,6 +15,8 @@ import { cacheMiddleware } from './middleware/cache.js';
 export interface ParsedEpisode {
   title: string;
   guid: string;
+  rawGuid?: string;
+  link?: string;
   enclosureUrl: string;
   pubDate: string;
   duration: number;
@@ -104,6 +106,11 @@ export function extractAttr(xml: string, tag: string, attr: string): string {
   return match ? match[1].trim() : '';
 }
 
+function trimToUndefined(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 export async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed | null> {
   const channelMatch = xml.match(/<channel[^>]*>([\s\S]*?)<\/channel>/i);
   if (!channelMatch) return null;
@@ -138,7 +145,9 @@ export async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed
     if (!enclosureUrl || !sanitizeUrl(enclosureUrl)) continue;
 
     const itemTitle = stripHtmlTags(extractTagContent(itemXml, 'title'));
-    const guid = extractTagContent(itemXml, 'guid');
+    const rawGuid = trimToUndefined(extractTagContent(itemXml, 'guid'));
+    const link = trimToUndefined(extractTagContent(itemXml, 'link'));
+    const guid = rawGuid ?? enclosureUrl;
     const pubDate = extractTagContent(itemXml, 'pubDate');
     const durationRaw = extractTagContent(itemXml, 'itunes:duration');
     const duration = parseDurationToSeconds(durationRaw);
@@ -151,6 +160,8 @@ export async function parseRss(xml: string, feedUrl: string): Promise<ParsedFeed
     items.push({
       title: itemTitle,
       guid,
+      rawGuid,
+      link,
       enclosureUrl,
       pubDate,
       duration,
@@ -223,12 +234,11 @@ async function handleFeedUrl(
   // Sign bookmark events for all episodes
   const signedEvents = [feedEvent];
   for (const ep of feed.episodes) {
-    const itemGuid = ep.guid || ep.enclosureUrl;
     signedEvents.push(
       signBookmarkEvent(privkey, {
         dTag: normalizeForDTag(ep.enclosureUrl),
         iTags: [
-          [`podcast:item:guid:${itemGuid}`, ep.enclosureUrl],
+          [`podcast:item:guid:${ep.guid}`, ep.enclosureUrl],
           [`podcast:guid:${feed.podcastGuid}`, feedUrl]
         ],
         kTag: 'podcast:item:guid',
@@ -304,11 +314,10 @@ async function handleAudioUrl(
       });
 
       const episodeDTag = normalizeForDTag(matchedEpisode.enclosureUrl);
-      const itemGuid = matchedEpisode.guid || matchedEpisode.enclosureUrl;
       const episodeEvent = signBookmarkEvent(privkey, {
         dTag: episodeDTag,
         iTags: [
-          [`podcast:item:guid:${itemGuid}`, matchedEpisode.enclosureUrl],
+          [`podcast:item:guid:${matchedEpisode.guid}`, matchedEpisode.enclosureUrl],
           [`podcast:guid:${feed.podcastGuid}`, rssUrl]
         ],
         kTag: 'podcast:item:guid',
