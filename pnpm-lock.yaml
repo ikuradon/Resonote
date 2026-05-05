@@ -34,13 +34,13 @@ importers:
         specifier: ^2.0.0
         version: 2.0.0
       '@konemono/nostr-login':
-        specifier: 1.15.7
+        specifier: ^1.15.7
         version: 1.15.7(typescript@6.0.3)
       '@scure/base':
-        specifier: 2.2.0
+        specifier: ^2.2.0
         version: 2.2.0
       hono:
-        specifier: 4.12.17
+        specifier: ^4.12.17
         version: 4.12.17
       idb:
         specifier: ^8.0.3
@@ -49,7 +49,7 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
       zod:
-        specifier: 4.4.3
+        specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
       '@codecov/vite-plugin':

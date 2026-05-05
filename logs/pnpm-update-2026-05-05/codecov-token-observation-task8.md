@@ -18,5 +18,5 @@
 ## Difference summary
 
 - Tokenなし: upload path is effectively skipped/neutral in local path.
-- Tokenあり(dummmy): plugin attempts upload-related flow, but build gate still passes.
+- Tokenあり(dummy): plugin attempts upload-related flow, but build gate still passes.
 - Operational note: CI with valid token and provider should execute upload path; local verification confirms non-blocking behavior.
