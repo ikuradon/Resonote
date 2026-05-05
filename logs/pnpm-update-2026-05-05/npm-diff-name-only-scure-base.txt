@@ -1,0 +1,13 @@
+# provenance
+generated_at_utc: 2026-05-05T12:52:52Z
+npm_version: 11.12.1
+exact_command: npm diff --diff-name-only --diff='@scure/base@2.0.0' --diff='@scure/base@2.2.0' > logs/pnpm-update-2026-05-05/npm-diff-name-only-scure-base.txt
+note: full diff is intentionally large; inspect *name-only* first
+
+index.js
+package.json
+index.d.ts.map
+index.js.map
+README.md
+index.d.ts
+index.ts

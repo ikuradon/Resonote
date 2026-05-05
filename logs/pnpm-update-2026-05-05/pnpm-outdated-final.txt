@@ -1,0 +1,126 @@
+ WARN  GET https://registry.npmjs.org/@hono%2Fzod-validator error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@ikuradon%2Femoji-kitchen-mart error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@ikuradon%2Femoji-kitchen-mart-data error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@konemono%2Fnostr-login error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@scure%2Fbase error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/hono error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/idb error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/rxjs error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/zod error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@codecov%2Fvite-plugin error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@eslint%2Fjs error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@ikuradon%2Ftsunagiya error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@playwright%2Ftest error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@sveltejs%2Fadapter-cloudflare error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@sveltejs%2Fkit error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@sveltejs%2Fvite-plugin-svelte error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@tailwindcss%2Fvite error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@types%2Fchrome error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@types%2Fnode error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@types%2Fwebextension-polyfill error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@vitest%2Fcoverage-v8 error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/esbuild error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/eslint error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/eslint-config-prettier error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/eslint-plugin-simple-import-sort error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/eslint-plugin-svelte error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/fake-indexeddb error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/globals error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/nano-staged error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/nostr-typedef error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/prettier error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/prettier-plugin-svelte error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/simple-git-hooks error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/svelte error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/svelte-check error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/tailwindcss error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/typescript error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/typescript-eslint error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/vite error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/vitest error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/webextension-polyfill error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/wrangler error (EAI_AGAIN). Will retry in 10 seconds. 2 retries left.
+ WARN  GET https://registry.npmjs.org/@hono%2Fzod-validator error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@ikuradon%2Femoji-kitchen-mart error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@ikuradon%2Femoji-kitchen-mart-data error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@konemono%2Fnostr-login error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@scure%2Fbase error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/hono error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/idb error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/rxjs error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/zod error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@codecov%2Fvite-plugin error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@eslint%2Fjs error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@ikuradon%2Ftsunagiya error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@playwright%2Ftest error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@sveltejs%2Fadapter-cloudflare error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@sveltejs%2Fkit error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@sveltejs%2Fvite-plugin-svelte error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@tailwindcss%2Fvite error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@types%2Fchrome error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@types%2Fnode error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@types%2Fwebextension-polyfill error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/@vitest%2Fcoverage-v8 error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/esbuild error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/eslint error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/eslint-config-prettier error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/eslint-plugin-simple-import-sort error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/eslint-plugin-svelte error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/fake-indexeddb error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/globals error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/nano-staged error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/nostr-typedef error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/prettier error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/prettier-plugin-svelte error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/simple-git-hooks error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/svelte error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/svelte-check error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/tailwindcss error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/typescript error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/typescript-eslint error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/vite error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/vitest error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/webextension-polyfill error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ WARN  GET https://registry.npmjs.org/wrangler error (EAI_AGAIN). Will retry in 1 minute. 1 retries left.
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@ikuradon%2Femoji-kitchen-mart: request to https://registry.npmjs.org/@ikuradon%2Femoji-kitchen-mart failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@hono%2Fzod-validator: request to https://registry.npmjs.org/@hono%2Fzod-validator failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@ikuradon%2Femoji-kitchen-mart-data: request to https://registry.npmjs.org/@ikuradon%2Femoji-kitchen-mart-data failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@scure%2Fbase: request to https://registry.npmjs.org/@scure%2Fbase failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@konemono%2Fnostr-login: request to https://registry.npmjs.org/@konemono%2Fnostr-login failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/idb: request to https://registry.npmjs.org/idb failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/rxjs: request to https://registry.npmjs.org/rxjs failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@ikuradon%2Ftsunagiya: request to https://registry.npmjs.org/@ikuradon%2Ftsunagiya failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@codecov%2Fvite-plugin: request to https://registry.npmjs.org/@codecov%2Fvite-plugin failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@eslint%2Fjs: request to https://registry.npmjs.org/@eslint%2Fjs failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/hono: request to https://registry.npmjs.org/hono failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/zod: request to https://registry.npmjs.org/zod failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@sveltejs%2Fadapter-cloudflare: request to https://registry.npmjs.org/@sveltejs%2Fadapter-cloudflare failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@sveltejs%2Fvite-plugin-svelte: request to https://registry.npmjs.org/@sveltejs%2Fvite-plugin-svelte failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@types%2Fchrome: request to https://registry.npmjs.org/@types%2Fchrome failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@types%2Fwebextension-polyfill: request to https://registry.npmjs.org/@types%2Fwebextension-polyfill failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@vitest%2Fcoverage-v8: request to https://registry.npmjs.org/@vitest%2Fcoverage-v8 failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/eslint-config-prettier: request to https://registry.npmjs.org/eslint-config-prettier failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/eslint-plugin-simple-import-sort: request to https://registry.npmjs.org/eslint-plugin-simple-import-sort failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/fake-indexeddb: request to https://registry.npmjs.org/fake-indexeddb failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/nostr-typedef: request to https://registry.npmjs.org/nostr-typedef failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/globals: request to https://registry.npmjs.org/globals failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/nano-staged: request to https://registry.npmjs.org/nano-staged failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/simple-git-hooks: request to https://registry.npmjs.org/simple-git-hooks failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/prettier-plugin-svelte: request to https://registry.npmjs.org/prettier-plugin-svelte failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/prettier: request to https://registry.npmjs.org/prettier failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/eslint-plugin-svelte: request to https://registry.npmjs.org/eslint-plugin-svelte failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/webextension-polyfill: request to https://registry.npmjs.org/webextension-polyfill failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@tailwindcss%2Fvite: request to https://registry.npmjs.org/@tailwindcss%2Fvite failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/esbuild: request to https://registry.npmjs.org/esbuild failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/svelte-check: request to https://registry.npmjs.org/svelte-check failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/eslint: request to https://registry.npmjs.org/eslint failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/vitest: request to https://registry.npmjs.org/vitest failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/typescript-eslint: request to https://registry.npmjs.org/typescript-eslint failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/svelte: request to https://registry.npmjs.org/svelte failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@sveltejs%2Fkit: request to https://registry.npmjs.org/@sveltejs%2Fkit failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@types%2Fnode: request to https://registry.npmjs.org/@types%2Fnode failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/vite: request to https://registry.npmjs.org/vite failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@playwright%2Ftest: request to https://registry.npmjs.org/@playwright%2Ftest failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/tailwindcss: request to https://registry.npmjs.org/tailwindcss failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/typescript: request to https://registry.npmjs.org/typescript failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org
+ ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/wrangler: request to https://registry.npmjs.org/wrangler failed, reason: getaddrinfo EAI_AGAIN registry.npmjs.org

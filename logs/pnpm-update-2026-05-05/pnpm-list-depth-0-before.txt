@@ -1,0 +1,55 @@
+Legend: production dependency, optional only, dev only
+
+resonote@0.2.3 /root/src/github.com/ikuradon/Resonote (PRIVATE)
+│
+│   dependencies:
+├── @auftakt/adapter-dexie@link:packages/adapter-dexie
+├── @auftakt/core@link:packages/core
+├── @auftakt/resonote@link:packages/resonote
+├── @auftakt/runtime@link:packages/runtime
+├── @hono/zod-validator@0.7.6
+├── @ikuradon/emoji-kitchen-mart@7.0.0
+├── @ikuradon/emoji-kitchen-mart-data@2.0.0
+├── @konemono/nostr-login@1.15.2
+├── @scure/base@2.0.0
+├── hono@4.12.16
+├── idb@8.0.3
+├── rxjs@7.8.2
+├── zod@4.3.6
+│
+│   devDependencies:
+├── @codecov/vite-plugin@2.0.1
+├── @eslint/js@10.0.1
+├── @ikuradon/tsunagiya@0.4.0
+├── @playwright/test@1.58.2
+├── @sveltejs/adapter-cloudflare@7.2.8
+├── @sveltejs/kit@2.58.0
+├── @sveltejs/vite-plugin-svelte@7.0.0
+├── @tailwindcss/vite@4.2.2
+├── @types/chrome@0.1.38
+├── @types/node@25.5.0
+├── @types/webextension-polyfill@0.12.5
+├── @vitest/coverage-v8@4.1.2
+├── esbuild@0.27.4
+├── eslint@10.1.0
+├── eslint-config-prettier@10.1.8
+├── eslint-plugin-simple-import-sort@13.0.0
+├── eslint-plugin-svelte@3.16.0
+├── fake-indexeddb@6.2.5
+├── globals@17.4.0
+├── nano-staged@1.0.2
+├── nostr-typedef@0.13.0
+├── prettier@3.8.1
+├── prettier-plugin-svelte@3.5.1
+├── simple-git-hooks@2.13.1
+├── svelte@5.55.0
+├── svelte-check@4.4.5
+├── tailwindcss@4.2.2
+├── typescript@6.0.3
+├── typescript-eslint@8.59.1
+├── vite@8.0.10
+├── vitest@4.1.2
+├── webextension-polyfill@0.12.0
+└── wrangler@4.78.0
+
+46 packages

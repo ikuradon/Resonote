@@ -1,0 +1,6 @@
+## Command 1
+$ rg "tsc .*\.(ts|tsx)" package.json .github scripts packages
+
+## Command 2
+$ rg --glob "!logs/**" --glob "!docs/**" --glob "!.git/**" --glob "!node_modules/**" --glob "!.svelte-kit/**" "importsNotUsedAsValues|preserveValueImports|suppressImplicitAnyIndexErrors|keyofStringsOnly|moduleResolution.*node|target.*es5|no-default-lib|outFile|asserts? \{\s*type" .
+./src/service-worker.ts:/// <reference no-default-lib="true"/>

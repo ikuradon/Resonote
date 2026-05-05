@@ -1,0 +1,2753 @@
+# provenance
+generated_at_utc: 2026-05-05T12:52:52Z
+npm_version: 11.12.1
+exact_command: npm diff --diff='@scure/base@2.0.0' --diff='@scure/base@2.2.0' > logs/pnpm-update-2026-05-05/npm-diff-scure-base.txt
+note: full diff is intentionally large; inspect *name-only* first
+
+diff --git a/index.js b/index.js
+index v2.0.0..v2.2.0 100644
+--- a/index.js
++++ b/index.js
+@@ -1,11 +1,19 @@
+ /*! scure-base - MIT License (c) 2022 Paul Miller (paulmillr.com) */
+ function isBytes(a) {
+-    return a instanceof Uint8Array || (ArrayBuffer.isView(a) && a.constructor.name === 'Uint8Array');
++    // Plain `instanceof Uint8Array` is too strict for some Buffer / proxy / cross-realm cases. The
++    // fallback still requires a real ArrayBuffer view, so plain JSON-deserialized
++    // `{ constructor: ... }` spoofing is rejected. `BYTES_PER_ELEMENT === 1` keeps the
++    // fallback on byte-oriented views.
++    return (a instanceof Uint8Array ||
++        (ArrayBuffer.isView(a) &&
++            a.constructor.name === 'Uint8Array' &&
++            'BYTES_PER_ELEMENT' in a &&
++            a.BYTES_PER_ELEMENT === 1));
+ }
+ /** Asserts something is Uint8Array. */
+ function abytes(b) {
+     if (!isBytes(b))
+-        throw new Error('Uint8Array expected');
++        throw new TypeError('Uint8Array expected');
+ }
+ function isArrayOf(isString, arr) {
+     if (!Array.isArray(arr))
+@@ -21,29 +29,31 @@
+ }
+ function afn(input) {
+     if (typeof input !== 'function')
+-        throw new Error('function expected');
++        throw new TypeError('function expected');
+     return true;
+ }
+ function astr(label, input) {
+     if (typeof input !== 'string')
+-        throw new Error(`${label}: string expected`);
++        throw new TypeError(`${label}: string expected`);
+     return true;
+ }
+ function anumber(n) {
++    if (typeof n !== 'number')
++        throw new TypeError(`number expected, got ${typeof n}`);
+     if (!Number.isSafeInteger(n))
+-        throw new Error(`invalid integer: ${n}`);
++        throw new RangeError(`invalid integer: ${n}`);
+ }
+ function aArr(input) {
+     if (!Array.isArray(input))
+-        throw new Error('array expected');
++        throw new TypeError('array expected');
+ }
+ function astrArr(label, input) {
+     if (!isArrayOf(true, input))
+-        throw new Error(`${label}: array of strings expected`);
++        throw new TypeError(`${label}: array of strings expected`);
+ }
+ function anumArr(label, input) {
+     if (!isArrayOf(false, input))
+-        throw new Error(`${label}: array of numbers expected`);
++        throw new TypeError(`${label}: array of numbers expected`);
+ }
+ /**
+  * @__NO_SIDE_EFFECTS__
+@@ -96,6 +106,8 @@
+  */
+ function join(separator = '') {
+     astr('join', separator);
++    // join('') is only lossless when each chunk is already unambiguous, such as single-symbol alphabets.
++    // Multi-character tokens need a separator that cannot appear inside the chunks.
+     return {
+         encode: (from) => {
+             astrArr('join.decode', from);
+@@ -117,6 +129,8 @@
+     return {
+         encode(data) {
+             astrArr('padding.encode', data);
++            // Mutates the intermediate token array in place while appending pad chars.
++            // utils.padding callers that need to preserve their input should pass a copy.
+             while ((data.length * bits) % 8)
+                 data.push(chr);
+             return data;
+@@ -149,9 +163,9 @@
+ function convertRadix(data, from, to) {
+     // base 1 is impossible
+     if (from < 2)
+-        throw new Error(`convertRadix: invalid from=${from}, base cannot be less than 2`);
++        throw new RangeError(`convertRadix: invalid from=${from}, base cannot be less than 2`);
+     if (to < 2)
+-        throw new Error(`convertRadix: invalid to=${to}, base cannot be less than 2`);
++        throw new RangeError(`convertRadix: invalid to=${to}, base cannot be less than 2`);
+     aArr(data);
+     if (!data.length)
+         return [];
+@@ -193,11 +207,14 @@
+         if (done)
+             break;
+     }
++    // Preserve explicit leading zero digits so callers like base58 keep zero-prefix semantics.
+     for (let i = 0; i < data.length - 1 && data[i] === 0; i++)
+         res.push(0);
+     return res.reverse();
+ }
+ const gcd = (a, b) => (b === 0 ? a : gcd(b, a % b));
++// Maximum carry width before the `pos` cycle repeats.
++// Residues advance in gcd(from, to) steps, so the largest pre-drain width is from + (to - gcd).
+ const radix2carry = /* @__NO_SIDE_EFFECTS__ */ (from, to) => from + (to - gcd(from, to));
+ const powers = /* @__PURE__ */ (() => {
+     let res = [];
+@@ -211,9 +228,9 @@
+ function convertRadix2(data, from, to, padding) {
+     aArr(data);
+     if (from <= 0 || from > 32)
+-        throw new Error(`convertRadix2: wrong from=${from}`);
++        throw new RangeError(`convertRadix2: wrong from=${from}`);
+     if (to <= 0 || to > 32)
+-        throw new Error(`convertRadix2: wrong to=${to}`);
++        throw new RangeError(`convertRadix2: wrong to=${to}`);
+     if (radix2carry(from, to) > 32) {
+         throw new Error(`convertRadix2: carry overflow from=${from} to=${to} carryBits=${radix2carry(from, to)}`);
+     }
+@@ -238,6 +255,8 @@
+         carry &= pow - 1; // clean carry, otherwise it will cause overflow
+     }
+     carry = (carry << (to - pos)) & mask;
++    // Canonical decode paths reject leftover whole input words and non-zero pad bits.
++    // For Bech32 5->8 regrouping, this is the "4 bits or less, all zeroes" tail rule.
+     if (!padding && pos >= from)
+         throw new Error('Excess padding');
+     if (!padding && carry > 0)
+@@ -252,10 +271,11 @@
+ function radix(num) {
+     anumber(num);
+     const _256 = 2 ** 8;
++    // Base-range and carry-overflow checks live in convertRadix so encode/decode reject unsupported bases symmetrically.
+     return {
+         encode: (bytes) => {
+             if (!isBytes(bytes))
+-                throw new Error('radix.encode input should be Uint8Array');
++                throw new TypeError('radix.encode input should be Uint8Array');
+             return convertRadix(Array.from(bytes), _256, num);
+         },
+         decode: (digits) => {
+@@ -272,13 +292,15 @@
+ function radix2(bits, revPadding = false) {
+     anumber(bits);
+     if (bits <= 0 || bits > 32)
+-        throw new Error('radix2: bits should be in (0..32]');
++        throw new RangeError('radix2: bits should be in (0..32]');
+     if (radix2carry(8, bits) > 32 || radix2carry(bits, 8) > 32)
+-        throw new Error('radix2: carry overflow');
++        throw new RangeError('radix2: carry overflow');
++    // revPadding flips which direction allows a partial zero tail.
++    // Default pads 8->bits and rejects extra bits on bits->8; `true` does the opposite.
+     return {
+         encode: (bytes) => {
+             if (!isBytes(bytes))
+-                throw new Error('radix2.encode input should be Uint8Array');
++                throw new TypeError('radix2.encode input should be Uint8Array');
+             return convertRadix2(Array.from(bytes), 8, bits, !revPadding);
+         },
+         decode: (digits) => {
+@@ -290,6 +312,8 @@
+ function unsafeWrapper(fn) {
+     afn(fn);
+     return function (...args) {
++        // Only for *Unsafe APIs that intentionally collapse validation failures to `undefined`.
++        // Do not wrap code that needs to preserve exception details.
+         try {
+             return fn.apply(null, args);
+         }
+@@ -298,12 +322,19 @@
+ }
+ function checksum(len, fn) {
+     anumber(len);
++    // Reject degenerate zero-byte checksums up front so callers don't accidentally
++    // build a no-op checksum stage.
++    if (len <= 0)
++        throw new RangeError(`checksum length must be positive: ${len}`);
+     afn(fn);
++    const _fn = fn;
++    // Uses the first `len` bytes of fn(data) in both directions.
++    // Current call sites rely on `len > 0` and checksum functions that return at least that many bytes.
+     return {
+         encode(data) {
+             if (!isBytes(data))
+-                throw new Error('checksum.encode: input should be Uint8Array');
+-            const sum = fn(data).slice(0, len);
++                throw new TypeError('checksum.encode: input should be Uint8Array');
++            const sum = _fn(data).slice(0, len);
+             const res = new Uint8Array(data.length + len);
+             res.set(data);
+             res.set(sum, data.length);
+@@ -311,10 +342,10 @@
+         },
+         decode(data) {
+             if (!isBytes(data))
+-                throw new Error('checksum.decode: input should be Uint8Array');
++                throw new TypeError('checksum.decode: input should be Uint8Array');
+             const payload = data.slice(0, -len);
+             const oldChecksum = data.slice(-len);
+-            const newChecksum = fn(payload).slice(0, len);
++            const newChecksum = _fn(payload).slice(0, len);
+             for (let i = 0; i < len; i++)
+                 if (newChecksum[i] !== oldChecksum[i])
+                     throw new Error('Invalid checksum');
+@@ -323,22 +354,36 @@
+     };
+ }
+ // prettier-ignore
+-export const utils = {
++/**
++ * Low-level building blocks used by the exported codecs.
++ * @example
++ * Build a radix-32 coder from the low-level helpers.
++ * ```ts
++ * import { utils } from '@scure/base';
++ * utils.radix2(5).encode(Uint8Array.from([1, 2, 3]));
++ * ```
++ */
++export const utils = /* @__PURE__ */ Object.freeze({
+     alphabet, chain, checksum, convertRadix, convertRadix2, radix, radix2, join, padding,
+-};
++});
+ // RFC 4648 aka RFC 3548
+ // ---------------------
+ /**
+  * base16 encoding from RFC 4648.
++ * This codec uses RFC 4648 Table 5's uppercase alphabet directly.
++ * RFC 4648 §8 calls base16 "case-insensitive hex encoding", but we intentionally do not case-fold decode input here.
++ * Use `hex` for case-insensitive hex decoding.
+  * @example
+  * ```js
+  * base16.encode(Uint8Array.from([0x12, 0xab]));
+  * // => '12AB'
+  * ```
+  */
+-export const base16 = chain(radix2(4), alphabet('0123456789ABCDEF'), join(''));
++export const base16 = /* @__PURE__ */ Object.freeze(chain(radix2(4), alphabet('0123456789ABCDEF'), join('')));
+ /**
+  * base32 encoding from RFC 4648. Has padding.
++ * RFC 4648 §6 Table 3 uses uppercase letters, and RFC 4648 §3.4 allows applications to choose
++ * upper- or lowercase alphabets. We keep the published uppercase table and do not case-fold decode input.
+  * Use `base32nopad` for unpadded version.
+  * Also check out `base32hex`, `base32hexnopad`, `base32crockford`.
+  * @example
+@@ -349,9 +394,10 @@
+  * // => Uint8Array.from([0x12, 0xab])
+  * ```
+  */
+-export const base32 = chain(radix2(5), alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'), padding(5), join(''));
++export const base32 = /* @__PURE__ */ Object.freeze(chain(radix2(5), alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'), padding(5), join('')));
+ /**
+  * base32 encoding from RFC 4648. No padding.
++ * This variant inherits RFC 4648 base32's uppercase table and intentionally does not case-fold decode input.
+  * Use `base32` for padded version.
+  * Also check out `base32hex`, `base32hexnopad`, `base32crockford`.
+  * @example
+@@ -362,9 +408,10 @@
+  * // => Uint8Array.from([0x12, 0xab])
+  * ```
+  */
+-export const base32nopad = chain(radix2(5), alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'), join(''));
++export const base32nopad = /* @__PURE__ */ Object.freeze(chain(radix2(5), alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'), join('')));
+ /**
+  * base32 encoding from RFC 4648. Padded. Compared to ordinary `base32`, slightly different alphabet.
++ * RFC 4648 §7 Table 4 uses uppercase letters, and we intentionally keep that table without case-folding decode input.
+  * Use `base32hexnopad` for unpadded version.
+  * @example
+  * ```js
+@@ -374,9 +421,10 @@
+  * // => Uint8Array.from([0x12, 0xab])
+  * ```
+  */
+-export const base32hex = chain(radix2(5), alphabet('0123456789ABCDEFGHIJKLMNOPQRSTUV'), padding(5), join(''));
++export const base32hex = /* @__PURE__ */ Object.freeze(chain(radix2(5), alphabet('0123456789ABCDEFGHIJKLMNOPQRSTUV'), padding(5), join('')));
+ /**
+  * base32 encoding from RFC 4648. No padding. Compared to ordinary `base32`, slightly different alphabet.
++ * This variant inherits RFC 4648 base32hex's uppercase table and intentionally does not case-fold decode input.
+  * Use `base32hex` for padded version.
+  * @example
+  * ```js
+@@ -386,10 +434,10 @@
+  * // => Uint8Array.from([0x12, 0xab])
+  * ```
+  */
+-export const base32hexnopad = chain(radix2(5), alphabet('0123456789ABCDEFGHIJKLMNOPQRSTUV'), join(''));
++export const base32hexnopad = /* @__PURE__ */ Object.freeze(chain(radix2(5), alphabet('0123456789ABCDEFGHIJKLMNOPQRSTUV'), join('')));
+ /**
+  * base32 encoding from RFC 4648. Doug Crockford's version.
+- * https://www.crockford.com/base32.html
++ * See {@link https://www.crockford.com/base32.html | Douglas Crockford's Base32}.
+  * @example
+  * ```js
+  * base32crockford.encode(Uint8Array.from([0x12, 0xab]));
+@@ -398,16 +446,23 @@
+  * // => Uint8Array.from([0x12, 0xab])
+  * ```
+  */
+-export const base32crockford = chain(radix2(5), alphabet('0123456789ABCDEFGHJKMNPQRSTVWXYZ'), join(''), normalize((s) => s.toUpperCase().replace(/O/g, '0').replace(/[IL]/g, '1')));
++export const base32crockford = /* @__PURE__ */ Object.freeze(chain(radix2(5), alphabet('0123456789ABCDEFGHJKMNPQRSTVWXYZ'), join(''), normalize((s) => s.toUpperCase().replace(/O/g, '0').replace(/[IL]/g, '1'))));
+ // Built-in base64 conversion https://caniuse.com/mdn-javascript_builtins_uint8array_frombase64
++// Require both directions before taking the native fast path, so base64/base64url don't mix native and JS behavior.
+ // prettier-ignore
+ const hasBase64Builtin = /* @__PURE__ */ (() => typeof Uint8Array.from([]).toBase64 === 'function' &&
+     typeof Uint8Array.fromBase64 === 'function')();
++// Native `Uint8Array.fromBase64()` accepts these ASCII whitespace chars.
++// Reject them first so the native base64 path still follows RFC 4648 §3.3.
++// ASCII whitespace is U+0009 TAB, U+000A LF, U+000C FF, U+000D CR, or U+0020 SPACE
++const ASCII_WHITESPACE = /[\t\n\f\r ]/;
+ const decodeBase64Builtin = (s, isUrl) => {
+     astr('base64', s);
+-    const re = isUrl ? /^[A-Za-z0-9=_-]+$/ : /^[A-Za-z0-9=+/]+$/;
+     const alphabet = isUrl ? 'base64url' : 'base64';
+-    if (s.length > 0 && !re.test(s))
++    // Per spec, .fromBase64 already throws on any other non-alphabet symbols except ASCII whitespace
++    // And checking just for whitespace makes decoding about 3x faster than a full range check.
++    // lastChunkHandling: 'strict' rejects loose tails and non-zero pad bits so native decoding stays canonical.
++    if (s.length > 0 && ASCII_WHITESPACE.test(s))
+         throw new Error('invalid base64');
+     return Uint8Array.fromBase64(s, { alphabet, lastChunkHandling: 'strict' });
+ };
+@@ -425,10 +480,10 @@
+  * ```
+  */
+ // prettier-ignore
+-export const base64 = hasBase64Builtin ? {
++export const base64 = /* @__PURE__ */ Object.freeze(hasBase64Builtin ? {
+     encode(b) { abytes(b); return b.toBase64(); },
+     decode(s) { return decodeBase64Builtin(s, false); },
+-} : chain(radix2(6), alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'), padding(6), join(''));
++} : chain(radix2(6), alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'), padding(6), join('')));
+ /**
+  * base64 from RFC 4648. No padding.
+  * Use `base64` for padded version.
+@@ -440,7 +495,7 @@
+  * // => Uint8Array.from([0x12, 0xab])
+  * ```
+  */
+-export const base64nopad = chain(radix2(6), alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'), join(''));
++export const base64nopad = /* @__PURE__ */ Object.freeze(chain(radix2(6), alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'), join('')));
+ /**
+  * base64 from RFC 4648, using URL-safe alphabet. Padded.
+  * Use `base64urlnopad` for unpadded version.
+@@ -454,10 +509,10 @@
+  * ```
+  */
+ // prettier-ignore
+-export const base64url = hasBase64Builtin ? {
++export const base64url = /* @__PURE__ */ Object.freeze(hasBase64Builtin ? {
+     encode(b) { abytes(b); return b.toBase64({ alphabet: 'base64url' }); },
+     decode(s) { return decodeBase64Builtin(s, true); },
+-} : chain(radix2(6), alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'), padding(6), join(''));
++} : chain(radix2(6), alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'), padding(6), join('')));
+ /**
+  * base64 from RFC 4648, using URL-safe alphabet. No padding.
+  * Use `base64url` for padded version.
+@@ -469,7 +524,7 @@
+  * // => Uint8Array.from([0x12, 0xab])
+  * ```
+  */
+-export const base64urlnopad = chain(radix2(6), alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'), join(''));
++export const base64urlnopad = /* @__PURE__ */ Object.freeze(chain(radix2(6), alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'), join('')));
+ // base58 code
+ // -----------
+ const genBase58 = /* @__NO_SIDE_EFFECTS__ */ (abc) => chain(radix(58), alphabet(abc), join(''));
+@@ -478,28 +533,49 @@
+  * Quadratic (O(n^2)) - so, can't be used on large inputs.
+  * @example
+  * ```js
+- * base58.decode('01abcdef');
+- * // => '3UhJW'
++ * const text = base58.encode(Uint8Array.from([0, 1, 2]));
++ * base58.decode(text);
++ * // => Uint8Array.from([0, 1, 2])
+  * ```
+  */
+-export const base58 = genBase58('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz');
++export const base58 = /* @__PURE__ */ Object.freeze(genBase58('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'));
+ /**
+  * base58: flickr version. Check out `base58`.
++ * @example
++ * Round-trip bytes with the Flickr alphabet.
++ * ```ts
++ * const text = base58flickr.encode(Uint8Array.from([0, 1, 2]));
++ * base58flickr.decode(text);
++ * ```
+  */
+-export const base58flickr = genBase58('123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ');
++export const base58flickr = /* @__PURE__ */ Object.freeze(genBase58('123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ'));
+ /**
+  * base58: XRP version. Check out `base58`.
++ * @example
++ * Round-trip bytes with the XRP alphabet.
++ * ```ts
++ * const text = base58xrp.encode(Uint8Array.from([0, 1, 2]));
++ * base58xrp.decode(text);
++ * ```
+  */
+-export const base58xrp = genBase58('rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz');
+-// Data len (index) -> encoded block len
++export const base58xrp = /* @__PURE__ */ Object.freeze(genBase58('rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz'));
++// Data len (index) -> encoded block len.
++// Monero pads each 1..8-byte block to this fixed base58 width so decode can recover the tail length.
+ const XMR_BLOCK_LEN = [0, 2, 3, 5, 6, 7, 9, 10, 11];
+ /**
+  * base58: XMR version. Check out `base58`.
+  * Done in 8-byte blocks (which equals 11 chars in decoding). Last (non-full) block padded with '1' to size in XMR_BLOCK_LEN.
+  * Block encoding significantly reduces quadratic complexity of base58.
++ * @example
++ * Round-trip bytes with the Monero block codec.
++ * ```ts
++ * const text = base58xmr.encode(Uint8Array.from([0, 1, 2]));
++ * base58xmr.decode(text);
++ * ```
+  */
+-export const base58xmr = {
++export const base58xmr = /* @__PURE__ */ Object.freeze({
+     encode(data) {
++        abytes(data);
+         let res = '';
+         for (let i = 0; i < data.length; i += 8) {
+             const block = data.subarray(i, i + 8);
+@@ -508,6 +584,7 @@
+         return res;
+     },
+     decode(str) {
++        astr('base58xmr.decode', str);
+         let res = [];
+         for (let i = 0; i < str.length; i += 11) {
+             const slice = str.slice(i, i + 11);
+@@ -521,19 +598,52 @@
+         }
+         return Uint8Array.from(res);
+     },
+-};
++});
+ /**
+  * Method, which creates base58check encoder.
+  * Requires function, calculating sha256.
++ * Callers must include any version bytes in `data`; this helper only applies the
++ * 4-byte double-SHA256 checksum used by Bitcoin Base58Check.
++ * @param sha256 - Function used to calculate the checksum hash.
++ * @returns base58check codec using 4 checksum bytes.
++ * @throws On wrong argument types. {@link TypeError}
++ * @example
++ * Create a base58check codec from a SHA-256 implementation.
++ * ```ts
++ * import { createBase58check } from '@scure/base';
++ * import { sha256 } from '@noble/hashes/sha2.js';
++ * const coder = createBase58check(sha256);
++ * coder.encode(Uint8Array.from([1, 2, 3]));
++ * ```
+  */
+-export const createBase58check = (sha256) => chain(checksum(4, (data) => sha256(sha256(data))), base58);
++export const createBase58check = (sha256) => {
++    // Validate the hash function at construction time so wrong inputs fail before returning a coder.
++    afn(sha256);
++    const _sha256 = sha256;
++    return chain(checksum(4, (data) => _sha256(_sha256(data))), base58);
++};
+ /**
+  * Use `createBase58check` instead.
+- * @deprecated
++ * @deprecated Use {@link createBase58check} instead.
++ * Callers must include any version bytes in `data`; this alias keeps the same
++ * 4-byte double-SHA256 checksum behavior as `createBase58check`.
++ * @param sha256 - Function used to calculate the checksum hash.
++ * @returns base58check codec using 4 checksum bytes.
++ * @example
++ * Create a base58check codec with the deprecated alias.
++ * ```ts
++ * import { base58check } from '@scure/base';
++ * import { sha256 } from '@noble/hashes/sha2.js';
++ * const coder = base58check(sha256);
++ * coder.encode(Uint8Array.from([1, 2, 3]));
++ * ```
+  */
+ export const base58check = createBase58check;
++// BIP 173 character table: data values 0..31 map to `qpzry9x8gf2tvdw0s3jn54khce6mua7l`.
+ const BECH_ALPHABET = chain(alphabet('qpzry9x8gf2tvdw0s3jn54khce6mua7l'), join(''));
++// BIP 173 `bech32_polymod` GEN coefficients.
+ const POLYMOD_GENERATORS = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
++// BIP 173 step split: this applies the polymod state transition before callers xor in the next 5-bit value.
+ function bech32Polymod(pre) {
+     const b = pre >> 25;
+     let chk = (pre & 0x1ffffff) << 5;
+@@ -559,6 +669,7 @@
+         chk = bech32Polymod(chk) ^ v;
+     for (let i = 0; i < 6; i++)
+         chk = bech32Polymod(chk);
++    // BIP 173/BIP 350: xor the final checksum constant, then emit the 30-bit state as six 5-bit symbols.
+     chk ^= encodingConst;
+     return BECH_ALPHABET.encode(convertRadix2([chk % powers[30]], 30, 5, false));
+ }
+@@ -566,6 +677,7 @@
+  * @__NO_SIDE_EFFECTS__
+  */
+ function genBech32(encoding) {
++    // BIP 173 uses final xor constant 1; BIP 350 swaps in 0x2bc830a3 for Bech32m.
+     const ENCODING_CONST = encoding === 'bech32' ? 1 : 0x2bc830a3;
+     const _words = radix2(5);
+     const fromWords = _words.decode;
+@@ -579,6 +691,7 @@
+         const plen = prefix.length;
+         if (plen === 0)
+             throw new TypeError(`Invalid prefix length ${plen}`);
++        // Total output is hrp + `1` separator + payload words + 6 checksum chars.
+         const actualLength = plen + 7 + words.length;
+         if (limit !== false && actualLength > limit)
+             throw new TypeError(`Length ${actualLength} exceeds limit ${limit}`);
+@@ -589,6 +702,7 @@
+     function decode(str, limit = 90) {
+         astr('bech32.decode input', str);
+         const slen = str.length;
++        // Minimum length is 1-char hrp + `1` separator + 6-char checksum.
+         if (slen < 8 || (limit !== false && slen > limit))
+             throw new TypeError(`invalid string length: ${slen} (${str}). Expected (8..${limit})`);
+         // don't allow mixed case
+@@ -610,10 +724,16 @@
+     }
+     const decodeUnsafe = unsafeWrapper(decode);
+     function decodeToBytes(str) {
++        // Keep the byte helper unbounded; callers that need the default BIP 173 length cap should use decode(str).
+         const { prefix, words } = decode(str, false);
+-        return { prefix, words, bytes: fromWords(words) };
++        return {
++            prefix,
++            words,
++            bytes: fromWords(words),
++        };
+     }
+     function encodeFromBytes(prefix, bytes) {
++        // Keep the convenience wrapper on encode()'s default 90-char cap; custom limits should call encode(prefix, toWords(bytes), limit).
+         return encode(prefix, toWords(bytes));
+     }
+     return {
+@@ -629,59 +749,260 @@
+ }
+ /**
+  * bech32 from BIP 173. Operates on words.
+- * For high-level, check out scure-btc-signer:
+- * https://github.com/paulmillr/scure-btc-signer.
++ * For high-level helpers, check out {@link https://github.com/paulmillr/scure-btc-signer | scure-btc-signer}.
++ * @example
++ * Convert bytes to words, encode them, then decode back.
++ * ```ts
++ * const words = bech32.toWords(Uint8Array.from([1, 2, 3]));
++ * const text = bech32.encode('bc', words);
++ * bech32.decode(text);
++ * ```
+  */
+-export const bech32 = genBech32('bech32');
++export const bech32 = /* @__PURE__ */ Object.freeze(genBech32('bech32'));
+ /**
+  * bech32m from BIP 350. Operates on words.
+  * It was to mitigate `bech32` weaknesses.
+- * For high-level, check out scure-btc-signer:
+- * https://github.com/paulmillr/scure-btc-signer.
++ * For high-level helpers, check out {@link https://github.com/paulmillr/scure-btc-signer | scure-btc-signer}.
++ * @example
++ * Convert bytes to words, encode them with bech32m, then decode back.
++ * ```ts
++ * const words = bech32m.toWords(Uint8Array.from([1, 2, 3]));
++ * const text = bech32m.encode('bc', words);
++ * bech32m.decode(text);
++ * ```
+  */
+-export const bech32m = genBech32('bech32m');
++export const bech32m = /* @__PURE__ */ Object.freeze(genBech32('bech32m'));
+ /**
+- * UTF-8-to-byte decoder. Uses built-in TextDecoder / TextEncoder.
++ * ASCII-to-byte decoder. Rejects non-ASCII text and bytes instead of doing UTF-8 replacement.
++ * Method names follow `BytesCoder`, so `encode(bytes)` returns a string and `decode(string)` returns bytes.
+  * @example
+  * ```js
++ * const b = ascii.decode("ABC"); // => new Uint8Array([ 65, 66, 67 ])
++ * const str = ascii.encode(b); // "ABC"
++ * ```
++ */
++export const ascii = /* @__PURE__ */ Object.freeze({
++    encode(data) {
++        abytes(data);
++        let res = '';
++        for (let i = 0; i < data.length; i++) {
++            const byte = data[i];
++            // ASCII is 7-bit; reject bytes outside 0x00..0x7f instead of silently widening to
++            // Latin-1/UTF-8.
++            if (byte > 127)
++                throw new RangeError(`bytes contain non-ASCII byte ${byte} at position ${i}`);
++            res += String.fromCharCode(byte);
++        }
++        return res;
++    },
++    decode(str) {
++        if (typeof str !== 'string')
++            throw new TypeError('ascii string expected, got ' + typeof str);
++        const res = new Uint8Array(str.length);
++        for (let i = 0; i < str.length; i++) {
++            // Indexed access is much faster than Uint8Array.from(str, mapFn) here and keeps
++            // exact error positions.
++            const charCode = str.charCodeAt(i);
++            if (charCode > 127) {
++                throw new RangeError(`string contains non-ASCII character "${str[i]}" with code ${charCode} at position ${i}`);
++            }
++            res[i] = charCode;
++        }
++        return res;
++    },
++});
++const _isWellFormedShim = (str) => {
++    // encodeURI rejects malformed UTF-16, giving a compact fallback that matches native
++    // isWellFormed on our tests/fuzz corpus.
++    try {
++        return encodeURI(str) !== null;
++    }
++    catch {
++        return false;
++    }
++};
++const _isWellFormed = /* @__PURE__ */ (() => 
++// Pick the native check once so utf8.decode doesn't re-probe String.prototype on every call.
++typeof ''.isWellFormed === 'function'
++    ? (str) => str.isWellFormed()
++    : _isWellFormedShim)();
++// This fallback stays small because strict UTF-8 only needs fatal decoding plus well-formed
++// UTF-16 checks, not the replacement, streaming, or legacy-encoding behavior of full platform
++// text codecs.
++const utf8Fallback = /* @__PURE__ */ Object.freeze({
++    encode(data) {
++        abytes(data);
++        let res = '';
++        for (let i = 0; i < data.length;) {
++            const a = data[i++];
++            if (a < 0b1000_0000) {
++                res += String.fromCharCode(a);
++                continue;
++            }
++            if (a < 0b1100_0010 || i >= data.length)
++                throw new TypeError(`invalid utf8 at byte ${i - 1}`);
++            const b = data[i++];
++            if ((b & 0b1100_0000) !== 0b1000_0000)
++                throw new TypeError(`invalid utf8 at byte ${i - 1}`);
++            let cp = ((a & 0b0001_1111) << 6) | (b & 0b0011_1111);
++            if (a >= 0b1110_0000) {
++                if (i >= data.length)
++                    throw new TypeError(`invalid utf8 at byte ${i - 1}`);
++                const c = data[i++];
++                if ((c & 0b1100_0000) !== 0b1000_0000 ||
++                    (a === 0b1110_0000 && b < 0b1010_0000) ||
++                    (a === 0xed && b >= 0b1010_0000))
++                    throw new TypeError(`invalid utf8 at byte ${i - 1}`);
++                cp = ((a & 0b0000_1111) << 12) | ((b & 0b0011_1111) << 6) | (c & 0b0011_1111);
++                if (a >= 0b1111_0000) {
++                    if (i >= data.length)
++                        throw new TypeError(`invalid utf8 at byte ${i - 1}`);
++                    const d = data[i++];
++                    if (a > 0b1111_0100 ||
++                        (d & 0b1100_0000) !== 0b1000_0000 ||
++                        (a === 0b1111_0000 && b < 0b1001_0000) ||
++                        (a === 0b1111_0100 && b >= 0b1001_0000))
++                        throw new TypeError(`invalid utf8 at byte ${i - 1}`);
++                    cp =
++                        ((a & 7) << 18) |
++                            ((b & 0b0011_1111) << 12) |
++                            ((c & 0b0011_1111) << 6) |
++                            (d & 0b0011_1111);
++                }
++            }
++            if (cp < 0x10000)
++                res += String.fromCharCode(cp);
++            else {
++                cp -= 0x10000;
++                res += String.fromCharCode((cp >> 10) + 0xd800, (cp & 0x3ff) + 0xdc00);
++            }
++        }
++        return res;
++    },
++    decode(str) {
++        astr('utf8', str);
++        if (!_isWellFormed(str))
++            throw new TypeError('utf8 expected well-formed string');
++        // Direct Uint8Array writes are much faster than number[] + Uint8Array.from on Hermes and
++        // large Node inputs.
++        const res = new Uint8Array(str.length * 3);
++        let pos = 0;
++        for (let i = 0; i < str.length; i++) {
++            let c = str.charCodeAt(i);
++            if (c < 0b1000_0000) {
++                res[pos++] = c;
++                continue;
++            }
++            if (c >= 0xd800 && c <= 0xdfff) {
++                const d = str.charCodeAt(++i);
++                c = 0x10000 + ((c - 0xd800) << 10) + d - 0xdc00;
++            }
++            if (c >= 0x10000) {
++                res[pos++] = (c >> 18) | 0b1111_0000;
++                res[pos++] = ((c >> 12) & 0b0011_1111) | 0b1000_0000;
++            }
++            else if (c >= 0x800)
++                res[pos++] = (c >> 12) | 0b1110_0000;
++            else
++                res[pos++] = (c >> 6) | 0b1100_0000;
++            if (c >= 0x800)
++                res[pos++] = ((c >> 6) & 0b0011_1111) | 0b1000_0000;
++            res[pos++] = (c & 0b0011_1111) | 0b1000_0000;
++        }
++        return res.subarray(0, pos);
++    },
++});
++/**
++ * Strict UTF-8-to-byte decoder. Uses built-in TextDecoder / TextEncoder when available.
++ * Method names follow `BytesCoder`, so `encode(bytes)` returns a string and
++ * `decode(string)` returns bytes.
++ * `encode(bytes)` requires Uint8Array input, preserves an explicit leading BOM, and
++ *   throws on invalid UTF-8 bytes.
++ * `decode(string)` requires a primitive string and throws on malformed UTF-16 strings with
++ *   lone surrogates.
++ * @example
++ * ```js
+  * const b = utf8.decode("hey"); // => new Uint8Array([ 104, 101, 121 ])
+  * const str = utf8.encode(b); // "hey"
+  * ```
+  */
+-export const utf8 = {
+-    encode: (data) => new TextDecoder().decode(data),
+-    decode: (str) => new TextEncoder().encode(str),
+-};
++export const utf8 = /* @__PURE__ */ (() => {
++    let _utf8Encoder;
++    let _utf8Decoder;
++    const utf8Builtin = {
++        // ignoreBOM preserves an explicit leading U+FEFF;
++        // fatal rejects invalid UTF-8 bytes instead of replacing them.
++        encode(data) {
++            abytes(data);
++            return (_utf8Decoder || (_utf8Decoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true }))).decode(data);
++        },
++        decode(str) {
++            astr('utf8', str);
++            if (!_isWellFormed(str))
++                throw new TypeError('utf8 expected well-formed string');
++            return (_utf8Encoder || (_utf8Encoder = new TextEncoder())).encode(str);
++        },
++    };
++    return Object.freeze({
++        // Select each direction once at module init, since
++        // TextEncoder and TextDecoder can exist independently.
++        encode: typeof TextDecoder === 'function' ? utf8Builtin.encode : utf8Fallback.encode,
++        decode: typeof TextEncoder === 'function' ? utf8Builtin.decode : utf8Fallback.decode,
++    });
++})();
++// Keep fallback parity probes behind a test-only export until runtime fallback behavior is decided.
++export const __TESTS = /* @__PURE__ */ Object.freeze({
++    utf8Fallback: utf8Fallback,
++    _isWellFormedShim: _isWellFormedShim,
++});
+ // Built-in hex conversion https://caniuse.com/mdn-javascript_builtins_uint8array_fromhex
+ // prettier-ignore
+-const hasHexBuiltin = /* @__PURE__ */ (() => typeof Uint8Array.from([]).toHex === 'function' &&
++const hasHexBuiltin = /* @__PURE__ */ (() => 
++// Require both directions before enabling the native hex path so encode/decode stay symmetric.
++typeof Uint8Array.from([]).toHex === 'function' &&
+     typeof Uint8Array.fromHex === 'function')();
+ // prettier-ignore
+ const hexBuiltin = {
++    // Keep local type guards so the native path preserves library-level input errors.
++    // Native toHex emits lowercase hex, matching the fallback alphabet and Node's hex strings.
+     encode(data) { abytes(data); return data.toHex(); },
++    // Native fromHex accepts either hex case and rejects odd-length / non-hex syntax.
+     decode(s) { astr('hex', s); return Uint8Array.fromHex(s); },
+ };
+ /**
+  * hex string decoder. Uses built-in function, when available.
++ * Lowercase codec; unlike `base16`, this variant accepts either hex case and emits lowercase.
+  * @example
+  * ```js
+  * const b = hex.decode("0102ff"); // => new Uint8Array([ 1, 2, 255 ])
+  * const str = hex.encode(b); // "0102ff"
+  * ```
+  */
+-export const hex = hasHexBuiltin
++export const hex = /* @__PURE__ */ Object.freeze(hasHexBuiltin
+     ? hexBuiltin
+     : chain(radix2(4), alphabet('0123456789abcdef'), join(''), normalize((s) => {
+         if (typeof s !== 'string' || s.length % 2 !== 0)
+             throw new TypeError(`hex.decode: expected string, got ${typeof s} with length ${s.length}`);
+         return s.toLowerCase();
+-    }));
++    })));
+ // prettier-ignore
++// Keep this registry aligned with CoderType/coderTypeError; only byte<->string codecs belong here.
+ const CODERS = {
+     utf8, hex, base16, base32, base64, base64url, base58, base58xmr
+ };
+ const coderTypeError = 'Invalid encoding type. Available types: utf8, hex, base16, base32, base64, base64url, base58, base58xmr';
+-/** @deprecated */
++/**
++ * Encodes bytes with one of the built-in codecs.
++ * @deprecated Use the codec directly, for example `hex.encode(bytes)`.
++ * @param type - Codec name.
++ * @param bytes - Bytes to encode.
++ * @returns Encoded string.
++ * @throws On wrong argument types. {@link TypeError}
++ * @example
++ * ```ts
++ * bytesToString('hex', Uint8Array.from([1, 2, 255]));
++ * ```
++ */
+ export const bytesToString = (type, bytes) => {
+     if (typeof type !== 'string' || !CODERS.hasOwnProperty(type))
+         throw new TypeError(coderTypeError);
+@@ -689,16 +1010,48 @@
+         throw new TypeError('bytesToString() expects Uint8Array');
+     return CODERS[type].encode(bytes);
+ };
+-/** @deprecated */
++/**
++ * Alias for `bytesToString`.
++ * @deprecated Use {@link bytesToString} or the codec directly instead.
++ * @param type - Codec name.
++ * @param bytes - Bytes to encode.
++ * @returns Encoded string.
++ * @example
++ * ```ts
++ * str('hex', Uint8Array.from([1, 2, 255]));
++ * ```
++ */
+ export const str = bytesToString; // as in python, but for bytes only
+-/** @deprecated */
++/**
++ * Decodes a string with one of the built-in codecs.
++ * @deprecated Use the codec directly, for example `hex.decode(text)`.
++ * @param type - Codec name.
++ * @param str - Encoded string.
++ * @returns Decoded bytes.
++ * @throws On wrong argument types. {@link TypeError}
++ * @example
++ * ```ts
++ * stringToBytes('hex', '0102ff');
++ * ```
++ */
+ export const stringToBytes = (type, str) => {
+-    if (!CODERS.hasOwnProperty(type))
++    // Match bytesToString's selector validation so hostile `toString()` coercions can't leak custom errors.
++    if (typeof type !== 'string' || !CODERS.hasOwnProperty(type))
+         throw new TypeError(coderTypeError);
+     if (typeof str !== 'string')
+         throw new TypeError('stringToBytes() expects string');
+     return CODERS[type].decode(str);
+ };
+-/** @deprecated */
++/**
++ * Alias for `stringToBytes`.
++ * @deprecated Use {@link stringToBytes} or the codec directly instead.
++ * @param type - Codec name.
++ * @param str - Encoded string.
++ * @returns Decoded bytes.
++ * @example
++ * ```ts
++ * bytes('hex', '0102ff');
++ * ```
++ */
+ export const bytes = stringToBytes;
+ //# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/package.json b/package.json
+index v2.0.0..v2.2.0 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "@scure/base",
+-  "version": "2.0.0",
++  "version": "2.2.0",
+   "description": "Secure, audited & 0-dep implementation of base64, bech32, base58, base32 & base16",
+   "files": [
+     "index.js",
+@@ -10,17 +10,21 @@
+     "index.ts"
+   ],
+   "devDependencies": {
+-    "@noble/hashes": "2.0.0",
+-    "@paulmillr/jsbt": "0.4.4",
+-    "@types/node": "24.2.1",
++    "@noble/hashes": "2.2.0",
++    "@paulmillr/jsbt": "0.5.0",
++    "@types/node": "25.3.0",
+     "fast-check": "4.2.0",
+     "prettier": "3.6.2",
+-    "typescript": "5.9.2"
++    "typescript": "6.0.2"
+   },
+   "scripts": {
+     "bench": "node test/benchmark/index.ts",
+     "build": "tsc",
+     "build:release": "npx --no @paulmillr/jsbt esbuild test/build",
++    "check": "npx --no @paulmillr/jsbt check package.json",
++    "check:readme": "npx --no @paulmillr/jsbt readme package.json",
++    "check:treeshake": "npx --no @paulmillr/jsbt treeshake package.json test/build/out-treeshake",
++    "check:jsdoc": "npx --no @paulmillr/jsbt tsdoc package.json",
+     "format": "prettier --write index.ts test/*.test.ts",
+     "test": "node test/index.ts",
+     "test:bun": "bun test/index.ts",
+diff --git a/index.d.ts.map b/index.d.ts.map
+index v2.0.0..v2.2.0 100644
+--- a/index.d.ts.map
++++ b/index.d.ts.map
+@@ -1,1 +1,1 @@
+-{"version":3,"file":"index.d.ts","sourceRoot":"","sources":["index.ts"],"names":[],"mappings":"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"}
+\ No newline at end of file
++{"version":3,"file":"index.d.ts","sourceRoot":"","sources":["index.ts"],"names":[],"mappings":"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"}
+\ No newline at end of file
+diff --git a/index.js.map b/index.js.map
+index v2.0.0..v2.2.0 100644
+--- a/index.js.map
++++ b/index.js.map
+@@ -1,1 +1,1 @@
+-{"version":3,"file":"index.js","sourceRoot":"","sources":["index.ts"],"names":[],"mappings":"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"}
+\ No newline at end of file
++{"version":3,"file":"index.js","sourceRoot":"","sources":["index.ts"],"names":[],"mappings":"AAAA,oEAAoE;AA4IpE,SAAS,OAAO,CAAC,CAAU;IACzB,+FAA+F;IAC/F,8EAA8E;IAC9E,mFAAmF;IACnF,mCAAmC;IACnC,OAAO,CACL,CAAC,YAAY,UAAU;QACvB,CAAC,WAAW,CAAC,MAAM,CAAC,CAAC,CAAC;YACpB,CAAC,CAAC,WAAW,CAAC,IAAI,KAAK,YAAY;YACnC,mBAAmB,IAAI,CAAC;YACxB,CAAC,CAAC,iBAAiB,KAAK,CAAC,CAAC,CAC7B,CAAC;AACJ,CAAC;AACD,uCAAuC;AACvC,SAAS,MAAM,CAAC,CAA+B;IAC7C,IAAI,CAAC,OAAO,CAAC,CAAC,CAAC;QAAE,MAAM,IAAI,SAAS,CAAC,qBAAqB,CAAC,CAAC;AAC9D,CAAC;AAED,SAAS,SAAS,CAAC,QAAiB,EAAE,GAAU;IAC9C,IAAI,CAAC,KAAK,CAAC,OAAO,CAAC,GAAG,CAAC;QAAE,OAAO,KAAK,CAAC;IACtC,IAAI,GAAG,CAAC,MAAM,KAAK,CAAC;QAAE,OAAO,IAAI,CAAC;IAClC,IAAI,QAAQ,EAAE,CAAC;QACb,OAAO,GAAG,CAAC,KAAK,CAAC,CAAC,IAAI,EAAE,EAAE,CAAC,OAAO,IAAI,KAAK,QAAQ,CAAC,CAAC;IACvD,CAAC;SAAM,CAAC;QACN,OAAO,GAAG,CAAC,KAAK,CAAC,CAAC,IAAI,EAAE,EAAE,CAAC,MAAM,CAAC,aAAa,CAAC,IAAI,CAAC,CAAC,CAAC;IACzD,CAAC;AACH,CAAC;AAED,SAAS,GAAG,CAAC,KAAe;IAC1B,IAAI,OAAO,KAAK,KAAK,UAAU;QAAE,MAAM,IAAI,SAAS,CAAC,mBAAmB,CAAC,CAAC;IAC1E,OAAO,IAAI,CAAC;AACd,CAAC;AAED,SAAS,IAAI,CAAC,KAAa,EAAE,KAAc;IACzC,IAAI,OAAO,KAAK,KAAK,QAAQ;QAAE,MAAM,IAAI,SAAS,CAAC,GAAG,KAAK,mBAAmB,CAAC,CAAC;IAChF,OAAO,IAAI,CAAC;AACd,CAAC;AAED,SAAS,OAAO,CAAC,CAAS;IACxB,IAAI,OAAO,CAAC,KAAK,QAAQ;QAAE,MAAM,IAAI,SAAS,CAAC,wBAAwB,OAAO,CAAC,EAAE,CAAC,CAAC;IACnF,IAAI,CAAC,MAAM,CAAC,aAAa,CAAC,CAAC,CAAC;QAAE,MAAM,IAAI,UAAU,CAAC,oBAAoB,CAAC,EAAE,CAAC,CAAC;AAC9E,CAAC;AAED,SAAS,IAAI,CAAC,KAAY;IACxB,IAAI,CAAC,KAAK,CAAC,OAAO,CAAC,KAAK,CAAC;QAAE,MAAM,IAAI,SAAS,CAAC,gBAAgB,CAAC,CAAC;AACnE,CAAC;AACD,SAAS,OAAO,CAAC,KAAa,EAAE,KAAe;IAC7C,IAAI,CAAC,SAAS,CAAC,IAAI,EAAE,KAAK,CAAC;QAAE,MAAM,IAAI,SAAS,CAAC,GAAG,KAAK,6BAA6B,CAAC,CAAC;AAC1F,CAAC;AACD,SAAS,OAAO,CAAC,KAAa,EAAE,KAAe;IAC7C,IAAI,CAAC,SAAS,CAAC,KAAK,EAAE,KAAK,CAAC;QAAE,MAAM,IAAI,SAAS,CAAC,GAAG,KAAK,6BAA6B,CAAC,CAAC;AAC3F,CAAC;AAkBD;;GAEG;AACH,SAAS,KAAK,CAA+B,GAAG,IAAO;IACrD,MAAM,EAAE,GAAG,CAAC,CAAM,EAAE,EAAE,CAAC,CAAC,CAAC;IACzB,+CAA+C;IAC/C,MAAM,IAAI,GAAG,CAAC,CAAM,EAAE,CAAM,EAAE,EAAE,CAAC,CAAC,CAAM,EAAE,EAAE,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;IACrD,6DAA6D;IAC7D,MAAM,MAAM,GAAG,IAAI,CAAC,GAAG,CAAC,CAAC,CAAC,EAAE,EAAE,CAAC,CAAC,CAAC,MAAM,CAAC,CAAC,WAAW,CAAC,IAAI,EAAE,EAAE,CAAC,CAAC;IAC/D,yDAAyD;IACzD,MAAM,MAAM,GAAG,IAAI,CAAC,GAAG,CAAC,CAAC,CAAC,EAAE,EAAE,CAAC,CAAC,CAAC,MAAM,CAAC,CAAC,MAAM,CAAC,IAAI,EAAE,EAAE,CAAC,CAAC;IAC1D,OAAO,EAAE,MAAM,EAAE,MAAM,EAAE,CAAC;AAC5B,CAAC;AAED;;;;GAIG;AACH,SAAS,QAAQ,CAAC,OAA0B;IAC1C,mBAAmB;IACnB,MAAM,QAAQ,GAAG,OAAO,OAAO,KAAK,QAAQ,CAAC,CAAC,CAAC,OAAO,CAAC,KAAK,CAAC,EAAE,CAAC,CAAC,CAAC,CAAC,OAAO,CAAC;IAC3E,MAAM,GAAG,GAAG,QAAQ,CAAC,MAAM,CAAC;IAC5B,OAAO,CAAC,UAAU,EAAE,QAAQ,CAAC,CAAC;IAE9B,mBAAmB;IACnB,MAAM,OAAO,GAAG,IAAI,GAAG,CAAC,QAAQ,CAAC,GAAG,CAAC,CAAC,CAAC,EAAE,CAAC,EAAE,EAAE,CAAC,CAAC,CAAC,EAAE,CAAC,CAAC,CAAC,CAAC,CAAC;IACxD,OAAO;QACL,MAAM,EAAE,CAAC,MAAgB,EAAE,EAAE;YAC3B,IAAI,CAAC,MAAM,CAAC,CAAC;YACb,OAAO,MAAM,CAAC,GAAG,CAAC,CAAC,CAAC,EAAE,EAAE;gBACtB,IAAI,CAAC,MAAM,CAAC,aAAa,CAAC,CAAC,CAAC,IAAI,CAAC,GAAG,CAAC,IAAI,CAAC,IAAI,GAAG;oBAC/C,MAAM,IAAI,KAAK,CACb,kDAAkD,CAAC,eAAe,OAAO,EAAE,CAC5E,CAAC;gBACJ,OAAO,QAAQ,CAAC,CAAC,CAAE,CAAC;YACtB,CAAC,CAAC,CAAC;QACL,CAAC;QACD,MAAM,EAAE,CAAC,KAAe,EAAY,EAAE;YACpC,IAAI,CAAC,KAAK,CAAC,CAAC;YACZ,OAAO,KAAK,CAAC,GAAG,CAAC,CAAC,MAAM,EAAE,EAAE;gBAC1B,IAAI,CAAC,iBAAiB,EAAE,MAAM,CAAC,CAAC;gBAChC,MAAM,CAAC,GAAG,OAAO,CAAC,GAAG,CAAC,MAAM,CAAC,CAAC;gBAC9B,IAAI,CAAC,KAAK,SAAS;oBAAE,MAAM,IAAI,KAAK,CAAC,oBAAoB,MAAM,eAAe,OAAO,EAAE,CAAC,CAAC;gBACzF,OAAO,CAAC,CAAC;YACX,CAAC,CAAC,CAAC;QACL,CAAC;KACF,CAAC;AACJ,CAAC;AAED;;GAEG;AACH,SAAS,IAAI,CAAC,SAAS,GAAG,EAAE;IAC1B,IAAI,CAAC,MAAM,EAAE,SAAS,CAAC,CAAC;IACxB,qGAAqG;IACrG,gFAAgF;IAChF,OAAO;QACL,MAAM,EAAE,CAAC,IAAI,EAAE,EAAE;YACf,OAAO,CAAC,aAAa,EAAE,IAAI,CAAC,CAAC;YAC7B,OAAO,IAAI,CAAC,IAAI,CAAC,SAAS,CAAC,CAAC;QAC9B,CAAC;QACD,MAAM,EAAE,CAAC,EAAE,EAAE,EAAE;YACb,IAAI,CAAC,aAAa,EAAE,EAAE,CAAC,CAAC;YACxB,OAAO,EAAE,CAAC,KAAK,CAAC,SAAS,CAAC,CAAC;QAC7B,CAAC;KACF,CAAC;AACJ,CAAC;AAED;;;GAGG;AACH,SAAS,OAAO,CAAC,IAAY,EAAE,GAAG,GAAG,GAAG;IACtC,OAAO,CAAC,IAAI,CAAC,CAAC;IACd,IAAI,CAAC,SAAS,EAAE,GAAG,CAAC,CAAC;IACrB,OAAO;QACL,MAAM,CAAC,IAAc;YACnB,OAAO,CAAC,gBAAgB,EAAE,IAAI,CAAC,CAAC;YAChC,2EAA2E;YAC3E,8EAA8E;YAC9E,OAAO,CAAC,IAAI,CAAC,MAAM,GAAG,IAAI,CAAC,GAAG,CAAC;gBAAE,IAAI,CAAC,IAAI,CAAC,GAAG,CAAC,CAAC;YAChD,OAAO,IAAI,CAAC;QACd,CAAC;QACD,MAAM,CAAC,KAAe;YACpB,OAAO,CAAC,gBAAgB,EAAE,KAAK,CAAC,CAAC;YACjC,IAAI,GAAG,GAAG,KAAK,CAAC,MAAM,CAAC;YACvB,IAAI,CAAC,GAAG,GAAG,IAAI,CAAC,GAAG,CAAC;gBAClB,MAAM,IAAI,KAAK,CAAC,4DAA4D,CAAC,CAAC;YAChF,OAAO,GAAG,GAAG,CAAC,IAAI,KAAK,CAAC,GAAG,GAAG,CAAC,CAAC,KAAK,GAAG,EAAE,GAAG,EAAE,EAAE,CAAC;gBAChD,MAAM,IAAI,GAAG,GAAG,GAAG,CAAC,CAAC;gBACrB,MAAM,IAAI,GAAG,IAAI,GAAG,IAAI,CAAC;gBACzB,IAAI,IAAI,GAAG,CAAC,KAAK,CAAC;oBAAE,MAAM,IAAI,KAAK,CAAC,+CAA+C,CAAC,CAAC;YACvF,CAAC;YACD,OAAO,KAAK,CAAC,KAAK,CAAC,CAAC,EAAE,GAAG,CAAC,CAAC;QAC7B,CAAC;KACF,CAAC;AACJ,CAAC;AAED;;GAEG;AACH,SAAS,SAAS,CAAI,EAAiB;IACrC,GAAG,CAAC,EAAE,CAAC,CAAC;IACR,OAAO,EAAE,MAAM,EAAE,CAAC,IAAO,EAAE,EAAE,CAAC,IAAI,EAAE,MAAM,EAAE,CAAC,EAAK,EAAE,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC;AAClE,CAAC;AAED;;GAEG;AACH,SAAS,YAAY,CAAC,IAAc,EAAE,IAAY,EAAE,EAAU;IAC5D,uBAAuB;IACvB,IAAI,IAAI,GAAG,CAAC;QACV,MAAM,IAAI,UAAU,CAAC,8BAA8B,IAAI,8BAA8B,CAAC,CAAC;IACzF,IAAI,EAAE,GAAG,CAAC;QAAE,MAAM,IAAI,UAAU,CAAC,4BAA4B,EAAE,8BAA8B,CAAC,CAAC;IAC/F,IAAI,CAAC,IAAI,CAAC,CAAC;IACX,IAAI,CAAC,IAAI,CAAC,MAAM;QAAE,OAAO,EAAE,CAAC;IAC5B,IAAI,GAAG,GAAG,CAAC,CAAC;IACZ,MAAM,GAAG,GAAG,EAAE,CAAC;IACf,MAAM,MAAM,GAAG,KAAK,CAAC,IAAI,CAAC,IAAI,EAAE,CAAC,CAAC,EAAE,EAAE;QACpC,OAAO,CAAC,CAAC,CAAC,CAAC;QACX,IAAI,CAAC,GAAG,CAAC,IAAI,CAAC,IAAI,IAAI;YAAE,MAAM,IAAI,KAAK,CAAC,oBAAoB,CAAC,EAAE,CAAC,CAAC;QACjE,OAAO,CAAC,CAAC;IACX,CAAC,CAAC,CAAC;IACH,MAAM,IAAI,GAAG,MAAM,CAAC,MAAM,CAAC;IAC3B,OAAO,IAAI,EAAE,CAAC;QACZ,IAAI,KAAK,GAAG,CAAC,CAAC;QACd,IAAI,IAAI,GAAG,IAAI,CAAC;QAChB,KAAK,IAAI,CAAC,GAAG,GAAG,EAAE,CAAC,GAAG,IAAI,EAAE,CAAC,EAAE,EAAE,CAAC;YAChC,MAAM,KAAK,GAAG,MAAM,CAAC,CAAC,CAAE,CAAC;YACzB,MAAM,SAAS,GAAG,IAAI,GAAG,KAAK,CAAC;YAC/B,MAAM,SAAS,GAAG,SAAS,GAAG,KAAK,CAAC;YACpC,IACE,CAAC,MAAM,CAAC,aAAa,CAAC,SAAS,CAAC;gBAChC,SAAS,GAAG,IAAI,KAAK,KAAK;gBAC1B,SAAS,GAAG,KAAK,KAAK,SAAS,EAC/B,CAAC;gBACD,MAAM,IAAI,KAAK,CAAC,8BAA8B,CAAC,CAAC;YAClD,CAAC;YACD,MAAM,GAAG,GAAG,SAAS,GAAG,EAAE,CAAC;YAC3B,KAAK,GAAG,SAAS,GAAG,EAAE,CAAC;YACvB,MAAM,OAAO,GAAG,IAAI,CAAC,KAAK,CAAC,GAAG,CAAC,CAAC;YAChC,MAAM,CAAC,CAAC,CAAC,GAAG,OAAO,CAAC;YACpB,IAAI,CAAC,MAAM,CAAC,aAAa,CAAC,OAAO,CAAC,IAAI,OAAO,GAAG,EAAE,GAAG,KAAK,KAAK,SAAS;gBACtE,MAAM,IAAI,KAAK,CAAC,8BAA8B,CAAC,CAAC;YAClD,IAAI,CAAC,IAAI;gBAAE,SAAS;iBACf,IAAI,CAAC,OAAO;gBAAE,GAAG,GAAG,CAAC,CAAC;;gBACtB,IAAI,GAAG,KAAK,CAAC;QACpB,CAAC;QACD,GAAG,CAAC,IAAI,CAAC,KAAK,CAAC,CAAC;QAChB,IAAI,IAAI;YAAE,MAAM;IAClB,CAAC;IACD,2FAA2F;IAC3F,KAAK,IAAI,CAAC,GAAG,CAAC,EAAE,CAAC,GAAG,IAAI,CAAC,MAAM,GAAG,CAAC,IAAI,IAAI,CAAC,CAAC,CAAC,KAAK,CAAC,EAAE,CAAC,EAAE;QAAE,GAAG,CAAC,IAAI,CAAC,CAAC,CAAC,CAAC;IACvE,OAAO,GAAG,CAAC,OAAO,EAAE,CAAC;AACvB,CAAC;AAED,MAAM,GAAG,GAAG,CAAC,CAAS,EAAE,CAAS,EAAU,EAAE,CAAC,CAAC,CAAC,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,GAAG,CAAC,CAAC,EAAE,CAAC,GAAG,CAAC,CAAC,CAAC,CAAC;AAC5E,sDAAsD;AACtD,gGAAgG;AAChG,MAAM,WAAW,GAAG,0BAA0B,CAAC,CAAC,IAAY,EAAE,EAAU,EAAE,EAAE,CAC1E,IAAI,GAAG,CAAC,EAAE,GAAG,GAAG,CAAC,IAAI,EAAE,EAAE,CAAC,CAAC,CAAC;AAC9B,MAAM,MAAM,GAAa,eAAe,CAAC,CAAC,GAAG,EAAE;IAC7C,IAAI,GAAG,GAAG,EAAE,CAAC;IACb,KAAK,IAAI,CAAC,GAAG,CAAC,EAAE,CAAC,GAAG,EAAE,EAAE,CAAC,EAAE;QAAE,GAAG,CAAC,IAAI,CAAC,CAAC,IAAI,CAAC,CAAC,CAAC;IAC9C,OAAO,GAAG,CAAC;AACb,CAAC,CAAC,EAAE,CAAC;AACL;;GAEG;AACH,SAAS,aAAa,CAAC,IAAc,EAAE,IAAY,EAAE,EAAU,EAAE,OAAgB;IAC/E,IAAI,CAAC,IAAI,CAAC,CAAC;IACX,IAAI,IAAI,IAAI,CAAC,IAAI,IAAI,GAAG,EAAE;QAAE,MAAM,IAAI,UAAU,CAAC,6BAA6B,IAAI,EAAE,CAAC,CAAC;IACtF,IAAI,EAAE,IAAI,CAAC,IAAI,EAAE,GAAG,EAAE;QAAE,MAAM,IAAI,UAAU,CAAC,2BAA2B,EAAE,EAAE,CAAC,CAAC;IAC9E,IAAI,WAAW,CAAC,IAAI,EAAE,EAAE,CAAC,GAAG,EAAE,EAAE,CAAC;QAC/B,MAAM,IAAI,KAAK,CACb,sCAAsC,IAAI,OAAO,EAAE,cAAc,WAAW,CAAC,IAAI,EAAE,EAAE,CAAC,EAAE,CACzF,CAAC;IACJ,CAAC;IACD,IAAI,KAAK,GAAG,CAAC,CAAC;IACd,IAAI,GAAG,GAAG,CAAC,CAAC,CAAC,sCAAsC;IACnD,MAAM,GAAG,GAAG,MAAM,CAAC,IAAI,CAAE,CAAC;IAC1B,MAAM,IAAI,GAAG,MAAM,CAAC,EAAE,CAAE,GAAG,CAAC,CAAC;IAC7B,MAAM,GAAG,GAAa,EAAE,CAAC;IACzB,KAAK,MAAM,CAAC,IAAI,IAAI,EAAE,CAAC;QACrB,OAAO,CAAC,CAAC,CAAC,CAAC;QACX,IAAI,CAAC,IAAI,GAAG;YAAE,MAAM,IAAI,KAAK,CAAC,oCAAoC,CAAC,SAAS,IAAI,EAAE,CAAC,CAAC;QACpF,KAAK,GAAG,CAAC,KAAK,IAAI,IAAI,CAAC,GAAG,CAAC,CAAC;QAC5B,IAAI,GAAG,GAAG,IAAI,GAAG,EAAE;YAAE,MAAM,IAAI,KAAK,CAAC,qCAAqC,GAAG,SAAS,IAAI,EAAE,CAAC,CAAC;QAC9F,GAAG,IAAI,IAAI,CAAC;QACZ,OAAO,GAAG,IAAI,EAAE,EAAE,GAAG,IAAI,EAAE;YAAE,GAAG,CAAC,IAAI,CAAC,CAAC,CAAC,KAAK,IAAI,CAAC,GAAG,GAAG,EAAE,CAAC,CAAC,GAAG,IAAI,CAAC,KAAK,CAAC,CAAC,CAAC;QAC5E,MAAM,GAAG,GAAG,MAAM,CAAC,GAAG,CAAC,CAAC;QACxB,IAAI,GAAG,KAAK,SAAS;YAAE,MAAM,IAAI,KAAK,CAAC,eAAe,CAAC,CAAC;QACxD,KAAK,IAAI,GAAG,GAAG,CAAC,CAAC,CAAC,gDAAgD;IACpE,CAAC;IACD,KAAK,GAAG,CAAC,KAAK,IAAI,CAAC,EAAE,GAAG,GAAG,CAAC,CAAC,GAAG,IAAI,CAAC;IACrC,kFAAkF;IAClF,kFAAkF;IAClF,IAAI,CAAC,OAAO,IAAI,GAAG,IAAI,IAAI;QAAE,MAAM,IAAI,KAAK,CAAC,gBAAgB,CAAC,CAAC;IAC/D,IAAI,CAAC,OAAO,IAAI,KAAK,GAAG,CAAC;QAAE,MAAM,IAAI,KAAK,CAAC,qBAAqB,KAAK,EAAE,CAAC,CAAC;IACzE,IAAI,OAAO,IAAI,GAAG,GAAG,CAAC;QAAE,GAAG,CAAC,IAAI,CAAC,KAAK,KAAK,CAAC,CAAC,CAAC;IAC9C,OAAO,GAAG,CAAC;AACb,CAAC;AAED;;GAEG;AACH,SAAS,KAAK,CAAC,GAAW;IACxB,OAAO,CAAC,GAAG,CAAC,CAAC;IACb,MAAM,IAAI,GAAG,CAAC,IAAI,CAAC,CAAC;IACpB,qHAAqH;IACrH,OAAO;QACL,MAAM,EAAE,CAAC,KAAuB,EAAE,EAAE;YAClC,IAAI,CAAC,OAAO,CAAC,KAAK,CAAC;gBAAE,MAAM,IAAI,SAAS,CAAC,yCAAyC,CAAC,CAAC;YACpF,OAAO,YAAY,CAAC,KAAK,CAAC,IAAI,CAAC,KAAK,CAAC,EAAE,IAAI,EAAE,GAAG,CAAC,CAAC;QACpD,CAAC;QACD,MAAM,EAAE,CAAC,MAAgB,EAAE,EAAE;YAC3B,OAAO,CAAC,cAAc,EAAE,MAAM,CAAC,CAAC;YAChC,OAAO,UAAU,CAAC,IAAI,CAAC,YAAY,CAAC,MAAM,EAAE,GAAG,EAAE,IAAI,CAAC,CAAC,CAAC;QAC1D,CAAC;KACF,CAAC;AACJ,CAAC;AAED;;;;GAIG;AACH,SAAS,MAAM,CAAC,IAAY,EAAE,UAAU,GAAG,KAAK;IAC9C,OAAO,CAAC,IAAI,CAAC,CAAC;IACd,IAAI,IAAI,IAAI,CAAC,IAAI,IAAI,GAAG,EAAE;QAAE,MAAM,IAAI,UAAU,CAAC,mCAAmC,CAAC,CAAC;IACtF,IAAI,WAAW,CAAC,CAAC,EAAE,IAAI,CAAC,GAAG,EAAE,IAAI,WAAW,CAAC,IAAI,EAAE,CAAC,CAAC,GAAG,EAAE;QACxD,MAAM,IAAI,UAAU,CAAC,wBAAwB,CAAC,CAAC;IACjD,+DAA+D;IAC/D,oFAAoF;IACpF,OAAO;QACL,MAAM,EAAE,CAAC,KAAuB,EAAE,EAAE;YAClC,IAAI,CAAC,OAAO,CAAC,KAAK,CAAC;gBAAE,MAAM,IAAI,SAAS,CAAC,0CAA0C,CAAC,CAAC;YACrF,OAAO,aAAa,CAAC,KAAK,CAAC,IAAI,CAAC,KAAK,CAAC,EAAE,CAAC,EAAE,IAAI,EAAE,CAAC,UAAU,CAAC,CAAC;QAChE,CAAC;QACD,MAAM,EAAE,CAAC,MAAgB,EAAE,EAAE;YAC3B,OAAO,CAAC,eAAe,EAAE,MAAM,CAAC,CAAC;YACjC,OAAO,UAAU,CAAC,IAAI,CAAC,aAAa,CAAC,MAAM,EAAE,IAAI,EAAE,CAAC,EAAE,UAAU,CAAC,CAAC,CAAC;QACrE,CAAC;KACF,CAAC;AACJ,CAAC;AAID,SAAS,aAAa,CAAkC,EAAK;IAC3D,GAAG,CAAC,EAAE,CAAC,CAAC;IACR,OAAO,UAAU,GAAG,IAAsB;QACxC,wFAAwF;QACxF,6DAA6D;QAC7D,IAAI,CAAC;YACH,OAAO,EAAE,CAAC,KAAK,CAAC,IAAI,EAAE,IAAI,CAAC,CAAC;QAC9B,CAAC;QAAC,OAAO,CAAC,EAAE,CAAC,CAAA,CAAC;IAChB,CAAC,CAAC;AACJ,CAAC;AAED,SAAS,QAAQ,CAAC,GAAW,EAAE,EAAiB;IAC9C,OAAO,CAAC,GAAG,CAAC,CAAC;IACb,+EAA+E;IAC/E,gCAAgC;IAChC,IAAI,GAAG,IAAI,CAAC;QAAE,MAAM,IAAI,UAAU,CAAC,qCAAqC,GAAG,EAAE,CAAC,CAAC;IAC/E,GAAG,CAAC,EAAE,CAAC,CAAC;IACR,MAAM,GAAG,GAAG,EAAa,CAAC;IAC1B,6DAA6D;IAC7D,oGAAoG;IACpG,OAAO;QACL,MAAM,CAAC,IAAsB;YAC3B,IAAI,CAAC,OAAO,CAAC,IAAI,CAAC;gBAAE,MAAM,IAAI,SAAS,CAAC,6CAA6C,CAAC,CAAC;YACvF,MAAM,GAAG,GAAG,GAAG,CAAC,IAAI,CAAC,CAAC,KAAK,CAAC,CAAC,EAAE,GAAG,CAAC,CAAC;YACpC,MAAM,GAAG,GAAG,IAAI,UAAU,CAAC,IAAI,CAAC,MAAM,GAAG,GAAG,CAAC,CAAC;YAC9C,GAAG,CAAC,GAAG,CAAC,IAAI,CAAC,CAAC;YACd,GAAG,CAAC,GAAG,CAAC,GAAG,EAAE,IAAI,CAAC,MAAM,CAAC,CAAC;YAC1B,OAAO,GAAG,CAAC;QACb,CAAC;QACD,MAAM,CAAC,IAAsB;YAC3B,IAAI,CAAC,OAAO,CAAC,IAAI,CAAC;gBAAE,MAAM,IAAI,SAAS,CAAC,6CAA6C,CAAC,CAAC;YACvF,MAAM,OAAO,GAAG,IAAI,CAAC,KAAK,CAAC,CAAC,EAAE,CAAC,GAAG,CAAC,CAAC;YACpC,MAAM,WAAW,GAAG,IAAI,CAAC,KAAK,CAAC,CAAC,GAAG,CAAC,CAAC;YACrC,MAAM,WAAW,GAAG,GAAG,CAAC,OAAO,CAAC,CAAC,KAAK,CAAC,CAAC,EAAE,GAAG,CAAC,CAAC;YAC/C,KAAK,IAAI,CAAC,GAAG,CAAC,EAAE,CAAC,GAAG,GAAG,EAAE,CAAC,EAAE;gBAC1B,IAAI,WAAW,CAAC,CAAC,CAAC,KAAK,WAAW,CAAC,CAAC,CAAC;oBAAE,MAAM,IAAI,KAAK,CAAC,kBAAkB,CAAC,CAAC;YAC7E,OAAO,OAAO,CAAC;QACjB,CAAC;KACF,CAAC;AACJ,CAAC;AAED,kBAAkB;AAClB;;;;;;;;GAQG;AACH,MAAM,CAAC,MAAM,KAAK,GAAmP,eAAe,CAAC,MAAM,CAAC,MAAM,CAAC;IACjS,QAAQ,EAAE,KAAK,EAAE,QAAQ,EAAE,YAAY,EAAE,aAAa,EAAE,KAAK,EAAE,MAAM,EAAE,IAAI,EAAE,OAAO;CACrF,CAAC,CAAC;AAEH,wBAAwB;AACxB,wBAAwB;AAExB;;;;;;;;;;GAUG;AACH,MAAM,CAAC,MAAM,MAAM,GAAe,eAAe,CAAC,MAAM,CAAC,MAAM,CAC7D,KAAK,CAAC,MAAM,CAAC,CAAC,CAAC,EAAE,QAAQ,CAAC,kBAAkB,CAAC,EAAE,IAAI,CAAC,EAAE,CAAC,CAAC,CACzD,CAAC;AAEF;;;;;;;;;;;;;GAaG;AACH,MAAM,CAAC,MAAM,MAAM,GAAe,eAAe,CAAC,MAAM,CAAC,MAAM,CAC7D,KAAK,CAAC,MAAM,CAAC,CAAC,CAAC,EAAE,QAAQ,CAAC,kCAAkC,CAAC,EAAE,OAAO,CAAC,CAAC,CAAC,EAAE,IAAI,CAAC,EAAE,CAAC,CAAC,CACrF,CAAC;AAEF;;;;;;;;;;;;GAYG;AACH,MAAM,CAAC,MAAM,WAAW,GAAe,eAAe,CAAC,MAAM,CAAC,MAAM,CAClE,KAAK,CAAC,MAAM,CAAC,CAAC,CAAC,EAAE,QAAQ,CAAC,kCAAkC,CAAC,EAAE,IAAI,CAAC,EAAE,CAAC,CAAC,CACzE,CAAC;AACF;;;;;;;;;;;GAWG;AACH,MAAM,CAAC,MAAM,SAAS,GAAe,eAAe,CAAC,MAAM,CAAC,MAAM,CAChE,KAAK,CAAC,MAAM,CAAC,CAAC,CAAC,EAAE,QAAQ,CAAC,kCAAkC,CAAC,EAAE,OAAO,CAAC,CAAC,CAAC,EAAE,IAAI,CAAC,EAAE,CAAC,CAAC,CACrF,CAAC;AAEF;;;;;;;;;;;GAWG;AACH,MAAM,CAAC,MAAM,cAAc,GAAe,eAAe,CAAC,MAAM,CAAC,MAAM,CACrE,KAAK,CAAC,MAAM,CAAC,CAAC,CAAC,EAAE,QAAQ,CAAC,kCAAkC,CAAC,EAAE,IAAI,CAAC,EAAE,CAAC,CAAC,CACzE,CAAC;AACF;;;;;;;;;;GAUG;AACH,MAAM,CAAC,MAAM,eAAe,GAAe,eAAe,CAAC,MAAM,CAAC,MAAM,CACtE,KAAK,CACH,MAAM,CAAC,CAAC,CAAC,EACT,QAAQ,CAAC,kCAAkC,CAAC,EAC5C,IAAI,CAAC,EAAE,CAAC,EACR,SAAS,CAAC,CAAC,CAAS,EAAE,EAAE,CAAC,CAAC,CAAC,WAAW,EAAE,CAAC,OAAO,CAAC,IAAI,EAAE,GAAG,CAAC,CAAC,OAAO,CAAC,OAAO,EAAE,GAAG,CAAC,CAAC,CACnF,CACF,CAAC;AAEF,+FAA+F;AAC/F,oHAAoH;AACpH,kBAAkB;AAClB,MAAM,gBAAgB,GAAY,eAAe,CAAC,CAAC,GAAG,EAAE,CACtD,OAAQ,UAAkB,CAAC,IAAI,CAAC,EAAE,CAAC,CAAC,QAAQ,KAAK,UAAU;IAC3D,OAAQ,UAAkB,CAAC,UAAU,KAAK,UAAU,CAAC,EAAE,CAAC;AAE1D,yEAAyE;AACzE,2EAA2E;AAC3E,mFAAmF;AACnF,MAAM,gBAAgB,GAAG,aAAa,CAAC;AAEvC,MAAM,mBAAmB,GAAG,CAAC,CAAS,EAAE,KAAc,EAAE,EAAE;IACxD,IAAI,CAAC,QAAQ,EAAE,CAAC,CAAC,CAAC;IAClB,MAAM,QAAQ,GAAG,KAAK,CAAC,CAAC,CAAC,WAAW,CAAC,CAAC,CAAC,QAAQ,CAAC;IAChD,iGAAiG;IACjG,2FAA2F;IAC3F,4GAA4G;IAC5G,IAAI,CAAC,CAAC,MAAM,GAAG,CAAC,IAAI,gBAAgB,CAAC,IAAI,CAAC,CAAC,CAAC;QAAE,MAAM,IAAI,KAAK,CAAC,gBAAgB,CAAC,CAAC;IAChF,OAAQ,UAAkB,CAAC,UAAU,CAAC,CAAC,EAAE,EAAE,QAAQ,EAAE,iBAAiB,EAAE,QAAQ,EAAE,CAAC,CAAC;AACtF,CAAC,CAAC;AAEF;;;;;;;;;;;;GAYG;AACH,kBAAkB;AAClB,MAAM,CAAC,MAAM,MAAM,GAAe,eAAe,CAAC,MAAM,CAAC,MAAM,CAAC,gBAAgB,CAAC,CAAC,CAAC;IACjF,MAAM,CAAC,CAAC,IAAI,MAAM,CAAC,CAAC,CAAC,CAAC,CAAC,OAAQ,CAAS,CAAC,QAAQ,EAAE,CAAC,CAAC,CAAC;IACtD,MAAM,CAAC,CAAC,IAAI,OAAO,mBAAmB,CAAC,CAAC,EAAE,KAAK,CAAC,CAAC,CAAC,CAAC;CACpD,CAAC,CAAC,CAAC,KAAK,CACP,MAAM,CAAC,CAAC,CAAC,EACT,QAAQ,CAAC,kEAAkE,CAAC,EAC5E,OAAO,CAAC,CAAC,CAAC,EACV,IAAI,CAAC,EAAE,CAAC,CACT,CAAC,CAAC;AACH;;;;;;;;;;GAUG;AACH,MAAM,CAAC,MAAM,WAAW,GAAe,eAAe,CAAC,MAAM,CAAC,MAAM,CAClE,KAAK,CACH,MAAM,CAAC,CAAC,CAAC,EACT,QAAQ,CAAC,kEAAkE,CAAC,EAC5E,IAAI,CAAC,EAAE,CAAC,CACT,CACF,CAAC;AAEF;;;;;;;;;;;GAWG;AACH,kBAAkB;AAClB,MAAM,CAAC,MAAM,SAAS,GAAe,eAAe,CAAC,MAAM,CAAC,MAAM,CAAC,gBAAgB,CAAC,CAAC,CAAC;IACpF,MAAM,CAAC,CAAC,IAAI,MAAM,CAAC,CAAC,CAAC,CAAC,CAAC,OAAQ,CAAS,CAAC,QAAQ,CAAC,EAAE,QAAQ,EAAE,WAAW,EAAE,CAAC,CAAC,CAAC,CAAC;IAC/E,MAAM,CAAC,CAAC,IAAI,OAAO,mBAAmB,CAAC,CAAC,EAAE,IAAI,CAAC,CAAC,CAAC,CAAC;CACnD,CAAC,CAAC,CAAC,KAAK,CACP,MAAM,CAAC,CAAC,CAAC,EACT,QAAQ,CAAC,kEAAkE,CAAC,EAC5E,OAAO,CAAC,CAAC,CAAC,EACV,IAAI,CAAC,EAAE,CAAC,CACT,CAAC,CAAC;AAEH;;;;;;;;;;GAUG;AACH,MAAM,CAAC,MAAM,cAAc,GAAe,eAAe,CAAC,MAAM,CAAC,MAAM,CACrE,KAAK,CACH,MAAM,CAAC,CAAC,CAAC,EACT,QAAQ,CAAC,kEAAkE,CAAC,EAC5E,IAAI,CAAC,EAAE,CAAC,CACT,CACF,CAAC;AAEF,cAAc;AACd,cAAc;AACd,MAAM,SAAS,GAAG,0BAA0B,CAAC,CAAC,GAAW,EAAE,EAAE,CAC3D,KAAK,CAAC,KAAK,CAAC,EAAE,CAAC,EAAE,QAAQ,CAAC,GAAG,CAAC,EAAE,IAAI,CAAC,EAAE,CAAC,CAAC,CAAC;AAE5C;;;;;;;;;GASG;AACH,MAAM,CAAC,MAAM,MAAM,GAAe,eAAe,CAAC,MAAM,CAAC,MAAM,CAC7D,SAAS,CAAC,4DAA4D,CAAC,CACxE,CAAC;AACF;;;;;;;;GAQG;AACH,MAAM,CAAC,MAAM,YAAY,GAAe,eAAe,CAAC,MAAM,CAAC,MAAM,CACnE,SAAS,CAAC,4DAA4D,CAAC,CACxE,CAAC;AACF;;;;;;;;GAQG;AACH,MAAM,CAAC,MAAM,SAAS,GAAe,eAAe,CAAC,MAAM,CAAC,MAAM,CAChE,SAAS,CAAC,4DAA4D,CAAC,CACxE,CAAC;AAEF,yCAAyC;AACzC,qGAAqG;AACrG,MAAM,aAAa,GAAG,CAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,EAAE,EAAE,EAAE,CAAC,CAAC;AAEpD;;;;;;;;;;GAUG;AACH,MAAM,CAAC,MAAM,SAAS,GAAe,eAAe,CAAC,MAAM,CAAC,MAAM,CAAC;IACjE,MAAM,CAAC,IAAsB;QAC3B,MAAM,CAAC,IAAI,CAAC,CAAC;QACb,IAAI,GAAG,GAAG,EAAE,CAAC;QACb,KAAK,IAAI,CAAC,GAAG,CAAC,EAAE,CAAC,GAAG,IAAI,CAAC,MAAM,EAAE,CAAC,IAAI,CAAC,EAAE,CAAC;YACxC,MAAM,KAAK,GAAG,IAAI,CAAC,QAAQ,CAAC,CAAC,EAAE,CAAC,GAAG,CAAC,CAAC,CAAC;YACtC,GAAG,IAAI,MAAM,CAAC,MAAM,CAAC,KAAK,CAAC,CAAC,QAAQ,CAAC,aAAa,CAAC,KAAK,CAAC,MAAM,CAAE,EAAE,GAAG,CAAC,CAAC;QAC1E,CAAC;QACD,OAAO,GAAG,CAAC;IACb,CAAC;IACD,MAAM,CAAC,GAAW;QAChB,IAAI,CAAC,kBAAkB,EAAE,GAAG,CAAC,CAAC;QAC9B,IAAI,GAAG,GAAa,EAAE,CAAC;QACvB,KAAK,IAAI,CAAC,GAAG,CAAC,EAAE,CAAC,GAAG,GAAG,CAAC,MAAM,EAAE,CAAC,IAAI,EAAE,EAAE,CAAC;YACxC,MAAM,KAAK,GAAG,GAAG,CAAC,KAAK,CAAC,CAAC,EAAE,CAAC,GAAG,EAAE,CAAC,CAAC;YACnC,MAAM,QAAQ,GAAG,aAAa,CAAC,OAAO,CAAC,KAAK,CAAC,MAAM,CAAC,CAAC;YACrD,MAAM,KAAK,GAAG,MAAM,CAAC,MAAM,CAAC,KAAK,CAAC,CAAC;YACnC,KAAK,IAAI,CAAC,GAAG,CAAC,EAAE,CAAC,GAAG,KAAK,CAAC,MAAM,GAAG,QAAQ,EAAE,CAAC,EAAE,EAAE,CAAC;gBACjD,IAAI,KAAK,CAAC,CAAC,CAAC,KAAK,CAAC;oBAAE,MAAM,IAAI,KAAK,CAAC,0BAA0B,CAAC,CAAC;YAClE,CAAC;YACD,GAAG,GAAG,GAAG,CAAC,MAAM,CAAC,KAAK,CAAC,IAAI,CAAC,KAAK,CAAC,KAAK,CAAC,KAAK,CAAC,MAAM,GAAG,QAAQ,CAAC,CAAC,CAAC,CAAC;QACrE,CAAC;QACD,OAAO,UAAU,CAAC,IAAI,CAAC,GAAG,CAAC,CAAC;IAC9B,CAAC;CACF,CAAC,CAAC;AAEH;;;;;;;;;;;;;;;;GAgBG;AACH,MAAM,CAAC,MAAM,iBAAiB,GAAG,CAAC,MAAqB,EAAc,EAAE;IACrE,iGAAiG;IACjG,GAAG,CAAC,MAAM,CAAC,CAAC;IACZ,MAAM,OAAO,GAAG,MAAiB,CAAC;IAClC,OAAO,KAAK,CACV,QAAQ,CAAC,CAAC,EAAE,CAAC,IAAsB,EAAE,EAAE,CAAC,OAAO,CAAC,OAAO,CAAC,IAAI,CAAC,CAAC,CAAC,EAC/D,MAAM,CACP,CAAC;AACJ,CAAC,CAAC;AAEF;;;;;;;;;;;;;;;GAeG;AACH,MAAM,CAAC,MAAM,WAAW,GAA0C,iBAAiB,CAAC;AAqBpF,wFAAwF;AACxF,MAAM,aAAa,GAA4B,KAAK,CAClD,QAAQ,CAAC,kCAAkC,CAAC,EAC5C,IAAI,CAAC,EAAE,CAAC,CACT,CAAC;AAEF,6CAA6C;AAC7C,MAAM,kBAAkB,GAAG,CAAC,UAAU,EAAE,UAAU,EAAE,UAAU,EAAE,UAAU,EAAE,UAAU,CAAC,CAAC;AACxF,4GAA4G;AAC5G,SAAS,aAAa,CAAC,GAAW;IAChC,MAAM,CAAC,GAAG,GAAG,IAAI,EAAE,CAAC;IACpB,IAAI,GAAG,GAAG,CAAC,GAAG,GAAG,SAAS,CAAC,IAAI,CAAC,CAAC;IACjC,KAAK,IAAI,CAAC,GAAG,CAAC,EAAE,CAAC,GAAG,kBAAkB,CAAC,MAAM,EAAE,CAAC,EAAE,EAAE,CAAC;QACnD,IAAI,CAAC,CAAC,CAAC,IAAI,CAAC,CAAC,GAAG,CAAC,CAAC,KAAK,CAAC;YAAE,GAAG,IAAI,kBAAkB,CAAC,CAAC,CAAE,CAAC;IAC1D,CAAC;IACD,OAAO,GAAG,CAAC;AACb,CAAC;AAED,SAAS,YAAY,CAAC,MAAc,EAAE,KAAe,EAAE,aAAa,GAAG,CAAC;IACtE,MAAM,GAAG,GAAG,MAAM,CAAC,MAAM,CAAC;IAC1B,IAAI,GAAG,GAAG,CAAC,CAAC;IACZ,KAAK,IAAI,CAAC,GAAG,CAAC,EAAE,CAAC,GAAG,GAAG,EAAE,CAAC,EAAE,EAAE,CAAC;QAC7B,MAAM,CAAC,GAAG,MAAM,CAAC,UAAU,CAAC,CAAC,CAAC,CAAC;QAC/B,IAAI,CAAC,GAAG,EAAE,IAAI,CAAC,GAAG,GAAG;YAAE,MAAM,IAAI,KAAK,CAAC,mBAAmB,MAAM,GAAG,CAAC,CAAC;QACrE,GAAG,GAAG,aAAa,CAAC,GAAG,CAAC,GAAG,CAAC,CAAC,IAAI,CAAC,CAAC,CAAC;IACtC,CAAC;IACD,GAAG,GAAG,aAAa,CAAC,GAAG,CAAC,CAAC;IACzB,KAAK,IAAI,CAAC,GAAG,CAAC,EAAE,CAAC,GAAG,GAAG,EAAE,CAAC,EAAE;QAAE,GAAG,GAAG,aAAa,CAAC,GAAG,CAAC,GAAG,CAAC,MAAM,CAAC,UAAU,CAAC,CAAC,CAAC,GAAG,IAAI,CAAC,CAAC;IACvF,KAAK,IAAI,CAAC,IAAI,KAAK;QAAE,GAAG,GAAG,aAAa,CAAC,GAAG,CAAC,GAAG,CAAC,CAAC;IAClD,KAAK,IAAI,CAAC,GAAG,CAAC,EAAE,CAAC,GAAG,CAAC,EAAE,CAAC,EAAE;QAAE,GAAG,GAAG,aAAa,CAAC,GAAG,CAAC,CAAC;IACrD,qGAAqG;IACrG,GAAG,IAAI,aAAa,CAAC;IACrB,OAAO,aAAa,CAAC,MAAM,CAAC,aAAa,CAAC,CAAC,GAAG,GAAG,MAAM,CAAC,EAAE,CAAE,CAAC,EAAE,EAAE,EAAE,CAAC,EAAE,KAAK,CAAC,CAAC,CAAC;AAChF,CAAC;AAkED;;GAEG;AACH,SAAS,SAAS,CAAC,QAA8B;IAC/C,8EAA8E;IAC9E,MAAM,cAAc,GAAG,QAAQ,KAAK,QAAQ,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,UAAU,CAAC;IAC9D,MAAM,MAAM,GAAG,MAAM,CAAC,CAAC,CAAC,CAAC;IACzB,MAAM,SAAS,GAAG,MAAM,CAAC,MAAM,CAAC;IAChC,MAAM,OAAO,GAAG,MAAM,CAAC,MAAM,CAAC;IAC9B,MAAM,eAAe,GAAG,aAAa,CAAC,SAAS,CAAC,CAAC;IAEjD,SAAS,MAAM,CACb,MAAc,EACd,KAAkC,EAClC,QAAwB,EAAE;QAE1B,IAAI,CAAC,sBAAsB,EAAE,MAAM,CAAC,CAAC;QACrC,IAAI,OAAO,CAAC,KAAK,CAAC;YAAE,KAAK,GAAG,KAAK,CAAC,IAAI,CAAC,KAAK,CAAC,CAAC;QAC9C,OAAO,CAAC,eAAe,EAAE,KAAK,CAAC,CAAC;QAChC,MAAM,IAAI,GAAG,MAAM,CAAC,MAAM,CAAC;QAC3B,IAAI,IAAI,KAAK,CAAC;YAAE,MAAM,IAAI,SAAS,CAAC,yBAAyB,IAAI,EAAE,CAAC,CAAC;QACrE,0EAA0E;QAC1E,MAAM,YAAY,GAAG,IAAI,GAAG,CAAC,GAAG,KAAK,CAAC,MAAM,CAAC;QAC7C,IAAI,KAAK,KAAK,KAAK,IAAI,YAAY,GAAG,KAAK;YACzC,MAAM,IAAI,SAAS,CAAC,UAAU,YAAY,kBAAkB,KAAK,EAAE,CAAC,CAAC;QACvE,MAAM,OAAO,GAAG,MAAM,CAAC,WAAW,EAAE,CAAC;QACrC,MAAM,GAAG,GAAG,YAAY,CAAC,OAAO,EAAE,KAAK,EAAE,cAAc,CAAC,CAAC;QACzD,OAAO,GAAG,OAAO,IAAI,aAAa,CAAC,MAAM,CAAC,KAAK,CAAC,GAAG,GAAG,EAAsC,CAAC;IAC/F,CAAC;IAOD,SAAS,MAAM,CAAC,GAAW,EAAE,QAAwB,EAAE;QACrD,IAAI,CAAC,qBAAqB,EAAE,GAAG,CAAC,CAAC;QACjC,MAAM,IAAI,GAAG,GAAG,CAAC,MAAM,CAAC;QACxB,kEAAkE;QAClE,IAAI,IAAI,GAAG,CAAC,IAAI,CAAC,KAAK,KAAK,KAAK,IAAI,IAAI,GAAG,KAAK,CAAC;YAC/C,MAAM,IAAI,SAAS,CAAC,0BAA0B,IAAI,KAAK,GAAG,mBAAmB,KAAK,GAAG,CAAC,CAAC;QACzF,yBAAyB;QACzB,MAAM,OAAO,GAAG,GAAG,CAAC,WAAW,EAAE,CAAC;QAClC,IAAI,GAAG,KAAK,OAAO,IAAI,GAAG,KAAK,GAAG,CAAC,WAAW,EAAE;YAC9C,MAAM,IAAI,KAAK,CAAC,uCAAuC,CAAC,CAAC;QAC3D,MAAM,QAAQ,GAAG,OAAO,CAAC,WAAW,CAAC,GAAG,CAAC,CAAC;QAC1C,IAAI,QAAQ,KAAK,CAAC,IAAI,QAAQ,KAAK,CAAC,CAAC;YACnC,MAAM,IAAI,KAAK,CAAC,yDAAyD,CAAC,CAAC;QAC7E,MAAM,MAAM,GAAG,OAAO,CAAC,KAAK,CAAC,CAAC,EAAE,QAAQ,CAAC,CAAC;QAC1C,MAAM,IAAI,GAAG,OAAO,CAAC,KAAK,CAAC,QAAQ,GAAG,CAAC,CAAC,CAAC;QACzC,IAAI,IAAI,CAAC,MAAM,GAAG,CAAC;YAAE,MAAM,IAAI,KAAK,CAAC,yCAAyC,CAAC,CAAC;QAChF,MAAM,KAAK,GAAG,aAAa,CAAC,MAAM,CAAC,IAAI,CAAC,CAAC,KAAK,CAAC,CAAC,EAAE,CAAC,CAAC,CAAC,CAAC;QACtD,MAAM,GAAG,GAAG,YAAY,CAAC,MAAM,EAAE,KAAK,EAAE,cAAc,CAAC,CAAC;QACxD,IAAI,CAAC,IAAI,CAAC,QAAQ,CAAC,GAAG,CAAC;YAAE,MAAM,IAAI,KAAK,CAAC,uBAAuB,GAAG,eAAe,GAAG,GAAG,CAAC,CAAC;QAC1F,OAAO,EAAE,MAAM,EAAE,KAAK,EAAE,CAAC;IAC3B,CAAC;IAED,MAAM,YAAY,GAAG,aAAa,CAAC,MAAM,CAAC,CAAC;IAE3C,SAAS,aAAa,CAAC,GAAW;QAChC,2GAA2G;QAC3G,MAAM,EAAE,MAAM,EAAE,KAAK,EAAE,GAAG,MAAM,CAAC,GAAG,EAAE,KAAK,CAAC,CAAC;QAC7C,OAAO;YACL,MAAM;YACN,KAAK;YACL,KAAK,EAAE,SAAS,CAAC,KAAK,CAAqB;SACZ,CAAC;IACpC,CAAC;IAED,SAAS,eAAe,CAAC,MAAc,EAAE,KAAuB;QAC9D,mIAAmI;QACnI,OAAO,MAAM,CAAC,MAAM,EAAE,OAAO,CAAC,KAAK,CAAC,CAAC,CAAC;IACxC,CAAC;IAED,OAAO;QACL,MAAM;QACN,MAAM;QACN,eAAe;QACf,aAAa;QACb,YAAY;QACZ,SAAS;QACT,eAAe;QACf,OAAO;KACR,CAAC;AACJ,CAAC;AAED;;;;;;;;;;GAUG;AACH,MAAM,CAAC,MAAM,MAAM,GAAiB,eAAe,CAAC,MAAM,CAAC,MAAM,CAAC,SAAS,CAAC,QAAQ,CAAC,CAAC,CAAC;AAEvF;;;;;;;;;;;GAWG;AACH,MAAM,CAAC,MAAM,OAAO,GAAiB,eAAe,CAAC,MAAM,CAAC,MAAM,CAAC,SAAS,CAAC,SAAS,CAAC,CAAC,CAAC;AAKzF;;;;;;;;GAQG;AACH,MAAM,CAAC,MAAM,KAAK,GAAqB,eAAe,CAAC,MAAM,CAAC,MAAM,CAAC;IACnE,MAAM,CAAC,IAAsB;QAC3B,MAAM,CAAC,IAAI,CAAC,CAAC;QACb,IAAI,GAAG,GAAG,EAAE,CAAC;QACb,KAAK,IAAI,CAAC,GAAG,CAAC,EAAE,CAAC,GAAG,IAAI,CAAC,MAAM,EAAE,CAAC,EAAE,EAAE,CAAC;YACrC,MAAM,IAAI,GAAG,IAAI,CAAC,CAAC,CAAE,CAAC;YACtB,kFAAkF;YAClF,iBAAiB;YACjB,IAAI,IAAI,GAAG,GAAG;gBAAE,MAAM,IAAI,UAAU,CAAC,gCAAgC,IAAI,gBAAgB,CAAC,EAAE,CAAC,CAAC;YAC9F,GAAG,IAAI,MAAM,CAAC,YAAY,CAAC,IAAI,CAAC,CAAC;QACnC,CAAC;QACD,OAAO,GAAG,CAAC;IACb,CAAC;IACD,MAAM,CAAC,GAAW;QAChB,IAAI,OAAO,GAAG,KAAK,QAAQ;YAAE,MAAM,IAAI,SAAS,CAAC,6BAA6B,GAAG,OAAO,GAAG,CAAC,CAAC;QAC7F,MAAM,GAAG,GAAG,IAAI,UAAU,CAAC,GAAG,CAAC,MAAM,CAAC,CAAC;QACvC,KAAK,IAAI,CAAC,GAAG,CAAC,EAAE,CAAC,GAAG,GAAG,CAAC,MAAM,EAAE,CAAC,EAAE,EAAE,CAAC;YACpC,gFAAgF;YAChF,yBAAyB;YACzB,MAAM,QAAQ,GAAG,GAAG,CAAC,UAAU,CAAC,CAAC,CAAC,CAAC;YACnC,IAAI,QAAQ,GAAG,GAAG,EAAE,CAAC;gBACnB,MAAM,IAAI,UAAU,CAClB,wCAAwC,GAAG,CAAC,CAAC,CAAC,eAAe,QAAQ,gBAAgB,CAAC,EAAE,CACzF,CAAC;YACJ,CAAC;YACD,GAAG,CAAC,CAAC,CAAC,GAAG,QAAQ,CAAC;QACpB,CAAC;QACD,OAAO,GAAG,CAAC;IACb,CAAC;CACF,CAAC,CAAC;AAEH,MAAM,iBAAiB,GAAG,CAAC,GAAW,EAAW,EAAE;IACjD,oFAAoF;IACpF,yCAAyC;IACzC,IAAI,CAAC;QACH,OAAO,SAAS,CAAC,GAAG,CAAC,KAAK,IAAI,CAAC;IACjC,CAAC;IAAC,MAAM,CAAC;QACP,OAAO,KAAK,CAAC;IACf,CAAC;AACH,CAAC,CAAC;AACF,MAAM,aAAa,GAA6B,eAAe,CAAC,CAAC,GAAG,EAAE;AACpE,6FAA6F;AAC7F,OAAQ,EAAU,CAAC,YAAY,KAAK,UAAU;IAC5C,CAAC,CAAC,CAAC,GAAG,EAAE,EAAE,CAAE,GAAW,CAAC,YAAY,EAAE;IACtC,CAAC,CAAC,iBAAiB,CAAC,EAAE,CAAC;AAC3B,4FAA4F;AAC5F,8FAA8F;AAC9F,eAAe;AACf,MAAM,YAAY,GAAe,eAAe,CAAC,MAAM,CAAC,MAAM,CAAC;IAC7D,MAAM,CAAC,IAAsB;QAC3B,MAAM,CAAC,IAAI,CAAC,CAAC;QACb,IAAI,GAAG,GAAG,EAAE,CAAC;QACb,KAAK,IAAI,CAAC,GAAG,CAAC,EAAE,CAAC,GAAG,IAAI,CAAC,MAAM,GAAI,CAAC;YAClC,MAAM,CAAC,GAAG,IAAI,CAAC,CAAC,EAAE,CAAE,CAAC;YACrB,IAAI,CAAC,GAAG,WAAW,EAAE,CAAC;gBACpB,GAAG,IAAI,MAAM,CAAC,YAAY,CAAC,CAAC,CAAC,CAAC;gBAC9B,SAAS;YACX,CAAC;YACD,IAAI,CAAC,GAAG,WAAW,IAAI,CAAC,IAAI,IAAI,CAAC,MAAM;gBAAE,MAAM,IAAI,SAAS,CAAC,wBAAwB,CAAC,GAAG,CAAC,EAAE,CAAC,CAAC;YAC9F,MAAM,CAAC,GAAG,IAAI,CAAC,CAAC,EAAE,CAAE,CAAC;YACrB,IAAI,CAAC,CAAC,GAAG,WAAW,CAAC,KAAK,WAAW;gBAAE,MAAM,IAAI,SAAS,CAAC,wBAAwB,CAAC,GAAG,CAAC,EAAE,CAAC,CAAC;YAC5F,IAAI,EAAE,GAAG,CAAC,CAAC,CAAC,GAAG,WAAW,CAAC,IAAI,CAAC,CAAC,GAAG,CAAC,CAAC,GAAG,WAAW,CAAC,CAAC;YACtD,IAAI,CAAC,IAAI,WAAW,EAAE,CAAC;gBACrB,IAAI,CAAC,IAAI,IAAI,CAAC,MAAM;oBAAE,MAAM,IAAI,SAAS,CAAC,wBAAwB,CAAC,GAAG,CAAC,EAAE,CAAC,CAAC;gBAC3E,MAAM,CAAC,GAAG,IAAI,CAAC,CAAC,EAAE,CAAE,CAAC;gBACrB,IACE,CAAC,CAAC,GAAG,WAAW,CAAC,KAAK,WAAW;oBACjC,CAAC,CAAC,KAAK,WAAW,IAAI,CAAC,GAAG,WAAW,CAAC;oBACtC,CAAC,CAAC,KAAK,IAAI,IAAI,CAAC,IAAI,WAAW,CAAC;oBAEhC,MAAM,IAAI,SAAS,CAAC,wBAAwB,CAAC,GAAG,CAAC,EAAE,CAAC,CAAC;gBACvD,EAAE,GAAG,CAAC,CAAC,CAAC,GAAG,WAAW,CAAC,IAAI,EAAE,CAAC,GAAG,CAAC,CAAC,CAAC,GAAG,WAAW,CAAC,IAAI,CAAC,CAAC,GAAG,CAAC,CAAC,GAAG,WAAW,CAAC,CAAC;gBAC9E,IAAI,CAAC,IAAI,WAAW,EAAE,CAAC;oBACrB,IAAI,CAAC,IAAI,IAAI,CAAC,MAAM;wBAAE,MAAM,IAAI,SAAS,CAAC,wBAAwB,CAAC,GAAG,CAAC,EAAE,CAAC,CAAC;oBAC3E,MAAM,CAAC,GAAG,IAAI,CAAC,CAAC,EAAE,CAAE,CAAC;oBACrB,IACE,CAAC,GAAG,WAAW;wBACf,CAAC,CAAC,GAAG,WAAW,CAAC,KAAK,WAAW;wBACjC,CAAC,CAAC,KAAK,WAAW,IAAI,CAAC,GAAG,WAAW,CAAC;wBACtC,CAAC,CAAC,KAAK,WAAW,IAAI,CAAC,IAAI,WAAW,CAAC;wBAEvC,MAAM,IAAI,SAAS,CAAC,wBAAwB,CAAC,GAAG,CAAC,EAAE,CAAC,CAAC;oBACvD,EAAE;wBACA,CAAC,CAAC,CAAC,GAAG,CAAC,CAAC,IAAI,EAAE,CAAC;4BACf,CAAC,CAAC,CAAC,GAAG,WAAW,CAAC,IAAI,EAAE,CAAC;4BACzB,CAAC,CAAC,CAAC,GAAG,WAAW,CAAC,IAAI,CAAC,CAAC;4BACxB,CAAC,CAAC,GAAG,WAAW,CAAC,CAAC;gBACtB,CAAC;YACH,CAAC;YACD,IAAI,EAAE,GAAG,OAAO;gBAAE,GAAG,IAAI,MAAM,CAAC,YAAY,CAAC,EAAE,CAAC,CAAC;iBAC5C,CAAC;gBACJ,EAAE,IAAI,OAAO,CAAC;gBACd,GAAG,IAAI,MAAM,CAAC,YAAY,CAAC,CAAC,EAAE,IAAI,EAAE,CAAC,GAAG,MAAM,EAAE,CAAC,EAAE,GAAG,KAAK,CAAC,GAAG,MAAM,CAAC,CAAC;YACzE,CAAC;QACH,CAAC;QACD,OAAO,GAAG,CAAC;IACb,CAAC;IACD,MAAM,CAAC,GAAW;QAChB,IAAI,CAAC,MAAM,EAAE,GAAG,CAAC,CAAC;QAClB,IAAI,CAAC,aAAa,CAAC,GAAG,CAAC;YAAE,MAAM,IAAI,SAAS,CAAC,kCAAkC,CAAC,CAAC;QACjF,yFAAyF;QACzF,qBAAqB;QACrB,MAAM,GAAG,GAAG,IAAI,UAAU,CAAC,GAAG,CAAC,MAAM,GAAG,CAAC,CAAC,CAAC;QAC3C,IAAI,GAAG,GAAG,CAAC,CAAC;QACZ,KAAK,IAAI,CAAC,GAAG,CAAC,EAAE,CAAC,GAAG,GAAG,CAAC,MAAM,EAAE,CAAC,EAAE,EAAE,CAAC;YACpC,IAAI,CAAC,GAAG,GAAG,CAAC,UAAU,CAAC,CAAC,CAAC,CAAC;YAC1B,IAAI,CAAC,GAAG,WAAW,EAAE,CAAC;gBACpB,GAAG,CAAC,GAAG,EAAE,CAAC,GAAG,CAAC,CAAC;gBACf,SAAS;YACX,CAAC;YACD,IAAI,CAAC,IAAI,MAAM,IAAI,CAAC,IAAI,MAAM,EAAE,CAAC;gBAC/B,MAAM,CAAC,GAAG,GAAG,CAAC,UAAU,CAAC,EAAE,CAAC,CAAC,CAAC;gBAC9B,CAAC,GAAG,OAAO,GAAG,CAAC,CAAC,CAAC,GAAG,MAAM,CAAC,IAAI,EAAE,CAAC,GAAG,CAAC,GAAG,MAAM,CAAC;YAClD,CAAC;YACD,IAAI,CAAC,IAAI,OAAO,EAAE,CAAC;gBACjB,GAAG,CAAC,GAAG,EAAE,CAAC,GAAG,CAAC,CAAC,IAAI,EAAE,CAAC,GAAG,WAAW,CAAC;gBACrC,GAAG,CAAC,GAAG,EAAE,CAAC,GAAG,CAAC,CAAC,CAAC,IAAI,EAAE,CAAC,GAAG,WAAW,CAAC,GAAG,WAAW,CAAC;YACvD,CAAC;iBAAM,IAAI,CAAC,IAAI,KAAK;gBAAE,GAAG,CAAC,GAAG,EAAE,CAAC,GAAG,CAAC,CAAC,IAAI,EAAE,CAAC,GAAG,WAAW,CAAC;;gBACvD,GAAG,CAAC,GAAG,EAAE,CAAC,GAAG,CAAC,CAAC,IAAI,CAAC,CAAC,GAAG,WAAW,CAAC;YACzC,IAAI,CAAC,IAAI,KAAK;gBAAE,GAAG,CAAC,GAAG,EAAE,CAAC,GAAG,CAAC,CAAC,CAAC,IAAI,CAAC,CAAC,GAAG,WAAW,CAAC,GAAG,WAAW,CAAC;YACpE,GAAG,CAAC,GAAG,EAAE,CAAC,GAAG,CAAC,CAAC,GAAG,WAAW,CAAC,GAAG,WAAW,CAAC;QAC/C,CAAC;QACD,OAAO,GAAG,CAAC,QAAQ,CAAC,CAAC,EAAE,GAAG,CAAC,CAAC;IAC9B,CAAC;CACF,CAAC,CAAC;AAEH;;;;;;;;;;;;;GAaG;AACH,MAAM,CAAC,MAAM,IAAI,GAAe,eAAe,CAAC,CAAC,GAAG,EAAE;IACpD,IAAI,YAAiB,CAAC;IACtB,IAAI,YAAiB,CAAC;IACtB,MAAM,WAAW,GAAe;QAC9B,kDAAkD;QAClD,+DAA+D;QAC/D,MAAM,CAAC,IAAI;YACT,MAAM,CAAC,IAAI,CAAC,CAAC;YACb,OAAO,CACL,YAAY,IAAI,CAAC,YAAY,GAAG,IAAI,WAAW,CAAC,OAAO,EAAE,EAAE,SAAS,EAAE,IAAI,EAAE,KAAK,EAAE,IAAI,EAAE,CAAC,CAAC,CAC5F,CAAC,MAAM,CAAC,IAAI,CAAC,CAAC;QACjB,CAAC;QACD,MAAM,CAAC,GAAG;YACR,IAAI,CAAC,MAAM,EAAE,GAAG,CAAC,CAAC;YAClB,IAAI,CAAC,aAAa,CAAC,GAAG,CAAC;gBAAE,MAAM,IAAI,SAAS,CAAC,kCAAkC,CAAC,CAAC;YACjF,OAAO,CAAC,YAAY,IAAI,CAAC,YAAY,GAAG,IAAI,WAAW,EAAE,CAAC,CAAC,CAAC,MAAM,CAAC,GAAG,CAAC,CAAC;QAC1E,CAAC;KACF,CAAC;IACF,OAAO,MAAM,CAAC,MAAM,CAAC;QACnB,mDAAmD;QACnD,uDAAuD;QACvD,MAAM,EAAE,OAAO,WAAW,KAAK,UAAU,CAAC,CAAC,CAAC,WAAW,CAAC,MAAM,CAAC,CAAC,CAAC,YAAY,CAAC,MAAM;QACpF,MAAM,EAAE,OAAO,WAAW,KAAK,UAAU,CAAC,CAAC,CAAC,WAAW,CAAC,MAAM,CAAC,CAAC,CAAC,YAAY,CAAC,MAAM;KACrF,CAAC,CAAC;AACL,CAAC,CAAC,EAAE,CAAC;AACL,oGAAoG;AACpG,MAAM,CAAC,MAAM,OAAO,GAGhB,eAAe,CAAC,MAAM,CAAC,MAAM,CAAC;IAChC,YAAY,EAAE,YAAY;IAC1B,iBAAiB,EAAE,iBAAiB;CACrC,CAAC,CAAC;AAEH,yFAAyF;AACzF,kBAAkB;AAClB,MAAM,aAAa,GAAY,eAAe,CAAC,CAAC,GAAG,EAAE;AACnD,+FAA+F;AAC/F,OAAQ,UAAkB,CAAC,IAAI,CAAC,EAAE,CAAC,CAAC,KAAK,KAAK,UAAU;IACxD,OAAQ,UAAkB,CAAC,OAAO,KAAK,UAAU,CAAC,EAAE,CAAC;AACvD,kBAAkB;AAClB,MAAM,UAAU,GAAe;IAC7B,kFAAkF;IAClF,2FAA2F;IAC3F,MAAM,CAAC,IAAI,IAAI,MAAM,CAAC,IAAI,CAAC,CAAC,CAAC,OAAQ,IAAY,CAAC,KAAK,EAAE,CAAC,CAAC,CAAC;IAC5D,kFAAkF;IAClF,MAAM,CAAC,CAAC,IAAI,IAAI,CAAC,KAAK,EAAE,CAAC,CAAC,CAAC,CAAC,OAAQ,UAAkB,CAAC,OAAO,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;CACrE,CAAC;AACF;;;;;;;;GAQG;AACH,MAAM,CAAC,MAAM,GAAG,GAAe,eAAe,CAAC,MAAM,CAAC,MAAM,CAC1D,aAAa;IACX,CAAC,CAAC,UAAU;IACZ,CAAC,CAAC,KAAK,CACH,MAAM,CAAC,CAAC,CAAC,EACT,QAAQ,CAAC,kBAAkB,CAAC,EAC5B,IAAI,CAAC,EAAE,CAAC,EACR,SAAS,CAAC,CAAC,CAAS,EAAE,EAAE;QACtB,IAAI,OAAO,CAAC,KAAK,QAAQ,IAAI,CAAC,CAAC,MAAM,GAAG,CAAC,KAAK,CAAC;YAC7C,MAAM,IAAI,SAAS,CACjB,oCAAoC,OAAO,CAAC,gBAAgB,CAAC,CAAC,MAAM,EAAE,CACvE,CAAC;QACJ,OAAO,CAAC,CAAC,WAAW,EAAE,CAAC;IACzB,CAAC,CAAC,CACH,CACN,CAAC;AAqBF,kBAAkB;AAClB,mGAAmG;AACnG,MAAM,MAAM,GAAe;IACzB,IAAI,EAAE,GAAG,EAAE,MAAM,EAAE,MAAM,EAAE,MAAM,EAAE,SAAS,EAAE,MAAM,EAAE,SAAS;CAChE,CAAC;AAEF,MAAM,cAAc,GAClB,yGAAyG,CAAC;AAE5G;;;;;;;;;;;GAWG;AACH,MAAM,CAAC,MAAM,aAAa,GAAG,CAAC,IAAe,EAAE,KAAuB,EAAU,EAAE;IAChF,IAAI,OAAO,IAAI,KAAK,QAAQ,IAAI,CAAC,MAAM,CAAC,cAAc,CAAC,IAAI,CAAC;QAAE,MAAM,IAAI,SAAS,CAAC,cAAc,CAAC,CAAC;IAClG,IAAI,CAAC,OAAO,CAAC,KAAK,CAAC;QAAE,MAAM,IAAI,SAAS,CAAC,oCAAoC,CAAC,CAAC;IAC/E,OAAO,MAAM,CAAC,IAAI,CAAC,CAAC,MAAM,CAAC,KAAK,CAAC,CAAC;AACpC,CAAC,CAAC;AAEF;;;;;;;;;;GAUG;AACH,MAAM,CAAC,MAAM,GAAG,GAAyD,aAAa,CAAC,CAAC,mCAAmC;AAE3H;;;;;;;;;;;GAWG;AACH,MAAM,CAAC,MAAM,aAAa,GAAG,CAAC,IAAe,EAAE,GAAW,EAAoB,EAAE;IAC9E,wGAAwG;IACxG,IAAI,OAAO,IAAI,KAAK,QAAQ,IAAI,CAAC,MAAM,CAAC,cAAc,CAAC,IAAI,CAAC;QAAE,MAAM,IAAI,SAAS,CAAC,cAAc,CAAC,CAAC;IAClG,IAAI,OAAO,GAAG,KAAK,QAAQ;QAAE,MAAM,IAAI,SAAS,CAAC,gCAAgC,CAAC,CAAC;IACnF,OAAO,MAAM,CAAC,IAAI,CAAC,CAAC,MAAM,CAAC,GAAG,CAAqB,CAAC;AACtD,CAAC,CAAC;AACF;;;;;;;;;;GAUG;AACH,MAAM,CAAC,MAAM,KAAK,GAAuD,aAAa,CAAC"}
+\ No newline at end of file
+diff --git a/README.md b/README.md
+index v2.0.0..v2.2.0 100644
+--- a/README.md
++++ b/README.md
+@@ -68,13 +68,34 @@
+ 
+ base58check is a special case: you need to pass `sha256()` function:
+ 
++> `npm install @noble/hashes`
++
+ ```js
+ import { createBase58check } from '@scure/base';
++import { sha256 } from '@noble/hashes/sha2.js';
++
++const data = Uint8Array.from([1, 2, 3]);
+ createBase58check(sha256).encode(data);
+ ```
+ 
++
+ ## Bech32, Bech32m and Bitcoin
+ 
++```js
++import { bech32 } from '@scure/base';
++
++const words = bech32.toWords(new TextEncoder().encode('hello'));
++const addr = bech32.encode('test', words);
++console.log(addr); // "test1w508d6qejxtdg4"
++
++const { prefix, words: decoded } = bech32.decode(addr);
++console.log(prefix); // "test"
++console.log(new TextDecoder().decode(bech32.fromWords(decoded))); // "hello"
++
++console.log(bech32.decodeUnsafe('invalid')); // undefined
++
++```
++
+ We provide low-level bech32 operations.
+ If you need high-level methods for BTC (addresses, and others), use
+ [scure-btc-signer](https://github.com/paulmillr/scure-btc-signer) instead.
+@@ -91,6 +112,9 @@
+ Do something like this:
+ 
+ ```ts
++import { bech32 } from '@scure/base';
++
++const address = bech32.encode('bc', [0, ...bech32.toWords(new Uint8Array(20))]);
+ const decoded = bech32.decode(address);
+ // NOTE: words in bitcoin addresses contain version as first element,
+ // with actual witness program words in rest
+@@ -175,11 +199,13 @@
+ 
+ ## Security
+ 
+-The library has been independently audited:
++The library has been audited:
+ 
+-- at version 1.0.0, in Jan 2022, by [cure53](https://cure53.de)
++- at version 2.2.0, in Apr 2026, by ourselves (self-audited)
++  - Scope: everything
++  - [Changes since audit](https://github.com/paulmillr/scure-base/compare/2.2.0..main)
++- at version 1.0.0, in Jan 2022, independently, by [cure53](https://cure53.de)
+   - PDFs: [online](https://cure53.de/pentest-report_hashing-libs.pdf), [offline](./audit/2022-01-05-cure53-audit-nbl2.pdf)
+-  - [Changes since audit](https://github.com/paulmillr/scure-base/compare/1.0.0..main).
+   - The audit has been funded by [Ethereum Foundation](https://ethereum.org/en/) with help of [Nomic Labs](https://nomiclabs.io)
+ 
+ The library was initially developed for [js-ethereum-cryptography](https://github.com/ethereum/js-ethereum-cryptography).
+@@ -189,20 +215,18 @@
+ 
+ ### Supply chain security
+ 
+-- **Commits** are signed with PGP keys, to prevent forgery. Make sure to verify commit signatures
+-- **Releases** are transparent and built on GitHub CI. Make sure to verify [provenance](https://docs.npmjs.com/generating-provenance-statements) logs
+-  - Use GitHub CLI to verify single-file builds:
+-    `gh attestation verify --owner paulmillr scure-base.js`
+-- **Rare releasing** is followed to ensure less re-audit need for end-users
+-- **Dependencies** are minimized and locked-down: any dependency could get hacked and users will be downloading malware with every install.
+-  - We make sure to use as few dependencies as possible
+-  - Automatic dep updates are prevented by locking-down version ranges; diffs are checked with `npm-diff`
+-- **Dev Dependencies** are disabled for end-users; they are only used to develop / build the source code
++- **Commits** are signed with PGP keys to prevent forgery. Be sure to verify the commit signatures
++- **Releases** are made transparently through token-less GitHub CI and Trusted Publishing. Be sure to verify the [provenance logs](https://docs.npmjs.com/generating-provenance-statements) for authenticity.
++- **Rare releasing** is practiced to minimize the need for re-audits by end-users.
++- **Dependencies** are minimized and strictly pinned to reduce supply-chain risk.
++  - We use as few dependencies as possible.
++  - Version ranges are locked, and changes are checked with npm-diff.
++- **Dev dependencies** are excluded from end-user installs; they’re only used for development and build steps.
+ 
+ For this package, there are 0 dependencies; and a few dev dependencies:
+ 
+-- micro-bmark, micro-should and jsbt are used for benchmarking / testing / build tooling and developed by the same author
+-- prettier, fast-check and typescript are used for code quality / test generation / ts compilation. It's hard to audit their source code thoroughly and fully because of their size
++- jsbt is used for benchmarking / testing / build tooling and developed by the same author
++- prettier, fast-check and typescript are used for code quality / test generation / ts compilation
+ 
+ ## Contributing & testing
+ 
+diff --git a/index.d.ts b/index.d.ts
+index v2.0.0..v2.2.0 100644
+--- a/index.d.ts
++++ b/index.d.ts
+@@ -1,12 +1,74 @@
+ /*! scure-base - MIT License (c) 2022 Paul Miller (paulmillr.com) */
++/** Transforms values between two representations. */
+ export interface Coder<F, T> {
++    /**
++     * Converts a value from the input representation to the output representation.
++     * @param from - Value in the source representation.
++     * @returns Converted value.
++     */
+     encode(from: F): T;
++    /**
++     * Converts a value from the output representation back to the input representation.
++     * @param to - Value in the target representation.
++     * @returns Converted value.
++     */
+     decode(to: T): F;
+ }
++/** Coder that works with byte arrays and strings. */
+ export interface BytesCoder extends Coder<Uint8Array, string> {
++    /**
++     * Encodes bytes into a string representation.
++     * @param data - Bytes to encode.
++     * @returns Encoded string.
++     */
+     encode: (data: Uint8Array) => string;
++    /**
++     * Decodes a string representation into raw bytes.
++     * @param str - Encoded string.
++     * @returns Decoded bytes.
++     */
+     decode: (str: string) => Uint8Array;
+ }
++/**
++ * Bytes API type helpers for old + new TypeScript.
++ *
++ * TS 5.6 has `Uint8Array`, while TS 5.9+ made it generic `Uint8Array<ArrayBuffer>`.
++ * We can't use specific return type, because TS 5.6 will error.
++ * We can't use generic return type, because most TS 5.9 software will expect specific type.
++ *
++ * Maps typed-array input leaves to broad forms.
++ * These are compatibility adapters, not ownership guarantees.
++ *
++ * - `TArg` keeps byte inputs broad.
++ * - `TRet` marks byte outputs for TS 5.6 and TS 5.9+ compatibility.
++ */
++export type TypedArg<T> = T extends BigInt64Array ? BigInt64Array : T extends BigUint64Array ? BigUint64Array : T extends Float32Array ? Float32Array : T extends Float64Array ? Float64Array : T extends Int16Array ? Int16Array : T extends Int32Array ? Int32Array : T extends Int8Array ? Int8Array : T extends Uint16Array ? Uint16Array : T extends Uint32Array ? Uint32Array : T extends Uint8ClampedArray ? Uint8ClampedArray : T extends Uint8Array ? Uint8Array : never;
++/** Maps typed-array output leaves to narrow TS-compatible forms. */
++export type TypedRet<T> = T extends BigInt64Array ? ReturnType<typeof BigInt64Array.of> : T extends BigUint64Array ? ReturnType<typeof BigUint64Array.of> : T extends Float32Array ? ReturnType<typeof Float32Array.of> : T extends Float64Array ? ReturnType<typeof Float64Array.of> : T extends Int16Array ? ReturnType<typeof Int16Array.of> : T extends Int32Array ? ReturnType<typeof Int32Array.of> : T extends Int8Array ? ReturnType<typeof Int8Array.of> : T extends Uint16Array ? ReturnType<typeof Uint16Array.of> : T extends Uint32Array ? ReturnType<typeof Uint32Array.of> : T extends Uint8ClampedArray ? ReturnType<typeof Uint8ClampedArray.of> : T extends Uint8Array ? ReturnType<typeof Uint8Array.of> : never;
++/** Recursively adapts byte-carrying API input types. See {@link TypedArg}. */
++export type TArg<T> = T | ([TypedArg<T>] extends [never] ? T extends (...args: infer A) => infer R ? ((...args: {
++    [K in keyof A]: TRet<A[K]>;
++}) => TArg<R>) & {
++    [K in keyof T]: T[K] extends (...args: any) => any ? T[K] : TArg<T[K]>;
++} : T extends [infer A, ...infer R] ? [TArg<A>, ...{
++    [K in keyof R]: TArg<R[K]>;
++}] : T extends readonly [infer A, ...infer R] ? readonly [TArg<A>, ...{
++    [K in keyof R]: TArg<R[K]>;
++}] : T extends (infer A)[] ? TArg<A>[] : T extends readonly (infer A)[] ? readonly TArg<A>[] : T extends Promise<infer A> ? Promise<TArg<A>> : T extends object ? {
++    [K in keyof T]: TArg<T[K]>;
++} : T : TypedArg<T>);
++/** Recursively adapts byte-carrying API output types. See {@link TypedArg}. */
++export type TRet<T> = T extends unknown ? T & ([TypedRet<T>] extends [never] ? T extends (...args: infer A) => infer R ? ((...args: {
++    [K in keyof A]: TArg<A[K]>;
++}) => TRet<R>) & {
++    [K in keyof T]: T[K] extends (...args: any) => any ? T[K] : TRet<T[K]>;
++} : T extends [infer A, ...infer R] ? [TRet<A>, ...{
++    [K in keyof R]: TRet<R[K]>;
++}] : T extends readonly [infer A, ...infer R] ? readonly [TRet<A>, ...{
++    [K in keyof R]: TRet<R[K]>;
++}] : T extends (infer A)[] ? TRet<A>[] : T extends readonly (infer A)[] ? readonly TRet<A>[] : T extends Promise<infer A> ? Promise<TRet<A>> : T extends object ? {
++    [K in keyof T]: TRet<T[K]>;
++} : T : TypedRet<T>) : never;
+ type Chain = [Coder<any, any>, ...Coder<any, any>[]];
+ type Input<F> = F extends Coder<infer T, any> ? T : never;
+ type Output<F> = F extends Coder<any, infer T> ? T : never;
+@@ -46,14 +108,24 @@
+ /**
+  * @__NO_SIDE_EFFECTS__
+  */
+-declare function radix(num: number): Coder<Uint8Array, number[]>;
++declare function radix(num: number): TRet<Coder<Uint8Array, number[]>>;
+ /**
+  * If both bases are power of same number (like `2**8 <-> 2**64`),
+  * there is a linear algorithm. For now we have implementation for power-of-two bases only.
+  * @__NO_SIDE_EFFECTS__
+  */
+-declare function radix2(bits: number, revPadding?: boolean): Coder<Uint8Array, number[]>;
+-declare function checksum(len: number, fn: (data: Uint8Array) => Uint8Array): Coder<Uint8Array, Uint8Array>;
++declare function radix2(bits: number, revPadding?: boolean): TRet<Coder<Uint8Array, number[]>>;
++type BytesFn = (data: TArg<Uint8Array>) => TRet<Uint8Array>;
++declare function checksum(len: number, fn: TArg<BytesFn>): TRet<Coder<Uint8Array, Uint8Array>>;
++/**
++ * Low-level building blocks used by the exported codecs.
++ * @example
++ * Build a radix-32 coder from the low-level helpers.
++ * ```ts
++ * import { utils } from '@scure/base';
++ * utils.radix2(5).encode(Uint8Array.from([1, 2, 3]));
++ * ```
++ */
+ export declare const utils: {
+     alphabet: typeof alphabet;
+     chain: typeof chain;
+@@ -67,6 +139,9 @@
+ };
+ /**
+  * base16 encoding from RFC 4648.
++ * This codec uses RFC 4648 Table 5's uppercase alphabet directly.
++ * RFC 4648 §8 calls base16 "case-insensitive hex encoding", but we intentionally do not case-fold decode input here.
++ * Use `hex` for case-insensitive hex decoding.
+  * @example
+  * ```js
+  * base16.encode(Uint8Array.from([0x12, 0xab]));
+@@ -76,6 +151,8 @@
+ export declare const base16: BytesCoder;
+ /**
+  * base32 encoding from RFC 4648. Has padding.
++ * RFC 4648 §6 Table 3 uses uppercase letters, and RFC 4648 §3.4 allows applications to choose
++ * upper- or lowercase alphabets. We keep the published uppercase table and do not case-fold decode input.
+  * Use `base32nopad` for unpadded version.
+  * Also check out `base32hex`, `base32hexnopad`, `base32crockford`.
+  * @example
+@@ -89,6 +166,7 @@
+ export declare const base32: BytesCoder;
+ /**
+  * base32 encoding from RFC 4648. No padding.
++ * This variant inherits RFC 4648 base32's uppercase table and intentionally does not case-fold decode input.
+  * Use `base32` for padded version.
+  * Also check out `base32hex`, `base32hexnopad`, `base32crockford`.
+  * @example
+@@ -102,6 +180,7 @@
+ export declare const base32nopad: BytesCoder;
+ /**
+  * base32 encoding from RFC 4648. Padded. Compared to ordinary `base32`, slightly different alphabet.
++ * RFC 4648 §7 Table 4 uses uppercase letters, and we intentionally keep that table without case-folding decode input.
+  * Use `base32hexnopad` for unpadded version.
+  * @example
+  * ```js
+@@ -114,6 +193,7 @@
+ export declare const base32hex: BytesCoder;
+ /**
+  * base32 encoding from RFC 4648. No padding. Compared to ordinary `base32`, slightly different alphabet.
++ * This variant inherits RFC 4648 base32hex's uppercase table and intentionally does not case-fold decode input.
+  * Use `base32hex` for padded version.
+  * @example
+  * ```js
+@@ -126,7 +206,7 @@
+ export declare const base32hexnopad: BytesCoder;
+ /**
+  * base32 encoding from RFC 4648. Doug Crockford's version.
+- * https://www.crockford.com/base32.html
++ * See {@link https://www.crockford.com/base32.html | Douglas Crockford's Base32}.
+  * @example
+  * ```js
+  * base32crockford.encode(Uint8Array.from([0x12, 0xab]));
+@@ -192,78 +272,209 @@
+  * Quadratic (O(n^2)) - so, can't be used on large inputs.
+  * @example
+  * ```js
+- * base58.decode('01abcdef');
+- * // => '3UhJW'
++ * const text = base58.encode(Uint8Array.from([0, 1, 2]));
++ * base58.decode(text);
++ * // => Uint8Array.from([0, 1, 2])
+  * ```
+  */
+ export declare const base58: BytesCoder;
+ /**
+  * base58: flickr version. Check out `base58`.
++ * @example
++ * Round-trip bytes with the Flickr alphabet.
++ * ```ts
++ * const text = base58flickr.encode(Uint8Array.from([0, 1, 2]));
++ * base58flickr.decode(text);
++ * ```
+  */
+ export declare const base58flickr: BytesCoder;
+ /**
+  * base58: XRP version. Check out `base58`.
++ * @example
++ * Round-trip bytes with the XRP alphabet.
++ * ```ts
++ * const text = base58xrp.encode(Uint8Array.from([0, 1, 2]));
++ * base58xrp.decode(text);
++ * ```
+  */
+ export declare const base58xrp: BytesCoder;
+ /**
+  * base58: XMR version. Check out `base58`.
+  * Done in 8-byte blocks (which equals 11 chars in decoding). Last (non-full) block padded with '1' to size in XMR_BLOCK_LEN.
+  * Block encoding significantly reduces quadratic complexity of base58.
++ * @example
++ * Round-trip bytes with the Monero block codec.
++ * ```ts
++ * const text = base58xmr.encode(Uint8Array.from([0, 1, 2]));
++ * base58xmr.decode(text);
++ * ```
+  */
+ export declare const base58xmr: BytesCoder;
+ /**
+  * Method, which creates base58check encoder.
+  * Requires function, calculating sha256.
++ * Callers must include any version bytes in `data`; this helper only applies the
++ * 4-byte double-SHA256 checksum used by Bitcoin Base58Check.
++ * @param sha256 - Function used to calculate the checksum hash.
++ * @returns base58check codec using 4 checksum bytes.
++ * @throws On wrong argument types. {@link TypeError}
++ * @example
++ * Create a base58check codec from a SHA-256 implementation.
++ * ```ts
++ * import { createBase58check } from '@scure/base';
++ * import { sha256 } from '@noble/hashes/sha2.js';
++ * const coder = createBase58check(sha256);
++ * coder.encode(Uint8Array.from([1, 2, 3]));
++ * ```
+  */
+-export declare const createBase58check: (sha256: (data: Uint8Array) => Uint8Array) => BytesCoder;
++export declare const createBase58check: (sha256: TArg<BytesFn>) => BytesCoder;
+ /**
+  * Use `createBase58check` instead.
+- * @deprecated
++ * @deprecated Use {@link createBase58check} instead.
++ * Callers must include any version bytes in `data`; this alias keeps the same
++ * 4-byte double-SHA256 checksum behavior as `createBase58check`.
++ * @param sha256 - Function used to calculate the checksum hash.
++ * @returns base58check codec using 4 checksum bytes.
++ * @example
++ * Create a base58check codec with the deprecated alias.
++ * ```ts
++ * import { base58check } from '@scure/base';
++ * import { sha256 } from '@noble/hashes/sha2.js';
++ * const coder = base58check(sha256);
++ * coder.encode(Uint8Array.from([1, 2, 3]));
++ * ```
+  */
+-export declare const base58check: (sha256: (data: Uint8Array) => Uint8Array) => BytesCoder;
++export declare const base58check: (sha256: TArg<BytesFn>) => BytesCoder;
++/** Result of bech32 decoding. */
+ export interface Bech32Decoded<Prefix extends string = string> {
++    /** Human-readable bech32 prefix. */
+     prefix: Prefix;
++    /** Decoded 5-bit word payload. */
+     words: number[];
+ }
++/** Result of bech32 decoding with original bytes attached. */
+ export interface Bech32DecodedWithArray<Prefix extends string = string> {
++    /** Human-readable bech32 prefix. */
+     prefix: Prefix;
++    /** Decoded 5-bit word payload. */
+     words: number[];
++    /** Decoded payload converted back into raw bytes. */
+     bytes: Uint8Array;
+ }
++/** bech32 codec surface. */
+ export interface Bech32 {
++    /**
++     * Encodes a human-readable prefix and 5-bit words into a bech32 string.
++     * @param prefix - Human-readable prefix.
++     * @param words - 5-bit words or raw bytes.
++     * @param limit - Maximum accepted output length, or `false` to disable the limit.
++     * @returns Encoded bech32 string.
++     */
+     encode<Prefix extends string>(prefix: Prefix, words: number[] | Uint8Array, limit?: number | false): `${Lowercase<Prefix>}1${string}`;
++    /**
++     * Decodes a bech32 string into prefix and words.
++     * @param str - Encoded bech32 string.
++     * @param limit - Maximum accepted input length, or `false` to disable the limit.
++     * @returns Decoded prefix and 5-bit words.
++     */
+     decode<Prefix extends string>(str: `${Prefix}1${string}`, limit?: number | false): Bech32Decoded<Prefix>;
++    decode(str: string, limit?: number | false): Bech32Decoded;
++    /**
++     * Encodes raw bytes by first converting them to 5-bit words.
++     * @param prefix - Human-readable prefix.
++     * @param bytes - Raw bytes to encode.
++     * @returns Encoded bech32 string.
++     */
+     encodeFromBytes(prefix: string, bytes: Uint8Array): string;
++    /**
++     * Decodes a bech32 string and converts the payload back into bytes.
++     * @param str - Encoded bech32 string.
++     * @returns Decoded prefix, words, and bytes.
++     */
+     decodeToBytes(str: string): Bech32DecodedWithArray;
++    /**
++     * Decodes a bech32 string, returning `undefined` instead of throwing on invalid input.
++     * @param str - Encoded bech32 string.
++     * @param limit - Maximum accepted input length, or `false` to disable the limit.
++     * @returns Decoded prefix and words, or `undefined` for invalid input.
++     */
+     decodeUnsafe(str: string, limit?: number | false): void | Bech32Decoded<string>;
++    /**
++     * Converts 5-bit words back into raw bytes.
++     * @param to - 5-bit words to decode.
++     * @returns Decoded bytes.
++     */
+     fromWords(to: number[]): Uint8Array;
++    /**
++     * Converts 5-bit words back into raw bytes, returning `undefined` instead of throwing.
++     * @param to - 5-bit words to decode.
++     * @returns Decoded bytes, or `undefined` for invalid input.
++     */
+     fromWordsUnsafe(to: number[]): void | Uint8Array;
++    /**
++     * Converts raw bytes into 5-bit words for bech32 encoding.
++     * @param from - Raw bytes to convert.
++     * @returns 5-bit words.
++     */
+     toWords(from: Uint8Array): number[];
+ }
+ /**
+  * bech32 from BIP 173. Operates on words.
+- * For high-level, check out scure-btc-signer:
+- * https://github.com/paulmillr/scure-btc-signer.
++ * For high-level helpers, check out {@link https://github.com/paulmillr/scure-btc-signer | scure-btc-signer}.
++ * @example
++ * Convert bytes to words, encode them, then decode back.
++ * ```ts
++ * const words = bech32.toWords(Uint8Array.from([1, 2, 3]));
++ * const text = bech32.encode('bc', words);
++ * bech32.decode(text);
++ * ```
+  */
+-export declare const bech32: Bech32;
++export declare const bech32: TRet<Bech32>;
+ /**
+  * bech32m from BIP 350. Operates on words.
+  * It was to mitigate `bech32` weaknesses.
+- * For high-level, check out scure-btc-signer:
+- * https://github.com/paulmillr/scure-btc-signer.
++ * For high-level helpers, check out {@link https://github.com/paulmillr/scure-btc-signer | scure-btc-signer}.
++ * @example
++ * Convert bytes to words, encode them with bech32m, then decode back.
++ * ```ts
++ * const words = bech32m.toWords(Uint8Array.from([1, 2, 3]));
++ * const text = bech32m.encode('bc', words);
++ * bech32m.decode(text);
++ * ```
+  */
+-export declare const bech32m: Bech32;
++export declare const bech32m: TRet<Bech32>;
+ /**
+- * UTF-8-to-byte decoder. Uses built-in TextDecoder / TextEncoder.
++ * ASCII-to-byte decoder. Rejects non-ASCII text and bytes instead of doing UTF-8 replacement.
++ * Method names follow `BytesCoder`, so `encode(bytes)` returns a string and `decode(string)` returns bytes.
+  * @example
+  * ```js
++ * const b = ascii.decode("ABC"); // => new Uint8Array([ 65, 66, 67 ])
++ * const str = ascii.encode(b); // "ABC"
++ * ```
++ */
++export declare const ascii: TRet<BytesCoder>;
++/**
++ * Strict UTF-8-to-byte decoder. Uses built-in TextDecoder / TextEncoder when available.
++ * Method names follow `BytesCoder`, so `encode(bytes)` returns a string and
++ * `decode(string)` returns bytes.
++ * `encode(bytes)` requires Uint8Array input, preserves an explicit leading BOM, and
++ *   throws on invalid UTF-8 bytes.
++ * `decode(string)` requires a primitive string and throws on malformed UTF-16 strings with
++ *   lone surrogates.
++ * @example
++ * ```js
+  * const b = utf8.decode("hey"); // => new Uint8Array([ 104, 101, 121 ])
+  * const str = utf8.encode(b); // "hey"
+  * ```
+  */
+ export declare const utf8: BytesCoder;
++export declare const __TESTS: {
++    utf8Fallback: BytesCoder;
++    _isWellFormedShim: (str: string) => boolean;
++};
+ /**
+  * hex string decoder. Uses built-in function, when available.
++ * Lowercase codec; unlike `base16`, this variant accepts either hex case and emits lowercase.
+  * @example
+  * ```js
+  * const b = hex.decode("0102ff"); // => new Uint8Array([ 1, 2, 255 ])
+@@ -271,24 +482,75 @@
+  * ```
+  */
+ export declare const hex: BytesCoder;
++/** Built-in codecs exposed through the deprecated string conversion helpers. */
+ export type SomeCoders = {
++    /** UTF-8 string codec. */
+     utf8: BytesCoder;
++    /** Hex codec. */
+     hex: BytesCoder;
++    /** Uppercase RFC 4648 base16 codec. */
+     base16: BytesCoder;
++    /** RFC 4648 base32 codec with padding. */
+     base32: BytesCoder;
++    /** RFC 4648 base64 codec with padding. */
+     base64: BytesCoder;
++    /** URL-safe base64 codec without `+` or `/`. */
+     base64url: BytesCoder;
++    /** Bitcoin-style base58 codec. */
+     base58: BytesCoder;
++    /** Monero-style base58 codec. */
+     base58xmr: BytesCoder;
+ };
+ type CoderType = keyof SomeCoders;
+-/** @deprecated */
+-export declare const bytesToString: (type: CoderType, bytes: Uint8Array) => string;
+-/** @deprecated */
+-export declare const str: (type: CoderType, bytes: Uint8Array) => string;
+-/** @deprecated */
+-export declare const stringToBytes: (type: CoderType, str: string) => Uint8Array;
+-/** @deprecated */
+-export declare const bytes: (type: CoderType, str: string) => Uint8Array;
++/**
++ * Encodes bytes with one of the built-in codecs.
++ * @deprecated Use the codec directly, for example `hex.encode(bytes)`.
++ * @param type - Codec name.
++ * @param bytes - Bytes to encode.
++ * @returns Encoded string.
++ * @throws On wrong argument types. {@link TypeError}
++ * @example
++ * ```ts
++ * bytesToString('hex', Uint8Array.from([1, 2, 255]));
++ * ```
++ */
++export declare const bytesToString: (type: CoderType, bytes: TArg<Uint8Array>) => string;
++/**
++ * Alias for `bytesToString`.
++ * @deprecated Use {@link bytesToString} or the codec directly instead.
++ * @param type - Codec name.
++ * @param bytes - Bytes to encode.
++ * @returns Encoded string.
++ * @example
++ * ```ts
++ * str('hex', Uint8Array.from([1, 2, 255]));
++ * ```
++ */
++export declare const str: (type: CoderType, bytes: TArg<Uint8Array>) => string;
++/**
++ * Decodes a string with one of the built-in codecs.
++ * @deprecated Use the codec directly, for example `hex.decode(text)`.
++ * @param type - Codec name.
++ * @param str - Encoded string.
++ * @returns Decoded bytes.
++ * @throws On wrong argument types. {@link TypeError}
++ * @example
++ * ```ts
++ * stringToBytes('hex', '0102ff');
++ * ```
++ */
++export declare const stringToBytes: (type: CoderType, str: string) => TRet<Uint8Array>;
++/**
++ * Alias for `stringToBytes`.
++ * @deprecated Use {@link stringToBytes} or the codec directly instead.
++ * @param type - Codec name.
++ * @param str - Encoded string.
++ * @returns Decoded bytes.
++ * @example
++ * ```ts
++ * bytes('hex', '0102ff');
++ * ```
++ */
++export declare const bytes: (type: CoderType, str: string) => TRet<Uint8Array>;
+ export {};
+ //# sourceMappingURL=index.d.ts.map
+\ No newline at end of file
+diff --git a/index.ts b/index.ts
+index v2.0.0..v2.2.0 100644
+--- a/index.ts
++++ b/index.ts
+@@ -1,21 +1,159 @@
+ /*! scure-base - MIT License (c) 2022 Paul Miller (paulmillr.com) */
+ 
++/** Transforms values between two representations. */
+ export interface Coder<F, T> {
++  /**
++   * Converts a value from the input representation to the output representation.
++   * @param from - Value in the source representation.
++   * @returns Converted value.
++   */
+   encode(from: F): T;
++  /**
++   * Converts a value from the output representation back to the input representation.
++   * @param to - Value in the target representation.
++   * @returns Converted value.
++   */
+   decode(to: T): F;
+ }
+ 
++/** Coder that works with byte arrays and strings. */
+ export interface BytesCoder extends Coder<Uint8Array, string> {
++  /**
++   * Encodes bytes into a string representation.
++   * @param data - Bytes to encode.
++   * @returns Encoded string.
++   */
+   encode: (data: Uint8Array) => string;
++  /**
++   * Decodes a string representation into raw bytes.
++   * @param str - Encoded string.
++   * @returns Decoded bytes.
++   */
+   decode: (str: string) => Uint8Array;
+ }
+ 
++/**
++ * Bytes API type helpers for old + new TypeScript.
++ *
++ * TS 5.6 has `Uint8Array`, while TS 5.9+ made it generic `Uint8Array<ArrayBuffer>`.
++ * We can't use specific return type, because TS 5.6 will error.
++ * We can't use generic return type, because most TS 5.9 software will expect specific type.
++ *
++ * Maps typed-array input leaves to broad forms.
++ * These are compatibility adapters, not ownership guarantees.
++ *
++ * - `TArg` keeps byte inputs broad.
++ * - `TRet` marks byte outputs for TS 5.6 and TS 5.9+ compatibility.
++ */
++export type TypedArg<T> = T extends BigInt64Array
++  ? BigInt64Array
++  : T extends BigUint64Array
++    ? BigUint64Array
++    : T extends Float32Array
++      ? Float32Array
++      : T extends Float64Array
++        ? Float64Array
++        : T extends Int16Array
++          ? Int16Array
++          : T extends Int32Array
++            ? Int32Array
++            : T extends Int8Array
++              ? Int8Array
++              : T extends Uint16Array
++                ? Uint16Array
++                : T extends Uint32Array
++                  ? Uint32Array
++                  : T extends Uint8ClampedArray
++                    ? Uint8ClampedArray
++                    : T extends Uint8Array
++                      ? Uint8Array
++                      : never;
++/** Maps typed-array output leaves to narrow TS-compatible forms. */
++export type TypedRet<T> = T extends BigInt64Array
++  ? ReturnType<typeof BigInt64Array.of>
++  : T extends BigUint64Array
++    ? ReturnType<typeof BigUint64Array.of>
++    : T extends Float32Array
++      ? ReturnType<typeof Float32Array.of>
++      : T extends Float64Array
++        ? ReturnType<typeof Float64Array.of>
++        : T extends Int16Array
++          ? ReturnType<typeof Int16Array.of>
++          : T extends Int32Array
++            ? ReturnType<typeof Int32Array.of>
++            : T extends Int8Array
++              ? ReturnType<typeof Int8Array.of>
++              : T extends Uint16Array
++                ? ReturnType<typeof Uint16Array.of>
++                : T extends Uint32Array
++                  ? ReturnType<typeof Uint32Array.of>
++                  : T extends Uint8ClampedArray
++                    ? ReturnType<typeof Uint8ClampedArray.of>
++                    : T extends Uint8Array
++                      ? ReturnType<typeof Uint8Array.of>
++                      : never;
++/** Recursively adapts byte-carrying API input types. See {@link TypedArg}. */
++export type TArg<T> =
++  | T
++  | ([TypedArg<T>] extends [never]
++      ? T extends (...args: infer A) => infer R
++        ? ((...args: { [K in keyof A]: TRet<A[K]> }) => TArg<R>) & {
++            [K in keyof T]: T[K] extends (...args: any) => any ? T[K] : TArg<T[K]>;
++          }
++        : T extends [infer A, ...infer R]
++          ? [TArg<A>, ...{ [K in keyof R]: TArg<R[K]> }]
++          : T extends readonly [infer A, ...infer R]
++            ? readonly [TArg<A>, ...{ [K in keyof R]: TArg<R[K]> }]
++            : T extends (infer A)[]
++              ? TArg<A>[]
++              : T extends readonly (infer A)[]
++                ? readonly TArg<A>[]
++                : T extends Promise<infer A>
++                  ? Promise<TArg<A>>
++                  : T extends object
++                    ? { [K in keyof T]: TArg<T[K]> }
++                    : T
++      : TypedArg<T>);
++/** Recursively adapts byte-carrying API output types. See {@link TypedArg}. */
++export type TRet<T> = T extends unknown
++  ? T &
++      ([TypedRet<T>] extends [never]
++        ? T extends (...args: infer A) => infer R
++          ? ((...args: { [K in keyof A]: TArg<A[K]> }) => TRet<R>) & {
++              [K in keyof T]: T[K] extends (...args: any) => any ? T[K] : TRet<T[K]>;
++            }
++          : T extends [infer A, ...infer R]
++            ? [TRet<A>, ...{ [K in keyof R]: TRet<R[K]> }]
++            : T extends readonly [infer A, ...infer R]
++              ? readonly [TRet<A>, ...{ [K in keyof R]: TRet<R[K]> }]
++              : T extends (infer A)[]
++                ? TRet<A>[]
++                : T extends readonly (infer A)[]
++                  ? readonly TRet<A>[]
++                  : T extends Promise<infer A>
++                    ? Promise<TRet<A>>
++                    : T extends object
++                      ? { [K in keyof T]: TRet<T[K]> }
++                      : T
++        : TypedRet<T>)
++  : never;
++
+ function isBytes(a: unknown): a is Uint8Array {
+-  return a instanceof Uint8Array || (ArrayBuffer.isView(a) && a.constructor.name === 'Uint8Array');
++  // Plain `instanceof Uint8Array` is too strict for some Buffer / proxy / cross-realm cases. The
++  // fallback still requires a real ArrayBuffer view, so plain JSON-deserialized
++  // `{ constructor: ... }` spoofing is rejected. `BYTES_PER_ELEMENT === 1` keeps the
++  // fallback on byte-oriented views.
++  return (
++    a instanceof Uint8Array ||
++    (ArrayBuffer.isView(a) &&
++      a.constructor.name === 'Uint8Array' &&
++      'BYTES_PER_ELEMENT' in a &&
++      a.BYTES_PER_ELEMENT === 1)
++  );
+ }
+ /** Asserts something is Uint8Array. */
+-function abytes(b: Uint8Array | undefined): void {
+-  if (!isBytes(b)) throw new Error('Uint8Array expected');
++function abytes(b: TArg<Uint8Array | undefined>): void {
++  if (!isBytes(b)) throw new TypeError('Uint8Array expected');
+ }
+ 
+ function isArrayOf(isString: boolean, arr: any[]) {
+@@ -29,27 +167,28 @@
+ }
+ 
+ function afn(input: Function): input is Function {
+-  if (typeof input !== 'function') throw new Error('function expected');
++  if (typeof input !== 'function') throw new TypeError('function expected');
+   return true;
+ }
+ 
+ function astr(label: string, input: unknown): input is string {
+-  if (typeof input !== 'string') throw new Error(`${label}: string expected`);
++  if (typeof input !== 'string') throw new TypeError(`${label}: string expected`);
+   return true;
+ }
+ 
+ function anumber(n: number): void {
+-  if (!Number.isSafeInteger(n)) throw new Error(`invalid integer: ${n}`);
++  if (typeof n !== 'number') throw new TypeError(`number expected, got ${typeof n}`);
++  if (!Number.isSafeInteger(n)) throw new RangeError(`invalid integer: ${n}`);
+ }
+ 
+ function aArr(input: any[]) {
+-  if (!Array.isArray(input)) throw new Error('array expected');
++  if (!Array.isArray(input)) throw new TypeError('array expected');
+ }
+ function astrArr(label: string, input: string[]) {
+-  if (!isArrayOf(true, input)) throw new Error(`${label}: array of strings expected`);
++  if (!isArrayOf(true, input)) throw new TypeError(`${label}: array of strings expected`);
+ }
+ function anumArr(label: string, input: number[]) {
+-  if (!isArrayOf(false, input)) throw new Error(`${label}: array of numbers expected`);
++  if (!isArrayOf(false, input)) throw new TypeError(`${label}: array of numbers expected`);
+ }
+ 
+ // TODO: some recusive type inference so it would check correct order of input/output inside rest?
+@@ -123,6 +262,8 @@
+  */
+ function join(separator = ''): Coder<string[], string> {
+   astr('join', separator);
++  // join('') is only lossless when each chunk is already unambiguous, such as single-symbol alphabets.
++  // Multi-character tokens need a separator that cannot appear inside the chunks.
+   return {
+     encode: (from) => {
+       astrArr('join.decode', from);
+@@ -145,6 +286,8 @@
+   return {
+     encode(data: string[]): string[] {
+       astrArr('padding.encode', data);
++      // Mutates the intermediate token array in place while appending pad chars.
++      // utils.padding callers that need to preserve their input should pass a copy.
+       while ((data.length * bits) % 8) data.push(chr);
+       return data;
+     },
+@@ -176,8 +319,9 @@
+  */
+ function convertRadix(data: number[], from: number, to: number): number[] {
+   // base 1 is impossible
+-  if (from < 2) throw new Error(`convertRadix: invalid from=${from}, base cannot be less than 2`);
+-  if (to < 2) throw new Error(`convertRadix: invalid to=${to}, base cannot be less than 2`);
++  if (from < 2)
++    throw new RangeError(`convertRadix: invalid from=${from}, base cannot be less than 2`);
++  if (to < 2) throw new RangeError(`convertRadix: invalid to=${to}, base cannot be less than 2`);
+   aArr(data);
+   if (!data.length) return [];
+   let pos = 0;
+@@ -215,11 +359,14 @@
+     res.push(carry);
+     if (done) break;
+   }
++  // Preserve explicit leading zero digits so callers like base58 keep zero-prefix semantics.
+   for (let i = 0; i < data.length - 1 && data[i] === 0; i++) res.push(0);
+   return res.reverse();
+ }
+ 
+ const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
++// Maximum carry width before the `pos` cycle repeats.
++// Residues advance in gcd(from, to) steps, so the largest pre-drain width is from + (to - gcd).
+ const radix2carry = /* @__NO_SIDE_EFFECTS__ */ (from: number, to: number) =>
+   from + (to - gcd(from, to));
+ const powers: number[] = /* @__PURE__ */ (() => {
+@@ -232,8 +379,8 @@
+  */
+ function convertRadix2(data: number[], from: number, to: number, padding: boolean): number[] {
+   aArr(data);
+-  if (from <= 0 || from > 32) throw new Error(`convertRadix2: wrong from=${from}`);
+-  if (to <= 0 || to > 32) throw new Error(`convertRadix2: wrong to=${to}`);
++  if (from <= 0 || from > 32) throw new RangeError(`convertRadix2: wrong from=${from}`);
++  if (to <= 0 || to > 32) throw new RangeError(`convertRadix2: wrong to=${to}`);
+   if (radix2carry(from, to) > 32) {
+     throw new Error(
+       `convertRadix2: carry overflow from=${from} to=${to} carryBits=${radix2carry(from, to)}`
+@@ -256,6 +403,8 @@
+     carry &= pow - 1; // clean carry, otherwise it will cause overflow
+   }
+   carry = (carry << (to - pos)) & mask;
++  // Canonical decode paths reject leftover whole input words and non-zero pad bits.
++  // For Bech32 5->8 regrouping, this is the "4 bits or less, all zeroes" tail rule.
+   if (!padding && pos >= from) throw new Error('Excess padding');
+   if (!padding && carry > 0) throw new Error(`Non-zero padding: ${carry}`);
+   if (padding && pos > 0) res.push(carry >>> 0);
+@@ -265,12 +414,13 @@
+ /**
+  * @__NO_SIDE_EFFECTS__
+  */
+-function radix(num: number): Coder<Uint8Array, number[]> {
++function radix(num: number): TRet<Coder<Uint8Array, number[]>> {
+   anumber(num);
+   const _256 = 2 ** 8;
++  // Base-range and carry-overflow checks live in convertRadix so encode/decode reject unsupported bases symmetrically.
+   return {
+-    encode: (bytes: Uint8Array) => {
+-      if (!isBytes(bytes)) throw new Error('radix.encode input should be Uint8Array');
++    encode: (bytes: TArg<Uint8Array>) => {
++      if (!isBytes(bytes)) throw new TypeError('radix.encode input should be Uint8Array');
+       return convertRadix(Array.from(bytes), _256, num);
+     },
+     decode: (digits: number[]) => {
+@@ -285,14 +435,16 @@
+  * there is a linear algorithm. For now we have implementation for power-of-two bases only.
+  * @__NO_SIDE_EFFECTS__
+  */
+-function radix2(bits: number, revPadding = false): Coder<Uint8Array, number[]> {
++function radix2(bits: number, revPadding = false): TRet<Coder<Uint8Array, number[]>> {
+   anumber(bits);
+-  if (bits <= 0 || bits > 32) throw new Error('radix2: bits should be in (0..32]');
++  if (bits <= 0 || bits > 32) throw new RangeError('radix2: bits should be in (0..32]');
+   if (radix2carry(8, bits) > 32 || radix2carry(bits, 8) > 32)
+-    throw new Error('radix2: carry overflow');
++    throw new RangeError('radix2: carry overflow');
++  // revPadding flips which direction allows a partial zero tail.
++  // Default pads 8->bits and rejects extra bits on bits->8; `true` does the opposite.
+   return {
+-    encode: (bytes: Uint8Array) => {
+-      if (!isBytes(bytes)) throw new Error('radix2.encode input should be Uint8Array');
++    encode: (bytes: TArg<Uint8Array>) => {
++      if (!isBytes(bytes)) throw new TypeError('radix2.encode input should be Uint8Array');
+       return convertRadix2(Array.from(bytes), 8, bits, !revPadding);
+     },
+     decode: (digits: number[]) => {
+@@ -303,35 +455,41 @@
+ }
+ 
+ type ArgumentTypes<F extends Function> = F extends (...args: infer A) => any ? A : never;
++type BytesFn = (data: TArg<Uint8Array>) => TRet<Uint8Array>;
+ function unsafeWrapper<T extends (...args: any) => any>(fn: T) {
+   afn(fn);
+   return function (...args: ArgumentTypes<T>): ReturnType<T> | void {
++    // Only for *Unsafe APIs that intentionally collapse validation failures to `undefined`.
++    // Do not wrap code that needs to preserve exception details.
+     try {
+       return fn.apply(null, args);
+     } catch (e) {}
+   };
+ }
+ 
+-function checksum(
+-  len: number,
+-  fn: (data: Uint8Array) => Uint8Array
+-): Coder<Uint8Array, Uint8Array> {
++function checksum(len: number, fn: TArg<BytesFn>): TRet<Coder<Uint8Array, Uint8Array>> {
+   anumber(len);
++  // Reject degenerate zero-byte checksums up front so callers don't accidentally
++  // build a no-op checksum stage.
++  if (len <= 0) throw new RangeError(`checksum length must be positive: ${len}`);
+   afn(fn);
++  const _fn = fn as BytesFn;
++  // Uses the first `len` bytes of fn(data) in both directions.
++  // Current call sites rely on `len > 0` and checksum functions that return at least that many bytes.
+   return {
+-    encode(data: Uint8Array) {
+-      if (!isBytes(data)) throw new Error('checksum.encode: input should be Uint8Array');
+-      const sum = fn(data).slice(0, len);
++    encode(data: TArg<Uint8Array>) {
++      if (!isBytes(data)) throw new TypeError('checksum.encode: input should be Uint8Array');
++      const sum = _fn(data).slice(0, len);
+       const res = new Uint8Array(data.length + len);
+       res.set(data);
+       res.set(sum, data.length);
+       return res;
+     },
+-    decode(data: Uint8Array) {
+-      if (!isBytes(data)) throw new Error('checksum.decode: input should be Uint8Array');
++    decode(data: TArg<Uint8Array>) {
++      if (!isBytes(data)) throw new TypeError('checksum.decode: input should be Uint8Array');
+       const payload = data.slice(0, -len);
+       const oldChecksum = data.slice(-len);
+-      const newChecksum = fn(payload).slice(0, len);
++      const newChecksum = _fn(payload).slice(0, len);
+       for (let i = 0; i < len; i++)
+         if (newChecksum[i] !== oldChecksum[i]) throw new Error('Invalid checksum');
+       return payload;
+@@ -340,25 +498,41 @@
+ }
+ 
+ // prettier-ignore
+-export const utils: { alphabet: typeof alphabet; chain: typeof chain; checksum: typeof checksum; convertRadix: typeof convertRadix; convertRadix2: typeof convertRadix2; radix: typeof radix; radix2: typeof radix2; join: typeof join; padding: typeof padding; } = {
++/**
++ * Low-level building blocks used by the exported codecs.
++ * @example
++ * Build a radix-32 coder from the low-level helpers.
++ * ```ts
++ * import { utils } from '@scure/base';
++ * utils.radix2(5).encode(Uint8Array.from([1, 2, 3]));
++ * ```
++ */
++export const utils: { alphabet: typeof alphabet; chain: typeof chain; checksum: typeof checksum; convertRadix: typeof convertRadix; convertRadix2: typeof convertRadix2; radix: typeof radix; radix2: typeof radix2; join: typeof join; padding: typeof padding; } = /* @__PURE__ */ Object.freeze({
+   alphabet, chain, checksum, convertRadix, convertRadix2, radix, radix2, join, padding,
+-};
++});
+ 
+ // RFC 4648 aka RFC 3548
+ // ---------------------
+ 
+ /**
+  * base16 encoding from RFC 4648.
++ * This codec uses RFC 4648 Table 5's uppercase alphabet directly.
++ * RFC 4648 §8 calls base16 "case-insensitive hex encoding", but we intentionally do not case-fold decode input here.
++ * Use `hex` for case-insensitive hex decoding.
+  * @example
+  * ```js
+  * base16.encode(Uint8Array.from([0x12, 0xab]));
+  * // => '12AB'
+  * ```
+  */
+-export const base16: BytesCoder = chain(radix2(4), alphabet('0123456789ABCDEF'), join(''));
++export const base16: BytesCoder = /* @__PURE__ */ Object.freeze(
++  chain(radix2(4), alphabet('0123456789ABCDEF'), join(''))
++);
+ 
+ /**
+  * base32 encoding from RFC 4648. Has padding.
++ * RFC 4648 §6 Table 3 uses uppercase letters, and RFC 4648 §3.4 allows applications to choose
++ * upper- or lowercase alphabets. We keep the published uppercase table and do not case-fold decode input.
+  * Use `base32nopad` for unpadded version.
+  * Also check out `base32hex`, `base32hexnopad`, `base32crockford`.
+  * @example
+@@ -369,15 +543,13 @@
+  * // => Uint8Array.from([0x12, 0xab])
+  * ```
+  */
+-export const base32: BytesCoder = chain(
+-  radix2(5),
+-  alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'),
+-  padding(5),
+-  join('')
++export const base32: BytesCoder = /* @__PURE__ */ Object.freeze(
++  chain(radix2(5), alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'), padding(5), join(''))
+ );
+ 
+ /**
+  * base32 encoding from RFC 4648. No padding.
++ * This variant inherits RFC 4648 base32's uppercase table and intentionally does not case-fold decode input.
+  * Use `base32` for padded version.
+  * Also check out `base32hex`, `base32hexnopad`, `base32crockford`.
+  * @example
+@@ -388,13 +560,12 @@
+  * // => Uint8Array.from([0x12, 0xab])
+  * ```
+  */
+-export const base32nopad: BytesCoder = chain(
+-  radix2(5),
+-  alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'),
+-  join('')
++export const base32nopad: BytesCoder = /* @__PURE__ */ Object.freeze(
++  chain(radix2(5), alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'), join(''))
+ );
+ /**
+  * base32 encoding from RFC 4648. Padded. Compared to ordinary `base32`, slightly different alphabet.
++ * RFC 4648 §7 Table 4 uses uppercase letters, and we intentionally keep that table without case-folding decode input.
+  * Use `base32hexnopad` for unpadded version.
+  * @example
+  * ```js
+@@ -404,15 +575,13 @@
+  * // => Uint8Array.from([0x12, 0xab])
+  * ```
+  */
+-export const base32hex: BytesCoder = chain(
+-  radix2(5),
+-  alphabet('0123456789ABCDEFGHIJKLMNOPQRSTUV'),
+-  padding(5),
+-  join('')
++export const base32hex: BytesCoder = /* @__PURE__ */ Object.freeze(
++  chain(radix2(5), alphabet('0123456789ABCDEFGHIJKLMNOPQRSTUV'), padding(5), join(''))
+ );
+ 
+ /**
+  * base32 encoding from RFC 4648. No padding. Compared to ordinary `base32`, slightly different alphabet.
++ * This variant inherits RFC 4648 base32hex's uppercase table and intentionally does not case-fold decode input.
+  * Use `base32hex` for padded version.
+  * @example
+  * ```js
+@@ -422,14 +591,12 @@
+  * // => Uint8Array.from([0x12, 0xab])
+  * ```
+  */
+-export const base32hexnopad: BytesCoder = chain(
+-  radix2(5),
+-  alphabet('0123456789ABCDEFGHIJKLMNOPQRSTUV'),
+-  join('')
++export const base32hexnopad: BytesCoder = /* @__PURE__ */ Object.freeze(
++  chain(radix2(5), alphabet('0123456789ABCDEFGHIJKLMNOPQRSTUV'), join(''))
+ );
+ /**
+  * base32 encoding from RFC 4648. Doug Crockford's version.
+- * https://www.crockford.com/base32.html
++ * See {@link https://www.crockford.com/base32.html | Douglas Crockford's Base32}.
+  * @example
+  * ```js
+  * base32crockford.encode(Uint8Array.from([0x12, 0xab]));
+@@ -438,24 +605,34 @@
+  * // => Uint8Array.from([0x12, 0xab])
+  * ```
+  */
+-export const base32crockford: BytesCoder = chain(
+-  radix2(5),
+-  alphabet('0123456789ABCDEFGHJKMNPQRSTVWXYZ'),
+-  join(''),
+-  normalize((s: string) => s.toUpperCase().replace(/O/g, '0').replace(/[IL]/g, '1'))
++export const base32crockford: BytesCoder = /* @__PURE__ */ Object.freeze(
++  chain(
++    radix2(5),
++    alphabet('0123456789ABCDEFGHJKMNPQRSTVWXYZ'),
++    join(''),
++    normalize((s: string) => s.toUpperCase().replace(/O/g, '0').replace(/[IL]/g, '1'))
++  )
+ );
+ 
+ // Built-in base64 conversion https://caniuse.com/mdn-javascript_builtins_uint8array_frombase64
++// Require both directions before taking the native fast path, so base64/base64url don't mix native and JS behavior.
+ // prettier-ignore
+ const hasBase64Builtin: boolean = /* @__PURE__ */ (() =>
+   typeof (Uint8Array as any).from([]).toBase64 === 'function' &&
+   typeof (Uint8Array as any).fromBase64 === 'function')();
+ 
++// Native `Uint8Array.fromBase64()` accepts these ASCII whitespace chars.
++// Reject them first so the native base64 path still follows RFC 4648 §3.3.
++// ASCII whitespace is U+0009 TAB, U+000A LF, U+000C FF, U+000D CR, or U+0020 SPACE
++const ASCII_WHITESPACE = /[\t\n\f\r ]/;
++
+ const decodeBase64Builtin = (s: string, isUrl: boolean) => {
+   astr('base64', s);
+-  const re = isUrl ? /^[A-Za-z0-9=_-]+$/ : /^[A-Za-z0-9=+/]+$/;
+   const alphabet = isUrl ? 'base64url' : 'base64';
+-  if (s.length > 0 && !re.test(s)) throw new Error('invalid base64');
++  // Per spec, .fromBase64 already throws on any other non-alphabet symbols except ASCII whitespace
++  // And checking just for whitespace makes decoding about 3x faster than a full range check.
++  // lastChunkHandling: 'strict' rejects loose tails and non-zero pad bits so native decoding stays canonical.
++  if (s.length > 0 && ASCII_WHITESPACE.test(s)) throw new Error('invalid base64');
+   return (Uint8Array as any).fromBase64(s, { alphabet, lastChunkHandling: 'strict' });
+ };
+ 
+@@ -473,7 +650,7 @@
+  * ```
+  */
+ // prettier-ignore
+-export const base64: BytesCoder = hasBase64Builtin ? {
++export const base64: BytesCoder = /* @__PURE__ */ Object.freeze(hasBase64Builtin ? {
+   encode(b) { abytes(b); return (b as any).toBase64(); },
+   decode(s) { return decodeBase64Builtin(s, false); },
+ } : chain(
+@@ -481,7 +658,7 @@
+   alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'),
+   padding(6),
+   join('')
+-);
++));
+ /**
+  * base64 from RFC 4648. No padding.
+  * Use `base64` for padded version.
+@@ -493,10 +670,12 @@
+  * // => Uint8Array.from([0x12, 0xab])
+  * ```
+  */
+-export const base64nopad: BytesCoder = chain(
+-  radix2(6),
+-  alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'),
+-  join('')
++export const base64nopad: BytesCoder = /* @__PURE__ */ Object.freeze(
++  chain(
++    radix2(6),
++    alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'),
++    join('')
++  )
+ );
+ 
+ /**
+@@ -512,7 +691,7 @@
+  * ```
+  */
+ // prettier-ignore
+-export const base64url: BytesCoder = hasBase64Builtin ? {
++export const base64url: BytesCoder = /* @__PURE__ */ Object.freeze(hasBase64Builtin ? {
+   encode(b) { abytes(b); return (b as any).toBase64({ alphabet: 'base64url' }); },
+   decode(s) { return decodeBase64Builtin(s, true); },
+ } : chain(
+@@ -520,7 +699,7 @@
+   alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'),
+   padding(6),
+   join('')
+-);
++));
+ 
+ /**
+  * base64 from RFC 4648, using URL-safe alphabet. No padding.
+@@ -533,10 +712,12 @@
+  * // => Uint8Array.from([0x12, 0xab])
+  * ```
+  */
+-export const base64urlnopad: BytesCoder = chain(
+-  radix2(6),
+-  alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'),
+-  join('')
++export const base64urlnopad: BytesCoder = /* @__PURE__ */ Object.freeze(
++  chain(
++    radix2(6),
++    alphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'),
++    join('')
++  )
+ );
+ 
+ // base58 code
+@@ -549,36 +730,57 @@
+  * Quadratic (O(n^2)) - so, can't be used on large inputs.
+  * @example
+  * ```js
+- * base58.decode('01abcdef');
+- * // => '3UhJW'
++ * const text = base58.encode(Uint8Array.from([0, 1, 2]));
++ * base58.decode(text);
++ * // => Uint8Array.from([0, 1, 2])
+  * ```
+  */
+-export const base58: BytesCoder = genBase58(
+-  '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
++export const base58: BytesCoder = /* @__PURE__ */ Object.freeze(
++  genBase58('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz')
+ );
+ /**
+  * base58: flickr version. Check out `base58`.
++ * @example
++ * Round-trip bytes with the Flickr alphabet.
++ * ```ts
++ * const text = base58flickr.encode(Uint8Array.from([0, 1, 2]));
++ * base58flickr.decode(text);
++ * ```
+  */
+-export const base58flickr: BytesCoder = genBase58(
+-  '123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ'
++export const base58flickr: BytesCoder = /* @__PURE__ */ Object.freeze(
++  genBase58('123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ')
+ );
+ /**
+  * base58: XRP version. Check out `base58`.
++ * @example
++ * Round-trip bytes with the XRP alphabet.
++ * ```ts
++ * const text = base58xrp.encode(Uint8Array.from([0, 1, 2]));
++ * base58xrp.decode(text);
++ * ```
+  */
+-export const base58xrp: BytesCoder = genBase58(
+-  'rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz'
++export const base58xrp: BytesCoder = /* @__PURE__ */ Object.freeze(
++  genBase58('rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz')
+ );
+ 
+-// Data len (index) -> encoded block len
++// Data len (index) -> encoded block len.
++// Monero pads each 1..8-byte block to this fixed base58 width so decode can recover the tail length.
+ const XMR_BLOCK_LEN = [0, 2, 3, 5, 6, 7, 9, 10, 11];
+ 
+ /**
+  * base58: XMR version. Check out `base58`.
+  * Done in 8-byte blocks (which equals 11 chars in decoding). Last (non-full) block padded with '1' to size in XMR_BLOCK_LEN.
+  * Block encoding significantly reduces quadratic complexity of base58.
++ * @example
++ * Round-trip bytes with the Monero block codec.
++ * ```ts
++ * const text = base58xmr.encode(Uint8Array.from([0, 1, 2]));
++ * base58xmr.decode(text);
++ * ```
+  */
+-export const base58xmr: BytesCoder = {
+-  encode(data: Uint8Array) {
++export const base58xmr: BytesCoder = /* @__PURE__ */ Object.freeze({
++  encode(data: TArg<Uint8Array>) {
++    abytes(data);
+     let res = '';
+     for (let i = 0; i < data.length; i += 8) {
+       const block = data.subarray(i, i + 8);
+@@ -587,6 +789,7 @@
+     return res;
+   },
+   decode(str: string) {
++    astr('base58xmr.decode', str);
+     let res: number[] = [];
+     for (let i = 0; i < str.length; i += 11) {
+       const slice = str.slice(i, i + 11);
+@@ -599,43 +802,81 @@
+     }
+     return Uint8Array.from(res);
+   },
+-};
++});
+ 
+ /**
+  * Method, which creates base58check encoder.
+  * Requires function, calculating sha256.
++ * Callers must include any version bytes in `data`; this helper only applies the
++ * 4-byte double-SHA256 checksum used by Bitcoin Base58Check.
++ * @param sha256 - Function used to calculate the checksum hash.
++ * @returns base58check codec using 4 checksum bytes.
++ * @throws On wrong argument types. {@link TypeError}
++ * @example
++ * Create a base58check codec from a SHA-256 implementation.
++ * ```ts
++ * import { createBase58check } from '@scure/base';
++ * import { sha256 } from '@noble/hashes/sha2.js';
++ * const coder = createBase58check(sha256);
++ * coder.encode(Uint8Array.from([1, 2, 3]));
++ * ```
+  */
+-export const createBase58check = (sha256: (data: Uint8Array) => Uint8Array): BytesCoder =>
+-  chain(
+-    checksum(4, (data) => sha256(sha256(data))),
++export const createBase58check = (sha256: TArg<BytesFn>): BytesCoder => {
++  // Validate the hash function at construction time so wrong inputs fail before returning a coder.
++  afn(sha256);
++  const _sha256 = sha256 as BytesFn;
++  return chain(
++    checksum(4, (data: TArg<Uint8Array>) => _sha256(_sha256(data))),
+     base58
+   );
++};
+ 
+ /**
+  * Use `createBase58check` instead.
+- * @deprecated
++ * @deprecated Use {@link createBase58check} instead.
++ * Callers must include any version bytes in `data`; this alias keeps the same
++ * 4-byte double-SHA256 checksum behavior as `createBase58check`.
++ * @param sha256 - Function used to calculate the checksum hash.
++ * @returns base58check codec using 4 checksum bytes.
++ * @example
++ * Create a base58check codec with the deprecated alias.
++ * ```ts
++ * import { base58check } from '@scure/base';
++ * import { sha256 } from '@noble/hashes/sha2.js';
++ * const coder = base58check(sha256);
++ * coder.encode(Uint8Array.from([1, 2, 3]));
++ * ```
+  */
+-export const base58check: (sha256: (data: Uint8Array) => Uint8Array) => BytesCoder =
+-  createBase58check;
++export const base58check: (sha256: TArg<BytesFn>) => BytesCoder = createBase58check;
+ 
+ // Bech32 code
+ // -----------
++/** Result of bech32 decoding. */
+ export interface Bech32Decoded<Prefix extends string = string> {
++  /** Human-readable bech32 prefix. */
+   prefix: Prefix;
++  /** Decoded 5-bit word payload. */
+   words: number[];
+ }
++/** Result of bech32 decoding with original bytes attached. */
+ export interface Bech32DecodedWithArray<Prefix extends string = string> {
++  /** Human-readable bech32 prefix. */
+   prefix: Prefix;
++  /** Decoded 5-bit word payload. */
+   words: number[];
++  /** Decoded payload converted back into raw bytes. */
+   bytes: Uint8Array;
+ }
+ 
++// BIP 173 character table: data values 0..31 map to `qpzry9x8gf2tvdw0s3jn54khce6mua7l`.
+ const BECH_ALPHABET: Coder<number[], string> = chain(
+   alphabet('qpzry9x8gf2tvdw0s3jn54khce6mua7l'),
+   join('')
+ );
+ 
++// BIP 173 `bech32_polymod` GEN coefficients.
+ const POLYMOD_GENERATORS = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
++// BIP 173 step split: this applies the polymod state transition before callers xor in the next 5-bit value.
+ function bech32Polymod(pre: number): number {
+   const b = pre >> 25;
+   let chk = (pre & 0x1ffffff) << 5;
+@@ -657,31 +898,80 @@
+   for (let i = 0; i < len; i++) chk = bech32Polymod(chk) ^ (prefix.charCodeAt(i) & 0x1f);
+   for (let v of words) chk = bech32Polymod(chk) ^ v;
+   for (let i = 0; i < 6; i++) chk = bech32Polymod(chk);
++  // BIP 173/BIP 350: xor the final checksum constant, then emit the 30-bit state as six 5-bit symbols.
+   chk ^= encodingConst;
+   return BECH_ALPHABET.encode(convertRadix2([chk % powers[30]!], 30, 5, false));
+ }
+ 
++/** bech32 codec surface. */
+ export interface Bech32 {
++  /**
++   * Encodes a human-readable prefix and 5-bit words into a bech32 string.
++   * @param prefix - Human-readable prefix.
++   * @param words - 5-bit words or raw bytes.
++   * @param limit - Maximum accepted output length, or `false` to disable the limit.
++   * @returns Encoded bech32 string.
++   */
+   encode<Prefix extends string>(
+     prefix: Prefix,
+     words: number[] | Uint8Array,
+     limit?: number | false
+   ): `${Lowercase<Prefix>}1${string}`;
++  /**
++   * Decodes a bech32 string into prefix and words.
++   * @param str - Encoded bech32 string.
++   * @param limit - Maximum accepted input length, or `false` to disable the limit.
++   * @returns Decoded prefix and 5-bit words.
++   */
+   decode<Prefix extends string>(
+     str: `${Prefix}1${string}`,
+     limit?: number | false
+   ): Bech32Decoded<Prefix>;
++  decode(str: string, limit?: number | false): Bech32Decoded;
++  /**
++   * Encodes raw bytes by first converting them to 5-bit words.
++   * @param prefix - Human-readable prefix.
++   * @param bytes - Raw bytes to encode.
++   * @returns Encoded bech32 string.
++   */
+   encodeFromBytes(prefix: string, bytes: Uint8Array): string;
++  /**
++   * Decodes a bech32 string and converts the payload back into bytes.
++   * @param str - Encoded bech32 string.
++   * @returns Decoded prefix, words, and bytes.
++   */
+   decodeToBytes(str: string): Bech32DecodedWithArray;
++  /**
++   * Decodes a bech32 string, returning `undefined` instead of throwing on invalid input.
++   * @param str - Encoded bech32 string.
++   * @param limit - Maximum accepted input length, or `false` to disable the limit.
++   * @returns Decoded prefix and words, or `undefined` for invalid input.
++   */
+   decodeUnsafe(str: string, limit?: number | false): void | Bech32Decoded<string>;
++  /**
++   * Converts 5-bit words back into raw bytes.
++   * @param to - 5-bit words to decode.
++   * @returns Decoded bytes.
++   */
+   fromWords(to: number[]): Uint8Array;
++  /**
++   * Converts 5-bit words back into raw bytes, returning `undefined` instead of throwing.
++   * @param to - 5-bit words to decode.
++   * @returns Decoded bytes, or `undefined` for invalid input.
++   */
+   fromWordsUnsafe(to: number[]): void | Uint8Array;
++  /**
++   * Converts raw bytes into 5-bit words for bech32 encoding.
++   * @param from - Raw bytes to convert.
++   * @returns 5-bit words.
++   */
+   toWords(from: Uint8Array): number[];
+ }
+ /**
+  * @__NO_SIDE_EFFECTS__
+  */
+-function genBech32(encoding: 'bech32' | 'bech32m'): Bech32 {
++function genBech32(encoding: 'bech32' | 'bech32m'): TRet<Bech32> {
++  // BIP 173 uses final xor constant 1; BIP 350 swaps in 0x2bc830a3 for Bech32m.
+   const ENCODING_CONST = encoding === 'bech32' ? 1 : 0x2bc830a3;
+   const _words = radix2(5);
+   const fromWords = _words.decode;
+@@ -690,7 +980,7 @@
+ 
+   function encode<Prefix extends string>(
+     prefix: Prefix,
+-    words: number[] | Uint8Array,
++    words: TArg<number[] | Uint8Array>,
+     limit: number | false = 90
+   ): `${Lowercase<Prefix>}1${string}` {
+     astr('bech32.encode prefix', prefix);
+@@ -698,6 +988,7 @@
+     anumArr('bech32.encode', words);
+     const plen = prefix.length;
+     if (plen === 0) throw new TypeError(`Invalid prefix length ${plen}`);
++    // Total output is hrp + `1` separator + payload words + 6 checksum chars.
+     const actualLength = plen + 7 + words.length;
+     if (limit !== false && actualLength > limit)
+       throw new TypeError(`Length ${actualLength} exceeds limit ${limit}`);
+@@ -714,6 +1005,7 @@
+   function decode(str: string, limit: number | false = 90): Bech32Decoded {
+     astr('bech32.decode input', str);
+     const slen = str.length;
++    // Minimum length is 1-char hrp + `1` separator + 6-char checksum.
+     if (slen < 8 || (limit !== false && slen > limit))
+       throw new TypeError(`invalid string length: ${slen} (${str}). Expected (8..${limit})`);
+     // don't allow mixed case
+@@ -734,12 +1026,18 @@
+ 
+   const decodeUnsafe = unsafeWrapper(decode);
+ 
+-  function decodeToBytes(str: string): Bech32DecodedWithArray {
++  function decodeToBytes(str: string): TRet<Bech32DecodedWithArray> {
++    // Keep the byte helper unbounded; callers that need the default BIP 173 length cap should use decode(str).
+     const { prefix, words } = decode(str, false);
+-    return { prefix, words, bytes: fromWords(words) };
++    return {
++      prefix,
++      words,
++      bytes: fromWords(words) as TRet<Uint8Array>,
++    } as TRet<Bech32DecodedWithArray>;
+   }
+ 
+-  function encodeFromBytes(prefix: string, bytes: Uint8Array) {
++  function encodeFromBytes(prefix: string, bytes: TArg<Uint8Array>) {
++    // Keep the convenience wrapper on encode()'s default 90-char cap; custom limits should call encode(prefix, toWords(bytes), limit).
+     return encode(prefix, toWords(bytes));
+   }
+ 
+@@ -757,79 +1055,278 @@
+ 
+ /**
+  * bech32 from BIP 173. Operates on words.
+- * For high-level, check out scure-btc-signer:
+- * https://github.com/paulmillr/scure-btc-signer.
++ * For high-level helpers, check out {@link https://github.com/paulmillr/scure-btc-signer | scure-btc-signer}.
++ * @example
++ * Convert bytes to words, encode them, then decode back.
++ * ```ts
++ * const words = bech32.toWords(Uint8Array.from([1, 2, 3]));
++ * const text = bech32.encode('bc', words);
++ * bech32.decode(text);
++ * ```
+  */
+-export const bech32: Bech32 = genBech32('bech32');
++export const bech32: TRet<Bech32> = /* @__PURE__ */ Object.freeze(genBech32('bech32'));
+ 
+ /**
+  * bech32m from BIP 350. Operates on words.
+  * It was to mitigate `bech32` weaknesses.
+- * For high-level, check out scure-btc-signer:
+- * https://github.com/paulmillr/scure-btc-signer.
++ * For high-level helpers, check out {@link https://github.com/paulmillr/scure-btc-signer | scure-btc-signer}.
++ * @example
++ * Convert bytes to words, encode them with bech32m, then decode back.
++ * ```ts
++ * const words = bech32m.toWords(Uint8Array.from([1, 2, 3]));
++ * const text = bech32m.encode('bc', words);
++ * bech32m.decode(text);
++ * ```
+  */
+-export const bech32m: Bech32 = genBech32('bech32m');
++export const bech32m: TRet<Bech32> = /* @__PURE__ */ Object.freeze(genBech32('bech32m'));
+ 
+ declare const TextEncoder: any;
+ declare const TextDecoder: any;
+ 
+ /**
+- * UTF-8-to-byte decoder. Uses built-in TextDecoder / TextEncoder.
++ * ASCII-to-byte decoder. Rejects non-ASCII text and bytes instead of doing UTF-8 replacement.
++ * Method names follow `BytesCoder`, so `encode(bytes)` returns a string and `decode(string)` returns bytes.
+  * @example
+  * ```js
++ * const b = ascii.decode("ABC"); // => new Uint8Array([ 65, 66, 67 ])
++ * const str = ascii.encode(b); // "ABC"
++ * ```
++ */
++export const ascii: TRet<BytesCoder> = /* @__PURE__ */ Object.freeze({
++  encode(data: TArg<Uint8Array>) {
++    abytes(data);
++    let res = '';
++    for (let i = 0; i < data.length; i++) {
++      const byte = data[i]!;
++      // ASCII is 7-bit; reject bytes outside 0x00..0x7f instead of silently widening to
++      // Latin-1/UTF-8.
++      if (byte > 127) throw new RangeError(`bytes contain non-ASCII byte ${byte} at position ${i}`);
++      res += String.fromCharCode(byte);
++    }
++    return res;
++  },
++  decode(str: string) {
++    if (typeof str !== 'string') throw new TypeError('ascii string expected, got ' + typeof str);
++    const res = new Uint8Array(str.length);
++    for (let i = 0; i < str.length; i++) {
++      // Indexed access is much faster than Uint8Array.from(str, mapFn) here and keeps
++      // exact error positions.
++      const charCode = str.charCodeAt(i);
++      if (charCode > 127) {
++        throw new RangeError(
++          `string contains non-ASCII character "${str[i]}" with code ${charCode} at position ${i}`
++        );
++      }
++      res[i] = charCode;
++    }
++    return res;
++  },
++});
++
++const _isWellFormedShim = (str: string): boolean => {
++  // encodeURI rejects malformed UTF-16, giving a compact fallback that matches native
++  // isWellFormed on our tests/fuzz corpus.
++  try {
++    return encodeURI(str) !== null;
++  } catch {
++    return false;
++  }
++};
++const _isWellFormed: (str: string) => boolean = /* @__PURE__ */ (() =>
++  // Pick the native check once so utf8.decode doesn't re-probe String.prototype on every call.
++  typeof ('' as any).isWellFormed === 'function'
++    ? (str) => (str as any).isWellFormed()
++    : _isWellFormedShim)();
++// This fallback stays small because strict UTF-8 only needs fatal decoding plus well-formed
++// UTF-16 checks, not the replacement, streaming, or legacy-encoding behavior of full platform
++// text codecs.
++const utf8Fallback: BytesCoder = /* @__PURE__ */ Object.freeze({
++  encode(data: TArg<Uint8Array>) {
++    abytes(data);
++    let res = '';
++    for (let i = 0; i < data.length; ) {
++      const a = data[i++]!;
++      if (a < 0b1000_0000) {
++        res += String.fromCharCode(a);
++        continue;
++      }
++      if (a < 0b1100_0010 || i >= data.length) throw new TypeError(`invalid utf8 at byte ${i - 1}`);
++      const b = data[i++]!;
++      if ((b & 0b1100_0000) !== 0b1000_0000) throw new TypeError(`invalid utf8 at byte ${i - 1}`);
++      let cp = ((a & 0b0001_1111) << 6) | (b & 0b0011_1111);
++      if (a >= 0b1110_0000) {
++        if (i >= data.length) throw new TypeError(`invalid utf8 at byte ${i - 1}`);
++        const c = data[i++]!;
++        if (
++          (c & 0b1100_0000) !== 0b1000_0000 ||
++          (a === 0b1110_0000 && b < 0b1010_0000) ||
++          (a === 0xed && b >= 0b1010_0000)
++        )
++          throw new TypeError(`invalid utf8 at byte ${i - 1}`);
++        cp = ((a & 0b0000_1111) << 12) | ((b & 0b0011_1111) << 6) | (c & 0b0011_1111);
++        if (a >= 0b1111_0000) {
++          if (i >= data.length) throw new TypeError(`invalid utf8 at byte ${i - 1}`);
++          const d = data[i++]!;
++          if (
++            a > 0b1111_0100 ||
++            (d & 0b1100_0000) !== 0b1000_0000 ||
++            (a === 0b1111_0000 && b < 0b1001_0000) ||
++            (a === 0b1111_0100 && b >= 0b1001_0000)
++          )
++            throw new TypeError(`invalid utf8 at byte ${i - 1}`);
++          cp =
++            ((a & 7) << 18) |
++            ((b & 0b0011_1111) << 12) |
++            ((c & 0b0011_1111) << 6) |
++            (d & 0b0011_1111);
++        }
++      }
++      if (cp < 0x10000) res += String.fromCharCode(cp);
++      else {
++        cp -= 0x10000;
++        res += String.fromCharCode((cp >> 10) + 0xd800, (cp & 0x3ff) + 0xdc00);
++      }
++    }
++    return res;
++  },
++  decode(str: string) {
++    astr('utf8', str);
++    if (!_isWellFormed(str)) throw new TypeError('utf8 expected well-formed string');
++    // Direct Uint8Array writes are much faster than number[] + Uint8Array.from on Hermes and
++    // large Node inputs.
++    const res = new Uint8Array(str.length * 3);
++    let pos = 0;
++    for (let i = 0; i < str.length; i++) {
++      let c = str.charCodeAt(i);
++      if (c < 0b1000_0000) {
++        res[pos++] = c;
++        continue;
++      }
++      if (c >= 0xd800 && c <= 0xdfff) {
++        const d = str.charCodeAt(++i);
++        c = 0x10000 + ((c - 0xd800) << 10) + d - 0xdc00;
++      }
++      if (c >= 0x10000) {
++        res[pos++] = (c >> 18) | 0b1111_0000;
++        res[pos++] = ((c >> 12) & 0b0011_1111) | 0b1000_0000;
++      } else if (c >= 0x800) res[pos++] = (c >> 12) | 0b1110_0000;
++      else res[pos++] = (c >> 6) | 0b1100_0000;
++      if (c >= 0x800) res[pos++] = ((c >> 6) & 0b0011_1111) | 0b1000_0000;
++      res[pos++] = (c & 0b0011_1111) | 0b1000_0000;
++    }
++    return res.subarray(0, pos);
++  },
++});
++
++/**
++ * Strict UTF-8-to-byte decoder. Uses built-in TextDecoder / TextEncoder when available.
++ * Method names follow `BytesCoder`, so `encode(bytes)` returns a string and
++ * `decode(string)` returns bytes.
++ * `encode(bytes)` requires Uint8Array input, preserves an explicit leading BOM, and
++ *   throws on invalid UTF-8 bytes.
++ * `decode(string)` requires a primitive string and throws on malformed UTF-16 strings with
++ *   lone surrogates.
++ * @example
++ * ```js
+  * const b = utf8.decode("hey"); // => new Uint8Array([ 104, 101, 121 ])
+  * const str = utf8.encode(b); // "hey"
+  * ```
+  */
+-export const utf8: BytesCoder = {
+-  encode: (data) => new TextDecoder().decode(data),
+-  decode: (str) => new TextEncoder().encode(str),
+-};
++export const utf8: BytesCoder = /* @__PURE__ */ (() => {
++  let _utf8Encoder: any;
++  let _utf8Decoder: any;
++  const utf8Builtin: BytesCoder = {
++    // ignoreBOM preserves an explicit leading U+FEFF;
++    // fatal rejects invalid UTF-8 bytes instead of replacing them.
++    encode(data) {
++      abytes(data);
++      return (
++        _utf8Decoder || (_utf8Decoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true }))
++      ).decode(data);
++    },
++    decode(str) {
++      astr('utf8', str);
++      if (!_isWellFormed(str)) throw new TypeError('utf8 expected well-formed string');
++      return (_utf8Encoder || (_utf8Encoder = new TextEncoder())).encode(str);
++    },
++  };
++  return Object.freeze({
++    // Select each direction once at module init, since
++    // TextEncoder and TextDecoder can exist independently.
++    encode: typeof TextDecoder === 'function' ? utf8Builtin.encode : utf8Fallback.encode,
++    decode: typeof TextEncoder === 'function' ? utf8Builtin.decode : utf8Fallback.decode,
++  });
++})();
++// Keep fallback parity probes behind a test-only export until runtime fallback behavior is decided.
++export const __TESTS: {
++  utf8Fallback: BytesCoder;
++  _isWellFormedShim: (str: string) => boolean;
++} = /* @__PURE__ */ Object.freeze({
++  utf8Fallback: utf8Fallback,
++  _isWellFormedShim: _isWellFormedShim,
++});
+ 
+ // Built-in hex conversion https://caniuse.com/mdn-javascript_builtins_uint8array_fromhex
+ // prettier-ignore
+ const hasHexBuiltin: boolean = /* @__PURE__ */ (() =>
++  // Require both directions before enabling the native hex path so encode/decode stay symmetric.
+   typeof (Uint8Array as any).from([]).toHex === 'function' &&
+   typeof (Uint8Array as any).fromHex === 'function')();
+ // prettier-ignore
+ const hexBuiltin: BytesCoder = {
++  // Keep local type guards so the native path preserves library-level input errors.
++  // Native toHex emits lowercase hex, matching the fallback alphabet and Node's hex strings.
+   encode(data) { abytes(data); return (data as any).toHex(); },
++  // Native fromHex accepts either hex case and rejects odd-length / non-hex syntax.
+   decode(s) { astr('hex', s); return (Uint8Array as any).fromHex(s); },
+ };
+ /**
+  * hex string decoder. Uses built-in function, when available.
++ * Lowercase codec; unlike `base16`, this variant accepts either hex case and emits lowercase.
+  * @example
+  * ```js
+  * const b = hex.decode("0102ff"); // => new Uint8Array([ 1, 2, 255 ])
+  * const str = hex.encode(b); // "0102ff"
+  * ```
+  */
+-export const hex: BytesCoder = hasHexBuiltin
+-  ? hexBuiltin
+-  : chain(
+-      radix2(4),
+-      alphabet('0123456789abcdef'),
+-      join(''),
+-      normalize((s: string) => {
+-        if (typeof s !== 'string' || s.length % 2 !== 0)
+-          throw new TypeError(
+-            `hex.decode: expected string, got ${typeof s} with length ${s.length}`
+-          );
+-        return s.toLowerCase();
+-      })
+-    );
++export const hex: BytesCoder = /* @__PURE__ */ Object.freeze(
++  hasHexBuiltin
++    ? hexBuiltin
++    : chain(
++        radix2(4),
++        alphabet('0123456789abcdef'),
++        join(''),
++        normalize((s: string) => {
++          if (typeof s !== 'string' || s.length % 2 !== 0)
++            throw new TypeError(
++              `hex.decode: expected string, got ${typeof s} with length ${s.length}`
++            );
++          return s.toLowerCase();
++        })
++      )
++);
+ 
++/** Built-in codecs exposed through the deprecated string conversion helpers. */
+ export type SomeCoders = {
++  /** UTF-8 string codec. */
+   utf8: BytesCoder;
++  /** Hex codec. */
+   hex: BytesCoder;
++  /** Uppercase RFC 4648 base16 codec. */
+   base16: BytesCoder;
++  /** RFC 4648 base32 codec with padding. */
+   base32: BytesCoder;
++  /** RFC 4648 base64 codec with padding. */
+   base64: BytesCoder;
++  /** URL-safe base64 codec without `+` or `/`. */
+   base64url: BytesCoder;
++  /** Bitcoin-style base58 codec. */
+   base58: BytesCoder;
++  /** Monero-style base58 codec. */
+   base58xmr: BytesCoder;
+ };
+ // prettier-ignore
++// Keep this registry aligned with CoderType/coderTypeError; only byte<->string codecs belong here.
+ const CODERS: SomeCoders = {
+   utf8, hex, base16, base32, base64, base64url, base58, base58xmr
+ };
+@@ -837,21 +1334,64 @@
+ const coderTypeError =
+   'Invalid encoding type. Available types: utf8, hex, base16, base32, base64, base64url, base58, base58xmr';
+ 
+-/** @deprecated */
+-export const bytesToString = (type: CoderType, bytes: Uint8Array): string => {
++/**
++ * Encodes bytes with one of the built-in codecs.
++ * @deprecated Use the codec directly, for example `hex.encode(bytes)`.
++ * @param type - Codec name.
++ * @param bytes - Bytes to encode.
++ * @returns Encoded string.
++ * @throws On wrong argument types. {@link TypeError}
++ * @example
++ * ```ts
++ * bytesToString('hex', Uint8Array.from([1, 2, 255]));
++ * ```
++ */
++export const bytesToString = (type: CoderType, bytes: TArg<Uint8Array>): string => {
+   if (typeof type !== 'string' || !CODERS.hasOwnProperty(type)) throw new TypeError(coderTypeError);
+   if (!isBytes(bytes)) throw new TypeError('bytesToString() expects Uint8Array');
+   return CODERS[type].encode(bytes);
+ };
+ 
+-/** @deprecated */
+-export const str: (type: CoderType, bytes: Uint8Array) => string = bytesToString; // as in python, but for bytes only
++/**
++ * Alias for `bytesToString`.
++ * @deprecated Use {@link bytesToString} or the codec directly instead.
++ * @param type - Codec name.
++ * @param bytes - Bytes to encode.
++ * @returns Encoded string.
++ * @example
++ * ```ts
++ * str('hex', Uint8Array.from([1, 2, 255]));
++ * ```
++ */
++export const str: (type: CoderType, bytes: TArg<Uint8Array>) => string = bytesToString; // as in python, but for bytes only
+ 
+-/** @deprecated */
+-export const stringToBytes = (type: CoderType, str: string): Uint8Array => {
+-  if (!CODERS.hasOwnProperty(type)) throw new TypeError(coderTypeError);
++/**
++ * Decodes a string with one of the built-in codecs.
++ * @deprecated Use the codec directly, for example `hex.decode(text)`.
++ * @param type - Codec name.
++ * @param str - Encoded string.
++ * @returns Decoded bytes.
++ * @throws On wrong argument types. {@link TypeError}
++ * @example
++ * ```ts
++ * stringToBytes('hex', '0102ff');
++ * ```
++ */
++export const stringToBytes = (type: CoderType, str: string): TRet<Uint8Array> => {
++  // Match bytesToString's selector validation so hostile `toString()` coercions can't leak custom errors.
++  if (typeof type !== 'string' || !CODERS.hasOwnProperty(type)) throw new TypeError(coderTypeError);
+   if (typeof str !== 'string') throw new TypeError('stringToBytes() expects string');
+-  return CODERS[type].decode(str);
++  return CODERS[type].decode(str) as TRet<Uint8Array>;
+ };
+-/** @deprecated */
+-export const bytes: (type: CoderType, str: string) => Uint8Array = stringToBytes;
++/**
++ * Alias for `stringToBytes`.
++ * @deprecated Use {@link stringToBytes} or the codec directly instead.
++ * @param type - Codec name.
++ * @param str - Encoded string.
++ * @returns Decoded bytes.
++ * @example
++ * ```ts
++ * bytes('hex', '0102ff');
++ * ```
++ */
++export const bytes: (type: CoderType, str: string) => TRet<Uint8Array> = stringToBytes;

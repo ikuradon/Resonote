@@ -1,0 +1,20 @@
+=== evidence_start ===
+executed_at_utc: 2026-05-05T14:49:41Z
+command: pnpm install --frozen-lockfile
+Scope: all 5 workspace projects
+Lockfile is up to date, resolution step is skipped
+Already up to date
+
+. prepare$ (svelte-kit sync || echo '') && simple-git-hooks
+. prepare: Done
+╭ Warning ─────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│   Ignored build scripts: workerd@1.20260430.1.                               │
+│   Run "pnpm approve-builds" to pick which dependencies should be allowed     │
+│   to run scripts.                                                            │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Done in 3.8s using pnpm v10.33.2
+exit_status: 0
+summary: success
+=== evidence_end ===
