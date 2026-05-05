@@ -31,9 +31,18 @@ Episode URLs resolve through the RSS feed before navigation. The episode slug al
 
 Add a small LISTEN URL parser near the existing feed URL parsing:
 
-- `parseListenUrl(url): { feedUrl: string; episodeUrl?: string; initialTimeSec?: number } | null`
+- `parseListenUrl(url): ParsedListenUrl | null`
 - `buildListenFeedUrl(podcastSlug): string`
-- `normalizeListenEpisodeUrl(url): string`
+- `normalizeListenEpisodeUrl(url): string | null`
+
+```ts
+interface ParsedListenUrl {
+  feedUrl: string;
+  episodeUrl?: string;
+  initialTimeSec?: number;
+  initialTimeParam?: string;
+}
+```
 
 For `https://listen.style/p/{podcastSlug}`, `PodcastProvider.parseUrl()` returns a normal `podcast:feed` `ContentId` with the canonical RSS URL encoded.
 
@@ -70,6 +79,13 @@ For episode matching, normalize both the user-provided LISTEN episode URL and RS
 
 The `t` query parameter is parsed separately from the matching URL and never participates in link comparison.
 
+Slug handling:
+
+- Extract slugs from URL path segments, not from raw string slicing.
+- Reject decoded slugs that contain `/`, `?`, `#`, or control characters.
+- When building RSS URLs or canonical episode URLs, encode slugs with `encodeURIComponent`.
+- Do not decode and re-encode for comparison unless both sides use the same canonicalization function.
+
 Supported shape decisions:
 
 - `https://listen.style/p/foo/` is a podcast page URL.
@@ -88,9 +104,9 @@ Add an application-level resolver for LISTEN episode URLs:
 
 ```ts
 resolveListenEpisodeUrl(url): Promise<
-  | { kind: 'episode'; path: string; initialTimeSec?: number }
+  | { kind: 'episode'; path: string; initialTimeSec?: number; initialTimeParam?: string }
   | { kind: 'feed-fallback'; path: string; warning: 'listen_episode_not_found' }
-  | { kind: 'error'; path: string; warning: 'listen_feed_unavailable' }
+  | { kind: 'error'; path: string; reason: 'listen_feed_unavailable' }
 >
 ```
 
@@ -106,9 +122,10 @@ The resolver:
 `t` parsing:
 
 - Use the first `t` query parameter.
-- Preserve only finite positive numbers.
-- Preserve decimal seconds by passing the numeric string through unchanged.
-- Drop `t=0`, negative values, non-numeric values, and missing values.
+- Accept only positive decimal values matching `/^(?:\d+|\d+\.\d+)$/`.
+- Drop `t=0`, negative values, scientific notation, non-numeric values, and missing values.
+- Preserve the accepted query value as `initialTimeParam` for URL reconstruction.
+- Also expose `initialTimeSec = Number(initialTimeParam)` if playback code needs a number.
 - Do not impose an upper bound in the first implementation.
 
 If the feed resolves but the item is not found, the resolver returns feed fallback:
@@ -119,7 +136,7 @@ If the feed resolves but the item is not found, the resolver returns feed fallba
 
 If the feed cannot be fetched or parsed, the resolver returns the feed path with the internal `listen_feed_unavailable` result code. Existing podcast feed UI can then show the normal feed error state.
 
-`listen_feed_unavailable` is an internal result code for the resolver. It does not need a dedicated user-facing warning in the first implementation, because the feed page already has an error state for fetch/parse failures.
+`listen_feed_unavailable` is an internal `reason` for the resolver. It does not need a dedicated user-facing warning in the first implementation, because the feed page already has an error state for fetch/parse failures. Use `warning` only for user-facing warning codes.
 
 ### API Shape
 
@@ -141,6 +158,15 @@ interface ParsedEpisode {
 ```
 
 `parseRss()` should read item `<link>` and include it in `episodes`. It should also normalize `guid` at parse time by using `rawGuid || enclosureUrl`, matching the existing bookmark signing fallback. This keeps existing consumers simple while preserving `rawGuid` for debugging and future display if needed.
+
+RSS item parsing rules:
+
+- Trim surrounding whitespace from `<link>` and `<guid>`.
+- Treat empty or whitespace-only `<link>` values as missing.
+- Treat empty or whitespace-only `<guid>` values as missing.
+- If a parser ever returns multiple link values, use the first valid string.
+- Do not use Atom alternate links unless the existing parser already handles Atom fields.
+- If multiple RSS items match the normalized LISTEN episode URL, use the first item in feed order and optionally log a duplicate-match diagnostic.
 
 ### UI Flow
 
@@ -167,6 +193,8 @@ Warning text for `listen_episode_not_found`:
 ```
 
 The warning query parameter should be removed or ignored after display if the existing route pattern already has a safe way to do that. If not, leaving it in the URL is acceptable for the first implementation.
+
+If the warning is displayed as a toast, remove the warning query parameter after showing it to avoid repeated notifications on refresh or back navigation. If the warning is displayed inline, leaving the query parameter in the URL is acceptable.
 
 ## Data Flow
 
@@ -198,6 +226,8 @@ listen.style/p/listennews/hfqabwoa?t=90
   -> existing AudioEmbed + comment flow
 ```
 
+The navigation layer should ignore stale resolver results if the input changes or the component unmounts before resolution completes. Use `AbortController` or a monotonically increasing request id.
+
 Fallback:
 
 ```text
@@ -221,8 +251,10 @@ podcast:feed:https://rss.listen.style/p/{podcastSlug}/rss
 Episodes remain:
 
 ```text
-podcast:item:guid:{rssItemGuid}
+podcast:item:guid:{normalizedRssItemGuid}
 ```
+
+`normalizedRssItemGuid` is the raw RSS item guid, or the enclosure URL when the guid is missing.
 
 The i-tag hint remains the feed URL for episode comments, matching the existing `PodcastProvider`.
 
@@ -235,7 +267,8 @@ This keeps LISTEN comments interoperable with the existing podcast/comment subsc
 - RSS parse failure: same as RSS fetch failure.
 - RSS item missing: navigate to feed path and show `listen_episode_not_found` warning.
 - RSS item has no guid: `parseRss()` stores `guid = enclosureUrl` and `rawGuid = undefined`, so episode `ContentId` construction still has a stable value.
-- `?t=` uses the first query parameter and is preserved only when it parses to a finite positive number.
+- Whitespace-only RSS item guid values are treated as missing.
+- `?t=` uses the first query parameter and is preserved only when it matches the positive decimal rule.
 - Unsupported LISTEN paths fall through to existing provider parsing.
 - Warning query parameters are displayed only through an explicit allowlist.
 
@@ -246,20 +279,30 @@ Add targeted tests for:
 - `PodcastProvider.parseUrl()` accepts LISTEN podcast page URLs.
 - `PodcastProvider.parseUrl()` accepts LISTEN RSS URLs.
 - LISTEN episode URL parsing extracts podcast slug, episode slug, canonical feed URL, normalized episode URL, and optional `t`.
+- `normalizeListenEpisodeUrl()` returns `null` for unsupported or malformed URLs.
+- `normalizeListenEpisodeUrl()` does not lowercase path segments.
+- `http://listen.style/p/foo` is canonicalized to `https://listen.style/p/foo`.
+- `https://rss.listen.style/p/foo/rss/` is canonicalized to `https://rss.listen.style/p/foo/rss`.
 - LISTEN episode URL is intercepted before normal provider parsing/navigation.
 - RSS parsing includes item `<link>` in returned episodes.
 - RSS parsing stores `guid = enclosureUrl` when item `<guid>` is missing.
 - LISTEN episode resolver redirects to the podcast episode path when `item.link` matches.
 - LISTEN episode resolver falls back to the feed path with `warning=listen_episode_not_found` when no item matches.
 - `?t=` is preserved on successful episode redirect.
-- `?t=abc`, `?t=-1`, and `?t=0` are dropped.
+- `?t=abc`, `?t=-1`, `?t=0`, and `?t=1e3` are dropped.
+- `?t=90.50` is preserved as `initialTimeParam = '90.50'` and exposed as `initialTimeSec = 90.5`.
 - Multiple `t` params use the first value.
 - LISTEN episode URL with query, hash, or trailing slash still matches the RSS item link.
 - RSS item link with query, hash, or trailing slash still matches the canonical LISTEN episode URL.
 - RSS item without `<link>` falls back to the feed page with warning.
+- Whitespace-only `<guid>` falls back to `enclosureUrl`.
+- Whitespace-only `<link>` is treated as missing.
+- Duplicate matching item links use the first item in feed order.
 - Malformed LISTEN paths such as `/p/{podcast}/{episode}/extra` fall through.
 - Unsupported LISTEN paths such as `/u/{user}` fall through.
 - Feed warning UI displays only allowlisted warning codes.
+- Resolver error results use internal `reason` and do not create user-facing warning text.
+- Toast warning display removes the warning query parameter after display.
 
 Existing podcast feed and audio tests should continue to pass unchanged.
 
