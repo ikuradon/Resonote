@@ -30,14 +30,14 @@ describe('truncateRefs', () => {
 });
 
 describe('cacheOnlyCaveat', () => {
-  it('returns localized caveat only for cache-only mode with unresolved refs', () => {
+  it('returns localized caveat only for cache-only mode with referenced set refs', () => {
     const translate = (key: 'dev.emoji.cache_only_caveat') => `translated:${key}`;
 
-    expect(cacheOnlyCaveat('cache-only', ['missing-ref'], translate)).toBe(
+    expect(cacheOnlyCaveat('cache-only', 1, translate)).toBe(
       'translated:dev.emoji.cache_only_caveat'
     );
-    expect(cacheOnlyCaveat('relay-checked', ['missing-ref'], translate)).toBeNull();
-    expect(cacheOnlyCaveat('cache-only', [], translate)).toBeNull();
+    expect(cacheOnlyCaveat('relay-checked', 1, translate)).toBeNull();
+    expect(cacheOnlyCaveat('cache-only', 0, translate)).toBeNull();
   });
 });
 

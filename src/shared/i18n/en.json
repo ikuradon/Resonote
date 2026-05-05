@@ -214,7 +214,7 @@
   "dev.emoji.invalid_refs": "Invalid refs",
   "dev.emoji.copy": "Copy emoji diagnostics",
   "dev.emoji.copied": "Copied to clipboard",
-  "dev.emoji.cache_only_caveat": "Some refs were unresolved in local sources. Relay existence was not verified.",
+  "dev.emoji.cache_only_caveat": "Custom emoji set refs were resolved from local sources only. Relay existence was not verified.",
   "confirm.follow": "Follow this user?",
   "confirm.follow.detail": "Following: {before} → {after}",
   "confirm.unfollow": "Unfollow this user?",

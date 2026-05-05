@@ -33,13 +33,13 @@ export function truncateRefs(refs: readonly string[], limit = 20): TruncatedRefs
 
 export function cacheOnlyCaveat(
   sourceMode: CustomEmojiDiagnostics['sourceMode'],
-  unresolvedRefs: readonly string[],
+  referencedSetRefCount: number,
   translate?: DeveloperEmojiDiagnosticsTranslator
 ): string | null {
-  if (sourceMode !== 'cache-only' || unresolvedRefs.length === 0) return null;
+  if (sourceMode !== 'cache-only' || referencedSetRefCount <= 0) return null;
   return translate
     ? translate('dev.emoji.cache_only_caveat')
-    : 'Some refs were unresolved in local sources. Relay existence was not verified.';
+    : 'Custom emoji set refs were resolved from local sources only. Relay existence was not verified.';
 }
 
 export function diagnosticRefRowKey(ref: string, index: number): string {

@@ -214,7 +214,7 @@
   "dev.emoji.invalid_refs": "不正 refs",
   "dev.emoji.copy": "絵文字診断をコピー",
   "dev.emoji.copied": "クリップボードにコピーしました",
-  "dev.emoji.cache_only_caveat": "一部の refs はローカルソースで解決できませんでした。リレー上の存在確認はしていません。",
+  "dev.emoji.cache_only_caveat": "custom emoji set refs はローカルソースのみで解決しました。リレー上の存在確認はしていません。",
   "confirm.follow": "このユーザーをフォローしますか？",
   "confirm.follow.detail": "フォロー数: {before} → {after}",
   "confirm.unfollow": "このユーザーのフォローを解除しますか？",

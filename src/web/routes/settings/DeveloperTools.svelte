@@ -38,7 +38,11 @@
   let missingRefs = $derived(truncateRefs(emojiDiagnostics.missingRefs));
   let invalidRefs = $derived(truncateRefs(emojiDiagnostics.invalidRefs));
   let emojiCacheOnlyCaveat = $derived(
-    cacheOnlyCaveat(emojiDiagnostics.sourceMode, emojiDiagnostics.missingRefs, t)
+    cacheOnlyCaveat(
+      emojiDiagnostics.sourceMode,
+      emojiDiagnostics.listEvent?.referencedSetRefCount ?? 0,
+      t
+    )
   );
 
   $effect(() => {
