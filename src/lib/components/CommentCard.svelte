@@ -160,6 +160,7 @@
         type="button"
         onclick={() => onRepost(comment)}
         disabled={acting || !comment.relayHint}
+        aria-label={t('repost.title')}
         class="rounded p-1 text-text-muted transition-colors hover:text-text-secondary disabled:opacity-50"
         title={t('repost.title')}
       >
@@ -220,7 +221,10 @@
         >{author.displayName}</a
       >
       {#if author.formattedNip05}
-        <span class="truncate text-xs text-text-muted flex-shrink-0" title={author.nip05 ?? ''}>
+        <span
+          class="max-w-[8rem] flex-shrink-0 truncate text-xs text-text-muted"
+          title={author.nip05 ?? ''}
+        >
           ✓{author.formattedNip05}
         </span>
       {/if}
