@@ -120,6 +120,14 @@
       );
     }
   }
+
+  $effect(() => {
+    return () => {
+      if (emojiDiagnosticsCopiedTimer !== null) {
+        clearTimeout(emojiDiagnosticsCopiedTimer);
+      }
+    };
+  });
 </script>
 
 <section class="rounded-2xl border border-border bg-surface-1 p-6 space-y-5">
@@ -218,7 +226,7 @@
             +{missingRefs.hiddenCount}{/if}
         </p>
         <div class="space-y-1 font-mono text-text-primary">
-          {#each missingRefs.visible as ref (ref)}
+          {#each missingRefs.visible as ref, index (diagnosticRefRowKey(ref, index))}
             <p class="truncate">{ref}</p>
           {/each}
         </div>
