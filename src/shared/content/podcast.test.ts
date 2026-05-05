@@ -217,6 +217,24 @@ describe('LISTEN URL parsing', () => {
     });
   });
 
+  it('should return null for malformed and unsupported LISTEN URLs', () => {
+    for (const url of [
+      'not a url',
+      'ftp://listen.style/p/foo',
+      'https://example.com/p/foo',
+      'https://listen.style/u/user',
+      'https://listen.style/p/foo/bar//',
+      'https://listen.style/p/foo/%2Fbar',
+      'https://listen.style/p/%E0%A4%A/bar',
+      'https://listen.style/p/foo/%C2%85bar',
+      'https://rss.listen.style/p/foo',
+      'https://rss.listen.style/p/foo/rss/extra',
+      'https://rss.listen.style/p/foo/rss//'
+    ]) {
+      expect(parseListenUrl(url)).toBeNull();
+    }
+  });
+
   it('should parse LISTEN episode URLs with accepted initial time params', () => {
     expect(parseListenUrl('http://listen.style/p/Foo/Ep?t=90.50#x')).toEqual({
       feedUrl: 'https://rss.listen.style/p/Foo/rss',
@@ -243,6 +261,9 @@ describe('LISTEN URL parsing', () => {
   });
 
   it('should normalize only valid LISTEN episode URLs', () => {
+    expect(normalizeListenEpisodeUrl('http://LISTEN.STYLE/p/Foo/Ep?x=1#frag')).toBe(
+      'https://listen.style/p/Foo/Ep'
+    );
     expect(normalizeListenEpisodeUrl('https://listen.style/p/Foo/Ep?x=1#frag')).toBe(
       'https://listen.style/p/Foo/Ep'
     );

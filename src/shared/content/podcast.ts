@@ -8,6 +8,7 @@ const APPLE_PODCASTS_RE =
   /^https?:\/\/podcasts\.apple\.com\/(?:[a-z]{2}\/)?podcast\/(?:[^/]+\/)?id(\d+)/i;
 const LISTEN_TIME_PARAM_RE = /^(?:\d+|\d+\.\d+)$/;
 const INVALID_LISTEN_SLUG_RE = /[/?#]/;
+const CONTROL_CHARACTER_RE = /\p{Cc}/u;
 
 export interface ParsedListenUrl {
   feedUrl: string;
@@ -125,13 +126,7 @@ function decodeListenSlug(segment: string): string | null {
 }
 
 function hasControlCharacter(value: string): boolean {
-  for (const char of value) {
-    const codePoint = char.codePointAt(0);
-    if (codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f)) {
-      return true;
-    }
-  }
-  return false;
+  return CONTROL_CHARACTER_RE.test(value);
 }
 
 function parseListenInitialTimeParam(parsed: URL): string | null {
