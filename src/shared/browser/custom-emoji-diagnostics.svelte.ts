@@ -208,10 +208,6 @@ export async function refreshCustomEmojiDiagnostics(pubkey: string): Promise<voi
       error: errorMessage(error),
       stale: state.lastSuccessfulAtMs !== null
     };
-  } finally {
-    if (version === operationVersion) {
-      state.isRefreshing = false;
-    }
   }
 }
 

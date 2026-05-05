@@ -99,7 +99,7 @@
     <button
       type="button"
       onclick={openClearDialog}
-      disabled={diagnostics.isClearing}
+      disabled={diagnostics.isRefreshing || diagnostics.isClearing}
       class="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/20 disabled:opacity-50"
     >
       {t('settings.custom_emoji.reset_cache')}
