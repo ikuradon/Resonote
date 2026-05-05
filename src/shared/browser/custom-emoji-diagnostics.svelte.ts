@@ -129,6 +129,9 @@ function startOperation(kind: 'refresh' | 'clear'): number {
   if (kind === 'refresh' && state.isClearing) {
     throw new Error('Cannot refresh while clearing custom emoji cache');
   }
+  if (kind === 'clear' && state.isClearing) {
+    throw new Error('Cannot clear custom emoji cache while clearing is already in progress');
+  }
   const version = ++operationVersion;
   state.requestId = version;
   state.isRefreshing = kind === 'refresh';

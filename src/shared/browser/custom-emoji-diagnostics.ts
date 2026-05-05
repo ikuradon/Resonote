@@ -1,4 +1,4 @@
-// @public — Stable API for route/component consumers
+// @public — route/component 向けの安定 API
 export {
   clearCustomEmojiCache,
   type CustomEmojiDiagnostics,

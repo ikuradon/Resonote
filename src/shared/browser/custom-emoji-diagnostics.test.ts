@@ -137,6 +137,54 @@ describe('custom emoji diagnostics browser state', () => {
     expect(state.lastCheckedAtMs).toBeNull();
   });
 
+  it('clear failure preserves diagnostics and reports the error', async () => {
+    resetCustomEmojiDiagnosticsForPubkey(PUBKEY);
+    fetchDiagnosticsMock.mockResolvedValue(result());
+    await refreshCustomEmojiDiagnostics(PUBKEY);
+    deleteStoredEventsByKindsMock.mockRejectedValue(new Error('delete failed'));
+    clearCustomEmojisMock.mockClear();
+
+    await expect(clearCustomEmojiCache()).rejects.toThrow('delete failed');
+
+    const state = getCustomEmojiDiagnostics();
+    expect(state.status).toBe('ready');
+    expect(state.summary).toEqual({ categoryCount: 1, emojiCount: 1 });
+    expect(state.error).toBe('delete failed');
+    expect(state.isClearing).toBe(false);
+    expect(clearCustomEmojisMock).not.toHaveBeenCalled();
+  });
+
+  it('returns snapshots that cannot mutate the next diagnostics read', async () => {
+    resetCustomEmojiDiagnosticsForPubkey(PUBKEY);
+    fetchDiagnosticsMock.mockResolvedValue(
+      result({
+        missingRefs: [`30030:${PUBKEY}:missing`],
+        warnings: ['first warning']
+      })
+    );
+    await refreshCustomEmojiDiagnostics(PUBKEY);
+
+    const snapshot = getCustomEmojiDiagnostics() as unknown as {
+      summary: { emojiCount: number };
+      listEvent: { id: string } | null;
+      sets: Array<{ title: string }>;
+      missingRefs: string[];
+      warnings: string[];
+    };
+    snapshot.summary.emojiCount = 99;
+    if (snapshot.listEvent) snapshot.listEvent.id = 'mutated-list';
+    snapshot.sets[0].title = 'Mutated';
+    snapshot.missingRefs.push('mutated-ref');
+    snapshot.warnings.push('mutated-warning');
+
+    const next = getCustomEmojiDiagnostics();
+    expect(next.summary).toEqual({ categoryCount: 1, emojiCount: 1 });
+    expect(next.listEvent?.id).toBe('list');
+    expect(next.sets[0].title).toBe('Set');
+    expect(next.missingRefs).toEqual([`30030:${PUBKEY}:missing`]);
+    expect(next.warnings).toEqual(['first warning']);
+  });
+
   it('does not allow refresh while clear is active', async () => {
     resetCustomEmojiDiagnosticsForPubkey(PUBKEY);
     deleteStoredEventsByKindsMock.mockImplementation(() => new Promise(() => {}));
@@ -146,5 +194,38 @@ describe('custom emoji diagnostics browser state', () => {
     await expect(refreshCustomEmojiDiagnostics(PUBKEY)).rejects.toThrow(
       'Cannot refresh while clearing custom emoji cache'
     );
+  });
+
+  it('rejects duplicate clear while the first clear remains active', async () => {
+    resetCustomEmojiDiagnosticsForPubkey(PUBKEY);
+    fetchDiagnosticsMock.mockResolvedValue(result());
+    await refreshCustomEmojiDiagnostics(PUBKEY);
+    clearCustomEmojisMock.mockClear();
+    let resolveClear: () => void = () => {};
+    deleteStoredEventsByKindsMock.mockImplementation(
+      () => new Promise<void>((resolve) => (resolveClear = resolve))
+    );
+
+    const firstClear = clearCustomEmojiCache();
+
+    const duplicateResult = await Promise.race([
+      clearCustomEmojiCache().catch((error: unknown) => error),
+      new Promise((resolve) => setTimeout(() => resolve('duplicate clear remained pending'), 0))
+    ]);
+
+    expect(duplicateResult).toBeInstanceOf(Error);
+    expect((duplicateResult as Error).message).toBe(
+      'Cannot clear custom emoji cache while clearing is already in progress'
+    );
+
+    resolveClear();
+    await firstClear;
+
+    const state = getCustomEmojiDiagnostics();
+    expect(deleteStoredEventsByKindsMock).toHaveBeenCalledOnce();
+    expect(clearCustomEmojisMock).toHaveBeenCalledOnce();
+    expect(state.status).toBe('idle');
+    expect(state.summary).toEqual({ categoryCount: 0, emojiCount: 0 });
+    expect(state.isClearing).toBe(false);
   });
 });
