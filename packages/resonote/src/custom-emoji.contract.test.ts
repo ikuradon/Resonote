@@ -289,7 +289,7 @@ describe('custom emoji read model', () => {
     ]);
     expect(result.diagnostics.missingRefs).toEqual(['30030:missing-author:missing']);
     expect(result.diagnostics.invalidRefs).toEqual(['not-a-valid-ref']);
-    expect(result.diagnostics.sourceMode).toBe('cache-only');
+    expect(result.diagnostics.sourceMode).toBe('relay-checked');
   });
 
   it('keeps resolved empty emoji sets in diagnostics while categories stay empty', async () => {
@@ -326,5 +326,29 @@ describe('custom emoji read model', () => {
         resolvedVia: 'cache'
       }
     ]);
+  });
+
+  it('marks source mode relay-checked when relay lookup ran but refs remain unresolved', async () => {
+    const pubkey = 'user-pubkey';
+    const setAuthor = 'set-author';
+    const listEvent = event('emoji-list', {
+      pubkey,
+      kind: 10030,
+      tags: [['a', `30030:${setAuthor}:missing`]]
+    });
+    const { runtime } = createEmojiRuntime({
+      listEvent,
+      cachedSets: {},
+      fetchedSets: []
+    });
+
+    const result = await fetchCustomEmojiSourceDiagnostics(runtime, pubkey);
+
+    expect(runtime.fetchBackwardEvents).toHaveBeenCalledWith(
+      [{ kinds: [30030], authors: [setAuthor], '#d': ['missing'] }],
+      { timeoutMs: 5_000 }
+    );
+    expect(result.diagnostics.missingRefs).toEqual([`30030:${setAuthor}:missing`]);
+    expect(result.diagnostics.sourceMode).toBe('relay-checked');
   });
 });

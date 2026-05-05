@@ -2705,6 +2705,7 @@ export async function fetchCustomEmojiSourceDiagnostics(
     const [, author, dTag] = ref.split(':');
     return { kinds: [30030], authors: [author], '#d': [dTag] };
   });
+  const relayChecked = relayFilters.length > 0;
   const fetchedEvents =
     relayFilters.length === 0
       ? []
@@ -2758,7 +2759,10 @@ export async function fetchCustomEmojiSourceDiagnostics(
       missingRefs,
       invalidRefs,
       warnings: [],
-      sourceMode: sets.some((set) => set.resolvedVia === 'relay') ? 'relay-checked' : 'cache-only'
+      sourceMode:
+        relayChecked || sets.some((set) => set.resolvedVia === 'relay')
+          ? 'relay-checked'
+          : 'cache-only'
     },
     categories
   };

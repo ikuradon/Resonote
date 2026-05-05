@@ -1,4 +1,5 @@
 import {
+  countStoredEventsByKinds,
   type CustomEmojiDiagnosticsSource,
   deleteStoredEventsByKinds,
   type EmojiCategory,
@@ -91,6 +92,14 @@ function summarize(categories: readonly EmojiCategory[]) {
   };
 }
 
+async function readCustomEmojiDbCounts(): Promise<{ kind10030: number; kind30030: number }> {
+  const counts = await countStoredEventsByKinds([10030, 30030]);
+  return {
+    kind10030: counts.find((entry) => entry.kind === 10030)?.count ?? 0,
+    kind30030: counts.find((entry) => entry.kind === 30030)?.count ?? 0
+  };
+}
+
 function emptyReasonFor(
   source: CustomEmojiDiagnosticsSource,
   categories: readonly EmojiCategory[]
@@ -169,6 +178,7 @@ export async function refreshCustomEmojiDiagnostics(pubkey: string): Promise<voi
   state.pubkey = pubkey;
   try {
     const result = await fetchCustomEmojiSourceDiagnostics(pubkey);
+    const dbCounts = await readCustomEmojiDbCounts();
     if (version !== operationVersion || state.pubkey !== pubkey) return;
     const categories = cloneCategories(result.categories);
     const summary = summarize(categories);
@@ -181,6 +191,7 @@ export async function refreshCustomEmojiDiagnostics(pubkey: string): Promise<voi
       emptyReason,
       lastCheckedAtMs: checkedAt,
       lastSuccessfulAtMs: checkedAt,
+      dbCounts,
       summary,
       ...cloneSource(result.diagnostics),
       error: null,

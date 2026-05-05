@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   fetchDiagnosticsMock,
+  countStoredEventsByKindsMock,
   deleteStoredEventsByKindsMock,
   setCustomEmojisMock,
   clearCustomEmojisMock
 } = vi.hoisted(() => ({
   fetchDiagnosticsMock: vi.fn(),
+  countStoredEventsByKindsMock: vi.fn(),
   deleteStoredEventsByKindsMock: vi.fn(),
   setCustomEmojisMock: vi.fn(),
   clearCustomEmojisMock: vi.fn()
@@ -14,6 +16,7 @@ const {
 
 vi.mock('$shared/auftakt/resonote.js', () => ({
   fetchCustomEmojiSourceDiagnostics: fetchDiagnosticsMock,
+  countStoredEventsByKinds: countStoredEventsByKindsMock,
   deleteStoredEventsByKinds: deleteStoredEventsByKindsMock
 }));
 
@@ -79,9 +82,14 @@ describe('custom emoji diagnostics browser state', () => {
     vi.useRealTimers();
     vi.setSystemTime(new Date('2026-05-05T00:00:00.000Z'));
     fetchDiagnosticsMock.mockReset();
+    countStoredEventsByKindsMock.mockReset();
     deleteStoredEventsByKindsMock.mockReset();
     setCustomEmojisMock.mockReset();
     clearCustomEmojisMock.mockReset();
+    countStoredEventsByKindsMock.mockResolvedValue([
+      { kind: 10030, count: 0 },
+      { kind: 30030, count: 0 }
+    ]);
     resetCustomEmojiDiagnosticsForPubkey(null);
     clearCustomEmojisMock.mockClear();
   });
@@ -99,6 +107,20 @@ describe('custom emoji diagnostics browser state', () => {
     expect(state.lastCheckedAtMs).toBe(Date.parse('2026-05-05T00:00:00.000Z'));
     expect(state.lastSuccessfulAtMs).toBe(Date.parse('2026-05-05T00:00:00.000Z'));
     expect(setCustomEmojisMock).toHaveBeenCalledWith(result().categories);
+  });
+
+  it('refresh success records post-refresh stored custom emoji event counts', async () => {
+    resetCustomEmojiDiagnosticsForPubkey(PUBKEY);
+    fetchDiagnosticsMock.mockResolvedValue(result());
+    countStoredEventsByKindsMock.mockResolvedValue([
+      { kind: 10030, count: 2 },
+      { kind: 30030, count: 5 }
+    ]);
+
+    await refreshCustomEmojiDiagnostics(PUBKEY);
+
+    expect(countStoredEventsByKindsMock).toHaveBeenCalledWith([10030, 30030]);
+    expect(getCustomEmojiDiagnostics().dbCounts).toEqual({ kind10030: 2, kind30030: 5 });
   });
 
   it('refresh failure keeps previous diagnostics and marks stale', async () => {
