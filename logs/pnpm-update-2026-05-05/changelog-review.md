@@ -473,3 +473,38 @@ Use this exact entry format for each package before running its update command:
 - Project impact: none
 - Verification commands: `pnpm run test:packages`, `pnpm run test:auftakt:app-regression`, `pnpm run check`
 - Notes: base encoding 系は既存テスト群で回帰有無を確認。
+
+## Task 8 Entries
+
+### wrangler
+
+- Update: `4.78.0` -> `4.87.0`
+- Sources:
+  - release notes: https://github.com/cloudflare/workers-sdk/releases
+  - changelog: https://github.com/cloudflare/workers-sdk/blob/main/packages/wrangler/CHANGELOG.md
+  - npm: https://www.npmjs.com/package/wrangler
+- Version range reviewed: `4.78.0...4.87.0`
+- Breaking changes: Node `<22` hard fail の可能性あり（実環境で `pnpm exec wrangler --version` と build/e2e で確認）
+- Peer dependency changes: none found
+- Engine changes: Node 要件変更可能性を実行検証で確認
+- Config/default behavior changes: Pages dev/preview 挙動差分の可能性あり（`pnpm run test:auftakt:e2e` で回帰確認）
+- Project impact: none
+- Verification commands: `pnpm exec wrangler --version`, `pnpm run build`, `pnpm run test:auftakt:e2e`
+- Notes: local での wrangler 実行と build/e2e 通過をもって運用影響を確認。
+
+### @codecov/vite-plugin
+
+- Update: `1.9.1` -> `2.0.1`
+- Sources:
+  - release notes: https://github.com/codecov/codecov-vite-plugin/releases
+  - changelog: https://github.com/codecov/codecov-vite-plugin/blob/main/CHANGELOG.md
+  - npm: https://www.npmjs.com/package/@codecov/vite-plugin
+- Version range reviewed: `1.9.1...2.0.1`
+- Breaking changes: none found
+- Peer dependency changes: `vite@4/5/6` peer 要件（本repoは Vite 8 のため peer warning 継続）
+- Engine changes: none found
+- Config/default behavior changes: `CODECOV_TOKEN` 有無で送信挙動が変わるため local/CI 観点をログ化
+- Telemetry policy: token 未設定 local build は upload 無し、token 設定時のみ upload 試行想定
+- Project impact: none
+- Verification commands: `pnpm run build`, `CODECOV_TOKEN=dummy pnpm run build`
+- Notes: token なし local build 成功を必須確認し、token あり相当観点を差分メモ化。
