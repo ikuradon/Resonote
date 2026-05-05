@@ -46,3 +46,19 @@ export function clearCustomEmojis(): void {
   customEmojis = [];
   loading = false;
 }
+
+export function setCustomEmojis(categories: readonly EmojiCategory[]): void {
+  log.info('Setting custom emojis from resolved diagnostics', {
+    categoryCount: categories.length,
+    totalEmojis: categories.reduce((sum, category) => sum + category.emojis.length, 0)
+  });
+  ++generation;
+  customEmojis = categories.map((category) => ({
+    ...category,
+    emojis: category.emojis.map((emoji) => ({
+      ...emoji,
+      skins: emoji.skins.map((skin) => ({ ...skin }))
+    }))
+  }));
+  loading = false;
+}
