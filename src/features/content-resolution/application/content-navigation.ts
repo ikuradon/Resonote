@@ -28,7 +28,9 @@ export async function resolveContentNavigation(input: string): Promise<ContentNa
     if (listenResult) return { path: listenResult.path };
   }
 
-  const contentId = parseContentUrl(normalizedInput);
+  const contentId =
+    parseContentUrl(trimmed) ??
+    (trimmed === normalizedInput ? null : parseContentUrl(normalizedInput));
   if (contentId) {
     const timeSec = extractTimeParam(normalizedInput);
     const timeQuery = timeSec > 0 ? `?t=${timeSec}` : '';

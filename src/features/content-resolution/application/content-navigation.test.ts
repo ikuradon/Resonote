@@ -89,6 +89,16 @@ describe('resolveContentNavigation', () => {
     expect(resolveListenEpisodeUrlMock).not.toHaveBeenCalled();
   });
 
+  it('should build a direct content path for Spotify episode URIs', async () => {
+    await expect(
+      resolveContentNavigation('spotify:episode:4C6zDr6e86HYqLxPAhO8jA')
+    ).resolves.toEqual({
+      path: '/spotify/episode/4C6zDr6e86HYqLxPAhO8jA'
+    });
+
+    expect(resolveListenEpisodeUrlMock).not.toHaveBeenCalled();
+  });
+
   it('should fall back to the resolve route for valid non-LISTEN unknown URLs', async () => {
     await expect(resolveContentNavigation('example.com/some-page')).resolves.toEqual({
       path: '/resolve/aHR0cHM6Ly9leGFtcGxlLmNvbS9zb21lLXBhZ2U'
