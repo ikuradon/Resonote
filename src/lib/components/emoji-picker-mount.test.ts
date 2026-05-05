@@ -66,7 +66,7 @@ describe('createEmojiPickerMountAction', () => {
       remove() {}
     }
 
-    let resolveModules: ((value: { data: unknown; Picker: typeof Picker }) => void) | null = null;
+    let resolveModules!: (value: { data: unknown; Picker: typeof Picker }) => void;
     const modulesPromise = new Promise<{ data: unknown; Picker: typeof Picker }>((resolve) => {
       resolveModules = resolve;
     });
@@ -81,7 +81,7 @@ describe('createEmojiPickerMountAction', () => {
     const custom = [category('custom-inline')];
     handle?.update?.(custom);
 
-    resolveModules?.({ data: { emojis: {} }, Picker });
+    resolveModules({ data: { emojis: {} }, Picker });
     await Promise.resolve();
 
     expect(appended).toHaveLength(1);
