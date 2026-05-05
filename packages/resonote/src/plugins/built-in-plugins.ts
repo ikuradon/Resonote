@@ -10,6 +10,39 @@ export interface EmojiCategory {
   emojis: { id: string; name: string; skins: { src: string }[] }[];
 }
 
+export type CustomEmojiSetResolution = 'cache' | 'relay' | 'memory' | 'unknown';
+export type CustomEmojiSourceMode = 'cache-only' | 'relay-checked' | 'unknown';
+
+export interface CustomEmojiSetDiagnosticsSource {
+  ref: string;
+  id: string;
+  pubkey: string;
+  dTag: string;
+  title: string;
+  createdAtSec: number;
+  emojiCount: number;
+  resolvedVia: CustomEmojiSetResolution;
+}
+
+export interface CustomEmojiDiagnosticsSource {
+  listEvent: {
+    id: string;
+    createdAtSec: number;
+    inlineEmojiCount: number;
+    referencedSetRefCount: number;
+  } | null;
+  sets: CustomEmojiSetDiagnosticsSource[];
+  missingRefs: string[];
+  invalidRefs: string[];
+  warnings: string[];
+  sourceMode: CustomEmojiSourceMode;
+}
+
+export interface CustomEmojiSourceDiagnosticsResult {
+  diagnostics: CustomEmojiDiagnosticsSource;
+  categories: EmojiCategory[];
+}
+
 export const EMOJI_CATALOG_READ_MODEL = 'emojiCatalog';
 export const NOTIFICATIONS_FLOW = 'notificationsFlow';
 
@@ -19,6 +52,7 @@ export interface EmojiCatalogReadModel {
     setEvents: StoredEvent[];
   }>;
   fetchCustomEmojiCategories(pubkey: string): Promise<EmojiCategory[]>;
+  fetchCustomEmojiSourceDiagnostics(pubkey: string): Promise<CustomEmojiSourceDiagnosticsResult>;
 }
 
 export interface CommentsFlow {

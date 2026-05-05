@@ -31,6 +31,11 @@ const RESONOTE_VALUE_EXPORT_ALLOWLIST = [
 const RESONOTE_TYPE_EXPORT_ALLOWLIST = [
   'CommentFilterKinds',
   'CommentSubscriptionRefs',
+  'CustomEmojiDiagnosticsSource',
+  'CustomEmojiSetDiagnosticsSource',
+  'CustomEmojiSetResolution',
+  'CustomEmojiSourceDiagnosticsResult',
+  'CustomEmojiSourceMode',
   'DeletionEvent',
   'CommentsFlow',
   'ContentResolutionFlow',

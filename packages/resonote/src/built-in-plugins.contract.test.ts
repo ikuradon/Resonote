@@ -189,7 +189,18 @@ describe('@auftakt/resonote built-in plugins', () => {
     const timelinePlugin = createTimelinePlugin();
     const emojiPlugin = createEmojiCatalogPlugin({
       fetchCustomEmojiSources: async () => ({ listEvent: null, setEvents: [] }),
-      fetchCustomEmojiCategories: async () => []
+      fetchCustomEmojiCategories: async () => [],
+      fetchCustomEmojiSourceDiagnostics: async () => ({
+        diagnostics: {
+          listEvent: null,
+          sets: [],
+          missingRefs: [],
+          invalidRefs: [],
+          warnings: [],
+          sourceMode: 'unknown'
+        },
+        categories: []
+      })
     });
     const notificationsPlugin = createNotificationsFlowPlugin({
       subscribeNotificationStreams: async () => []

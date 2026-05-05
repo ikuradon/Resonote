@@ -1,4 +1,9 @@
 export type {
+  CustomEmojiDiagnosticsSource,
+  CustomEmojiSetDiagnosticsSource,
+  CustomEmojiSetResolution,
+  CustomEmojiSourceDiagnosticsResult,
+  CustomEmojiSourceMode,
   EmojiCatalogReadModel,
   EmojiCategory,
   NotificationsFlow,
