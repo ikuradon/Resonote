@@ -117,6 +117,8 @@
     <!-- Episode list -->
     <ul class="max-h-[480px] overflow-y-auto divide-y divide-border-subtle">
       {#each episodes as ep (ep.guid)}
+        {@const episodeDate = formatPubDate(ep.pubDate)}
+        {@const episodeDuration = formatCompactDuration(ep.duration)}
         <li>
           <button
             class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-primary transition-colors"
@@ -140,12 +142,14 @@
             <div class="min-w-0 flex-1">
               <p class="truncate text-sm font-medium text-text-primary">{ep.title}</p>
               <div class="mt-0.5 flex items-center gap-2 text-xs text-text-secondary">
-                {#if formatPubDate(ep.pubDate)}
-                  <span>{formatPubDate(ep.pubDate)}</span>
+                {#if episodeDate}
+                  <span>{episodeDate}</span>
                 {/if}
-                {#if ep.duration}
+                {#if episodeDate && episodeDuration}
                   <span>·</span>
-                  <span>{formatCompactDuration(ep.duration)}</span>
+                {/if}
+                {#if episodeDuration}
+                  <span>{episodeDuration}</span>
                 {/if}
               </div>
             </div>
