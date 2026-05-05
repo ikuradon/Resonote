@@ -128,6 +128,23 @@ describe('custom emoji diagnostics browser state', () => {
   });
 
   it.each([
+    [[{ kind: 10030, count: 3 }], { kind10030: 3, kind30030: 0 }],
+    [[{ kind: 30030, count: 7 }], { kind10030: 0, kind30030: 7 }],
+    [[], { kind10030: 0, kind30030: 0 }]
+  ])(
+    'refresh success defaults missing stored event counts independently',
+    async (counts, expected) => {
+      resetCustomEmojiDiagnosticsForPubkey(PUBKEY);
+      fetchDiagnosticsMock.mockResolvedValue(result());
+      countStoredEventsByKindsMock.mockResolvedValue(counts);
+
+      await refreshCustomEmojiDiagnostics(PUBKEY);
+
+      expect(getCustomEmojiDiagnostics().dbCounts).toEqual(expected);
+    }
+  );
+
+  it.each([
     [
       'no-list-event',
       {
@@ -341,6 +358,27 @@ describe('custom emoji diagnostics browser state', () => {
     expect(state.pubkey).toBe('q'.repeat(64));
     expect(state.status).toBe('idle');
     expect(clearCustomEmojisMock).not.toHaveBeenCalled();
+  });
+
+  it('ignores a clear failure when the pubkey is reset before completion', async () => {
+    resetCustomEmojiDiagnosticsForPubkey(PUBKEY);
+    fetchDiagnosticsMock.mockResolvedValue(result());
+    await refreshCustomEmojiDiagnostics(PUBKEY);
+    let rejectClear: (error: Error) => void = () => {};
+    deleteStoredEventsByKindsMock.mockImplementation(
+      () => new Promise<void>((_, reject) => (rejectClear = reject))
+    );
+
+    const clear = clearCustomEmojiCache();
+    resetCustomEmojiDiagnosticsForPubkey('q'.repeat(64));
+    rejectClear(new Error('stale clear failure'));
+
+    await expect(clear).rejects.toThrow('stale clear failure');
+    const state = getCustomEmojiDiagnostics();
+    expect(state.pubkey).toBe('q'.repeat(64));
+    expect(state.status).toBe('idle');
+    expect(state.error).toBeNull();
+    expect(state.isClearing).toBe(false);
   });
 
   it('clear failure preserves diagnostics and reports the error', async () => {
