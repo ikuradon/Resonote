@@ -69,6 +69,11 @@ Use this exact entry format for each package before running its update command:
 - Peer dependency changes: none found
 - Engine changes: none found
 - Config/default behavior changes: 旧/非推奨オプション影響の可能性あり（grep と check/lint/test で検証）
+- TypeScript 6 grep classification:
+  - 検索対象除外: `logs/**`, `docs/**`, `.git/**`, `node_modules/**`, `.svelte-kit/**`
+  - `tsc .*\\.(ts|tsx)` マッチ: なし
+  - legacy/removed candidate マッチ: `src/service-worker.ts` の `/// <reference no-default-lib=\"true\"/>` のみ（意図的な lib 参照制御コメント）
+  - 判定: TypeScript 6 移行阻害となる設定/CLI 利用は検出なし
 - Project impact: none
 - Verification commands: `pnpm run check`, `pnpm run lint`, `pnpm run test:packages`
 - Notes: 既存 tsconfig/script を grep で確認し、更新後の実行検証を通過させる。

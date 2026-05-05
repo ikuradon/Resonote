@@ -1,370 +1,64 @@
-Scope: all 5 workspace projects
-Lockfile is up to date, resolution step is skipped
-Already up to date
+# TypeScript Batch Install and Verification Log
 
-. prepare$ (svelte-kit sync || echo '') && simple-git-hooks
-. prepare: [INFO] Successfully set the pre-commit with command: pnpm nano-staged
-. prepare: [INFO] Successfully set all git hooks
-. prepare: Done
-╭ Warning ─────────────────────────────────────────────────────────────────────╮
-│                                                                              │
-│   Ignored build scripts: sharp@0.34.5, simple-git-hooks@2.13.1,              │
-│   workerd@1.20260317.1.                                                      │
-│   Run "pnpm approve-builds" to pick which dependencies should be allowed     │
-│   to run scripts.                                                            │
-│                                                                              │
-╰──────────────────────────────────────────────────────────────────────────────╯
-Done in 4s using pnpm v10.33.2
+## Scope
+- Task: TypeScript / Type Tooling Batch (Task 3)
+- Updated packages:
+  - typescript: 5.9.3 -> 6.0.3 (range policy: `^6.0.3`)
+  - typescript-eslint: 8.57.2 -> 8.59.2
+  - svelte-check: 4.4.5 -> 4.4.8
+  - @types/node: 25.5.0 -> 25.6.0
+  - @types/chrome: 0.1.38 -> 0.1.40
 
----
-executed_at_utc: 2026-05-05T13:01:20Z
-command: pnpm run check
+## Install Result
+- executed_at_utc: 2026-05-05T13:07:09Z
+- command: `pnpm install`
+- exit_status: 0
+- summary: pass
+- key output:
+  - `Already up to date`
+  - `Done in 5.2s using pnpm v10.33.2`
 
-> resonote@0.2.3 check /root/src/github.com/ikuradon/Resonote
-> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+## Peer / Engine Warning Check
+- executed_at_utc: 2026-05-05T13:07:09Z
+- source: `pnpm install` output
+- peer warnings:
+  - `@codecov/vite-plugin@2.0.1` requires `vite@4.x || 5.x || 6.x`, current is `vite@8.0.10`
+- engine warnings:
+  - none found
+- assessment:
+  - peer warning is pre-existing and out of Task 3 update scope
+  - TypeScript tooling update itself does not introduce new engine warning
 
-Loading svelte-check in workspace: /root/src/github.com/ikuradon/Resonote
-Getting Svelte diagnostics...
+## Verification Results (Final)
 
-svelte-check found 0 errors and 0 warnings
-zsh:7: read-only variable: status
+### check
+- executed_at_utc: 2026-05-05T13:07:26Z
+- command: `pnpm run check`
+- exit_status: 0
+- summary: pass
+- key output:
+  - `svelte-check found 0 errors and 0 warnings`
 
----
-executed_at_utc: 2026-05-05T13:01:46Z
-command: pnpm run check
+### lint
+- executed_at_utc: 2026-05-05T13:07:49Z
+- command: `pnpm run lint`
+- exit_status: 0
+- summary: pass
+- key output:
+  - `eslint .` completed successfully
 
-> resonote@0.2.3 check /root/src/github.com/ikuradon/Resonote
-> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+### test:packages
+- executed_at_utc: 2026-05-05T13:07:34Z
+- command: `pnpm run test:packages`
+- exit_status: 0
+- summary: pass
+- key output:
+  - `Test Files 104 passed (104)`
+  - `Tests 594 passed (594)`
 
-Loading svelte-check in workspace: /root/src/github.com/ikuradon/Resonote
-Getting Svelte diagnostics...
-
-svelte-check found 0 errors and 0 warnings
-exit_status: 0
-summary: pass
-
----
-executed_at_utc: 2026-05-05T13:02:08Z
-command: pnpm run lint
-
-> resonote@0.2.3 lint /root/src/github.com/ikuradon/Resonote
-> eslint .
-
-exit_status: 0
-summary: pass
-
----
-executed_at_utc: 2026-05-05T13:02:51Z
-command: pnpm run test:packages
-
-> resonote@0.2.3 test:packages /root/src/github.com/ikuradon/Resonote
-> vitest run packages/
-
-
- RUN  v4.1.2 /root/src/github.com/ikuradon/Resonote
-
- ✓ packages/core/src/public-api.contract.test.ts (4 tests) 1013ms
-     ✓ keeps raw relay internals out of the package root  999ms
- ✓ packages/runtime/src/public-api.contract.test.ts (4 tests) 1250ms
-     ✓ exposes only generic runtime execution values from the package root  1226ms
- ✓ packages/resonote/src/public-api.contract.test.ts (8 tests) 1173ms
-     ✓ exports only the minimal Resonote-specific value allowlist  1124ms
- ✓ packages/adapter-dexie/src/materialization.contract.test.ts (20 tests) 352ms
- ✓ packages/resonote/src/subscription-visibility.contract.test.ts (7 tests) 385ms
- ✓ packages/adapter-dexie/src/public-api.contract.test.ts (3 tests) 180ms
- ✓ packages/runtime/src/event-coordinator.contract.test.ts (28 tests) 197ms
- ✓ packages/resonote/src/public-read-cutover.contract.test.ts (11 tests) 229ms
- ✓ packages/runtime/src/subscription-registry.contract.test.ts (7 tests) 213ms
- ✓ packages/runtime/src/cached-read.contract.test.ts (2 tests) 171ms
- ✓ packages/core/src/event-validation.contract.test.ts (3 tests) 86ms
- ✓ packages/adapter-dexie/src/hot-path.contract.test.ts (4 tests) 86ms
- ✓ packages/resonote/src/built-in-plugins.contract.test.ts (7 tests) 140ms
- ✓ packages/core/src/nip98-http-auth.contract.test.ts (4 tests) 129ms
- ✓ packages/runtime/src/relay-session.contract.test.ts (42 tests) 1327ms
- ✓ packages/core/src/nip86-relay-management.contract.test.ts (5 tests) 129ms
- ✓ packages/adapter-dexie/src/maintenance.contract.test.ts (3 tests) 85ms
- ✓ packages/core/src/nip37-draft-wrap.contract.test.ts (4 tests) 77ms
- ✓ packages/adapter-dexie/src/app-bridge.contract.test.ts (3 tests) 131ms
- ✓ packages/runtime/src/relay-repair.contract.test.ts (18 tests) 2097ms
-     ✓ chunks multi-id negentropy repair fetches at the canonical 50-id boundary  1319ms
- ✓ packages/core/src/nip17-direct-message.contract.test.ts (6 tests) 91ms
- ✓ packages/runtime/src/publish-queue.contract.test.ts (5 tests) 85ms
- ✓ packages/adapter-dexie/src/pending-publishes.contract.test.ts (4 tests) 104ms
- ✓ packages/core/src/nip59-gift-wrap.contract.test.ts (6 tests) 80ms
- ✓ packages/adapter-dexie/src/sync-cursors.contract.test.ts (3 tests) 97ms
- ❯ packages/runtime/src/relay-session-word-guard.contract.test.ts (2 tests | 2 failed) 34ms
-     × rejects disallowed relay session words in tracked package paths and content 24ms
-     × excludes evidence and generated caches from the tracked scan set 7ms
- ✓ packages/adapter-dexie/src/schema.contract.test.ts (3 tests) 81ms
- ✓ packages/adapter-dexie/src/relay-capabilities.contract.test.ts (3 tests) 85ms
- ✓ packages/adapter-dexie/src/relay-hints.contract.test.ts (1 test) 42ms
- ✓ packages/resonote/src/relay-selection-runtime.contract.test.ts (14 tests) 48ms
- ✓ packages/core/src/negentropy-repair.contract.test.ts (3 tests) 23ms
- ❯ packages/runtime/src/package-boundary.contract.test.ts (2 tests | 2 failed) 25ms
-     × keeps the tracked package inventory explicit 15ms
-     × keeps production package imports flowing core <- runtime <- resonote 8ms
- ✓ packages/resonote/src/relay-routing-publish.contract.test.ts (6 tests) 32ms
- ✓ packages/core/src/request-key.contract.test.ts (3 tests) 21ms
- ✓ packages/core/src/reconcile.contract.test.ts (7 tests) 33ms
- ✓ packages/core/src/relay-selection.contract.test.ts (8 tests) 26ms
- ✓ packages/runtime/src/negentropy-transport.contract.test.ts (1 test) 27ms
- ✓ packages/core/src/nip52-calendar.contract.test.ts (7 tests) 13ms
- ✓ packages/core/src/nip48-proxy-tags.contract.test.ts (8 tests) 12ms
- ✓ packages/runtime/src/plugin-isolation.contract.test.ts (6 tests) 18ms
- ✓ packages/runtime/src/request-planning.contract.test.ts (5 tests) 31ms
- ✓ packages/resonote/src/custom-emoji.contract.test.ts (15 tests) 25ms
- ✓ packages/runtime/src/relay-gateway.contract.test.ts (6 tests) 21ms
- ✓ packages/runtime/src/entity-handles.contract.test.ts (17 tests) 19ms
- ✓ packages/resonote/src/event-ingress.contract.test.ts (3 tests) 17ms
- ✓ packages/resonote/src/local-store-api.contract.test.ts (4 tests) 23ms
- ✓ packages/core/src/relay-capability.contract.test.ts (7 tests) 13ms
- ✓ packages/runtime/src/plugin-api.contract.test.ts (5 tests) 18ms
- ✓ packages/core/src/nip53-live-activity.contract.test.ts (7 tests) 18ms
- ✓ packages/resonote/src/relay-capability-api.contract.test.ts (3 tests) 18ms
- ✓ packages/runtime/src/negentropy-message.contract.test.ts (15 tests) 13ms
- ✓ packages/core/src/nip92-media-attachments.contract.test.ts (4 tests) 19ms
- ✓ packages/core/src/nip68-picture.contract.test.ts (3 tests) 16ms
- ✓ packages/core/src/nip71-video.contract.test.ts (3 tests) 13ms
- ✓ packages/core/src/nip62-request-to-vanish.contract.test.ts (5 tests) 10ms
- ✓ packages/core/src/nip88-polls.contract.test.ts (4 tests) 16ms
- ✓ packages/core/src/nip32-label.contract.test.ts (7 tests) 13ms
- ✓ packages/core/src/nip21-uri.contract.test.ts (5 tests) 12ms
- ✓ packages/core/src/nip85-trusted-assertions.contract.test.ts (4 tests) 13ms
- ✓ packages/core/src/nip28-public-chat.contract.test.ts (5 tests) 13ms
- ✓ packages/core/src/nip46-remote-signing.contract.test.ts (6 tests) 12ms
- ✓ packages/core/src/nip58-badges.contract.test.ts (6 tests) 23ms
- ✓ packages/core/src/nip27-references.contract.test.ts (4 tests) 17ms
- ✓ packages/core/src/nip38-user-status.contract.test.ts (8 tests) 14ms
- ✓ packages/core/src/nip89-application-handlers.contract.test.ts (4 tests) 12ms
- ✓ packages/runtime/src/relay-selection-runtime.contract.test.ts (5 tests) 19ms
- ✓ packages/core/src/nipA0-voice-messages.contract.test.ts (4 tests) 12ms
- ✓ packages/core/src/nip43-relay-access.contract.test.ts (5 tests) 12ms
- ✓ packages/core/src/nip24-extra-metadata.contract.test.ts (7 tests) 14ms
- ✓ packages/core/src/nip39-external-identity.contract.test.ts (8 tests) 17ms
- ✓ packages/core/src/nipB7-blossom.contract.test.ts (5 tests) 13ms
- ✓ packages/core/src/nipA4-public-messages.contract.test.ts (4 tests) 14ms
- ✓ packages/core/src/nip72-community.contract.test.ts (4 tests) 15ms
- ✓ packages/core/src/nip7d-thread.contract.test.ts (4 tests) 7ms
- ✓ packages/core/src/nip51-list.contract.test.ts (8 tests) 11ms
- ✓ packages/runtime/src/relay-capability-runtime.contract.test.ts (3 tests) 11ms
- ✓ packages/core/src/nip94-file-metadata.contract.test.ts (4 tests) 14ms
- ✓ packages/core/src/nip84-highlight.contract.test.ts (3 tests) 9ms
- ✓ packages/core/src/relay-observation.contract.test.ts (2 tests) 6ms
- ✓ packages/core/src/nip23-long-form.contract.test.ts (3 tests) 7ms
- ✓ packages/resonote/src/relay-metrics-nip66.contract.test.ts (2 tests) 14ms
- ✓ packages/runtime/src/hot-event-index.contract.test.ts (7 tests) 11ms
- ✓ packages/core/src/nip13-proof-of-work.contract.test.ts (5 tests) 10ms
- ✓ packages/core/src/nip14-subject.contract.test.ts (7 tests) 12ms
- ✓ packages/core/src/nip55-android-signer.contract.test.ts (6 tests) 9ms
- ✓ packages/runtime/src/relay-observation.contract.test.ts (2 tests) 11ms
- ✓ packages/core/src/read-settlement.contract.test.ts (4 tests) 6ms
- ✓ packages/core/src/nip03-open-timestamps.contract.test.ts (4 tests) 11ms
- ✓ packages/core/src/publish-settlement.contract.test.ts (5 tests) 8ms
- ✓ packages/core/src/nipC0-code-snippets.contract.test.ts (4 tests) 10ms
- ✓ packages/runtime/src/relay-hints.contract.test.ts (2 tests) 8ms
- ✓ packages/core/src/nip40-expiration.contract.test.ts (3 tests) 7ms
- ✓ packages/core/src/module-boundary.contract.test.ts (3 tests) 9ms
- ✓ packages/core/src/nip50-search.contract.test.ts (4 tests) 9ms
- ✓ packages/core/src/nipC7-chats.contract.test.ts (4 tests) 9ms
- ✓ packages/resonote/src/degraded-storage.contract.test.ts (1 test) 7ms
- ✓ packages/core/src/nip56-report.contract.test.ts (5 tests) 9ms
- ✓ packages/core/src/nip31-alt.contract.test.ts (4 tests) 9ms
- ✓ packages/runtime/src/materializer-queue.contract.test.ts (2 tests) 6ms
- ✓ packages/core/src/nip78-application-data.contract.test.ts (3 tests) 9ms
- ✓ packages/core/src/nip36-content-warning.contract.test.ts (4 tests) 6ms
- ✓ packages/core/src/request-planning.contract.test.ts (1 test) 6ms
- ✓ packages/runtime/src/relay-lifecycle.contract.test.ts (2 tests) 6ms
- ✓ packages/runtime/src/relay-capability.contract.test.ts (1 test) 5ms
-
-⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
-
- FAIL  packages/runtime/src/package-boundary.contract.test.ts > @auftakt package boundary guard > keeps the tracked package inventory explicit
-Error: spawnSync git EPERM
- ❯ trackedPackagePaths packages/runtime/src/package-boundary.contract.test.ts:14:15
-     12|
-     13| function trackedPackagePaths(): string[] {
-     14|   const raw = execFileSync('git', ['ls-files', 'packages/'], {
-       |               ^
-     15|     cwd: repoRoot,
-     16|     encoding: 'utf8'
- ❯ packages/runtime/src/package-boundary.contract.test.ts:86:25
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
-
- FAIL  packages/runtime/src/package-boundary.contract.test.ts > @auftakt package boundary guard > keeps production package imports flowing core <- runtime <- resonote
-Error: spawnSync git EPERM
- ❯ trackedPackagePaths packages/runtime/src/package-boundary.contract.test.ts:14:15
-     12|
-     13| function trackedPackagePaths(): string[] {
-     14|   const raw = execFileSync('git', ['ls-files', 'packages/'], {
-       |               ^
-     15|     cwd: repoRoot,
-     16|     encoding: 'utf8'
- ❯ packages/runtime/src/package-boundary.contract.test.ts:90:19
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
-
- FAIL  packages/runtime/src/relay-session-word-guard.contract.test.ts > @auftakt/runtime relay session word guard > rejects disallowed relay session words in tracked package paths and content
-Error: spawnSync git EPERM
- ❯ trackedGuardFiles packages/runtime/src/relay-session-word-guard.contract.test.ts:56:15
-     54|
-     55| function trackedGuardFiles(): string[] {
-     56|   const raw = execFileSync('git', ['ls-files'], {
-       |               ^
-     57|     cwd: repoRoot,
-     58|     encoding: 'utf8'
- ❯ packages/runtime/src/relay-session-word-guard.contract.test.ts:105:19
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
-
- FAIL  packages/runtime/src/relay-session-word-guard.contract.test.ts > @auftakt/runtime relay session word guard > excludes evidence and generated caches from the tracked scan set
-Error: spawnSync git EPERM
- ❯ trackedGuardFiles packages/runtime/src/relay-session-word-guard.contract.test.ts:56:15
-     54|
-     55| function trackedGuardFiles(): string[] {
-     56|   const raw = execFileSync('git', ['ls-files'], {
-       |               ^
-     57|     cwd: repoRoot,
-     58|     encoding: 'utf8'
- ❯ packages/runtime/src/relay-session-word-guard.contract.test.ts:114:19
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
-
-
- Test Files  2 failed | 102 passed (104)
-      Tests  4 failed | 590 passed (594)
-   Start at  22:02:55
-   Duration  9.38s (transform 8.24s, setup 0ms, import 29.02s, tests 11.24s, environment 68ms)
-
-JUNIT report written to /root/src/github.com/ikuradon/Resonote/test-results/junit.xml
- ELIFECYCLE  Command failed with exit code 1.
-exit_status: 1
-summary: fail
-
----
-executed_at_utc: 2026-05-05T13:03:17Z
-command: pnpm run test:packages
-
-> resonote@0.2.3 test:packages /root/src/github.com/ikuradon/Resonote
-> vitest run packages/
-
-
- RUN  v4.1.2 /root/src/github.com/ikuradon/Resonote
-
- ✓ packages/runtime/src/relay-session-word-guard.contract.test.ts (2 tests) 34ms
- ✓ packages/runtime/src/package-boundary.contract.test.ts (2 tests) 28ms
- ✓ packages/core/src/public-api.contract.test.ts (4 tests) 1033ms
-     ✓ keeps raw relay internals out of the package root  1017ms
- ✓ packages/runtime/src/public-api.contract.test.ts (4 tests) 1288ms
-     ✓ exposes only generic runtime execution values from the package root  1252ms
- ✓ packages/resonote/src/public-api.contract.test.ts (8 tests) 1289ms
-     ✓ exports only the minimal Resonote-specific value allowlist  1263ms
- ✓ packages/adapter-dexie/src/materialization.contract.test.ts (20 tests) 355ms
- ✓ packages/resonote/src/subscription-visibility.contract.test.ts (7 tests) 408ms
- ✓ packages/adapter-dexie/src/public-api.contract.test.ts (3 tests) 198ms
- ✓ packages/resonote/src/public-read-cutover.contract.test.ts (11 tests) 273ms
- ✓ packages/runtime/src/event-coordinator.contract.test.ts (28 tests) 208ms
- ✓ packages/runtime/src/subscription-registry.contract.test.ts (7 tests) 215ms
- ✓ packages/runtime/src/cached-read.contract.test.ts (2 tests) 196ms
- ✓ packages/core/src/nip98-http-auth.contract.test.ts (4 tests) 124ms
- ✓ packages/resonote/src/built-in-plugins.contract.test.ts (7 tests) 126ms
- ✓ packages/adapter-dexie/src/app-bridge.contract.test.ts (3 tests) 133ms
- ✓ packages/runtime/src/relay-session.contract.test.ts (42 tests) 1347ms
- ✓ packages/core/src/nip86-relay-management.contract.test.ts (5 tests) 121ms
- ✓ packages/adapter-dexie/src/pending-publishes.contract.test.ts (4 tests) 84ms
- ✓ packages/core/src/event-validation.contract.test.ts (3 tests) 115ms
- ✓ packages/adapter-dexie/src/sync-cursors.contract.test.ts (3 tests) 72ms
- ✓ packages/runtime/src/relay-repair.contract.test.ts (18 tests) 2115ms
-     ✓ chunks multi-id negentropy repair fetches at the canonical 50-id boundary  1307ms
- ✓ packages/core/src/nip17-direct-message.contract.test.ts (6 tests) 80ms
- ✓ packages/adapter-dexie/src/hot-path.contract.test.ts (4 tests) 123ms
- ✓ packages/adapter-dexie/src/maintenance.contract.test.ts (3 tests) 100ms
- ✓ packages/runtime/src/publish-queue.contract.test.ts (5 tests) 72ms
- ✓ packages/adapter-dexie/src/schema.contract.test.ts (3 tests) 71ms
- ✓ packages/adapter-dexie/src/relay-capabilities.contract.test.ts (3 tests) 76ms
- ✓ packages/core/src/nip37-draft-wrap.contract.test.ts (4 tests) 81ms
- ✓ packages/core/src/nip59-gift-wrap.contract.test.ts (6 tests) 85ms
- ✓ packages/adapter-dexie/src/relay-hints.contract.test.ts (1 test) 44ms
- ✓ packages/core/src/reconcile.contract.test.ts (7 tests) 23ms
- ✓ packages/resonote/src/relay-selection-runtime.contract.test.ts (14 tests) 68ms
- ✓ packages/core/src/relay-selection.contract.test.ts (8 tests) 23ms
- ✓ packages/runtime/src/request-planning.contract.test.ts (5 tests) 21ms
- ✓ packages/runtime/src/negentropy-transport.contract.test.ts (1 test) 24ms
- ✓ packages/resonote/src/relay-routing-publish.contract.test.ts (6 tests) 36ms
- ✓ packages/core/src/negentropy-repair.contract.test.ts (3 tests) 25ms
- ✓ packages/resonote/src/custom-emoji.contract.test.ts (15 tests) 25ms
- ✓ packages/core/src/nip58-badges.contract.test.ts (6 tests) 15ms
- ✓ packages/runtime/src/relay-gateway.contract.test.ts (6 tests) 14ms
- ✓ packages/resonote/src/local-store-api.contract.test.ts (4 tests) 19ms
- ✓ packages/core/src/request-key.contract.test.ts (3 tests) 18ms
- ✓ packages/runtime/src/relay-selection-runtime.contract.test.ts (5 tests) 14ms
- ✓ packages/core/src/nip92-media-attachments.contract.test.ts (4 tests) 14ms
- ✓ packages/core/src/nip53-live-activity.contract.test.ts (7 tests) 21ms
- ✓ packages/runtime/src/entity-handles.contract.test.ts (17 tests) 23ms
- ✓ packages/resonote/src/relay-capability-api.contract.test.ts (3 tests) 19ms
- ✓ packages/runtime/src/plugin-isolation.contract.test.ts (6 tests) 17ms
- ✓ packages/core/src/nip27-references.contract.test.ts (4 tests) 18ms
- ✓ packages/runtime/src/plugin-api.contract.test.ts (5 tests) 17ms
- ✓ packages/resonote/src/event-ingress.contract.test.ts (3 tests) 23ms
- ✓ packages/core/src/nip39-external-identity.contract.test.ts (8 tests) 13ms
- ✓ packages/core/src/nip68-picture.contract.test.ts (3 tests) 23ms
- ✓ packages/core/src/nip72-community.contract.test.ts (4 tests) 13ms
- ✓ packages/core/src/nip88-polls.contract.test.ts (4 tests) 15ms
- ✓ packages/core/src/nipA4-public-messages.contract.test.ts (4 tests) 11ms
- ✓ packages/core/src/nip94-file-metadata.contract.test.ts (4 tests) 9ms
- ✓ packages/core/src/nip38-user-status.contract.test.ts (8 tests) 13ms
- ✓ packages/core/src/nip24-extra-metadata.contract.test.ts (7 tests) 13ms
- ✓ packages/core/src/nip52-calendar.contract.test.ts (7 tests) 21ms
- ✓ packages/core/src/nip71-video.contract.test.ts (3 tests) 12ms
- ✓ packages/runtime/src/negentropy-message.contract.test.ts (15 tests) 13ms
- ✓ packages/resonote/src/relay-metrics-nip66.contract.test.ts (2 tests) 12ms
- ✓ packages/core/src/nip28-public-chat.contract.test.ts (5 tests) 14ms
- ✓ packages/core/src/relay-capability.contract.test.ts (7 tests) 10ms
- ✓ packages/core/src/nip32-label.contract.test.ts (7 tests) 11ms
- ✓ packages/core/src/nipB7-blossom.contract.test.ts (5 tests) 12ms
- ✓ packages/core/src/nip85-trusted-assertions.contract.test.ts (4 tests) 12ms
- ✓ packages/core/src/nip14-subject.contract.test.ts (7 tests) 9ms
- ✓ packages/core/src/nip89-application-handlers.contract.test.ts (4 tests) 12ms
- ✓ packages/core/src/nip46-remote-signing.contract.test.ts (6 tests) 12ms
- ✓ packages/core/src/nip48-proxy-tags.contract.test.ts (8 tests) 20ms
- ✓ packages/runtime/src/hot-event-index.contract.test.ts (7 tests) 9ms
- ✓ packages/core/src/nip21-uri.contract.test.ts (5 tests) 12ms
- ✓ packages/core/src/nip43-relay-access.contract.test.ts (5 tests) 17ms
- ✓ packages/core/src/nipA0-voice-messages.contract.test.ts (4 tests) 19ms
- ✓ packages/core/src/nip51-list.contract.test.ts (8 tests) 11ms
- ✓ packages/core/src/nip03-open-timestamps.contract.test.ts (4 tests) 10ms
- ✓ packages/runtime/src/relay-capability-runtime.contract.test.ts (3 tests) 12ms
- ✓ packages/runtime/src/relay-observation.contract.test.ts (2 tests) 10ms
- ✓ packages/core/src/nipC0-code-snippets.contract.test.ts (4 tests) 8ms
- ✓ packages/core/src/nip62-request-to-vanish.contract.test.ts (5 tests) 15ms
- ✓ packages/core/src/nip13-proof-of-work.contract.test.ts (5 tests) 10ms
- ✓ packages/core/src/nip31-alt.contract.test.ts (4 tests) 9ms
- ✓ packages/core/src/module-boundary.contract.test.ts (3 tests) 11ms
- ✓ packages/core/src/nip78-application-data.contract.test.ts (3 tests) 8ms
- ✓ packages/core/src/nip56-report.contract.test.ts (5 tests) 8ms
- ✓ packages/core/src/nipC7-chats.contract.test.ts (4 tests) 9ms
- ✓ packages/core/src/nip84-highlight.contract.test.ts (3 tests) 14ms
- ✓ packages/core/src/nip50-search.contract.test.ts (4 tests) 13ms
- ✓ packages/core/src/publish-settlement.contract.test.ts (5 tests) 9ms
- ✓ packages/core/src/nip55-android-signer.contract.test.ts (6 tests) 14ms
- ✓ packages/runtime/src/relay-hints.contract.test.ts (2 tests) 9ms
- ✓ packages/core/src/nip23-long-form.contract.test.ts (3 tests) 13ms
- ✓ packages/resonote/src/degraded-storage.contract.test.ts (1 test) 10ms
- ✓ packages/core/src/nip40-expiration.contract.test.ts (3 tests) 8ms
- ✓ packages/core/src/nip7d-thread.contract.test.ts (4 tests) 10ms
- ✓ packages/core/src/read-settlement.contract.test.ts (4 tests) 6ms
- ✓ packages/core/src/relay-observation.contract.test.ts (2 tests) 13ms
- ✓ packages/runtime/src/materializer-queue.contract.test.ts (2 tests) 6ms
- ✓ packages/core/src/nip36-content-warning.contract.test.ts (4 tests) 7ms
- ✓ packages/runtime/src/relay-lifecycle.contract.test.ts (2 tests) 7ms
- ✓ packages/core/src/request-planning.contract.test.ts (1 test) 5ms
- ✓ packages/runtime/src/relay-capability.contract.test.ts (1 test) 6ms
-
- Test Files  104 passed (104)
-      Tests  594 passed (594)
-   Start at  22:03:21
-   Duration  9.77s (transform 8.18s, setup 0ms, import 29.38s, tests 11.57s, environment 67ms)
-
-JUNIT report written to /root/src/github.com/ikuradon/Resonote/test-results/junit.xml
-exit_status: 0
-summary: pass
+## Environment-caused Failure History and Re-run
+- note:
+  - Earlier run in restricted sandbox environment had `spawnSync git EPERM` in tests calling `git ls-files`.
+  - Re-run under allowed execution context completed with pass.
+- final judgment:
+  - Task 3 verification status is PASS based on latest successful run set above.
