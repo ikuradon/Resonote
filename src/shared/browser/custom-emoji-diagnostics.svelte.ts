@@ -187,7 +187,6 @@ export async function refreshCustomEmojiDiagnostics(pubkey: string): Promise<voi
       ...state,
       pubkey,
       status: emptyReason ? 'empty' : 'ready',
-      isRefreshing: false,
       emptyReason,
       lastCheckedAtMs: checkedAt,
       lastSuccessfulAtMs: checkedAt,
@@ -203,11 +202,14 @@ export async function refreshCustomEmojiDiagnostics(pubkey: string): Promise<voi
     state = {
       ...state,
       status: 'error',
-      isRefreshing: false,
       lastCheckedAtMs: checkedAt,
       error: errorMessage(error),
       stale: state.lastSuccessfulAtMs !== null
     };
+  } finally {
+    if (version === operationVersion) {
+      state.isRefreshing = false;
+    }
   }
 }
 
