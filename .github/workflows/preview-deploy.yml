@@ -42,7 +42,7 @@ jobs:
       url: https://pr-${{ github.event.pull_request.number }}.resonote-preview.pages.dev
     steps:
       - name: Checkout PR head
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
