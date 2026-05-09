@@ -20,7 +20,6 @@ jobs:
           app-id: ${{ secrets.CLAUDE_APP_ID }}
           private-key: ${{ secrets.CLAUDE_APP_PRIVATE_KEY }}
           permission-contents: write
-          permission-workflows: write
 
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
