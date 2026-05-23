@@ -106,12 +106,22 @@ export function renderMarkdown(md: string): string {
   );
 }
 
-/** Check if a URL is safe (not javascript:, data:, vbscript:) */
+/** Check if a URL is safe for clickable links. */
 function isSafeUrl(url: string): boolean {
-  const lower = url.trim().toLowerCase();
-  return (
-    !lower.startsWith('javascript:') && !lower.startsWith('data:') && !lower.startsWith('vbscript:')
-  );
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+
+  // Require an explicit scheme and canonicalize before protocol checks.
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 /** Escape a string for use in an HTML attribute */
