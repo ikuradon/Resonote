@@ -84,6 +84,16 @@ describe('renderMarkdown', () => {
     expect(result).not.toContain('javascript:');
   });
 
+  it('blocks obfuscated javascript: URLs with control characters', () => {
+    const result = renderMarkdown('[xss](java\tscript:alert(1))');
+    expect(result).not.toContain('href');
+  });
+
+  it('blocks data: URLs', () => {
+    const result = renderMarkdown('[xss](data:text/html;base64,PHNjcmlwdD4=)');
+    expect(result).not.toContain('href');
+  });
+
   it('escapes HTML in link text', () => {
     const result = renderMarkdown('[<script>](https://example.com)');
     expect(result).toContain('&lt;script&gt;');
