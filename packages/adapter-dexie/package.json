@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@auftakt/core": "workspace:*",
-    "dexie": "^4.2.1",
+    "dexie": "^4.4.4",
     "nostr-typedef": "^0.13.0"
   }
 }
