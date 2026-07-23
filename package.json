@@ -95,7 +95,7 @@
     "@ikuradon/emoji-kitchen-mart-data": "^2.0.0",
     "@konemono/nostr-login": "^1.15.7",
     "@scure/base": "^2.2.0",
-    "hono": "^4.12.18",
+    "hono": "^4.12.27",
     "idb": "^8.0.3",
     "rxjs": "^7.8.2",
     "zod": "^4.4.3"
