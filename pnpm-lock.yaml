@@ -26,7 +26,7 @@ importers:
         version: link:packages/runtime
       '@hono/zod-validator':
         specifier: ^0.7.6
-        version: 0.7.6(hono@4.12.18)(zod@4.4.3)
+        version: 0.7.6(hono@4.12.34)(zod@4.4.3)
       '@ikuradon/emoji-kitchen-mart':
         specifier: ^7.0.0
         version: 7.0.0
@@ -40,8 +40,8 @@ importers:
         specifier: ^2.2.0
         version: 2.2.0
       hono:
-        specifier: ^4.12.18
-        version: 4.12.18
+        specifier: ^4.12.34
+        version: 4.12.34
       idb:
         specifier: ^8.0.3
         version: 8.0.3
@@ -1659,8 +1659,8 @@ packages:
     resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}
     engines: {node: '>=8'}
 
-  hono@4.12.18:
-    resolution: {integrity: sha512-RWzP96k/yv0PQfyXnWjs6zot20TqfpfsNXhOnev8d1InAxubW93L11/oNUc3tQqn2G0bSdAOBpX+2uDFHV7kdQ==}
+  hono@4.12.34:
+    resolution: {integrity: sha512-GqXJqY/xJkJmuloTrnV1ZEXG3fqte+VjkUqoRNZXcrUidiUOP4fMSIHHY4tsqZBK++kVyWmt/AAfSUuy57/eSA==}
     engines: {node: '>=16.9.0'}
 
   html-escaper@2.0.2:
@@ -2633,9 +2633,9 @@ snapshots:
       '@eslint/core': 1.2.1
       levn: 0.4.1
 
-  '@hono/zod-validator@0.7.6(hono@4.12.18)(zod@4.4.3)':
+  '@hono/zod-validator@0.7.6(hono@4.12.34)(zod@4.4.3)':
     dependencies:
-      hono: 4.12.18
+      hono: 4.12.34
       zod: 4.4.3
 
   '@humanfs/core@0.19.1': {}
@@ -3581,7 +3581,7 @@ snapshots:
 
   has-flag@4.0.0: {}
 
-  hono@4.12.18: {}
+  hono@4.12.34: {}
 
   html-escaper@2.0.2: {}
 
